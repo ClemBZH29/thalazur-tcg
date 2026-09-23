@@ -1,429 +1,36 @@
 /**
- * MINES DE KAZIM
- * Module idle/clicker pour l'app de collection de cartes.
+ * MINES DE KAZIM — l'interface.
  *
- * Fichier unique volontairement : données, styles et logique tiennent ensemble
- * pour que le module soit déposable tel quel et prévisualisable. Si vous
- * préférez suivre l'arborescence du projet, les trois blocs marqués
- * DONNÉES, STYLES et LOGIQUE se détachent sans rien changer d'autre, vers
- * src/config/kazim.js, src/styles/kazim.css et src/components/MinesDeKazim.jsx.
+ * Le module est réparti en cinq fichiers :
+ *   donnees.js     strates, compagnons, équipement, talents, lexique
+ *   regles.js      constantes d'économie et formules pures (testées)
+ *   sauvegarde.js  la partie sauvegardée, son format et sa relecture
+ *   format.js      nombres et durées à la française
+ *   ce fichier     l'état vivant, les gestes et l'affichage
  *
  *   <MinesDeKazim
  *     onPO={(gain, totalSession) => crediterJoueur(gain)}
- *     storage={monAdaptateur}          // sinon window.storage, sinon mémoire
- *     storageKey="kazim:joueur42"
- *     spritesBase="/img/kazim/"        // sinon les sprites embarqués plus bas
+ *     storage={{ get: () => Promise<string|null>, set: (json) => Promise }}
+ *     spritesBase="/kazim/"
  *   />
  *
  * Le module n'écrit jamais le solde du joueur, il annonce un gain via onPO.
- * Aucune couleur en dur : tout passe par les jetons de tokens.css, avec repli
- * sur les valeurs de la charte pour tourner hors de l'app.
+ * Aucune couleur en dur : tout passe par les jetons de tokens.css.
  */
 
 import { Fragment, useState, useRef, useEffect, useReducer, useCallback } from "react";
 import "../styles/kazim.css";
-
-/* ══════════════════════════════════════════════════════════════════════
-   DONNÉES
-   ══════════════════════════════════════════════════════════════════════ */
-
-/* Sprites : des fichiers de public/kazim/, servis par `spritesBase`. Le module
-   les portait en base64 dans un second fichier — deux cents kilo-octets qui
-   traversaient le bundle à chaque chargement de l'application, pour vingt
-   vignettes de sept kilo-octets qu'un navigateur met en cache et ne charge que
-   si l'onglet est ouvert. Le repli sur window.KAZIM_SPRITES est conservé pour
-   que le module reste prévisualisable hors de l'application. */
-const sprites = () => (typeof window !== "undefined" && window.KAZIM_SPRITES) || {};
-
-const STRATES = [
-  { nom: "Galerie d'entrée", sous: "Poussière, rails rouillés, un vieux fanal." },
-  { nom: "Veines Grises", sous: "Le schiste crisse. L'étoile y perle en grains." },
-  { nom: "Faille de Braise", sous: "La roche est tiède. Quelque chose respire dessous." },
-  { nom: "Halle des Étais", sous: "Des piliers taillés par des mains oubliées." },
-  { nom: "Cœur Résonant", sous: "Chaque coup de pioche revient en écho, deux fois." },
-  { nom: "Puits Noyé", sous: "L'eau monte à hauteur de botte et brille par en dessous." },
-  { nom: "Rookerie kobolde", sous: "Ils vous regardent creuser. Ils comptent déjà." },
-  { nom: "Abîme de Kazim", sous: "Plus de plafond. De l'étoile à perte de vue." },
-];
-
-const COMPAGNONS = [
-  { id: "fanal",   sprite: "porte-fanal",        nom: "Porte-fanal",           desc: "Tient la lumière, ramasse les éclats tombés.", base: 15,     dps: 1 },
-  { id: "nain",    sprite: "mineur-nain",        nom: "Mineur nain",           desc: "Frappe lentement, ne s'arrête jamais.",        base: 130,    dps: 9 },
-  { id: "foreuse", sprite: "foreuse-vapeur",     nom: "Foreuse à vapeur",      desc: "Bruyante, gourmande en charbon, efficace.",    base: 1400,   dps: 52 },
-  { id: "golem",   sprite: "golem-schiste",      nom: "Golem de schiste",      desc: "Creuse la roche avec ses propres poings.",     base: 15000,  dps: 290 },
-  { id: "deser",   sprite: "kobold-deserteur",   nom: "Kobold déserteur",      desc: "Connaît les filons que sa tribu vous cache.",  base: 170000, dps: 1600 },
-  { id: "sourc",   sprite: "sourciere-etoile",   nom: "Sourcière d'étoile",    desc: "Écoute la roche et désigne où frapper.",       base: 2.1e6,  dps: 9000 },
-  { id: "elem",    sprite: "elementaire-faille", nom: "Élémentaire de faille", desc: "Fend la strate d'un seul mouvement.",          base: 3.2e7,  dps: 52000 },
-  { id: "titan",   sprite: "machine-kazim",      nom: "Machine de Kazim",      desc: "Personne ne sait qui l'a construite.",         base: 5.5e8,  dps: 320000 },
-];
-
-const EQUIPEMENT = [
-  { id: "p1", sprite: "pioche-fer",         nom: "Pioche de fer",          desc: "Dégâts de frappe doublés.",                     cout: 90,    type: "clic",    val: 2,    req: 0 },
-  { id: "l1", sprite: "fanal-huile",        nom: "Fanal à huile claire",   desc: "Ajoute 4 % de chance de coup critique.",        cout: 400,   type: "crit",    val: 4,    req: 0 },
-  { id: "e1", sprite: "etais-renforces",    nom: "Étais renforcés",        desc: "Production des compagnons augmentée de 40 %.",  cout: 1600,  type: "dps",     val: 1.4,  req: 1 },
-  { id: "p2", sprite: "pioche-acier",       nom: "Pioche d'acier trempé",  desc: "Dégâts de frappe multipliés par 2,5.",          cout: 7000,  type: "clic",    val: 2.5,  req: 1 },
-  { id: "c1", sprite: "contrat-courtage",   nom: "Contrat de courtage",    desc: "Prix de rachat +14 %, et les kobolds se lassent moins vite.",      cout: 20000, type: "taux",    val: 0.88, req: 2 },
-  { id: "l2", sprite: "lentille-quartz",    nom: "Lentille de quartz",     desc: "Ajoute 6 % de critique et les rend plus durs.", cout: 65000, type: "crit2",   val: 6,    req: 2 },
-  { id: "e2", sprite: "rails-bascule",      nom: "Rails à bascule",        desc: "Production des compagnons doublée.",            cout: 3e5,   type: "dps",     val: 2,    req: 3 },
-  { id: "p3", sprite: "pioche-resonante",   nom: "Pioche résonante",       desc: "Dégâts de frappe multipliés par 4.",            cout: 1.4e6, type: "clic",    val: 4,    req: 4 },
-  { id: "f1", sprite: "tamis-mailles",      nom: "Tamis à mailles fines",  desc: "Récolte d'étoile augmentée de 60 %.",           cout: 9e6,   type: "recolte", val: 1.6,  req: 4 },
-  { id: "c2", sprite: "serment-rookerie",   nom: "Serment de la Rookerie", desc: "Prix de rachat +18 %, et ils se lassent encore moins vite.",          cout: 4e7,   type: "taux",    val: 0.85, req: 6 },
-  { id: "p4", sprite: "pioche-kazim",       nom: "Pioche de Kazim",        desc: "Dégâts de frappe multipliés par 6.",            cout: 2.5e8, type: "clic",    val: 6,    req: 7 },
-  { id: "f2", sprite: "benediction-filon",  nom: "Bénédiction du filon",   desc: "Récolte d'étoile multipliée par 2,2.",          cout: 1.2e9, type: "recolte", val: 2.2,  req: 7 },
-];
-
-/* Les descriptions disent ce que le talent fait, pas comment il est calculé.
-   « Une frappe vaut 0,12 s de production de plus par point » était exact et
-   illisible : c'est la formule de `secondesParFrappe`, recopiée dans l'interface.
-   Le joueur n'a pas à lire le code pour savoir s'il doit dépenser son point. */
-/* ── Les améliorations de compagnon ───────────────────────────────────────
-   Le prix d'un compagnon monte de 15 % par exemplaire, sa production ne monte
-   pas du tout : passé une trentaine de porte-fanaux, un de plus coûtait deux
-   mille étoiles pour une seule de production, quand une foreuse en rendait
-   cinquante pour dix mille. L'équipe de départ ne mourait pas, elle cessait
-   simplement d'exister — et c'est la moitié du roster qui passait au rebut à
-   chaque palier franchi.
-
-   Quatre améliorations par compagnon, débloquées au nombre possédé, chacune
-   doublant sa production : ×16 pour une équipe complète. Elles ne rendent pas
-   un porte-fanal meilleur qu'un golem — avec des paliers de production à ×5,8,
-   aucun doublement ne le pourrait, et ce serait d'ailleurs absurde. Elles font
-   autre chose, qui est précisément ce qui manquait : elles donnent une raison
-   de continuer d'en acheter. À trente-six porte-fanaux avec les rangs I et II,
-   le suivant rend quatre fois plus qu'avant, et surtout il rapproche du
-   cinquantième, qui double de nouveau toute la ligne.
-
-   Le prix est indexé sur le compagnon lui-même — ce qu'a coûté d'arriver au
-   seuil, multiplié par un facteur qui double d'un rang à l'autre, comme
-   l'effet. Une seule constante, et chaque ligne suit sa propre courbe sans
-   table de prix à tenir à jour.
-
-   Ce que ça donne, en nombre d'exemplaires du compagnon concerné :
-
-     rang I   ≈ 10 exemplaires   pour en gagner 10  → l'entrée, au prix coûtant
-     rang II  ≈ 20               pour en gagner 50  → deux fois et demie
-     rang III ≈ 40               pour en gagner 200 → cinq fois
-     rang IV  ≈ 80               pour en gagner 800 → dix fois
-
-   La pente est voulue : le premier rang se paie au prix d'un achat ordinaire,
-   les suivants récompensent d'avoir tenu la ligne. Un rang uniformément cher
-   faisait l'inverse — on le prenait au début, où il ne servait à rien, et on
-   l'abandonnait à la fin, où il aurait tout changé. */
-const RANGS = ["I", "II", "III", "IV"];
-const SEUILS_AMELIORATION = [10, 25, 50, 100];
-const FACTEUR_AMELIORATION = 1.5;
-/* Ce qu'a coûté l'achat des n premiers exemplaires, somme de la géométrique. */
-const coutCumule = (base, n) => (base * (Math.pow(1.15, n) - 1)) / 0.15;
-
-const AMELIORATIONS = COMPAGNONS.flatMap((c) =>
-  SEUILS_AMELIORATION.map((seuil, i) => ({
-    id: "a-" + c.id + "-" + i,
-    compagnon: c.id,
-    sprite: c.sprite,
-    nom: c.nom + " " + RANGS[i],
-    seuil,
-    desc: "Production doublée. Il en faut " + seuil + ".",
-    cout: Math.ceil(coutCumule(c.base, seuil) * FACTEUR_AMELIORATION * Math.pow(2, i)),
-  }))
-);
-
-const TALENTS = [
-  { id: "force",      nom: "Force",
-    desc: "Vos coups de pioche font plus mal — et le restent quand vos compagnons pèsent des millions. Le seul talent qui récompense votre présence." },
-  { id: "echo",       nom: "Écho",
-    desc: "Deux points de chance de coup critique en plus par point. Chaque critique fait aussi monter le prix de votre prochaine vente." },
-  { id: "discipline", nom: "Discipline",
-    desc: "Vos compagnons creusent 12 % plus vite par point. Le seul talent qui travaille en votre absence." },
-  { id: "fortune",    nom: "Fortune",
-    desc: "Des filons exceptionnels plus souvent : ceux qui rendent quatre à douze fois plus d'étoile." },
-];
-
-/* ── Ce qui s'ouvre, et quand ─────────────────────────────────────────────
-   Les cinq onglets étaient tous là à la première seconde. Quatre d'entre eux
-   ne voulaient rien dire : l'Échoppe sans étoile à vendre, les Talents sans
-   point à placer, l'Effondrement qui exige la profondeur 5. Le joueur arrivait
-   devant un tableau de bord d'usine pour un seul geste possible — frapper.
-
-   Chacun s'ouvre maintenant au moment où il devient utile, dans cet ordre,
-   qui est aussi celui de l'apprentissage. Le prédicat lit l'état ; rien n'est
-   stocké, donc une sauvegarde ancienne retrouve ses onglets au chargement.
-   La phrase sert deux fois : à annoncer l'ouverture, et dans le lexique. */
-const ONGLETS = [
-  ["compagnons", "Compagnons", () => true,
-    "Embauchez qui creusera à votre place, même quand vous n'êtes pas là."],
-  ["echoppe", "Échoppe kobolde", (s) => s.brisesTotal >= 1,
-    "Les kobolds rachètent votre étoile contre des pièces d'or."],
-  ["equipement", "Chantier", (s) => s.brisesTotal >= 4,
-    "Pioches, fanaux, étais : du matériel qu'on installe une fois pour toutes."],
-  ["talents", "Talents", (s) => s.niveau > 1 || s.points > 0,
-    "Un point par niveau, à placer où vous voulez."],
-  ["effondrement", "Effondrement", (s) => s.profondeurMax >= 5,
-    "Tout faire sauter et recommencer, en plus fort."],
-];
-
-/* ── Le lexique ───────────────────────────────────────────────────────────
-   Un jeu de mine a son vocabulaire, et il vaut mieux qu'il en ait un : « le
-   filon cède » dit quelque chose que « le compteur atteint zéro » ne dit pas.
-   Mais un mot d'ambiance qui porte une mécanique doit être définissable en une
-   phrase, et cette phrase doit être quelque part. Elle est ici.
-
-   Le lexique ne montre que les mots déjà rencontrés : lire la définition de
-   l'effondrement au premier coup de pioche n'apprend rien à personne. */
-const LEXIQUE = [
-  { mot: "Étoile", des: () => true,
-    def: "Le minerai qu'on sort de la roche. Elle ne sert qu'ici : embaucher, équiper, et se faire payer par les kobolds." },
-  { mot: "Filon", des: () => true,
-    def: "Un bloc de roche. On le frappe jusqu'à ce qu'il cède, il rend son étoile, un autre prend sa place." },
-  { mot: "Résistance", des: () => true,
-    def: "Ce qu'il reste à casser sur le filon en cours — la barre sous la roche." },
-  { mot: "Profondeur", des: () => true,
-    def: "Douze filons par profondeur. Le douzième vous fait descendre, et plus bas l'étoile se vend plus cher." },
-  { mot: "Coup critique", des: (s) => s.brisesTotal >= 1,
-    def: "Une frappe qui compte cinq fois. Le fanal, la lentille et le talent Écho les rendent plus fréquents." },
-  { mot: "Filon exceptionnel", des: (s) => s.brisesTotal >= 1,
-    def: "Il arrive qu'un filon rende quatre, voire douze fois plus d'étoile. Le talent Fortune les fait sortir plus souvent." },
-  { mot: "PO kobold", des: (s) => s.brisesTotal >= 1,
-    def: "Les pièces d'or que les kobolds versent. Elles rejoignent votre bourse, en haut du site." },
-  { mot: "Prix de rachat", des: (s) => s.brisesTotal >= 1,
-    def: "Ce que les kobolds consentent à payer, en pourcentage. Il monte quand vous vendez gros, il baisse à mesure qu'ils ont déjà payé." },
-  { mot: "Éclat de Kazim", des: (s) => s.profondeurMax >= 5,
-    def: "Ce qu'on retrouve dans les gravats après un effondrement. Chaque éclat ajoute 3 % de récolte et de dégâts, pour toujours." },
-  { mot: "Effondrement", des: (s) => s.profondeurMax >= 5,
-    def: "Faire sauter les étais : la mine repart de zéro, mais vos pièces d'or et vos éclats restent." },
-];
-
-const FILONS_PAR_STRATE = 12;
-
-/* Économie. L'économie de base donne 15 PO par heure plafonnées à 720, soit
-   trois boosters par jour. La mine complète, elle ne remplace pas.
-
-   Les kobolds rachètent à un cours qui monte avec le volume d'une vente et qui
-   s'appauvrit à mesure qu'ils ont déjà payé. L'appauvrissement est indexé sur
-   les PO VERSÉS depuis le dernier effondrement, jamais sur le nombre de ventes :
-   sinon il suffirait de vendre une seule fois, très gros, pour l'annuler.
-
-   Prix d'un PO : ancre * e^(PO versés / FATIGUE_PO). Le stock nécessaire croît
-   en exponentielle quand les PO croissent en linéaire, ce qui transforme une
-   production exponentielle en revenu logarithmique. */
-const FILONS_PAR_PO = 4;       // ancre du ratio : un PO vaut quatre filons de la strate 1
-const ANCRE_EXPO = 0.85;       // sous-linéaire : descendre rend l'étoile un peu plus payante
-const FATIGUE_PO = 32;         // PO versés pour que le cours soit divisé par e
-const T_MAX = 0.75;            // plafond du bonus de volume
-const DETTE_PAS = 0.06;        // creusement logarithmique de la dette par effondrement
-const DETTE_MAX = 0.55;        // plancher du cours : la mine ne meurt jamais tout à fait
-const RESONANCE_MAX = 0.25;    // bonus de cours accumulable par les critiques
-/* Plafond quotidien laissé à zéro, donc désactivé : la mine complète le gain
-   passif de l'application au lieu de le remplacer, et son économie est déjà
-   logarithmique — le cours kobold est divisé par e tous les trente-deux PO
-   versés, ce qui borne la journée bien mieux qu'un couperet. Voir
-   docs/audit-economie.md pour les ordres de grandeur mesurés. */
-const PLAFOND_JOUR = 0;
-const PIOCHES = ["p4", "p3", "p2", "p1"];
-
-/* ══════════════════════════════════════════════════════════════════════
-   STYLES
-   ══════════════════════════════════════════════════════════════════════ */
-
-
-/* ══════════════════════════════════════════════════════════════════════
-   LOGIQUE
-   ══════════════════════════════════════════════════════════════════════ */
-
-function etatNeuf() {
-  return {
-    v: 1,
-    etoile: 0, etoileTotale: 0, poGagnes: 0,
-    profondeur: 1, profondeurMax: 1, brises: {}, brisesTotal: 0,
-    /* 0 ordinaire · 1 généreux (×4) · 2 exceptionnel (×12). Tiré à la
-       naissance du filon et non à sa rupture : voir `nouveauFilon`. */
-    pv: 0, pvMax: 0, filonRang: 0,
-    niveau: 1, xp: 0, points: 0,
-    talents: { force: 0, echo: 0, discipline: 0, fortune: 0 },
-    compagnons: {}, equipement: [],
-    eclats: 0, echanges: 0, effondrements: 0,
-    poRun: 0, resonance: 0, poJour: 0, jourT: Date.now(),
-    cours: 1, coursT: 0,
-    dernierTick: Date.now(),
-  };
-}
-
-const equipA = (S, id) => S.equipement.indexOf(id) !== -1;
-const equipMult = (S, type) =>
-  EQUIPEMENT.reduce((m, e) => (e.type === type && equipA(S, e.id) ? m * e.val : m), 1);
-const mEclats = (S) => 1 + S.eclats * 0.03;
-/* Force convertit la présence en revenu : une frappe vaut une fraction de la
-   production passive, donc cliquer reste utile quand les compagnons pèsent des
-   millions. Sans cela, Discipline écrase tout le reste par construction. */
-const secondesParFrappe = (S) => 0.15 + 0.12 * S.talents.force;
-const degatsClic = (S) => Math.max(
-  (1 + S.talents.force * 0.3) * equipMult(S, "clic") * mEclats(S),
-  dpsBrut(S) * secondesParFrappe(S)
-);
-const critChance = (S) =>
-  Math.min(75, EQUIPEMENT.reduce(
-    (c, e) => (equipA(S, e.id) && (e.type === "crit" || e.type === "crit2") ? c + e.val : c),
-    Math.min(15, S.talents.echo * 2)
-  ));
-const critMult = (S) => (equipA(S, "l2") ? 7.5 : 5);
-const prodUnitaire = (S) => (1 + S.talents.discipline * 0.12) * equipMult(S, "dps") * mEclats(S);
-/* Les améliorations d'un compagnon se cumulent en doublant : ×2, ×4, ×8, ×16.
-   Elles vivent dans le même tableau `equipement` que le chantier, donc un
-   effondrement les emporte comme le reste — « achats définitifs » vaut pour
-   la mine en cours, pas pour l'éternité. */
-const multCompagnon = (S, id) => Math.pow(
-  2,
-  AMELIORATIONS.reduce((n, a) => (a.compagnon === id && equipA(S, a.id) ? n + 1 : n), 0)
-);
-const dpsUn = (S, c) => c.dps * multCompagnon(S, c.id) * prodUnitaire(S);
-const dpsBrut = (S) =>
-  COMPAGNONS.reduce((a, c) => a + (S.compagnons[c.id] || 0) * c.dps * multCompagnon(S, c.id), 0)
-  * prodUnitaire(S);
-const dps = dpsBrut;
-const multRecolte = (S) => equipMult(S, "recolte") * mEclats(S);
-/* Fortune ne touche pas la moyenne par la même porte que Discipline : elle
-   gonfle la fréquence des filons qui rendent plus, donc la variance. */
-const chanceEvenement = (S) => Math.min(0.35, 0.05 * (1 + 0.5 * S.talents.fortune));
-/* Un filon sur combien rend plus. Le chiffre est affiché sous les talents :
-   douze points placés dans Fortune ne se voyaient nulle part. */
-const unFilonSur = (S) => Math.max(1, Math.round(1 / chanceEvenement(S)));
-/* La teinte des filons qui rendent plus : ambre à zéro point de Fortune, rouge
-   franc à dix. Le talent gouverne la fréquence ; la couleur dit jusqu'où on
-   l'a poussé, ce qu'aucun chiffre de l'interface ne disait. */
-const teinteFortune = (S) => Math.round(40 - 40 * Math.min(1, S.talents.fortune / 10));
-const pvFilon = (prof, brises) => Math.ceil(18 * Math.pow(3.2, prof - 1) * Math.pow(1.09, brises));
-const xpRequis = (S) => Math.floor(22 * Math.pow(S.niveau, 1.55));
-const brisesIci = (S) => S.brises[S.profondeur] || 0;
-const margeKobold = (S) =>
-  Math.pow(0.94, Math.min(12, Math.floor(S.echanges / 4))) * equipMult(S, "taux");
-/* Ancre : ce que coûterait un PO si les kobolds étaient honnêtes. Elle suit la
-   profondeur atteinte avec un exposant plus faible que les points de roche, donc
-   descendre augmente réellement le revenu, d'environ 19 % par strate. */
-const ancrePO = (S) =>
-  Math.max(12, 0.24 * 18 * Math.pow(3.2, (S.profondeurMax - 1) * ANCRE_EXPO) * FILONS_PAR_PO);
-
-/* Dette d'effondrement : imperceptible au premier, jamais rattrapable ensuite. */
-const dette = (S) => Math.min(DETTE_MAX, DETTE_PAS * Math.log(1 + S.effondrements));
-/* Bonus de volume : vendre gros paie, avec un rendement décroissant. */
-const bonusVolume = (S, mise) =>
-  Math.min(T_MAX, 0.18 * Math.log2(1 + Math.max(0, mise) / ancrePO(S) / 5));
-const resonance = (S) => Math.min(RESONANCE_MAX, (S.resonance || 0) * 0.004);
-/* Cours hors fatigue, exprimé comme un multiplicateur : tout ce qui aide monte. */
-const coursBase = (S, mise) =>
-  Math.max(0.05, (1 + bonusVolume(S, mise) + resonance(S)) * (1 - dette(S))
-    / equipMult(S, "taux") / S.cours);
-const coursAffiche = (S, mise) =>
-  Math.round(coursBase(S, mise) * Math.exp(-S.poRun / FATIGUE_PO) * 100);
-
-/* Combien de PO pour une mise, fatigue intégrée sur toute la vente.
-   E = (ancre / cours) * F * (e^(p1/F) - e^(p0/F)), résolu en p1. */
-function poPourMise(S, mise) {
-  const ancre = ancrePO(S), c = coursBase(S, mise), F = FATIGUE_PO, p0 = S.poRun;
-  const p1 = F * Math.log(Math.exp(p0 / F) + (Math.max(0, mise) * c) / (ancre * F));
-  const po = Math.floor(p1 - p0);
-  if (po < 1) return { po: 0, depense: 0, prixMoyen: Math.ceil(ancre / c) };
-  const depense = Math.ceil((ancre / c) * F * (Math.exp((p0 + po) / F) - Math.exp(p0 / F)));
-  return { po, depense, prixMoyen: Math.ceil(depense / po) };
-}
-const prochainPO = (S) =>
-  Math.ceil((ancrePO(S) / coursBase(S, 0)) * FATIGUE_PO
-    * (Math.exp((S.poRun + 1) / FATIGUE_PO) - Math.exp(S.poRun / FATIGUE_PO)));
-
-const eclatsDispo = (S) =>
-  S.profondeurMax < 5 ? 0 : Math.max(0, Math.floor(Math.sqrt(S.etoileTotale / 4e6)) - S.eclats);
-const coutUn = (S, c) => Math.ceil(c.base * Math.pow(1.15, S.compagnons[c.id] || 0));
-const coutN = (S, c, n) =>
-  Math.ceil(c.base * Math.pow(1.15, S.compagnons[c.id] || 0) * (Math.pow(1.15, n) - 1) / 0.15);
-const nbAbordable = (S, c) => {
-  const unite = c.base * Math.pow(1.15, S.compagnons[c.id] || 0);
-  return Math.max(0, Math.min(500, Math.floor(Math.log(S.etoile * 0.15 / unite + 1) / Math.log(1.15))));
-};
-
-/* ── Le semis d'étoile d'un filon ──────────────────────────────────────────
-   Chaque filon a son propre semis : c'est ce qui fait qu'aucun bloc de roche ne
-   ressemble au précédent. Deux corrections par rapport au tirage naïf.
-
-   1. Le recouvrement est constant. Le nombre d'éclats variait de cinq à huit et
-      leur taille de six à seize, indépendamment : l'aire totale allait donc du
-      simple au décuple, et un filon sur trois paraissait vide quand le suivant
-      était constellé. Les tailles sont maintenant tirées en valeurs relatives
-      puis mises à l'échelle pour que la somme des aires vaille toujours la même
-      fraction de la roche. La variété des tailles est conservée, c'est leur
-      total qui est fixé.
-
-   2. Les positions sont réparties, pas seulement aléatoires. Un tirage uniforme
-      sur si peu de points produit des grappes et des vides. Chaque éclat est
-      choisi parmi douze candidats, celui qui s'éloigne le plus de ses voisins
-      déjà posés — c'est le tirage « meilleur candidat » de Mitchell, qui donne
-      un bruit bleu : ça reste imprévisible, mais ça ne s'agglutine plus.        */
-
-/* Ellipse inscrite dans le bloc de roche, en unités du viewBox 400 × 300. */
-const SEMIS = { cx: 197, cy: 155, rx: 106, ry: 78 };
-/* Un éclat est un losange de demi-diagonales t et 0,58 t, donc d'aire 1,16 t². */
-const AIRE_ECLAT = 1.16;
-/* Part de l'ellipse couverte par l'étoile, quel que soit le filon. */
-const PART_ETOILE = 0.036;
-
-function genererEclats() {
-  const n = 5 + Math.floor(Math.random() * 4);
-
-  /* Tailles relatives, puis mise à l'échelle sur l'aire visée. */
-  const poids = Array.from({ length: n }, () => 0.62 + Math.random() * 0.83);
-  const cible = Math.PI * SEMIS.rx * SEMIS.ry * PART_ETOILE;
-  const somme = poids.reduce((a, w) => a + w * w, 0);
-  const k = Math.sqrt(cible / (AIRE_ECLAT * somme));
-  const tailles = poids.map((w) => k * w).sort((a, b) => b - a);
-
-  const out = [];
-  for (const t of tailles) {
-    /* Marge : l'éclat doit tenir entier dans la roche, donc on rétrécit
-       l'ellipse de placement de sa propre demi-diagonale. */
-    const rx = Math.max(6, SEMIS.rx - t * 1.15);
-    const ry = Math.max(6, SEMIS.ry - t * 1.15);
-    let meilleur = null;
-    let meilleureDistance = -1;
-    for (let c = 0; c < 12; c++) {
-      const a = Math.random() * Math.PI * 2;
-      const r = Math.sqrt(Math.random());          // uniforme en aire
-      const x = SEMIS.cx + Math.cos(a) * r * rx;
-      const y = SEMIS.cy + Math.sin(a) * r * ry;
-      /* Distance au voisin le plus proche, normalisée par les tailles : deux
-         gros éclats doivent s'écarter plus que deux petits. */
-      let d = Infinity;
-      for (const e of out) {
-        d = Math.min(d, Math.hypot(e.x - x, e.y - y) - (e.t + t) * 0.62);
-      }
-      if (d > meilleureDistance) { meilleureDistance = d; meilleur = { x, y }; }
-    }
-    out.push({ x: meilleur.x, y: meilleur.y, t, rot: Math.round((Math.random() * 2 - 1) * 24) });
-  }
-  return out;
-}
-
-function strate(p) {
-  if (p <= STRATES.length) return STRATES[p - 1];
-  return { nom: "Abîme de Kazim, niveau " + (p - STRATES.length + 1),
-           sous: "On ne remonte pas d'ici avec la même tête." };
-}
-
-const SUFFIXES = ["", " K", " M", " Md", " Bi", " Tri", " Qa", " Qi"];
-function fmt(n) {
-  if (!isFinite(n)) return "\u221e";
-  if (n < 0) return "\u2212" + fmt(-n);
-  if (n < 1000) return String(n < 10 && n % 1 !== 0 ? n.toFixed(1) : Math.floor(n)).replace(".", ",");
-  let i = 0;
-  while (n >= 1000 && i < SUFFIXES.length - 1) { n /= 1000; i++; }
-  let s = n < 10 ? n.toFixed(2) : n < 100 ? n.toFixed(1) : n.toFixed(0);
-  // Ne raboter les zéros que derrière la virgule : sinon 100 M devenait 1 M.
-  if (s.indexOf(".") >= 0) s = s.replace(/0+$/, "").replace(/\.$/, "");
-  return s.replace(".", ",") + SUFFIXES[i];
-}
-/* Signe typographique : plus, ou vrai signe moins, jamais le trait d'union. */
-const signe = (n) => (n >= 0 ? "+" + n : "\u2212" + Math.abs(n));
-const fmtEnt = (n) => String(Math.floor(n)).replace(/\B(?=(\d{3})+(?!\d))/g, "\u202f");
-const fmtDuree = (ms) => {
-  const m = Math.round(ms / 60000);
-  return m < 60 ? m + " min" : Math.floor(m / 60) + " h " + (m % 60) + " min";
-};
+import { COMPAGNONS, EQUIPEMENT, AMELIORATIONS, TALENTS, ONGLETS, LEXIQUE } from "./donnees.js";
+import {
+  FILONS_PAR_STRATE, FATIGUE_PO, DETTE_PAS, DETTE_MAX, RESONANCE_MAX, PLAFOND_JOUR,
+  PIOCHES, equipA, equipMult, degatsClic, critChance, critMult,
+  multCompagnon, dpsUn, dps, multRecolte, chanceEvenement, unFilonSur,
+  teinteFortune, pvFilon, xpRequis, brisesIci, dette, bonusVolume,
+  resonance, coursAffiche, poPourMise, prochainPO, eclatsDispo, coutUn,
+  coutN, nbAbordable, genererEclats, strate,
+} from "./regles.js";
+import { fmt, signe, fmtEnt, fmtDuree } from "./format.js";
+import { etatNeuf, relireMine } from "./sauvegarde.js";
 
 /**
  * Effets actifs par défaut ?
@@ -443,24 +50,11 @@ function sobreParDefaut() {
     : false;
 }
 
-function faireMagasin(fourni, key) {
-  if (fourni && typeof fourni.get === "function" && typeof fourni.set === "function") return fourni;
-  if (typeof window !== "undefined" && window.storage
-      && typeof window.storage.get === "function" && typeof window.storage.set === "function") {
-    return {
-      get: (k) => window.storage.get(k).then((r) => (r ? r.value : null)).catch(() => null),
-      set: (k, v) => window.storage.set(k, v).catch(() => null),
-    };
-  }
-  const mem = {};
-  return { get: (k) => Promise.resolve(mem[k] || null), set: (k, v) => { mem[k] = v; return Promise.resolve(); } };
-}
-
 /* ══════════════════════════════════════════════════════════════════════
    COMPOSANT
    ══════════════════════════════════════════════════════════════════════ */
 
-function MinesDeKazim({ onPO, storage, storageKey = "kazim:save", spritesBase = null }) {
+function MinesDeKazim({ onPO, storage, spritesBase }) {
   const S = useRef(etatNeuf());
   const [, forcer] = useReducer((n) => n + 1, 0);
 
@@ -503,12 +97,11 @@ function MinesDeKazim({ onPO, storage, storageKey = "kazim:save", spritesBase = 
   const compteurs = useRef({ particules: 0, derniereRupture: 0, derniereForme: 0, chute: false });
   const formeRef = useRef(genererEclats());
   const sessionPO = useRef(0);
-  const magasin = useRef(null);
 
   effetsRef.current = effets;
 
   const src = useCallback(
-    (nom) => (spritesBase ? spritesBase + nom + ".webp" : sprites()[nom] || ""),
+    (nom) => spritesBase + nom + ".webp",
     [spritesBase]
   );
 
@@ -746,24 +339,21 @@ function MinesDeKazim({ onPO, storage, storageKey = "kazim:save", spritesBase = 
 
   const sauver = useCallback(() => {
     S.current.dernierTick = Date.now();
-    try { magasin.current.set(storageKey, JSON.stringify(S.current)); } catch (e) { /* la partie continue */ }
-  }, [storageKey]);
+    try { storage.set(JSON.stringify(S.current)); } catch { /* la partie continue */ }
+  }, [storage]);
 
   useEffect(() => {
-    magasin.current = faireMagasin(storage, storageKey);
     let vivant = true;
     Promise.resolve()
-      .then(() => magasin.current.get(storageKey))
+      .then(() => storage.get())
       .then((brut) => {
       if (!vivant) return;
-      let d = null;
-      try { d = brut ? JSON.parse(brut) : null; } catch (e) { d = null; }
-      if (d && d.v === 1) {
-        const n = etatNeuf();
-        Object.keys(n).forEach((k) => { if (d[k] !== undefined && d[k] !== null) n[k] = d[k]; });
-        S.current = n;
+      const d = relireMine(brut);
+      if (d) {
+        const avant = d.dernierTick;
+        S.current = d;
         const t = Date.now();
-        const absence = Math.min(8 * 3600000, t - (typeof d.dernierTick === "number" ? d.dernierTick : t));
+        const absence = Math.min(8 * 3600000, t - (typeof avant === "number" ? avant : t));
         S.current.coursT = t;
         S.current.dernierTick = t;
         if (absence > 60000) {
@@ -797,7 +387,7 @@ function MinesDeKazim({ onPO, storage, storageKey = "kazim:save", spritesBase = 
       Object.keys(minuteurs.current).forEach((k) => clearTimeout(minuteurs.current[k]));
       sauver();
     };
-  }, [storage, storageKey, sauver, noter, nouveauFilon]);
+  }, [storage, sauver, noter, nouveauFilon]);
 
   /* ---------- actions ---------- */
 

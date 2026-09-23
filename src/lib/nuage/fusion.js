@@ -121,7 +121,7 @@ export function fusionnerMine(ici, la) {
   return t(ici) >= t(la) ? ici : la;
 }
 
-const COMPTEURS = new Set(["collections", "boosters", "bourse", "mine", "version"]);
+const COMPTEURS = new Set(["collections", "boosters", "bourse", "mine", "schema"]);
 
 /**
  * Fusion à trois voies. `base` peut manquer : c'est le cas d'un joueur qui

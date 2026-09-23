@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import MinesDeKazim from "../mines/MinesDeKazim.jsx";
 import { useJeu } from "../jeu/Jeu.jsx";
-import { magasinKazim, CLE_MINE } from "../lib/storage.js";
+import { magasinKazim } from "../lib/storage.js";
 import AvisMouvement from "../components/AvisMouvement.jsx";
 
 /**
@@ -47,7 +47,6 @@ export default function PageMines() {
         key={versionMine}
         onPO={surPO}
         storage={magasinKazim}
-        storageKey={CLE_MINE}
         spritesBase={`${import.meta.env.BASE_URL}kazim/`}
       />
 
