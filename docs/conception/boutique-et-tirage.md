@@ -196,3 +196,20 @@ Réglages MJ → Mode test (`npm run dev` seulement ; ignoré sur le site publi�
 | Cartes par booster | de 1 à 10, la montée sur les deux derniers emplacements est conservée |
 | Palier forcé | met toutes les cartes sur un palier, full art et PJ compris |
 | Rainbow | force ou supprime l'irisation |
+
+## La caisse
+
+La bourse, le nombre de boosters qu'elle paie et le gain passif tiennent dans
+une bande sous l'étagère (`src/components/Caisse.jsx`). Ils vivaient à droite
+du titre, ce qui donnait à la Boutique un en-tête plus haut que celui des
+autres pages ; le gabarit commun l'interdit désormais. Sur téléphone, la bande
+passe au-dessus des vignettes, qu'on ne verrait jamais sous quatre sachets
+empilés.
+
+Le délai avant le prochain booster n'est plus répété sur la vignette : la caisse
+le donne, une fois.
+
+Le plafond de 720 PO borne le **gain passif**, pas la bourse : ventes et mine
+peuvent la porter au-delà. L'ancien libellé « Réserve pleine, 720 PO »
+contredisait alors la pastille du bandeau ; la caisse dit « en pause au-delà
+de 720 PO ».

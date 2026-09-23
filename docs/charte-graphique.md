@@ -296,7 +296,7 @@ courte. La vue réserve la hauteur de la barre en bas de page.
 Changer d'onglet ne doit rien faire bouger d'autre que le contenu. Toutes les
 pages ont la même largeur (`--page-max`, 1 420 px) et le même en-tête : même
 marge haute, titre de même taille (`--page-titre`), aligné en haut quelle que
-soit la hauteur de ce qui l'accompagne à droite (minuteur, bouton). Le tout
+soit la hauteur de ce qui l’accompagne à droite (un bouton, au plus). Le tout
 vit dans `src/styles/gabarit.css`, chargé en dernier : une page ne redéfinit
 ni sa largeur ni son titre. Seuls l'accueil et la page 404, centrés, font
 exception.

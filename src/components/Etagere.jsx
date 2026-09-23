@@ -1,12 +1,11 @@
 import { BOOSTERS } from "../extensions/index.js";
 import { ECONOMIE, SLOTS } from "../config/tiers.js";
-import { attenteAvantAchat, formatDuree } from "../lib/economie.js";
 import { useJeu } from "../jeu/Jeu.jsx";
 import { Lien } from "../lib/routeur.jsx";
 import AvisMouvement from "./AvisMouvement.jsx";
-import Chrono from "./Chrono.jsx";
+import Caisse from "./Caisse.jsx";
 
-function Booster({ b, ouverts, achetable, attente, gratuit, reste }) {
+function Booster({ b, ouverts, achetable, gratuit, reste }) {
   const pret = b.statut === "ouvert";
   // Une ouverture laissée en plan appartient à une extension précise : elle se
   // signale sur sa vignette plutôt que dans un bandeau qui pousse toute la page.
@@ -46,7 +45,7 @@ function Booster({ b, ouverts, achetable, attente, gratuit, reste }) {
       <h3>{b.titre}</h3>
       <p className="booster-resume">{b.resume}</p>
 
-      {pret && !actif && <p className="patience">Prochain booster dans {formatDuree(attente)}</p>}
+      {/* Le délai avant le prochain booster est dans la caisse, sous l'étagère. */}
     </>
   );
 
@@ -79,18 +78,12 @@ function Booster({ b, ouverts, achetable, attente, gratuit, reste }) {
 export default function Etagere() {
   const { etat, bourse, gratuit, paliersVides } = useJeu();
   const achetable = bourse.po >= ECONOMIE.prix;
-  const attente = attenteAvantAchat(bourse);
   const enCours = etat.enCours;
 
   return (
     <main className="view" id="contenu">
       <div className="section-titre">
         <h1>Boutique</h1>
-        {/* Le rappel des règles tenait cette place : cinq cartes, cent vingt PO,
-            quinze par heure, les doublons. Tout cela est déjà lisible ailleurs —
-            le prix sur chaque vignette, le reste dans les réglages. Ce qu'on
-            vient vraiment lire ici, c'est quand on pourra ouvrir le prochain. */}
-        <Chrono />
       </div>
 
       {paliersVides.length > 0 && (
@@ -111,6 +104,9 @@ export default function Etagere() {
 
       <AvisMouvement quoi="la déchirure du sachet et la révélation des cartes" />
 
+      {/* Sur téléphone, la caisse passe au-dessus : sous quatre vignettes
+          empilées, on ne la verrait jamais. */}
+      <div className="boutique-corps">
       <div className="etagere">
         {BOOSTERS.map((b) => (
           <Booster
@@ -121,9 +117,12 @@ export default function Etagere() {
                 ? enCours.tirage.cards.length - enCours.index
                 : 0
             }
-            achetable={achetable} attente={attente} gratuit={gratuit}
+            achetable={achetable} gratuit={gratuit}
           />
         ))}
+      </div>
+
+      <Caisse />
       </div>
     </main>
   );

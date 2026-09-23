@@ -73,7 +73,6 @@
 .booster-carte.trop-cher { opacity: .72; cursor: default; }
 .booster-carte.trop-cher:hover { transform: none; border-color: var(--edge); background: var(--panel); }
 .booster-carte.trop-cher .vignette-booster img { filter: grayscale(.55) brightness(.7); }
-.patience { font-size: 12.5px; color: var(--lamp); }
 
 /* Solde, dans la barre du haut */
 .bourse { font-size: 13px; font-weight: 600; color: var(--lamp); padding: 6px 13px;
