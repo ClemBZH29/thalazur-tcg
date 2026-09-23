@@ -1,0 +1,621 @@
+/* ------------------------------------------------------------------
+   LES MINES DE KAZIM — feuille de style du module.
+   Extraite du composant, où elle vivait dans un gabarit injecté par
+   `dangerouslySetInnerHTML` à chaque montage. Sortie ici, elle est analysée
+   une fois par le navigateur, mise en cache avec le reste de la feuille et
+   relisible. Aucune couleur en dur : tout passe par les jetons de tokens.css,
+   avec repli sur les valeurs de la charte pour que le module tourne aussi hors
+   de l'application.
+   ------------------------------------------------------------------ */
+
+.kz {
+  --kz-etoile: #cfe0ec;
+  --kz-halo: rgba(143, 184, 216, .42);
+  --kz-grave: inset 0 1px 0 rgba(236, 227, 210, .055);
+  position: relative;
+  isolation: isolate;
+  color: var(--ink, #ece3d2);
+  /* Pas de fond, pas de brume. Le module posait son propre `--ground` opaque
+     par-dessus celui de la page, et deux dégradés radiaux par-dessus encore :
+     trois couches pour reproduire, à un ton près, ce que la page affichait
+     déjà. À un ton près, justement — d'où la couture visible en haut et sur
+     les côtés, un rectangle plus clair posé sur la page. La mine est une
+     section de la page, pas une fenêtre dans la page. */
+  font-family: var(--font-ui, "Archivo"), system-ui, sans-serif;
+  font-size: 15px; line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+.kz *, .kz *::before, .kz *::after { box-sizing: border-box; }
+.kz h2, .kz h3 {
+  font-family: var(--font-display, "Fraunces"), Georgia, serif;
+  font-variation-settings: var(--wonk, "SOFT" 24, "WONK" 1);
+  font-weight: 600; margin: 0; text-wrap: pretty;
+}
+.kz p { margin: 0; }
+.kz-n { font-variant-numeric: tabular-nums; }
+.kz-sep::before { content: var(--sep, "|"); color: var(--ink4, #88999e); padding: 0 .45em; }
+
+.kz-wrap {
+  position: relative; z-index: 1;
+  max-width: 1280px; margin: 0 auto;
+  padding: 0 max(16px, env(safe-area-inset-right))
+           calc(clamp(16px, 2.2vw, 28px) + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+}
+
+/* en-tête */
+.kz-top {
+  display: flex; flex-wrap: wrap; gap: 14px 20px; align-items: stretch;
+  padding-bottom: clamp(13px, 1.6vw, 18px);
+  border-bottom: 1px solid var(--edge, #2c3d43);
+}
+.kz-titre h2 { font-size: clamp(24px, 3.1vw, 34px); line-height: 1.06; letter-spacing: -.01em; }
+.kz-titre h2 span {
+  display: block; margin-top: 6px;
+  font-family: var(--font-ui, "Archivo"), system-ui, sans-serif; font-variation-settings: normal;
+  font-size: 13px; font-weight: 400; color: var(--ink3, #8c989a);
+}
+.kz-titre::before {
+  content: ""; display: block; width: 46px; height: 1px; margin-bottom: 13px;
+  background: linear-gradient(90deg, var(--lamp, #e8a33d), transparent);
+}
+.kz button.kz-lexique-bouton { align-self: flex-end; margin-left: auto; }
+.kz-bourse { display: flex; flex-wrap: wrap; gap: 10px; align-items: stretch; }
+.kz-plaque {
+  min-width: 118px; padding: 9px 15px 10px;
+  background: linear-gradient(180deg, var(--panel, #1a272c), var(--ground2, #131e22));
+  border: 1px solid var(--edge, #2c3d43); border-radius: var(--r-md, 6px);
+  box-shadow: var(--kz-grave), 0 2px 5px rgba(0, 0, 0, .35);
+}
+.kz-plaque b { display: block; font-size: clamp(19px, 2.2vw, 25px); font-weight: 600; line-height: 1.15; }
+.kz-plaque small { display: block; margin-top: 2px; font-size: 12px; color: var(--ink4, #88999e); }
+.kz-etoile { color: var(--kz-etoile); text-shadow: 0 0 18px var(--kz-halo); }
+.kz-or { color: var(--lamp, #e8a33d); text-shadow: 0 0 18px rgba(232, 163, 61, .3); }
+
+/* ── grille ───────────────────────────────────────────────────────────────
+   La mine mesurait ce que son contenu mesurait. Le premier compagnon embauché
+   faisait apparaître la rangée de jetons et poussait le panneau de gauche ;
+   le premier onglet un peu long faisait grandir celui de droite. On jouait
+   donc sur une page qui changeait de taille à chaque achat, c'est-à-dire au
+   moment exact où le regard était ailleurs.
+
+   La grille pose maintenant sa hauteur une fois, en fonction de la fenêtre et
+   non du contenu. Les deux panneaux la remplissent, et ce qui dépasse défile
+   à l'intérieur — le filon se dilate, la liste d'onglet glisse. Plus rien ne
+   bouge au dehors. */
+.kz-grid {
+  display: grid; grid-template-columns: minmax(0, 1.02fr) minmax(0, 1fr);
+  gap: clamp(14px, 1.6vw, 22px); margin-top: clamp(15px, 1.8vw, 22px);
+  align-items: stretch;
+  height: clamp(560px, 72vh, 780px);
+}
+@media (max-width: 900px) {
+  /* En colonne, une hauteur commune n'a plus de sens : les deux panneaux se
+     suivent, et c'est la page qui défile. */
+  .kz-grid { grid-template-columns: minmax(0, 1fr); height: auto; align-items: start; }
+}
+.kz-panneau {
+  position: relative; overflow: hidden;
+  background: linear-gradient(180deg, var(--panel2, #223136) 0%, var(--panel, #1a272c) 30%, var(--panel, #1a272c) 100%);
+  border: 1px solid var(--edge, #2c3d43); border-radius: var(--r-lg, 10px);
+  box-shadow: var(--kz-grave), 0 20px 44px -28px rgba(0, 0, 0, .95), 0 2px 6px rgba(0, 0, 0, .4);
+}
+
+/* front de taille */
+.kz-face {
+  padding: clamp(14px, 1.5vw, 20px);
+  display: flex; flex-direction: column; min-height: 0;
+}
+/* La strate se présente : le nom entre en lumière de lampe puis se refroidit. */
+.kz-strate { animation: kz-entree 620ms cubic-bezier(.2, .8, .3, 1) both; }
+.kz-strate h2 { animation: kz-entree-titre 1400ms cubic-bezier(.2, .8, .3, 1) both; }
+@keyframes kz-entree {
+  from { opacity: 0; transform: translateY(9px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes kz-entree-titre {
+  0%   { color: var(--lamp, #e8a33d); text-shadow: 0 0 22px rgba(232, 163, 61, .55); }
+  35%  { color: var(--lamp, #e8a33d); text-shadow: 0 0 18px rgba(232, 163, 61, .4); }
+  100% { color: var(--ink, #ece3d2); text-shadow: none; }
+}
+.kz-face h2 { font-size: clamp(19px, 2.1vw, 24px); }
+.kz-profondeur { display: flex; gap: 10px; align-items: center; margin: 15px 0 0; }
+.kz-profondeur span { flex: 1; text-align: center; font-size: 13px; color: var(--ink4, #88999e); }
+.kz-encoches { display: flex; gap: 4px; margin: 11px 0 2px; }
+.kz-encoches i {
+  flex: 1; height: 3px; border-radius: 2px; background: var(--ground2, #131e22);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .4);
+}
+.kz-encoches i.kz-on { background: var(--kz-etoile); box-shadow: 0 0 8px var(--kz-halo); }
+
+.kz-vein {
+  /* `flex` et non `height` : la roche prend ce qui reste une fois les barres,
+     les chiffres et la rangée de jetons servis. Le SVG est en viewBox, il
+     suit. Le plancher garde un filon cliquable sur une fenêtre basse. */
+  position: relative; flex: 1 1 auto; min-height: 180px; margin-top: 10px; cursor: pointer;
+  touch-action: pan-y; user-select: none; -webkit-tap-highlight-color: transparent;
+  border-radius: var(--r-md, 6px);
+  background:
+    radial-gradient(78% 78% at 50% 46%, rgba(34, 49, 54, .85), transparent 72%),
+    linear-gradient(180deg, var(--ground2, #131e22), var(--ground, #0d1417));
+  border: 1px solid var(--edge-hi, #3d5259);
+  box-shadow: inset 0 22px 44px -26px #000, inset 0 -18px 36px -26px #000, 0 1px 0 rgba(236, 227, 210, .04);
+}
+.kz-vein:focus-visible { outline: 2px solid var(--lamp, #e8a33d); outline-offset: 4px; }
+.kz-vein svg { width: 100%; height: 100%; display: block; }
+.kz-scene, .kz-noyau, .kz-roche { transform-box: fill-box; transform-origin: center; }
+.kz-roche { transition: transform 90ms cubic-bezier(.2, 1.3, .4, 1); }
+.kz-vein.kz-hit .kz-roche { transform: translate(2px, 2px) scale(.985); }
+.kz-eclat { fill: var(--kz-etoile); transition: opacity 160ms cubic-bezier(.2, .8, .3, 1); }
+.kz-flash { opacity: 0; fill: var(--kz-etoile); }
+.kz-vein.kz-brise .kz-flash { opacity: .55; transition: opacity 220ms cubic-bezier(.2, .8, .3, 1); }
+.kz-lueur-dedans { stop-color: var(--kz-etoile); stop-opacity: .34; }
+.kz-lueur-dehors { stop-color: var(--kz-etoile); stop-opacity: 0; }
+.kz-pierre-haut { stop-color: var(--panel2, #223136); }
+.kz-pierre-bas { stop-color: var(--ground2, #131e22); }
+.kz-bloc { fill: url(#kz-pierre); stroke: var(--edge-hi, #3d5259); }
+.kz-facette { fill: #ffffff; opacity: .028; }
+.kz-ombre { fill: #000; opacity: .5; }
+.kz-fissure { fill: none; stroke: var(--ground, #0d1417); }
+.kz-lampe { fill: none; stroke: var(--lamp, #e8a33d); opacity: .12; }
+
+/* couche d'effets */
+.kz-calque { position: absolute; inset: 0; pointer-events: none; overflow: hidden; border-radius: var(--r-md, 6px); }
+.kz-pop { position: absolute; font-weight: 600; font-size: 17px; color: var(--kz-etoile);
+          text-shadow: 0 1px 7px rgba(0,0,0,.9); animation: kz-monte 820ms cubic-bezier(.2,.8,.3,1) forwards; }
+.kz-pop.kz-crit { font-size: 29px; color: var(--lamp, #e8a33d);
+                  animation: kz-monte-crit 1000ms cubic-bezier(.2,1.3,.4,1) forwards; }
+@keyframes kz-monte {
+  from { opacity: 1; transform: translate(-50%, 0) scale(.82); }
+  22%  { opacity: 1; transform: translate(-50%, -12px) scale(1.06); }
+  to   { opacity: 0; transform: translate(-50%, -52px) scale(1); }
+}
+@keyframes kz-monte-crit {
+  from { opacity: 1; transform: translate(-50%, 4px) scale(.5) rotate(-6deg); }
+  30%  { opacity: 1; transform: translate(-50%, -16px) scale(1.3) rotate(2deg); }
+  to   { opacity: 0; transform: translate(-50%, -76px) scale(1.05) rotate(0deg); }
+}
+.kz-part { position: absolute; width: 6px; height: 6px; background: var(--kz-etoile);
+           clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+           animation: kz-eclate var(--kz-vie, 560ms) cubic-bezier(.2,.8,.3,1) forwards; }
+.kz-part.kz-chaude { background: var(--lamp, #e8a33d); }
+.kz-part.kz-poussiere { background: var(--ink3, #8c989a); border-radius: 50%; clip-path: none; }
+@keyframes kz-eclate {
+  from { opacity: .95; transform: translate(-50%, -50%) scale(1) rotate(0deg); }
+  to   { opacity: 0; transform: translate(calc(-50% + var(--kz-dx, 0px)), calc(-50% + var(--kz-dy, 0px))) scale(.35) rotate(var(--kz-rot, 180deg)); }
+}
+.kz-onde { position: absolute; width: 20px; height: 20px; border: 1px solid var(--kz-etoile); border-radius: 50%;
+           animation: kz-onde 420ms cubic-bezier(.2,.8,.3,1) forwards; }
+.kz-onde.kz-chaude { border-color: var(--lamp, #e8a33d); border-width: 2px; animation-duration: 640ms; }
+@keyframes kz-onde {
+  from { opacity: .9; transform: translate(-50%, -50%) scale(.3); }
+  to   { opacity: 0; transform: translate(-50%, -50%) scale(5.2); }
+}
+.kz-swing { position: absolute; width: 96px; height: 96px; transform-origin: 78% 78%;
+            filter: drop-shadow(0 2px 8px rgba(0,0,0,.7));
+            animation: kz-swing 300ms cubic-bezier(.34,.85,.36,1) forwards; }
+.kz-swing.kz-crit { width: 136px; animation-duration: 420ms; filter: drop-shadow(0 0 14px var(--lamp, #e8a33d)); }
+@keyframes kz-swing {
+  from { opacity: 0; transform: translate(-50%, -62%) rotate(-64deg) scale(.72); }
+  35%  { opacity: 1; transform: translate(-50%, -56%) rotate(6deg) scale(1.04); }
+  to   { opacity: 0; transform: translate(-50%, -52%) rotate(22deg) scale(.96); }
+}
+.kz-voile { position: absolute; inset: 0; pointer-events: none; opacity: 0; border-radius: var(--r-md, 6px);
+            background: radial-gradient(62% 62% at 50% 58%, var(--lamp, #e8a33d), transparent 72%);
+            mix-blend-mode: screen; }
+.kz-vein.kz-secousse .kz-scene { animation: kz-secousse 200ms cubic-bezier(.2,1.3,.4,1); }
+.kz-vein.kz-secousse-fort .kz-scene { animation: kz-secousse-fort 400ms cubic-bezier(.2,1.3,.4,1); }
+.kz-vein.kz-rupture .kz-noyau { animation: kz-rupture 440ms cubic-bezier(.34,.85,.36,1); }
+.kz-vein.kz-chute .kz-scene { animation: kz-chute 1500ms cubic-bezier(.2,.8,.3,1); }
+.kz-vein.kz-chute .kz-voile { animation: kz-voile 1500ms cubic-bezier(.2,.8,.3,1); }
+@keyframes kz-secousse {
+  0% { transform: translate(0,0); } 30% { transform: translate(-3px,2px); }
+  60% { transform: translate(2px,-2px); } 100% { transform: translate(0,0); }
+}
+@keyframes kz-secousse-fort {
+  0%   { transform: translate(0,0) rotate(0deg) scale(1); }
+  15%  { transform: translate(-7px,5px) rotate(-.8deg) scale(1.02); }
+  35%  { transform: translate(6px,-5px) rotate(.7deg) scale(1.012); }
+  55%  { transform: translate(-4px,3px) rotate(-.4deg) scale(1.006); }
+  78%  { transform: translate(2px,-1px) rotate(.2deg) scale(1); }
+  100% { transform: translate(0,0) rotate(0deg) scale(1); }
+}
+@keyframes kz-rupture {
+  0% { transform: scale(1); opacity: 1; } 20% { transform: scale(.87); opacity: .22; }
+  55% { transform: scale(1.04); opacity: 1; } 100% { transform: scale(1); opacity: 1; }
+}
+@keyframes kz-chute {
+  0%   { transform: translate(0,0) rotate(0deg); opacity: 1; }
+  8%   { transform: translate(-5px,3px) rotate(-.6deg); }
+  16%  { transform: translate(5px,-3px) rotate(.6deg); }
+  24%  { transform: translate(-6px,4px) rotate(-.8deg); }
+  32%  { transform: translate(6px,-2px) rotate(.8deg); }
+  42%  { transform: translate(-4px,3px) rotate(-.5deg); opacity: 1; }
+  56%  { transform: translate(0,54px) rotate(4deg); opacity: 0; }
+  57%  { transform: translate(0,-34px) scale(.92); opacity: 0; }
+  100% { transform: translate(0,0) scale(1); opacity: 1; }
+}
+@keyframes kz-voile { 0% { opacity: 0; } 38% { opacity: .5; } 56% { opacity: .72; } 100% { opacity: 0; } }
+
+/* jauges gravées */
+.kz-jauge {
+  position: relative; height: 10px; margin-top: 13px; border-radius: var(--r-sm, 3px);
+  background: linear-gradient(180deg, var(--ground, #0d1417), var(--ground2, #131e22));
+  box-shadow: inset 0 1px 3px rgba(0,0,0,.7), 0 1px 0 rgba(236,227,210,.045);
+  overflow: hidden;
+}
+.kz-jauge i {
+  display: block; height: 100%;
+  background: linear-gradient(180deg, #e6f1fa, var(--kz-etoile));
+  box-shadow: 0 0 16px var(--kz-halo); transition: width 90ms linear;
+}
+.kz-jauge-txt { display: flex; justify-content: space-between; margin-top: 7px; font-size: 12.5px; color: var(--ink4, #88999e); }
+.kz-stats {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px;
+  flex: 0 0 auto;
+  margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--edge, #2c3d43);
+}
+.kz-strate, .kz-profondeur, .kz-encoches, .kz-jauge, .kz-jauge-txt { flex: 0 0 auto; }
+.kz-stats > div {
+  padding: 9px 12px 10px; font-size: 12px; color: var(--ink4, #88999e);
+  background: var(--ground2, #131e22); border: 1px solid var(--edge, #2c3d43);
+  border-radius: var(--r-sm, 3px); box-shadow: var(--kz-grave);
+}
+.kz-stats b { display: block; margin-top: 2px; font-size: clamp(16px, 1.7vw, 19px); font-weight: 600; color: var(--ink, #ece3d2); }
+.kz-xp { height: 4px; margin-top: 8px; border-radius: var(--r-sm, 3px);
+         background: var(--ground, #0d1417); box-shadow: inset 0 1px 2px rgba(0,0,0,.6); overflow: hidden; }
+.kz-xp i { display: block; height: 100%; background: var(--lamp, #e8a33d);
+           box-shadow: 0 0 10px rgba(232,163,61,.5); transition: width 220ms cubic-bezier(.2,.8,.3,1); }
+.kz-xp.kz-pulse i { animation: kz-pulse 640ms cubic-bezier(.2,.8,.3,1); }
+@keyframes kz-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(232,163,61,.6); } 100% { box-shadow: 0 0 0 10px rgba(232,163,61,0); }
+}
+
+/* équipe posée */
+/* Dans l'en-tête, entre les plaques et le lexique. `nowrap` et non `wrap` :
+   une rangée qui passe à la ligne ferait grandir l'en-tête, donc descendre
+   toute la mine, au moment même d'un achat — exactement ce qu'on venait de
+   corriger en bas de colonne. Elle glisse, et un dégradé dit qu'elle glisse. */
+.kz-equipe {
+  flex: 1 1 260px; min-width: 0; align-self: center;
+  display: flex; flex-wrap: nowrap; align-items: center; gap: 7px;
+  overflow-x: auto; scrollbar-width: none;
+  padding: 2px 0;
+  mask-image: linear-gradient(90deg, #000 calc(100% - 26px), transparent);
+}
+.kz-equipe::-webkit-scrollbar { display: none; }
+.kz-equipe .kz-note { white-space: nowrap; }
+.kz-jeton { position: relative; flex: 0 0 auto;
+            width: 40px; height: 40px; border-radius: var(--r-sm, 3px);
+            background: var(--ground2, #131e22); border: 1px solid var(--edge-hi, #3d5259); overflow: hidden;
+            box-shadow: var(--kz-grave), 0 2px 5px rgba(0,0,0,.4); }
+.kz-jeton img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.kz-jeton b { position: absolute; right: 0; bottom: 0; padding: 0 4px; font-size: 11px; font-weight: 600;
+              color: var(--lamp, #e8a33d); background: rgba(13,20,23,.92); border-top-left-radius: 3px;
+              font-variant-numeric: tabular-nums; }
+.kz-jeton.kz-neuf { animation: kz-neuf 620ms cubic-bezier(.2,1.3,.4,1); }
+@keyframes kz-neuf {
+  0% { transform: scale(.7); box-shadow: 0 0 0 0 var(--kz-halo); }
+  60% { transform: scale(1.12); box-shadow: 0 0 0 7px rgba(143,184,216,0); }
+  100% { transform: scale(1); }
+}
+
+/* panneau de gestion */
+.kz-side { display: flex; flex-direction: column; min-height: 0; }
+.kz-tabs {
+  /* `flex: 0 0 auto`, et ce n'est pas décoratif. Le panneau est une colonne
+     flex dont le corps déborde dès qu'un onglet est un peu long ; sans refus
+     explicite de rétrécir, la rangée d'onglets se laisse comprimer par ce
+     débordement et se fait rogner par l'`overflow: hidden` du panneau. On
+     voyait alors la moitié basse des libellés, sans qu'aucune règle n'échoue.
+     Le défaut d'un enfant de flex est `flex-shrink: 1` : toute barre fixe dans
+     une colonne flex doit le dire. */
+  flex: 0 0 auto;
+  display: flex; gap: 2px; padding: 0 6px; overflow-x: auto; scrollbar-width: none;
+  background: linear-gradient(180deg, rgba(13,20,23,.5), transparent);
+  border-bottom: 1px solid var(--edge, #2c3d43);
+}
+.kz-tabs::-webkit-scrollbar { display: none; }
+.kz-tabs button {
+  /* Pas de `flex-grow`. Au premier jour un seul onglet est ouvert, et un
+     onglet étiré sur six cents pixels ne se lit plus comme un onglet mais
+     comme un titre de panneau. Ils prennent leur largeur, la rangée défile
+     si les cinq ne tiennent pas. */
+  flex: 0 0 auto; padding: 14px 16px 12px; font: inherit; font-size: 13.5px; white-space: nowrap;
+  cursor: pointer; color: var(--ink3, #8c989a); background: none; border: 0;
+  border-bottom: 2px solid transparent; transition: color 160ms cubic-bezier(.2,.8,.3,1);
+}
+.kz-tabs button:hover { color: var(--ink, #ece3d2); }
+.kz-tabs button[aria-selected="true"] {
+  color: var(--ink, #ece3d2); border-bottom-color: var(--lamp, #e8a33d);
+  background: linear-gradient(180deg, transparent, rgba(232,163,61,.075));
+}
+.kz-tabs button:focus-visible { outline: 2px solid var(--lamp, #e8a33d); outline-offset: -3px; }
+.kz-corps { flex: 1 1 auto; min-height: 0; padding: clamp(13px, 1.4vw, 18px);
+            overflow-y: auto; scrollbar-gutter: stable; }
+@media (max-width: 900px) { .kz-corps { max-height: min(62vh, 620px); } }
+.kz-corps::-webkit-scrollbar { width: 10px; }
+.kz-corps::-webkit-scrollbar-track { background: var(--ground2, #131e22); }
+.kz-corps::-webkit-scrollbar-thumb { background: var(--edge-hi, #3d5259); border-radius: 6px;
+                                     border: 3px solid var(--panel, #1a272c); }
+.kz-note { font-size: 13px; color: var(--ink3, #8c989a); text-wrap: pretty; }
+.kz-corps > .kz-note:first-child { margin-bottom: 14px; }
+.kz-row {
+  display: flex; gap: 13px; align-items: center; padding: 12px; margin-bottom: 8px;
+  background: rgba(19,30,34,.5); border: 1px solid var(--edge, #2c3d43); border-radius: var(--r-sm, 3px);
+  transition: background 160ms cubic-bezier(.2,.8,.3,1), border-color 160ms cubic-bezier(.2,.8,.3,1);
+}
+.kz-row:hover { background: rgba(34,49,54,.6); border-color: var(--edge-hi, #3d5259); }
+.kz-row:last-child { margin-bottom: 0; }
+.kz-row h3 { font-size: 16px; }
+.kz-row p { margin-top: 4px; font-size: 12.5px; color: var(--ink2, #b7b2a4); }
+.kz-grow { flex: 1; min-width: 0; }
+.kz-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; text-align: right; flex-shrink: 0; }
+.kz-cout { font-size: 12px; color: var(--kz-etoile); font-variant-numeric: tabular-nums; }
+.kz-tenu { font-size: 13px; color: var(--lamp, #e8a33d); font-variant-numeric: tabular-nums; }
+.kz-row h3 .kz-tenu { margin-left: 8px; }
+.kz-vignette {
+  position: relative; width: 62px; height: 62px; flex: 0 0 62px; border-radius: var(--r-sm, 3px);
+  background: var(--ground, #0d1417); border: 1px solid var(--edge-hi, #3d5259); overflow: hidden;
+  box-shadow: var(--kz-grave), inset 0 -10px 18px -12px #000;
+}
+.kz-vignette::before { content: "◆"; position: absolute; inset: 0; display: flex; align-items: center;
+                       justify-content: center; color: var(--edge-hi, #3d5259); font-size: 19px; }
+.kz-vignette img { position: relative; width: 100%; height: 100%; object-fit: cover; display: block; }
+.kz-vignette.kz-eteinte img { filter: saturate(.15) brightness(.5); }
+
+.kz button.kz-btn {
+  font: inherit; font-size: 13.5px; font-weight: 500; color: var(--ink, #ece3d2);
+  background: linear-gradient(180deg, var(--panel2, #223136), var(--panel, #1a272c));
+  border: 1px solid var(--edge-ui, #687a80); border-radius: var(--r-sm, 3px);
+  padding: 9px 14px; cursor: pointer; white-space: nowrap;
+  box-shadow: var(--kz-grave), 0 1px 3px rgba(0,0,0,.4);
+  transition: background 160ms cubic-bezier(.2,.8,.3,1), border-color 160ms cubic-bezier(.2,.8,.3,1),
+              color 160ms cubic-bezier(.2,.8,.3,1), transform 90ms cubic-bezier(.2,1.3,.4,1);
+}
+.kz button.kz-btn:hover:not(:disabled) {
+  color: var(--lamp, #e8a33d); border-color: var(--lamp, #e8a33d);
+  background: linear-gradient(180deg, var(--panel2, #223136), rgba(232,163,61,.09));
+}
+.kz button.kz-btn:active:not(:disabled) { transform: translateY(1px); }
+.kz button.kz-btn:disabled { opacity: .4; cursor: default; }
+.kz button.kz-btn:focus-visible { outline: 2px solid var(--lamp, #e8a33d); outline-offset: 2px; }
+.kz button.kz-btn[aria-pressed="true"] { color: var(--lamp, #e8a33d); border-color: var(--lamp, #e8a33d); }
+.kz button.kz-danger { color: var(--ember, #e5774b); border-color: var(--ember, #e5774b); width: 100%; margin-top: 4px; }
+.kz button.kz-danger:hover:not(:disabled) { color: var(--ember, #e5774b); border-color: var(--ember, #e5774b);
+  background: linear-gradient(180deg, var(--panel2, #223136), rgba(229,119,75,.1)); }
+.kz button.kz-mini { padding: 7px 11px; font-size: 12.5px; }
+.kz-lots { display: flex; gap: 8px; margin-bottom: 14px; }
+.kz-taux {
+  margin-bottom: 14px; padding: 15px;
+  background: linear-gradient(180deg, rgba(232,163,61,.05), rgba(19,30,34,.55));
+  border: 1px solid var(--edge-ui, #687a80); border-radius: var(--r-md, 6px);
+}
+.kz-prix { font-family: var(--font-display, "Fraunces"), Georgia, serif;
+           font-variation-settings: var(--wonk, "SOFT" 24, "WONK" 1);
+           font-size: 23px; font-weight: 600; color: var(--lamp, #e8a33d); font-variant-numeric: tabular-nums; }
+.kz-taux .kz-note { margin-top: 8px; }
+.kz-vendre { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+.kz-bourse-tete { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 11px; }
+.kz-grille {
+  display: grid; grid-template-columns: 1fr auto; gap: 6px 14px;
+  font-size: 12.5px; color: var(--ink3, #8c989a);
+  padding-top: 11px; border-top: 1px solid var(--edge, #2c3d43);
+}
+.kz-grille b { color: var(--ink2, #b7b2a4); font-weight: 500; font-variant-numeric: tabular-nums; text-align: right; }
+.kz-talent { flex-direction: row; align-items: center; gap: 10px; }
+.kz-pastille {
+  min-width: 36px; padding: 6px 8px; text-align: center; font-size: 14px; font-weight: 600;
+  font-variant-numeric: tabular-nums; color: var(--ink, #ece3d2);
+  background: var(--ground, #0d1417); border: 1px solid var(--edge, #2c3d43); border-radius: var(--r-sm, 3px);
+  box-shadow: inset 0 1px 3px rgba(0,0,0,.6);
+}
+/* Ce qui reste du journal : une région vocale, hors flux et hors écran. Pas
+   `display: none`, qui la retirerait aussi de l'arbre d'accessibilité et donc
+   des lecteurs d'écran — c'est-à-dire tout ce qui lui reste à faire. */
+.kz-annonce {
+  position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip-path: inset(50%); white-space: nowrap;
+}
+
+/* Pastille d'onglet : un chiffre sur « Talents » quand un point attend. */
+.kz-tab-pastille {
+  display: inline-block; margin-left: 7px; padding: 1px 6px;
+  font-style: normal; font-size: 11.5px; font-weight: 700;
+  font-variant-numeric: tabular-nums; color: #241704;
+  background: var(--lamp, #e8a33d); border-radius: 100px;
+}
+
+/* Bulle d'aide : ce qu'on lit une fois et qu'on ne veut plus subir. */
+.kz-aide-bouton {
+  width: 18px; height: 18px; margin-left: 7px; padding: 0; cursor: pointer;
+  border: 1px solid var(--edge-ui, #687a80); border-radius: 50%;
+  background: none; color: var(--ink3, #8c989a);
+  font: inherit; font-size: 11px; line-height: 1; vertical-align: 1px;
+}
+.kz-aide-bouton:hover { color: var(--ink, #ece3d2); background: var(--panel2, #223136); }
+.kz-bulle {
+  position: absolute; z-index: 8; left: clamp(13px, 1.4vw, 18px); right: clamp(13px, 1.4vw, 18px);
+  margin-top: 8px; padding: 13px 34px 13px 15px;
+  border: 1px solid var(--edge-hi, #3d5259); border-radius: var(--r-md, 6px);
+  background: var(--panel, #1a272c); box-shadow: 0 18px 40px rgba(0, 0, 0, .6);
+  font-size: 12.5px; line-height: 1.55; color: var(--ink2, #b7b2a4);
+}
+.kz-bulle-fermer {
+  position: absolute; top: 6px; right: 6px; width: 24px; height: 24px; cursor: pointer;
+  background: none; border: 0; color: var(--ink3, #8c989a); font-size: 16px; line-height: 1;
+}
+.kz-bulle-fermer:hover { color: var(--ink, #ece3d2); }
+.kz-taux { position: relative; }
+
+@media (max-width: 620px) {
+  .kz-top { gap: 14px; }
+  .kz-titre { flex: 1 1 100%; }
+  .kz-bourse { flex: 1 1 100%; }
+  .kz-plaque { flex: 1 1 0; min-width: 0; padding: 9px 12px 10px; }
+  .kz-stats { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .kz-stats > div:last-child { grid-column: 1 / -1; }
+  .kz-row { gap: 11px; padding: 11px; }
+  .kz-vignette { width: 52px; height: 52px; flex-basis: 52px; }
+  .kz-actions { gap: 4px; }
+  .kz-tabs button { padding: 13px 11px 11px; font-size: 13px; }
+}
+@media (pointer: coarse) {
+  .kz button.kz-btn, .kz-tabs button { min-height: 44px; }
+  .kz-vein { min-height: 240px; }
+}
+
+/* Mode sobre */
+.kz-sobre .kz-roche, .kz-sobre .kz-eclat, .kz-sobre .kz-jauge i, .kz-sobre .kz-xp i,
+.kz-sobre button.kz-btn { transition: none; }
+.kz-sobre .kz-vein.kz-hit .kz-roche { transform: translate(0, 0); }
+.kz-sobre .kz-vein.kz-brise .kz-flash { opacity: 0; }
+.kz-sobre .kz-pop { animation: none; opacity: 0; transform: translate(-50%, -52px); }
+.kz-sobre .kz-part, .kz-sobre .kz-onde, .kz-sobre .kz-swing { animation: none; opacity: 0; }
+.kz-sobre .kz-voile { animation: none; opacity: 0; }
+.kz-sobre .kz-vein.kz-secousse .kz-scene, .kz-sobre .kz-vein.kz-secousse-fort .kz-scene,
+.kz-sobre .kz-vein.kz-chute .kz-scene { animation: none; transform: translate(0,0) rotate(0deg) scale(1); opacity: 1; }
+.kz-sobre .kz-vein.kz-rupture .kz-noyau { animation: none; transform: scale(1); opacity: 1; }
+.kz-sobre .kz-xp.kz-pulse i { animation: none; box-shadow: none; }
+.kz-sobre .kz-jeton.kz-neuf { animation: none; transform: scale(1); }
+.kz-sobre .kz-strate { animation: none; opacity: 1; transform: translateY(0); }
+.kz-sobre .kz-strate h2 { animation: none; color: var(--ink, #ece3d2); text-shadow: none; }
+
+/* ------------------------------------------------------------------
+   LE LEXIQUE, L'AMORCE, LES ONGLETS QUI S'OUVRENT
+   ------------------------------------------------------------------
+   Trois ajouts qui répondent au même reproche : le module parlait une langue
+   qu'il n'enseignait pas, et montrait d'emblée cinq onglets pour un seul geste
+   possible.
+   ------------------------------------------------------------------ */
+
+/* Le lexique se pose par-dessus, jamais dans le flux : ouvert ou fermé, la
+   mine garde la même hauteur. C'est la règle de la grille, tenue ici aussi. */
+.kz-lexique {
+  position: absolute; z-index: 9;
+  left: max(16px, env(safe-area-inset-left)); right: max(16px, env(safe-area-inset-right));
+  margin-top: 12px;
+  max-height: min(64vh, 560px); overflow-y: auto; overscroll-behavior: contain;
+  padding: 18px 20px 20px;
+  background: var(--panel, #1a272c);
+  border: 1px solid var(--edge-hi, #3d5259); border-radius: var(--r-lg, 10px);
+  box-shadow: 0 26px 60px rgba(0, 0, 0, .7);
+  animation: kz-entree 220ms cubic-bezier(.2, .8, .3, 1) both;
+}
+.kz-lexique-tete { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.kz-lexique-tete h3 { font-size: 18px; }
+.kz-lexique-tete .kz-bulle-fermer { position: static; width: 28px; height: 28px; flex: 0 0 auto; }
+.kz-lexique dl {
+  display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 9px 18px;
+  margin: 14px 0 0;
+}
+.kz-lexique dt { font-weight: 600; color: var(--kz-etoile); font-size: 13.5px; }
+.kz-lexique dd { margin: 0; max-width: 78ch; font-size: 13px; line-height: 1.5;
+                 color: var(--ink2, #b7b2a4); text-wrap: pretty; }
+.kz-lexique > .kz-note { margin-top: 15px; padding-top: 12px; border-top: 1px solid var(--edge, #2c3d43); }
+@media (max-width: 620px) {
+  .kz-lexique dl { grid-template-columns: minmax(0, 1fr); gap: 3px; }
+  .kz-lexique dd { margin-bottom: 11px; }
+}
+.kz-sobre .kz-lexique { animation: none; }
+
+/* L'amorce : elle occupe le centre de la roche et disparaît au premier filon.
+   Pas de pointer-events, sinon elle mangerait le clic qu'elle réclame. */
+.kz-amorce {
+  position: absolute; inset: 0; z-index: 2; pointer-events: none;
+  display: flex; align-items: flex-end; justify-content: center;
+  padding-bottom: 12px;
+  font-family: var(--font-display, "Fraunces"), Georgia, serif;
+  font-variation-settings: var(--wonk, "SOFT" 24, "WONK" 1);
+  font-size: 15px; letter-spacing: .02em; color: var(--lamp, #e8a33d);
+  text-shadow: 0 2px 14px rgba(0, 0, 0, .9);
+  animation: kz-amorce 2.6s ease-in-out infinite;
+}
+@keyframes kz-amorce { 0%, 100% { opacity: .5; } 50% { opacity: 1; } }
+.kz-sobre .kz-amorce { animation: none; opacity: .85; }
+
+/* Un onglet qui vient de s'ouvrir se signale une fois, et se tait dès qu'on
+   l'a regardé. Le point suffit : la pastille chiffrée reste réservée aux
+   points de talent, qui se comptent. */
+.kz-tab-point {
+  display: inline-block; width: 6px; height: 6px; margin-left: 7px; vertical-align: 2px;
+  background: var(--lamp, #e8a33d); border-radius: 50%;
+}
+.kz-tabs button.kz-tab-neuf { color: var(--ink, #ece3d2); animation: kz-tab-neuf 2.4s ease-in-out 3; }
+@keyframes kz-tab-neuf {
+  0%, 100% { box-shadow: inset 0 -2px 0 -1px transparent; }
+  50%      { box-shadow: inset 0 -2px 0 -1px rgba(232, 163, 61, .55); }
+}
+.kz-sobre .kz-tabs button.kz-tab-neuf { animation: none; }
+
+/* ------------------------------------------------------------------
+   LES FILONS QUI RENDENT PLUS
+   ------------------------------------------------------------------
+   Un filon sur trois pouvait rendre quatre ou douze fois plus, et rien ne le
+   disait avant qu'il ne cède : la récompense arrivait après coup, sans cause
+   visible. Douze points placés dans Fortune ne se voyaient donc nulle part.
+
+   Le sort se joue maintenant à la naissance du bloc, qui prend sa couleur en
+   conséquence. La teinte vient de `--kz-teinte`, posée par le composant :
+   40° (ambre) sans un point de Fortune, 0° (rouge franc) à dix. Le talent
+   gouverne la fréquence ; la couleur dit jusqu'où on l'a poussé.
+
+   Toutes les valeurs passent par cette variable, donc une seule ligne de
+   JavaScript déplace l'ensemble de la teinte — la pierre, la lueur, le halo,
+   la bordure et le cartouche.
+   ------------------------------------------------------------------ */
+
+/* ── Généreux (×4) : une pierre chauffée ──────────────────────────────────
+   Teinte franche sur la roche, mais les éclats restent froids. C'est ce
+   contraste — étoile bleue sur pierre chaude — qui distingue le rang 1 du
+   rang 2 d'un coup d'œil, sans lire le cartouche. */
+.kz-vein[data-filon] {
+  border-color: hsl(var(--kz-teinte) 50% 40% / .45);
+  background:
+    radial-gradient(78% 78% at 50% 46%, hsl(var(--kz-teinte) 26% 18% / .88), transparent 72%),
+    linear-gradient(180deg, hsl(var(--kz-teinte) 24% 11%), var(--ground, #0d1417));
+}
+.kz-vein[data-filon] .kz-pierre-haut { stop-color: hsl(var(--kz-teinte) 28% 25%); }
+.kz-vein[data-filon] .kz-pierre-bas  { stop-color: hsl(var(--kz-teinte) 32% 13%); }
+.kz-vein[data-filon] .kz-bloc { stroke: hsl(var(--kz-teinte) 56% 46%); }
+.kz-vein[data-filon] .kz-lampe { stroke: hsl(var(--kz-teinte) 70% 52%); opacity: .2; }
+.kz-vein[data-filon] .kz-lueur-dedans { stop-color: hsl(var(--kz-teinte) 74% 56%); stop-opacity: .16; }
+.kz-vein[data-filon] .kz-lueur-dehors { stop-color: hsl(var(--kz-teinte) 74% 56%); stop-opacity: 0; }
+
+/* ── Exceptionnel (×12) : la pierre est chargée ───────────────────────────
+   Ici seulement les éclats s'allument et la case respire. Le rang 2 n'est pas
+   « le rang 1 en plus saturé » : à douze points de Fortune la teinte vire au
+   rouge pour les deux, et deux rouges voisins ne se distinguent pas. */
+.kz-vein[data-filon="2"] {
+  border-color: hsl(var(--kz-teinte) 76% 54% / .9);
+  animation: kz-filon-souffle 2.8s ease-in-out infinite;
+}
+@keyframes kz-filon-souffle {
+  0%, 100% { box-shadow: inset 0 22px 44px -26px #000, inset 0 -18px 36px -26px #000,
+                         0 0 24px hsl(var(--kz-teinte) 80% 52% / .22); }
+  50%      { box-shadow: inset 0 22px 44px -26px #000, inset 0 -18px 36px -26px #000,
+                         0 0 48px hsl(var(--kz-teinte) 82% 56% / .5); }
+}
+.kz-vein[data-filon="2"] .kz-pierre-haut { stop-color: hsl(var(--kz-teinte) 60% 35%); }
+.kz-vein[data-filon="2"] .kz-pierre-bas  { stop-color: hsl(var(--kz-teinte) 64% 16%); }
+.kz-vein[data-filon="2"] .kz-bloc { stroke: hsl(var(--kz-teinte) 88% 66%); }
+.kz-vein[data-filon="2"] .kz-lampe { stroke: hsl(var(--kz-teinte) 88% 64%); opacity: .5; }
+.kz-vein[data-filon="2"] .kz-lueur-dedans { stop-color: hsl(var(--kz-teinte) 88% 66%); stop-opacity: .34; }
+.kz-vein[data-filon="2"] .kz-lueur-dehors { stop-color: hsl(var(--kz-teinte) 88% 66%); stop-opacity: 0; }
+.kz-vein[data-filon="2"] .kz-eclat { fill: hsl(var(--kz-teinte) 94% 82%); }
+.kz-vein[data-filon="2"] .kz-flash { fill: hsl(var(--kz-teinte) 92% 76%); }
+
+/* Le cartouche : la couleur dit qu'il se passe quelque chose, l'écriture dit
+   quoi. Une teinte seule ne dit rien à qui les distingue mal. */
+.kz-filon-marque {
+  position: absolute; z-index: 3; top: 10px; left: 10px;
+  display: flex; align-items: center; gap: 8px;
+  padding: 5px 11px; border-radius: 100px;
+  font-size: 11.5px; font-weight: 600; letter-spacing: .02em;
+  color: hsl(var(--kz-teinte) 92% 84%);
+  background: hsl(var(--kz-teinte) 42% 12% / .88);
+  border: 1px solid hsl(var(--kz-teinte) 70% 48% / .6);
+  pointer-events: none;
+}
+.kz-filon-marque b { font-variant-numeric: tabular-nums; color: hsl(var(--kz-teinte) 96% 90%); }
+
+.kz-sobre .kz-vein[data-filon="2"] { animation: none; }

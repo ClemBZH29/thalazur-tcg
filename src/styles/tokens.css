@@ -1,0 +1,66 @@
+/* ------------------------------------------------------------------
+   Jetons de style — sol froid, lumière chaude.
+   Le monde : un camp côtier, la brume au large, l'éclairage à l'huile.
+   Les cartes sont la source de lumière ; l'interface reste dans l'ombre.
+   ------------------------------------------------------------------ */
+
+:root {
+  /* Sol — brume de nuit sur l'eau, jamais du noir pur */
+  --ground:  #0d1417;
+  --ground2: #131e22;
+  --panel:   #1a272c;
+  --panel2:  #223136;
+  --edge:    #2c3d43;   /* séparations décoratives */
+  --edge-hi: #3d5259;
+  /* Bordure d'élément interactif : 3:1 minimum est exigé par WCAG 1.4.11,
+     les deux valeurs ci-dessus plafonnent à 1,6 et 2,3. */
+  --edge-ui: #687a80;
+
+  /* Lumière — la lampe à huile du camp */
+  --lamp:    #e8a33d;
+  --lamp-lo: #b97c26;
+  --ember:   #e5774b;
+
+  /* Encre sur fond sombre */
+  --ink:     #ece3d2;
+  --ink2:    #b7b2a4;
+  /* Relevés pour atteindre 4,5:1 sur le fond le plus clair de l'interface :
+     l'ancien --ink4 tombait à 2,55 sur les panneaux, et --ink3 à 4,31. */
+  --ink3:    #8c989a;
+  --ink4:    #88999e;
+
+  /* Matériaux des cartes — la rareté est une matière, pas une étoile */
+  --m-fresne:  #cfc5ad;
+  --m-chene:   #4e8c7e;
+  --m-noyer:   #d19a3c;
+  --m-ebene:   #b33049;
+  --m-rainbow: #9d7cf0;
+
+  --font-display: "Fraunces Variable", "Fraunces", Georgia, serif;
+  --font-ui: "Archivo", system-ui, -apple-system, sans-serif;
+
+  /* Fraunces adoucie, variante « wonk » : c'est elle qui donne la coupe gravée */
+  --wonk: "SOFT" 24, "WONK" 1;
+
+  /* Largeurs de carte, fluides. Tout le reste en dérive : la hauteur de la
+     scène, la taille de la lueur, la pile de dos. Une seule valeur à bouger. */
+  --carte-plein: clamp(228px, 72vw, 306px);
+  --carte-petit: clamp(132px, 38vw, 186px);
+  --carte-zoom: min(76vw, 396px);
+  /* Une seule largeur de sachet pour les deux phases : le sachet intact et la
+     partie conservée après déchirure doivent occuper le même rectangle, sinon
+     l'objet change de taille au moment précis où il se déchire. */
+  --sachet: clamp(188px, 52vw, 248px);
+  /* Espace réservé au-dessus du sachet, identique avant et après, pour que les
+     cartes aient où monter sans que le sachet ne se déplace. */
+  --sachet-marge: calc(var(--sachet) * .24);
+  /* Rapport largeur/hauteur du visuel, redéfini par extension. */
+  --sachet-r: 0.5512;
+
+  --r-sm: 3px;
+  --r-md: 6px;
+  --r-lg: 10px;
+
+  --shadow-lift: 0 18px 46px rgba(0, 0, 0, 0.55);
+  --shadow-flat: 0 4px 14px rgba(0, 0, 0, 0.4);
+}

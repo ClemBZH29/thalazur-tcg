@@ -1,0 +1,630 @@
+/* ------------------------------------------------------------------
+   LE COMPTOIR — feuille de style de la page.
+   Le module d'origine portait ses styles en attributs `style` sur chaque
+   balise, contrainte du gabarit Claude Design. Regroupés ici, ils héritent des
+   jetons de tokens.css : une seule valeur à bouger pour changer la charte, et
+   plus une couleur en dur.
+   ------------------------------------------------------------------ */
+
+.comptoir, .neg {
+  --or: var(--lamp);
+  /* Le vert-de-gris des paliers, --m-chene, tombe à 4,35:1 en texte sur
+     --ground2 : c'est une teinte de cadre, pas une encre, exactement comme
+     l'avertit la charte. Cette variante-ci est celle de teintes.js, vérifiée
+     à 7,4:1 sur --panel et 6,5:1 sur --panel2. */
+  --vert-encre: #78c2b0;
+}
+.comptoir .or { color: var(--or); font-variant-numeric: tabular-nums; }
+.comptoir .marque-rainbow { color: var(--m-rainbow); }
+.comptoir .fine { font-size: 11.5px; line-height: 1.55; }
+
+.comptoir-tete { align-items: flex-start; }
+.comptoir-annonce { position: relative; }
+
+/* La Régie tenait un dépliant en bas de page : trois blocs, deux tableaux et
+   une bascule qui doublait un réglage existant. Elle est devenue ce que sont
+   déjà le cours kobold et le marchandage — une bulle qu'on lit une fois. */
+.comptoir-hote { position: relative; }
+.comptoir .aide-bouton {
+  width: 18px; height: 18px; margin-left: 8px; padding: 0; cursor: pointer;
+  vertical-align: 1px;
+  border: 1px solid var(--edge-ui); border-radius: 50%;
+  background: none; color: var(--ink3); font: inherit; font-size: 11px; line-height: 1;
+}
+.comptoir .aide-bouton:hover { color: var(--ink); border-color: var(--ink3); }
+.comptoir-bulle {
+  position: absolute; z-index: 20; left: 0; top: 100%; margin-top: 10px;
+  width: min(430px, 92vw); padding: 15px 34px 15px 17px;
+  border: 1px solid var(--edge-hi); border-radius: var(--r-md);
+  background: var(--panel); box-shadow: 0 18px 44px rgba(0, 0, 0, .55);
+  font-size: 12.5px; line-height: 1.55; color: var(--ink2);
+}
+.comptoir-bulle .bulle-titre {
+  font-family: var(--font-display); font-variation-settings: var(--wonk);
+  font-size: 15px; font-weight: 600; color: var(--ink);
+}
+.bulle-liste { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 9px; }
+.bulle-liste li { padding-left: 13px; position: relative; }
+.bulle-liste li::before {
+  content: ""; position: absolute; left: 0; top: .62em; width: 4px; height: 4px;
+  border-radius: 50%; background: var(--lamp);
+}
+.bulle-liste b { color: var(--ink); font-weight: 600; }
+.bulle-hors-jeu {
+  margin-top: 13px; padding-top: 11px; border-top: 1px solid var(--edge);
+  font-size: 11.5px; line-height: 1.5; color: var(--ink3);
+}
+.bulle-hors-jeu b { font-variant-numeric: tabular-nums; }
+.bulle-hors-jeu b.ok { color: var(--vert-encre); }
+.bulle-hors-jeu b.ko { color: var(--ember); }
+.comptoir-bulle code { font-family: inherit; color: var(--lamp); }
+.bulle-fermer {
+  position: absolute; top: 6px; right: 6px; width: 24px; height: 24px; cursor: pointer;
+  background: none; border: 0; color: var(--ink3); font-size: 16px; line-height: 1;
+}
+.bulle-fermer:hover { color: var(--ink); }
+.annonce-bulle {
+  position: absolute; right: 0; top: 44px; z-index: 20; width: 262px;
+  padding: 14px 16px; border: 1px solid var(--edge-hi); border-radius: var(--r-md);
+  background: var(--panel); box-shadow: 0 18px 44px rgba(0, 0, 0, .55);
+}
+.annonce-nom {
+  font-family: var(--font-display); font-variation-settings: var(--wonk);
+  font-weight: 600; font-size: 17px; color: var(--ink);
+}
+.annonce-rare { margin-top: 8px; font-size: 12.5px; color: var(--lamp); }
+
+.comptoir-avis {
+  margin: 0 0 20px; padding: 12px 16px; border-radius: var(--r-md);
+  border: 1px solid var(--edge-hi); background: var(--panel);
+  font-size: 13.5px; color: var(--ink);
+}
+
+/* ── Acheteurs du jour ───────────────────────────────────────────────────── */
+
+.acheteurs { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 268px), 1fr)); gap: 14px; }
+.acheteur {
+  position: relative; display: flex; flex-direction: column;
+  text-align: left; cursor: pointer; overflow: hidden;
+  border: 1px solid var(--edge); border-radius: var(--r-lg);
+  background: linear-gradient(180deg, var(--panel), var(--ground2));
+  transition: border-color .18s, transform .18s, box-shadow .18s;
+}
+.acheteur:hover { border-color: var(--edge-ui); transform: translateY(-2px);
+  box-shadow: 0 14px 30px rgba(0, 0, 0, .4); }
+.acheteur.exceptionnel { border-color: var(--m-noyer); }
+.acheteur.inerte { cursor: default; opacity: .78; }
+.acheteur.inerte:hover { transform: none; border-color: var(--edge); box-shadow: none; }
+
+/* ── La scène du portrait ─────────────────────────────────────────────────
+   Les portraits sont des découpes : la planche d'origine est en RVBA et les
+   personnages y sont détourés. Trois versions ont ignoré cette transparence —
+   fenêtre 4:5 centrée sur le visage, image aplatie sur un fond opaque, plafond
+   de hauteur, voile pour masquer la coupe — et le résultat était un buste
+   rogné aux épaules dans une vignette photographique.
+
+   Le personnage se pose maintenant *sur* la fiche : pas de cadre, pas de fond
+   propre, pas de rognage. `contain` le montre entier, `object-position` le fait
+   tenir debout sur le bloc de texte, et la transparence fait le reste. */
+.acheteur-vignette {
+  position: relative; flex: 0 0 auto;
+  aspect-ratio: 1 / 0.86;
+}
+/* La lampe à huile du camp, posée sous le personnage : sans elle, une découpe
+   flotte au-dessus du panneau au lieu de s'y tenir. Elle passe derrière le
+   portrait, pas devant. */
+.acheteur-vignette::after {
+  content: ""; position: absolute; inset: auto 0 0 0; height: 46%; z-index: 0;
+  pointer-events: none;
+  background: radial-gradient(70% 100% at 50% 100%, rgba(232, 163, 61, .16), transparent 72%);
+}
+.acheteur-portrait {
+  position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%;
+  /* `contain` : rien n'est coupé, ni le visage ni les épaules. Le personnage
+     est posé au bas de la scène, d'où il repose sur son nom. */
+  object-fit: contain; object-position: 50% 100%;
+  filter: saturate(.94) drop-shadow(0 8px 22px rgba(0, 0, 0, .45));
+  /* Le personnage s'arrête net au bas de la planche d'origine — un trait
+     horizontal en travers du torse. Sept pour cent de fondu, appliqués à
+     l'image et non au panneau, dissolvent la coupe sans rien voiler d'autre. */
+  -webkit-mask-image: linear-gradient(to top, transparent 0, #000 7%);
+  mask-image: linear-gradient(to top, transparent 0, #000 7%);
+}
+/* Plus de voile de bas de vignette : il n'y a plus de coupe à masquer. */
+.acheteur-portrait.sans-image {
+  display: grid; place-items: center;
+  font-family: var(--font-display); font-size: 44px; color: var(--edge-hi);
+}
+.acheteur-sceau {
+  position: absolute; left: 8px; top: 8px; z-index: 2; padding: 3px 9px;
+  border-radius: 100px; background: var(--lamp); color: #241704;
+  font-size: 10.5px; font-weight: 700;
+}
+/* Le bloc de texte remontait de vingt-deux pixels sur la vignette : c'était
+   pour mordre le dégradé d'une image photographique. Avec une découpe posée au
+   bas de la scène, ce chevauchement écrivait le nom dans les mains du
+   personnage. */
+.acheteur-corps { display: flex; flex-direction: column; flex: 1 1 auto;
+  min-width: 0; padding: 6px 17px 15px; z-index: 2; }
+.acheteur-nom {
+  font-family: var(--font-display); font-variation-settings: var(--wonk);
+  font-weight: 600; font-size: 20px; line-height: 1.15; color: var(--ink);
+}
+.acheteur-sub { font-size: 12.5px; color: var(--ink3); margin-top: 2px; }
+.acheteur-spec { display: flex; gap: 9px; margin-top: 11px; font-size: 12.5px;
+  line-height: 1.4; color: var(--ink2); }
+/* La réplique du personnage : c'est elle qui dit son goût mieux qu'une
+   étiquette de spécialité. Elle vivait seulement dans la fenêtre de négoce. */
+.acheteur-quote {
+  margin-top: 11px; font-family: var(--font-display);
+  font-variation-settings: var(--wonk); font-size: 13.5px; font-style: italic;
+  line-height: 1.45; color: var(--ink3);
+}
+.acheteur-ico { color: var(--lamp); font-size: 16px; }
+.acheteur-pied {
+  margin-top: auto; padding-top: 12px; border-top: 1px solid var(--edge);
+  font-size: 12.5px; line-height: 1.45; color: var(--ink2);
+}
+.acheteur-corps > .acheteur-pied { margin-top: 14px; }
+.acheteur-pied b { color: var(--ink); font-weight: 600; }
+.acheteur-pied b.or { color: var(--or); }
+
+/* ── Colonnes vendre / vente rapide ─────────────────────────────────────── */
+
+/* Les noms qui suivent — lignes, piece, rayon, jeton — sont trop génériques
+   pour vivre sans domicile dans une feuille partagée par cinq pages. Ils sont
+   donc cantonnés sous « .comptoir », qui est la racine de la page. */
+
+/* Les deux panneaux de la même rangée finissent à la même ligne : le rayon
+   fixe la hauteur, la vente rapide s'y étire et pousse sa mention de bourse en
+   bas. Alignés en haut seulement, ils laissaient soixante pixels de décalage
+   au pied — ce qui se voit d'autant plus qu'ils sont maintenant côte à côte en
+   tête de page. */
+.comptoir-colonnes { display: flex; flex-wrap: wrap; gap: 16px; align-items: stretch;
+  margin-top: 26px; }
+.comptoir-colonnes > .panneau { margin-bottom: 0; }
+/* La rangée du haut et le tableau du surplus se touchaient : deux panneaux
+   collés lisent comme un seul bloc coupé en deux. */
+.comptoir-colonnes + .panneau { margin-top: 22px; }
+.comptoir-colonnes > section { flex: 999 1 480px; min-width: 0; padding: 0; }
+.comptoir-colonnes > aside { flex: 1 1 276px; min-width: 0; }
+
+.comptoir .panneau { background: var(--ground2); }
+.comptoir .panneau h2 { font-size: 21px; font-weight: 600; }
+.panneau-tete { display: flex; align-items: flex-end; justify-content: space-between;
+  gap: 14px; flex-wrap: wrap; padding: 18px 20px 14px; }
+.comptoir-colonnes > section .panneau-tete { padding: 18px 20px 14px; }
+.panneau-tete p { margin-top: 5px; max-width: 54ch; }
+.comptoir .jeton {
+  padding: 5px 12px; border-radius: 100px; border: 1px solid var(--edge);
+  background: var(--panel); font-size: 12px; color: var(--ink2);
+  white-space: nowrap; font-variant-numeric: tabular-nums;
+}
+.panneau-vide { padding: 20px 20px 26px; font-size: 13px; color: var(--ink3); }
+.panneau-vide a { color: var(--lamp); font-weight: 600; }
+.panneau-vide a:hover { text-decoration: underline; }
+
+.lignes { list-style: none; margin: 0; padding: 0; }
+
+/* Une grille et non un rang qui se replie. Deux raisons : les colonnes de
+   chiffres s'alignaient différemment d'une ligne à l'autre selon la longueur du
+   nom de l'acheteur, ce qu'un tableau de prix ne peut pas se permettre ; et
+   selon que la ligne portait un bouton « Négocier » ou la mention « Attendre »,
+   plus courte, le rang basculait en repliement et la ligne triplait de hauteur. */
+.comptoir .lignes li {
+  display: grid;
+  /* La dernière colonne est fixe : sans cela, une ligne sans acheteur — dont
+     la mention « Attendre » est plus courte qu'un bouton — décalait toute sa
+     rangée de chiffres par rapport aux voisines. */
+  grid-template-columns: minmax(190px, 1fr) auto 108px;
+  align-items: center; gap: 8px 18px;
+  padding: 12px 20px; border-top: 1px solid #22323a;
+}
+.ligne-carte { display: flex; align-items: center; gap: 12px; min-width: 0; }
+/* Nommée « cp-dos » et non « dos » : cards.css emploie déjà « dos » pour la
+   face arrière d'une carte, avec un rapport 2/3, une largeur de 100 % et une
+   rotation de 180 degrés. La vignette du marché héritait de tout cela et
+   sortait de sa case. Deuxième collision de nom global de la journée, après
+   « vide » : les noms génériques d'une feuille partagée sont un piège.
+
+   Le vrai dos de carte, pas un aplat : l'image existe déjà dans public/, et un
+   rectangle vide au bout d'une ligne de prix ne dit rien de ce qu'on vend. La
+   lueur du palier et l'image sont posées en style en ligne — le chemin dépend
+   de la base de publication, que seul JavaScript connaît (voir teintes.js). */
+.comptoir .cp-dos, .comptoir .piece .cp-dos {
+  flex: 0 0 auto; border-radius: var(--r-sm);
+  background-color: #0f1a1e; background-position: center;
+  /* « contain » et non « cover » : le dos porte le nom du jeu en son centre,
+     et un cadrage en cover à trente-deux pixels ne montrait que deux lettres
+     coupées. Le rapport de la boîte est presque celui de la carte, la vignette
+     reste donc pleine. */
+  background-size: contain; background-repeat: no-repeat;
+}
+.cp-dos { width: 32px; height: 44px; }
+.comptoir .ligne-nom {
+  font-family: var(--font-display); font-variation-settings: var(--wonk);
+  font-weight: 600; font-size: 15px; line-height: 1.2; color: var(--ink);
+}
+.ligne-palier { font-size: 11.5px; margin-top: 3px; }
+.hausse { color: var(--lamp); }
+
+.comptoir .ligne-chiffres {
+  display: grid; grid-template-columns: 62px 132px 92px 88px; gap: 4px 18px; margin: 0;
+}
+.ligne-chiffres > div { min-width: 0; }
+.ligne-chiffres dt { font-size: 11px; color: var(--ink4); }
+.ligne-chiffres dd { margin: 0; font-size: 14px; color: var(--ink);
+  font-variant-numeric: tabular-nums; }
+/* Pas « .vide » : app.css emploie déjà ce nom pour l'état vide d'une page,
+   avec display:flex et un empilement centré. La classe était héritée par le
+   tiret d'une offre absente, qui prenait cent quarante pixels de haut et
+   triplait la ligne. Un nom de classe global se collisionne en silence. */
+.ligne-chiffres dd.sans-offre { color: var(--ink4); }
+.attendre { font-size: 13px; justify-self: end; }
+.lignes li > .btn { justify-self: end; }
+
+@media (max-width: 1100px) {
+  .lignes li { grid-template-columns: minmax(0, 1fr) 108px; }
+  .ligne-chiffres { grid-column: 1 / -1; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+@media (max-width: 640px) {
+  .ligne-chiffres { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+.rapide { padding: 20px; background: linear-gradient(180deg, var(--panel), var(--ground2)) !important;
+  display: flex; flex-direction: column; }
+.rapide h2 { margin-bottom: 8px; }
+/* Le sélecteur générique du panneau battait la classe du montant en
+   spécificité — même poids, mais « .rapide p » compte un élément de plus. Le
+   chiffre de trente pixels s'affichait donc à douze. */
+.rapide p:not(.rapide-montant) { font-size: 12.5px; line-height: 1.55; }
+.comptoir .rapide .rapide-montant {
+  margin: 18px 0 4px !important; font-family: var(--font-display);
+  font-variation-settings: var(--wonk); font-weight: 600; font-size: 31px;
+  color: var(--or); font-variant-numeric: tabular-nums;
+}
+.rapide .btn { width: 100%; margin-top: 16px; }
+.rapide .fine { margin-top: auto !important; padding-top: 14px; }
+
+/* ── Le rayon du jour ───────────────────────────────────────────────────── */
+
+/* Six pièces, trois par rang. `auto-fill` sur 252 px donnait quatre colonnes
+   sur un large écran et un rang orphelin de deux ; un compte fixe de trois
+   garde les deux rangs pleins et la hauteur de la colonne alignée sur celle de
+   la vente rapide, à côté. */
+.rayon { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 11px; padding: 0 20px 22px; }
+@media (max-width: 1180px) { .rayon { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px)  { .rayon { grid-template-columns: 1fr; } }
+.comptoir .piece {
+  display: grid; grid-template-columns: 32px minmax(0, 1fr); gap: 12px; align-items: start;
+  padding: 13px 14px; border: 1px solid var(--edge); border-radius: var(--r-md);
+  background: var(--panel);
+}
+.piece.deja { opacity: .74; }
+.piece-corps { min-width: 0; }
+.comptoir .piece-nom {
+  font-family: var(--font-display); font-variation-settings: var(--wonk);
+  font-weight: 600; font-size: 15px; line-height: 1.2; color: var(--ink);
+}
+.piece-palier { font-size: 11.5px; margin-top: 4px; }
+.piece-repere { font-size: 11.5px; margin-top: 3px; line-height: 1.4; }
+.piece .btn { grid-column: 1 / -1; margin-top: 11px; }
+
+/* Les mesures de calibration, désormais dans la bulle de l'en-tête. */
+.mesures { margin: 12px 0 0; }
+.mesures > div { display: flex; justify-content: space-between; gap: 14px;
+  padding: 8px 0; border-top: 1px solid #22323a; font-size: 13px; }
+.mesures dt { color: var(--ink2); }
+.mesures dd { margin: 0; color: var(--ink); font-variant-numeric: tabular-nums;
+  white-space: nowrap; }
+.mesures dd.ok { color: var(--vert-encre); }
+.mesures dd.ko { color: var(--ember); }
+
+/* ── Négoce ─────────────────────────────────────────────────────────────────
+   Piste A. Le panneau empilait sept conteneurs pour trois informations : les
+   puces, la carte, l'offre, les actions, l'encadré du pari, ses deux issues et
+   deux paragraphes de mentions. Il en reste trois zones — la carte et sa
+   quantité sur un rang, les trois chiffres sur un rang séparé par des filets,
+   les actions — et une ligne de pied derrière laquelle une bulle porte la règle
+   complète.
+
+   La hauteur du cadre est celle du portrait. C'est le portrait qui commande :
+   sa colonne fait quatre cinquièmes de la hauteur, la planche d'origine étant
+   découpée en 4:5, donc l'image remplit sa colonne au pixel sans aucun
+   recadrage. Le cadre passe d'un carré de 1040 × 811, où le portrait mangeait
+   52 % de la largeur, à un paysage de 968 × 560 où il en occupe 46 %.          */
+
+.neg-fond {
+  position: fixed; inset: 0; z-index: 60; display: flex; align-items: center;
+  justify-content: center; padding: clamp(8px, 2.5vw, 26px);
+  /* La fenêtre a un plancher de hauteur : sur un écran très court elle le
+     dépasse, et c'est le fond qui doit défiler plutôt que couper. */
+  overflow: auto;
+  background: rgba(6, 11, 13, .74);
+  backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+  animation: pose .18s cubic-bezier(.2, .8, .3, 1) both;
+}
+@keyframes pose { from { opacity: 0; transform: translateY(9px); } to { opacity: 1; transform: none; } }
+
+.neg {
+  /* La hauteur, d'où tout découle. Un plancher, pour que le panneau ait
+     toujours de quoi tenir ses trois zones ; un plafond, pour qu'un grand
+     écran ne transforme pas le portrait en affiche. */
+  --neg-h: clamp(452px, 74vh, 588px);
+  --neg-ratio: 0.8;
+  position: relative; display: grid;
+  grid-template-columns: calc(var(--neg-h) * var(--neg-ratio)) minmax(0, 1fr);
+  width: min(calc(var(--neg-h) * var(--neg-ratio) + 612px), 96vw);
+  /* Un plancher, et non une hauteur fixe : la grille des cartes ajoute jusqu'à
+     trois rangs de pastilles et un champ de filtre, que la fenêtre doit
+     pouvoir prendre plutôt que de comprimer ses trois zones. Le portrait
+     remplit sa colonne au cadrage près, donc rien ne se lettreboxe. */
+  min-height: var(--neg-h);
+  max-height: 92vh;
+  border: 1px solid var(--edge-hi); border-radius: 12px; background: var(--ground2);
+  box-shadow: 0 34px 90px rgba(0, 0, 0, .7); overflow: hidden;
+}
+
+/* ── La scène ─────────────────────────────────────────────────────────────── */
+
+.neg-scene {
+  position: relative; display: flex; flex-direction: column; overflow: hidden;
+  background: linear-gradient(180deg, #1d2c33 0%, #101a1e 72%);
+}
+.neg-halo { position: absolute; inset: auto 0 0 0; height: 74%; z-index: 0;
+  background: radial-gradient(70% 100% at 50% 102%, rgba(232, 163, 61, .26), transparent 70%); }
+/* Le portrait est une découpe carrée, la colonne est plus haute que large :
+   `contain` le montre entier et `object-position` le pose au bas de la scène,
+   sous le voile du nom et derrière la réplique. */
+.neg-portrait { position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%;
+  object-fit: contain; object-position: 50% 100%;
+  filter: drop-shadow(0 10px 26px rgba(0, 0, 0, .5));
+  -webkit-mask-image: linear-gradient(to top, transparent 0, #000 6%);
+  mask-image: linear-gradient(to top, transparent 0, #000 6%); }
+/* Voile du haut : le nom se posait dans les cheveux. */
+.neg-scene::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 42%; z-index: 2;
+  background: linear-gradient(180deg, rgba(13, 20, 23, .82), transparent);
+  pointer-events: none; }
+
+.neg-identite { position: relative; z-index: 3; padding: 20px 22px 0; }
+.neg-identite h2 { font-size: clamp(22px, 2.4vw, 28px); line-height: 1.08;
+  text-shadow: 0 2px 14px rgba(13, 20, 23, .9); }
+.neg-sub { font-size: 13px; color: var(--ink2); margin-top: 3px;
+  text-shadow: 0 1px 8px rgba(13, 20, 23, .9); }
+.neg-spec {
+  display: inline-flex; align-items: center; gap: 8px; margin-top: 11px;
+  padding: 5px 11px; border-radius: 100px; border: 1px solid var(--edge-hi);
+  background: rgba(13, 20, 23, .72); font-size: 12.5px; color: var(--ink2);
+}
+.neg-spec span[aria-hidden] { color: var(--lamp); font-size: 14px; }
+.neg-quote {
+  position: relative; z-index: 3; margin: auto 16px 16px; padding: 11px 15px;
+  border: 1px solid var(--edge-hi); border-radius: var(--r-md);
+  background: rgba(13, 20, 23, .86);
+  font-family: var(--font-display); font-variation-settings: var(--wonk);
+  font-size: 14.5px; font-style: italic; line-height: 1.45; color: var(--ink);
+  text-align: center; text-wrap: pretty;
+}
+
+/* ── Le panneau ───────────────────────────────────────────────────────────── */
+
+.neg-panneau {
+  display: flex; flex-direction: column; gap: 15px; min-width: 0;
+  border-left: 1px solid var(--edge); background: #162327;
+  padding: 20px clamp(18px, 2.2vw, 24px) 22px;
+}
+.neg-tete { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }
+.neg-tete h3 { font-size: 22px; font-weight: 600; }
+.neg-tete .muted { font-size: 12.5px; margin-top: 3px; }
+.neg-fermer {
+  flex: 0 0 auto; width: 34px; height: 34px; cursor: pointer;
+  border-radius: var(--r-md); border: 1px solid var(--edge-ui);
+  background: rgba(13, 20, 23, .7); color: var(--ink); font-size: 17px; line-height: 1;
+}
+.neg-fermer:hover { background: var(--panel2); }
+
+/* Les cartes qui l'intéressent, en grille de pastilles.
+   ------------------------------------------------------------------
+   C'était une rangée unique qui défilait à l'horizontale sous un fondu. Le
+   fondu disait bien qu'il y avait autre chose derrière le bord, mais avec
+   cinquante doublons il fallait faire glisser un tapis roulant à l'aveugle
+   pour trouver une carte. La grille montre trois rangs à la fois, se filtre
+   par le nom, et chaque pastille porte son prix — l'information sur laquelle
+   la liste est triée. */
+.neg-liste { display: grid; gap: 7px; min-width: 0; }
+.neg-liste-tete { display: flex; align-items: center; gap: 10px; }
+.neg-filtre {
+  flex: 1 1 auto; min-width: 0; height: 30px; padding: 0 10px;
+  font: inherit; font-size: 12.5px; color: var(--ink);
+  background: #0f1a1e; border: 1px solid var(--edge-ui); border-radius: var(--r-md);
+}
+.neg-filtre::placeholder { color: var(--ink4); }
+.neg-compte { flex: 0 0 auto; font-size: 11.5px; color: var(--ink3);
+  font-variant-numeric: tabular-nums; }
+
+.neg-choix {
+  display: flex; flex-wrap: wrap; gap: 6px; min-width: 0;
+  /* Trois rangs de pastilles, puis on défile — mais verticalement, ce qui se
+     voit et se manipule à la molette. */
+  /* 114 px, soit exactement trois rangs de trente-quatre plus deux gouttières
+     de six : un rang coupé en deux ressemble à un défaut d'affichage. */
+  max-height: 114px; overflow-y: auto; scrollbar-width: thin;
+  padding-right: 2px;
+}
+.neg-choix button {
+  /* Un plafond de largeur : sans lui un nom long fait une pastille de trois
+     cents pixels et le rang n'en tient plus que deux. */
+  flex: 0 1 auto; min-width: 0; max-width: 192px;
+  display: inline-flex; align-items: center; gap: 7px;
+  height: 34px; padding: 0 10px; cursor: pointer;
+  border: 1px solid var(--edge-ui); border-radius: var(--r-md);
+  background: var(--panel); color: var(--ink2); font-size: 12.5px; white-space: nowrap;
+}
+.neg-puce-nom { overflow: hidden; text-overflow: ellipsis; }
+.neg-choix button b { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+.neg-choix button em {
+  font-style: normal; font-size: 11.5px; font-weight: 600; color: var(--or);
+  font-variant-numeric: tabular-nums;
+  padding-left: 7px; border-left: 1px solid var(--edge);
+}
+.neg-choix button:hover { border-color: var(--ink3); color: var(--ink); }
+.neg-choix button.on { border-color: var(--lamp); color: var(--lamp);
+  background: rgba(232, 163, 61, .12); }
+.neg-choix button.on b, .neg-choix button.on em { color: var(--lamp); }
+.neg-rien { font-size: 12px; color: var(--ink3); padding: 6px 2px; }
+
+.neg-carte { display: grid; grid-template-columns: 46px minmax(0, 1fr) auto;
+  gap: 14px; align-items: center; }
+.neg-carte .cp-dos { width: 46px; height: 66px; }
+.neg-carte-nom { min-width: 0; }
+.neg-nom {
+  font-family: var(--font-display); font-variation-settings: var(--wonk);
+  font-weight: 600; font-size: 17px; line-height: 1.2; color: var(--ink);
+}
+.neg-palier { margin-top: 3px; font-size: 12px; }
+
+.pas { display: inline-flex; }
+.pas button {
+  width: 34px; height: 34px; cursor: pointer; background: var(--panel2);
+  border: 1px solid var(--edge-ui); color: var(--ink); font-size: 16px;
+}
+.pas button:first-child { border-radius: var(--r-md) 0 0 var(--r-md); }
+.pas button:last-child { border-radius: 0 var(--r-md) var(--r-md) 0; }
+.pas input {
+  width: 46px; height: 34px; text-align: center; background: #0f1a1e; color: var(--ink);
+  border: 1px solid var(--edge-ui); border-inline: 0; font-family: inherit;
+  font-size: 14px; font-variant-numeric: tabular-nums;
+}
+
+/* Les trois chiffres : un rang, deux filets, aucune boîte. */
+.neg-chiffres {
+  /* C'est le portrait qui fixe la hauteur du cadre, le panneau a donc du mou.
+     `margin-block: auto` le répartit également au-dessus et au-dessous des
+     chiffres : l'argent se centre dans la colonne au lieu de laisser un trou
+     entre les boutons et le pied de page. */
+  display: grid; grid-template-columns: 1.45fr 1fr 1fr; margin-block: auto;
+  border-top: 1px solid var(--edge); border-bottom: 1px solid var(--edge);
+}
+.neg-chiffres > div { padding: 14px 0 13px; min-width: 0; }
+.neg-chiffres > div + div { border-left: 1px solid var(--edge); padding-left: 17px; }
+.neg-chiffres dt { font-size: 11.5px; color: var(--ink4); white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis; }
+.neg-chiffres dd { margin: 5px 0 0; }
+.neg-chiffres .montant {
+  font-family: var(--font-display); font-variation-settings: var(--wonk);
+  font-weight: 600; font-size: clamp(26px, 2.8vw, 31px); color: var(--lamp);
+  font-variant-numeric: tabular-nums; letter-spacing: -.01em; line-height: 1;
+}
+.neg-chiffres .second {
+  font-family: var(--font-display); font-variation-settings: var(--wonk);
+  font-weight: 600; font-size: 19px; color: var(--ink);
+  font-variant-numeric: tabular-nums; line-height: 1;
+}
+
+.neg-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.neg-actions .btn { padding: 12px 10px; }
+.neg-fait {
+  display: flex; align-items: center; justify-content: center; border-radius: var(--r-md);
+  border: 1px solid var(--edge); color: var(--ink4); font-size: 13.5px;
+}
+
+/* Une ligne de pied, et la règle complète derrière un point d'interrogation :
+   deux paragraphes de mentions y tenaient la moitié de la colonne. */
+.neg-pied { font-size: 11.5px; line-height: 1.55; color: var(--ink4); }
+.neg-aide {
+  width: 19px; height: 19px; margin-left: 7px; padding: 0; cursor: pointer;
+  border: 1px solid var(--edge-ui); border-radius: 50%; background: none;
+  color: var(--ink3); font: inherit; font-size: 11px; line-height: 1; vertical-align: 1px;
+}
+.neg-aide:hover { color: var(--ink); background: var(--panel2); }
+.neg-bulle {
+  position: absolute; z-index: 8; right: clamp(18px, 2.2vw, 24px);
+  bottom: 54px; width: min(320px, 68%); padding: 13px 34px 13px 15px;
+  border: 1px solid var(--edge-hi); border-radius: var(--r-md);
+  background: var(--panel); box-shadow: 0 18px 40px rgba(0, 0, 0, .6);
+  font-size: 12.5px; line-height: 1.55; color: var(--ink2);
+}
+.neg-bulle-fermer {
+  position: absolute; top: 6px; right: 6px; width: 24px; height: 24px; cursor: pointer;
+  background: none; border: 0; color: var(--ink3); font-size: 16px; line-height: 1;
+}
+.neg-bulle-fermer:hover { color: var(--ink); }
+
+/* ── Au doigt ─────────────────────────────────────────────────────────────── */
+
+@media (max-width: 900px) {
+  .neg {
+    --neg-h: auto;
+    grid-template-columns: minmax(0, 1fr); width: min(520px, 96vw);
+    height: auto; max-height: 94vh; overflow: auto;
+  }
+  /* Le portrait entier ferait cinq cents pixels de haut sur un téléphone : on
+     n'en garde que le buste. Un cadre en 4:3 et non en 3:2 — assez haut pour
+     que le visage tienne entier sous le voile du nom, et que la réplique se
+     pose sur le buste plutôt qu'en travers du menton. */
+  .neg-scene { aspect-ratio: 4 / 3; min-height: 0; }
+  .neg-panneau { border-left: 0; border-top: 1px solid var(--edge); }
+  .neg-quote { font-size: 13px; margin: auto 12px 12px; padding: 9px 13px; }
+  .neg-chiffres { grid-template-columns: 1fr 1fr; margin-block: 0; }
+  /* Le pas de quantité passe sous le nom : « Peu commun · double affinité ·
+     4 en surplus » se pliait en trois lignes à côté de lui. */
+  .neg-carte { grid-template-columns: 46px minmax(0, 1fr); }
+  .neg-carte .pas { grid-column: 2; margin-top: 4px; }
+  .neg-chiffres > div:nth-child(3) { grid-column: 1 / -1; border-left: 0; padding-left: 0;
+    border-top: 1px solid var(--edge); }
+  .neg-bulle { position: static; width: auto; margin-top: 10px; }
+}
+
+/* ── Le verdict du marchandage ───────────────────────────────────────────── */
+
+/* Hauteur réservée : le verdict et la règle qu'il remplace n'ont pas le même
+   nombre de lignes, et la fenêtre grandissait au moment précis du résultat. */
+.neg-issue { min-height: 62px; display: flex; align-items: flex-start; }
+.neg-issue > p { margin: 0; }
+
+/* Le verdict portait `border: 1px solid` sans couleur, et ses deux variantes
+   — réussite, échec — n'existaient nulle part : les deux issues s'affichaient
+   dans le même encadré gris, la phrase seule les distinguait. Le cadre prend
+   maintenant la couleur de l'issue, comme le montant juste au-dessus. */
+.neg-verdict { margin: 0; padding: 12px 14px; border-radius: var(--r-md);
+  font-size: 13px; line-height: 1.45; border: 1px solid var(--edge);
+  animation: neg-verdict-entree .34s cubic-bezier(.2, .8, .3, 1) both; }
+.neg-verdict.ok {
+  color: var(--vert-encre); border-color: rgba(120, 194, 176, .45);
+  background: rgba(120, 194, 176, .07);
+}
+.neg-verdict.ko {
+  color: var(--ember); border-color: rgba(229, 119, 75, .45);
+  background: rgba(229, 119, 75, .07);
+}
+@keyframes neg-verdict-entree {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* L'éclat sur le montant : le chiffre change, et on le voit changer.
+   ------------------------------------------------------------------
+   Ces trois règles visaient `.neg-offre`, le nom qu'avait l'encadré du montant
+   avant que le panneau ne passe en trois zones. La classe a disparu du rendu,
+   les sélecteurs sont restés : l'animation ne s'est plus jouée une seule fois
+   depuis, en silence — le pire des bogues de feuille de style, puisque rien ne
+   casse. Un sélecteur orphelin ne lève aucune erreur ; il faut le chercher. */
+.neg-chiffres .montant { transition: color .2s; }
+.neg-chiffres .montant.eclat-ok { animation: eclat-ok 1.05s cubic-bezier(.2, .8, .3, 1) both; }
+.neg-chiffres .montant.eclat-ko { animation: eclat-ko 1.05s cubic-bezier(.2, .8, .3, 1) both; }
+@keyframes eclat-ok {
+  0%   { color: var(--vert-encre); transform: scale(1); }
+  22%  { color: var(--vert-encre); transform: scale(1.14); text-shadow: 0 0 22px rgba(120, 194, 176, .6); }
+  100% { color: var(--lamp); transform: scale(1); text-shadow: none; }
+}
+@keyframes eclat-ko {
+  0%   { color: var(--ember); transform: translateX(0); }
+  18%  { color: var(--ember); transform: translateX(-5px); }
+  34%  { color: var(--ember); transform: translateX(4px); }
+  50%  { color: var(--ember); transform: translateX(-2px); }
+  100% { color: var(--lamp); transform: none; }
+}
+
+[data-mouvement="reduit"] .neg-verdict,
+[data-mouvement="reduit"] .neg-chiffres .montant { animation: none; }

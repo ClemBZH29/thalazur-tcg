@@ -1,0 +1,163 @@
+/* ------------------------------------------------------------------
+   Les cartes, montées sur le cadre gravé de La Brume de Thalazur.
+   Toute la typographie est exprimée en cqw : la carte est un conteneur,
+   les textes suivent donc sa largeur au lieu d'être figés en pixels.
+   ------------------------------------------------------------------ */
+
+/* Le conteneur des requêtes CSS est porté par la boîte, pas par la face :
+   `container-type` applique du confinement, et un moteur qui confine un élément
+   cesse d'honorer son `backface-visibility` — les deux faces se peignent alors
+   l'une sur l'autre et l'on voit l'avant en miroir.
+   Corollaire à ne pas oublier : le confinement en ligne rend la largeur
+   INDÉPENDANTE du contenu. La boîte doit donc porter une largeur explicite,
+   sinon elle se réduit à zéro et toutes les tailles en cqw avec elle. */
+.cardbox { position: relative; z-index: 6; container-type: inline-size; }
+/* `touch-action: none` confisquait tous les gestes : dans la bibliothèque, le
+   doigt tombe forcément sur une carte, donc la page ne défilait plus du tout.
+   `pan-y` laisse le navigateur gérer le défilement vertical et ne nous réserve
+   que l'horizontal — exactement ce dont le balayage a besoin. */
+.cardbox.live { cursor: pointer; touch-action: pan-y; user-select: none; }
+.cardbox.partie { animation: envol .34s cubic-bezier(.3,.5,.5,1) forwards; pointer-events: none; }
+@keyframes envol { to { transform: translateX(var(--gx)) rotate(var(--gr)); opacity: 0; } }
+
+.persp { perspective: 1100px; }
+.tilt { --rx: 0deg; --ry: 0deg; --mx: 50%; --my: 50%;
+  transform: rotateX(var(--rx)) rotateY(var(--ry));
+  transition: transform .12s ease-out; transform-style: preserve-3d; }
+
+.flipper { position: relative; width: 100%; transform-style: preserve-3d;
+  transform: rotateY(180deg); transition: transform var(--fd, 500ms) cubic-bezier(.34,.85,.36,1); }
+.flipper.face { transform: rotateY(0deg); }
+/* Redondant avec backface-visibility, et volontairement : si un moteur l'ignore,
+   c'est ceci qui garantit qu'une seule face est peinte à la fois.
+   La bascule est calée sur le passage à 90°, c'est-à-dire l'instant où la carte
+   est vue par la tranche. Avec la courbe cubic-bezier(.34,.85,.36,1) ce point
+   tombe à 20 % de la durée, pas à 50 % : l'accélération est très en avance. */
+.flipper > .dos, .flipper > .plaque { transition: opacity 0s linear calc(var(--fd, 500ms) * .2); }
+.flipper > .plaque { opacity: 0; }
+.flipper.face > .plaque { opacity: 1; }
+.flipper.face > .dos { opacity: 0; }
+
+.cb-plein { width: var(--carte-plein); }
+.cb-petit { width: var(--carte-petit); }
+.cb-zoom  { width: var(--carte-zoom); }
+.flipper, .plaque, .dos { width: 100%; aspect-ratio: 2 / 3; }
+
+.plaque, .dos {
+  /* Les deux faces portent un arrondi peint d'environ 3,3 % de leur largeur ;
+     on découpe juste au-dessus pour ne laisser passer aucun angle noir. */
+  position: absolute; inset: 0; border-radius: 3.7%/2.47%; overflow: hidden;
+  backface-visibility: hidden; -webkit-backface-visibility: hidden;
+}
+
+/* --- Dos --- */
+.dos { transform: rotateY(180deg); display: grid; place-items: center;
+  box-shadow: var(--shadow-lift); }
+.dos img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.dos-empile .dos { transform: none; backface-visibility: visible; -webkit-backface-visibility: visible; }
+
+/* --- Face : le cadre est une image, tout le reste se place en pourcentages --- */
+.plaque { box-shadow: var(--shadow-lift); background: #0a243d; }
+.plaque > .fenetre, .plaque > .cadre, .plaque > .teinte,
+.plaque > .zone-nom, .plaque > .zone-detail, .plaque > .zone-pied { position: absolute; }
+
+.fenetre { z-index: 0; overflow: hidden; background: linear-gradient(160deg, #14304c, #0a1c30); }
+.fenetre img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 30%; display: block; }
+.cadre { inset: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; display: block; }
+.teinte { inset: 0; z-index: 2; pointer-events: none; background: var(--tc);
+  opacity: var(--ta); mix-blend-mode: color;
+  mask-size: 100% 100%; -webkit-mask-size: 100% 100%;
+  mask-repeat: no-repeat; -webkit-mask-repeat: no-repeat; }
+
+.monogramme { position: absolute; inset: 0; display: grid; place-items: center; color: #9dc2e0;
+  background: linear-gradient(var(--rot), rgba(255,255,255,.07), rgba(0,0,0,.22)); }
+.monogramme .burin { position: absolute; inset: 0; opacity: .1;
+  background: repeating-conic-gradient(from var(--rot) at 50% 50%, currentColor 0 1deg, transparent 1deg 13deg); }
+.monogramme b { font-family: var(--font-display); font-variation-settings: var(--wonk);
+  font-weight: 900; font-size: 26cqw; opacity: .3; letter-spacing: -.05em; }
+
+/* --- Plaques de texte : les tailles suivent la largeur de la carte --- */
+.zone-nom, .zone-detail, .zone-pied { z-index: 3; overflow: hidden; }
+
+.zone-nom { display: flex; align-items: center; justify-content: center; }
+.nom { font-family: var(--font-display); font-variation-settings: var(--wonk);
+  font-weight: 700; font-size: calc(7.4cqw * var(--fit, 1)); line-height: 1.06;
+  letter-spacing: -.022em; color: #0f2438; text-align: center;
+  white-space: nowrap; max-width: 100%; }
+
+.zone-detail { display: flex; align-items: center; justify-content: center; padding: 0 3%; }
+.detail { display: flex; flex-direction: column; align-items: center; gap: .25cqw;
+  text-align: center; max-width: 100%; }
+/* Ligne de repères. Le séparateur est posé par CSS pour rester réglable d'un
+   seul endroit : à cette taille, une barre verticale se distingue nettement des
+   lettres là où un point médian disparaîtrait dans les empattements. */
+.detail .reperes { font-size: calc(3.3cqw * var(--fit, 1)); font-style: normal; font-weight: 600;
+  color: #12293f; line-height: 1.16; white-space: nowrap; letter-spacing: .005em; }
+.detail .reperes span + span::before { content: var(--sep, "|"); opacity: .42;
+  margin: 0 .5em; font-weight: 400; }
+/* La citation : la seule ligne qui ne soit pas une donnée. Masquée sur les
+   vignettes, où deux lignes d'italique seraient illisibles ; intégrale en
+   plein écran. */
+.detail .citation { display: none; font-size: calc(2.9cqw * var(--fit, 1)); font-style: italic;
+  color: #2a4257; line-height: 1.3; margin-top: .6cqw; text-wrap: balance; }
+.detail .citation::before { content: "«\00a0"; }
+.detail .citation::after { content: "\00a0»"; }
+@container (min-width: 250px) {
+  .detail .citation { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+    overflow: hidden; }
+}
+
+.zone-pied { display: flex; align-items: center; justify-content: space-between; gap: 2%; }
+.zone-pied .palier { font-size: 2.75cqw; color: rgba(178,209,234,.66); letter-spacing: .01em;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.encoches { display: flex; gap: .6cqw; flex-shrink: 0; }
+.encoches i { width: .95cqw; height: 3.1cqw; border-radius: .3cqw;
+  background: rgba(178,209,234,.85); opacity: .2; }
+.encoches i.on { opacity: 1; }
+
+/* --- Cadre pleine illustration : full art et cartes PJ --- */
+.plaque.pleine .fenetre { background: linear-gradient(160deg, #1a1f28, #0b0e13); }
+.plaque.pleine .fenetre img { object-fit: cover; }
+.t-fullart { box-shadow: 0 0 0 1px rgba(179,48,73,.7), 0 0 42px rgba(179,48,73,.4), 0 22px 60px rgba(0,0,0,.7); }
+/* Le noir n'a pas de teinte : on désature et on assombrit le cadre lui-même
+   plutôt que d'y superposer un aplat, sans effet en mode « color ». */
+.t-pj .cadre { filter: saturate(0) brightness(.34) contrast(1.3); }
+.t-pj { box-shadow: 0 0 0 1px rgba(227,236,244,.55), 0 0 44px rgba(190,210,230,.28), 0 22px 62px rgba(0,0,0,.8); }
+.t-fullart .iris { opacity: .34; }
+.t-pj .iris { mix-blend-mode: screen; opacity: .2; }
+
+/* --- Lueur de rareté portée par la carte elle-même --- */
+.t-peucommun { box-shadow: 0 0 0 1px rgba(78,140,126,.5), 0 18px 46px rgba(20,70,62,.45); }
+.t-rare { box-shadow: 0 0 0 1px rgba(209,154,60,.6), 0 0 26px rgba(209,154,60,.28), 0 18px 48px rgba(90,60,15,.5); }
+.t-legendaire { box-shadow: 0 0 0 1px rgba(179,48,73,.65), 0 0 34px rgba(179,48,73,.34), 0 20px 54px rgba(0,0,0,.68); }
+.t-legendaire .encoches i { background: #e6b45f; }
+.rainbow { box-shadow: 0 0 0 1px rgba(157,124,240,.7), 0 0 30px rgba(157,124,240,.3), 0 20px 50px rgba(60,30,110,.5); }
+
+/* --- Irisation pilotée par l'inclinaison ---
+   Rien ne bouge tant que la main ne bouge pas : la position des dégradés
+   est calculée depuis les mêmes variables que le basculement 3D. */
+.iris, .reflet { position: absolute; inset: 0; pointer-events: none; }
+.iris { z-index: 5; mix-blend-mode: color-dodge; opacity: .28;
+  background:
+    repeating-linear-gradient(104deg,
+      hsla(340,92%,64%,.6) 0%, hsla(48,96%,62%,.6) 8%, hsla(148,86%,56%,.6) 16%,
+      hsla(196,92%,60%,.6) 24%, hsla(266,86%,66%,.6) 32%, hsla(340,92%,64%,.6) 40%),
+    repeating-linear-gradient(66deg, rgba(255,255,255,.2) 0 5%, transparent 5% 13%);
+  background-size: 220% 220%, 170% 170%;
+  background-position: calc(var(--mx,50%) * 1.9) calc(var(--my,50%) * 1.5),
+                       calc(var(--mx,50%) * -1.3) calc(var(--my,50%) * .8); }
+.iris.or { opacity: .22;
+  background: repeating-linear-gradient(104deg,
+    hsla(44,94%,60%,.65) 0%, hsla(28,88%,52%,.5) 9%, hsla(52,96%,72%,.7) 18%, hsla(44,94%,60%,.65) 27%);
+  background-size: 240% 240%;
+  background-position: calc(var(--mx,50%) * 2) calc(var(--my,50%) * 1.4); }
+/* La couche de paillettes est retirée : l'irisation seule porte l'effet Rainbow.
+   Les <div class="paillettes"> restent dans le JSX mais n'ont plus de style,
+   donc ne rendent rien. */
+.reflet { z-index: 7; mix-blend-mode: soft-light;
+  background: radial-gradient(340px circle at var(--mx,50%) var(--my,50%), rgba(255,255,255,.62), transparent 62%); }
+.rainbow .reflet { mix-blend-mode: screen;
+  background: radial-gradient(300px circle at var(--mx,50%) var(--my,50%), rgba(190,158,255,.4), transparent 60%); }
+
+[data-mouvement="reduit"] .tilt,
+[data-mouvement="reduit"] .flipper { transition-duration: .01ms !important; }

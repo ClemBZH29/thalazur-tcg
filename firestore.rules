@@ -1,0 +1,44 @@
+rules_version = '2';
+
+// Un document par joueur, lisible et modifiable par lui seul.
+//
+// Les écritures doivent partir de la dernière révision connue (révision + 1) :
+// deux appareils qui envoient en même temps ne s'écrasent jamais, le second
+// est refusé et réconcilie avant de renvoyer. Voir src/jeu/Compte.jsx.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function proprietaire(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
+    function formeValide() {
+      let d = request.resource.data;
+      return d.keys().hasOnly(['schema', 'revision', 'donnees', 'mine', 'maj', 'expire'])
+        && d.keys().hasAll(['schema', 'revision', 'donnees', 'maj', 'expire'])
+        && d.schema is int
+        && d.revision is int
+        && d.donnees is string && d.donnees.size() < 950000
+        && (d.mine == null || (d.mine is string && d.mine.size() < 60000))
+        && d.maj == request.time
+        // Échéance de conservation : cinq ans (à quelques jours près, l'horloge
+        // de l'appareil n'étant pas celle du serveur). Politique TTL sur `expire`.
+        && d.expire is timestamp
+        && d.expire > request.time + duration.value(1810, 'd')
+        && d.expire < request.time + duration.value(1840, 'd');
+    }
+
+    match /joueurs/{uid} {
+      allow read, delete: if proprietaire(uid);
+      allow create: if proprietaire(uid) && formeValide()
+        && request.resource.data.revision == 1;
+      allow update: if proprietaire(uid) && formeValide()
+        && request.resource.data.revision == resource.data.revision + 1;
+    }
+
+    // Tout le reste est fermé.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

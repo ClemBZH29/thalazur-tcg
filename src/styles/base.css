@@ -1,0 +1,117 @@
+* { box-sizing: border-box; }
+
+html, body, #root { height: 100%; }
+
+/* La barre de défilement apparaissait quand le bouton « Suivante » s'ajoutait,
+   ce qui rétrécissait la fenêtre d'une quinzaine de pixels et décalait toute la
+   page vers la gauche. On réserve sa gouttière en permanence. */
+html { scrollbar-gutter: stable; }
+
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--ink2);
+  font-family: var(--font-ui);
+  font-size: 15px;
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+h1, h2, h3 {
+  font-family: var(--font-display);
+  font-variation-settings: var(--wonk);
+  color: var(--ink);
+  margin: 0;
+  line-height: 1.08;
+  letter-spacing: -0.015em;
+}
+
+p { margin: 0; }
+button { font-family: inherit; color: inherit; }
+/* `hidden` doit gagner contre les classes de mise en page. L'attribut ne pose
+   qu'un `display: none` de feuille utilisateur : la moindre règle de classe
+   avec `display: flex` ou `grid` le bat en spécificité, et l'élément reste
+   affiché. C'est ce qui est arrivé à la rangée des raretés de la bibliothèque,
+   masquée dans le code et bien visible à l'écran. */
+[hidden] { display: none !important; }
+
+:focus-visible { outline: 2px solid var(--lamp); outline-offset: 3px; border-radius: 2px; }
+/* Le titre de page reçoit le focus au changement d'adresse, pour que le
+   lecteur d'écran annonce où l'on vient d'arriver et que la tabulation reparte
+   du haut. Mais ce n'est pas un élément avec lequel on interagit : le cadre
+   ambré qui s'affichait sur « La Brume de Thalazur » à chaque arrivée
+   annonçait une commande qui n'existe pas. On garde le déplacement, on retire
+   le cerne — c'est ce que recommande l'APW pour une cible de focus non
+   interactive. */
+h1[tabindex="-1"]:focus, h1[tabindex="-1"]:focus-visible,
+main[tabindex="-1"]:focus, main[tabindex="-1"]:focus-visible { outline: none; }
+
+/* Lien d'évitement : sur mobile la navigation défile horizontalement, la
+   franchir à la tabulation était long. */
+.saut { position: absolute; left: 12px; top: -60px; z-index: 60;
+  background: var(--lamp); color: #221604; font-weight: 600; font-size: 14px;
+  padding: 12px 18px; border-radius: var(--r-sm); transition: top .15s; }
+.saut:focus { top: 12px; }
+::selection { background: var(--lamp); color: var(--ground); }
+
+.shell { min-height: 100%; display: flex; flex-direction: column; position: relative; z-index: 1; }
+
+.masthead {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 20px; flex-wrap: wrap;
+  padding: 18px max(28px, env(safe-area-inset-right)) 18px max(28px, env(safe-area-inset-left));
+  border-bottom: 1px solid var(--edge);
+  background: rgba(13, 20, 23, 0.72);
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  position: sticky; top: 0; z-index: 30;
+}
+.brand { display: flex; align-items: baseline; gap: 12px; cursor: pointer; background: none; border: 0; padding: 0; }
+.brand b { font-family: var(--font-display); font-variation-settings: var(--wonk);
+  font-weight: 700; font-size: 19px; color: var(--ink); letter-spacing: -0.02em; }
+.brand span { font-size: 13px; color: var(--ink4); }
+
+.nav { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.nav button {
+  background: transparent; border: 1px solid transparent; border-radius: var(--r-sm);
+  padding: 7px 13px; font-size: 13.5px; font-weight: 500; color: var(--ink2); cursor: pointer;
+  transition: color .15s, border-color .15s;
+}
+.nav button:hover { color: var(--ink); }
+.nav button.on { color: var(--lamp); border-color: var(--edge-hi); }
+.nav .count { color: var(--ink4); font-weight: 400; margin-left: 5px; font-variant-numeric: tabular-nums; }
+
+.btn {
+  border: 0; border-radius: var(--r-sm); padding: 12px 24px; cursor: pointer;
+  font-size: 14px; font-weight: 600;
+  background: var(--lamp); color: #221604;
+  transition: background .15s, transform .08s;
+}
+.btn:hover { background: #f4b558; }
+.btn:active { transform: translateY(1px); }
+.btn.quiet { background: transparent; color: var(--ink2); border: 1px solid var(--edge-hi); }
+.btn.quiet:hover { background: var(--panel); color: var(--ink); }
+.btn.sm { padding: 8px 15px; font-size: 12.5px; }
+.btn[disabled] { opacity: .4; cursor: not-allowed; }
+
+.view { flex: 1; width: 100%; max-width: 1180px; margin: 0 auto;
+  padding: 34px max(28px, env(safe-area-inset-right)) calc(72px + env(safe-area-inset-bottom))
+           max(28px, env(safe-area-inset-left)); }
+.lede { font-size: 16px; line-height: 1.75; color: var(--ink2); max-width: 58ch; }
+.muted { color: var(--ink4); font-size: 13px; }
+
+@media (max-width: 640px) {
+  .masthead { gap: 10px;
+    padding: 12px max(18px, env(safe-area-inset-right)) 12px max(18px, env(safe-area-inset-left)); }
+  .view { padding: 24px max(18px, env(safe-area-inset-right))
+          calc(60px + env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left)); }
+  .brand b { font-size: 17px; }
+  .brand span { display: none; }
+
+  /* Cinq entrées à 44 px se repliaient sur trois rangs, soit un bandeau collant
+     de 150 px. Un seul rang qui défile horizontalement rend l'espace à la page. */
+  .nav { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none;
+    width: 100%; padding-bottom: 2px; }
+  .nav::-webkit-scrollbar { display: none; }
+  .nav button, .nav .bourse, .nav .alerte { flex: 0 0 auto; }
+}

@@ -1,0 +1,556 @@
+/* ------------------------------------------------------------------
+   Brume, accueil, étagère de boosters, ouverture, bibliothèque.
+   ------------------------------------------------------------------ */
+
+/* --- La brume, en fond permanent --- */
+.brume { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+.brume i { position: absolute; display: block; border-radius: 50%; filter: blur(70px); opacity: .5; }
+.brume i:nth-child(1) { width: 70vw; height: 46vh; left: -12vw; top: 22vh;
+  background: radial-gradient(circle, rgba(52,84,92,.75), transparent 68%);
+  animation: derive 74s ease-in-out infinite alternate; }
+.brume i:nth-child(2) { width: 62vw; height: 40vh; right: -14vw; top: 46vh;
+  background: radial-gradient(circle, rgba(38,66,76,.7), transparent 68%);
+  animation: derive2 92s ease-in-out infinite alternate; }
+.brume i:nth-child(3) { width: 90vw; height: 30vh; left: 4vw; bottom: -8vh;
+  background: radial-gradient(circle, rgba(30,52,60,.8), transparent 70%);
+  animation: derive 118s ease-in-out infinite alternate-reverse; }
+@keyframes derive  { to { transform: translate3d(9vw, -5vh, 0) scale(1.14); } }
+@keyframes derive2 { to { transform: translate3d(-11vw, 4vh, 0) scale(1.2); } }
+
+/* --- Accueil --- */
+.hero { padding: 76px 0 60px; max-width: 720px; }
+.hero .horizon { width: 84px; height: 1px; background: linear-gradient(90deg, var(--lamp), transparent);
+  margin-bottom: 26px; }
+.hero h1 { font-size: clamp(44px, 8vw, 78px); font-weight: 900; font-variation-settings: "SOFT" 40, "WONK" 1;
+  line-height: .94; letter-spacing: -.035em; }
+.hero .sous { font-size: 17px; color: var(--ink3); margin-top: 18px; }
+.hero .lede { margin-top: 22px; }
+
+.section-titre { display: flex; align-items: baseline; justify-content: space-between;
+  gap: 16px; flex-wrap: wrap; margin: 54px 0 20px; padding-bottom: 12px;
+  border-bottom: 1px solid var(--edge); }
+.section-titre h2 { font-size: 25px; font-weight: 600; }
+
+/* --- Étagère de boosters --- */
+.etagere { display: grid; grid-template-columns: repeat(auto-fill, minmax(258px, 1fr)); gap: 20px; }
+.booster-carte { position: relative; text-align: left; background: var(--panel);
+  border: 1px solid var(--edge); border-radius: var(--r-lg); padding: 17px;
+  display: flex; flex-direction: column; gap: 9px; cursor: pointer;
+  transition: border-color .18s, transform .18s, background .18s; }
+.booster-carte:hover { border-color: var(--edge-hi); transform: translateY(-3px); background: var(--panel2); }
+.booster-carte.verrou { cursor: default; opacity: .78; }
+/* Le visuel d'une extension à venir est présent mais désaturé : on voit ce qui
+   arrive sans le confondre avec ce qui est jouable. */
+.booster-carte.verrou .vignette-booster img { filter: grayscale(1) brightness(.62) contrast(.95); }
+.booster-carte.verrou:hover { transform: none; border-color: var(--edge); background: var(--panel); }
+
+.vignette-booster { position: relative; height: 152px; border-radius: var(--r-md); overflow: hidden;
+  background: radial-gradient(ellipse at 50% 30%, #223642, #101c22);
+  display: grid; place-items: center; box-shadow: inset 0 0 0 1px rgba(150, 190, 225, .12); }
+.vignette-booster img { height: 136px; width: auto; display: block;
+  filter: drop-shadow(0 10px 22px rgba(0, 0, 0, .6)); transition: transform .22s ease; }
+.booster-carte:hover .vignette-booster img { transform: translateY(-4px) rotate(-1.5deg); }
+.vignette-booster .cachet { width: 46px; height: 46px; border-radius: 50%; display: grid; place-items: center;
+  font-family: var(--font-display); font-variation-settings: var(--wonk); font-weight: 900;
+  font-size: 17px; color: rgba(255,255,255,.82); letter-spacing: -.03em;
+  box-shadow: 0 3px 9px rgba(0,0,0,.5); }
+.vignette-booster .lien { position: absolute; left: 0; right: 0; top: 50%; height: 6px;
+  transform: translateY(-50%); background: linear-gradient(#6b5033, #3d2c1b); }
+.booster-carte h3 { font-size: 19px; font-weight: 600; }
+/* Quatre lignes d'accroche, pas six : c'est la hauteur du résumé, autant que
+   celle de la vignette, qui faisait des cases trop grandes. Le texte complet
+   d'une extension se lit sur sa propre page ; ici il n'a qu'à donner envie. */
+.booster-resume { font-size: 13.5px; line-height: 1.55; color: var(--ink3);
+  display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical;
+  overflow: hidden; }
+.ligne-etat { display: flex; align-items: center; gap: 10px; }
+.prix { font-size: 12.5px; font-weight: 700; color: var(--lamp); padding: 4px 11px;
+  border-radius: 100px; border: 1px solid rgba(232, 163, 61, .4); font-variant-numeric: tabular-nums; }
+.ouverts { font-size: 12.5px; color: var(--ink4); font-variant-numeric: tabular-nums; }
+.etat { font-size: 11.5px; font-weight: 600; padding: 4px 10px;
+  border-radius: 100px; border: 1px solid currentColor; }
+.etat.attente { color: var(--ink4); }
+.booster-carte.trop-cher { opacity: .72; cursor: default; }
+.booster-carte.trop-cher:hover { transform: none; border-color: var(--edge); background: var(--panel); }
+.booster-carte.trop-cher .vignette-booster img { filter: grayscale(.55) brightness(.7); }
+.patience { font-size: 12.5px; color: var(--lamp); }
+
+/* Solde, dans la barre du haut */
+.bourse { font-size: 13px; font-weight: 600; color: var(--lamp); padding: 6px 13px;
+  border-radius: 100px; border: 1px solid rgba(232, 163, 61, .35);
+  background: rgba(232, 163, 61, .07); font-variant-numeric: tabular-nums;
+  margin-right: 6px; white-space: nowrap; }
+.bourse.libre { color: var(--ink3); border-color: var(--edge-hi); background: transparent; }
+
+/* --- Ouverture --- */
+.scene { display: flex; flex-direction: column; align-items: center; gap: 16px;
+  padding: 22px 0 50px; position: relative; }
+.scene-titre { font-size: 31px; font-weight: 700; text-align: center; }
+.scene-aide { font-size: 14px; color: var(--ink3); text-align: center;
+  max-width: 46ch; min-height: 24px; position: relative; z-index: 3; }
+
+.sachet-zone { display: flex; flex-direction: column; align-items: center; gap: 14px;
+  padding-top: var(--sachet-marge); }
+.sachet { position: relative; width: var(--sachet); aspect-ratio: var(--sachet-r); cursor: grab;
+  touch-action: pan-y; user-select: none; }
+.sachet:active { cursor: grabbing; }
+.sachet-bas, .sachet-haut { position: absolute; inset: 0; }
+.sachet img { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.sachet-bas { z-index: 1; filter: drop-shadow(0 18px 38px rgba(0, 0, 0, .62)); }
+/* La partie arrachée pivote autour de la ligne de coupe, au premier quart. */
+.sachet-haut { z-index: 3; transform-origin: 50% var(--coupe);
+  transform: translateY(calc(var(--d) * -14px)) rotate(calc(var(--d) * -2.8deg));
+  filter: drop-shadow(0 7px 18px rgba(0, 0, 0, .55)); }
+.interieur { position: absolute; left: 0; right: 0; top: var(--coupe); height: 7%; z-index: 2;
+  background: linear-gradient(rgba(0, 0, 0, .88), rgba(0, 0, 0, 0));
+  opacity: var(--d); pointer-events: none; }
+.guide-dechirure { position: absolute; left: 9%; right: 9%; top: calc(var(--coupe) - .6%);
+  height: 2px; z-index: 4; pointer-events: none; border-radius: 2px;
+  background: linear-gradient(90deg, transparent, rgba(232, 163, 61, .85), transparent);
+  opacity: calc(1 - var(--d) * 3); animation: guide 2.6s ease-in-out infinite; }
+@keyframes guide { 0%, 100% { transform: translateX(-7%); } 50% { transform: translateX(7%); } }
+.sachet.ouvert .sachet-haut { animation: arrache .55s cubic-bezier(.3, .7, .4, 1) forwards; }
+@keyframes arrache { to { transform: translate(-52px, -128px) rotate(-26deg); opacity: 0; } }
+.eclats-papier { position: absolute; left: 0; right: 0; top: var(--coupe); height: 1px; z-index: 5; }
+.eclats-papier i { position: absolute; left: var(--x); width: var(--s); height: calc(var(--s) * 1.5);
+  background: #d9c27a; opacity: 0; border-radius: 1px;
+  animation: eclat-papier .62s ease-out forwards; animation-delay: var(--dl); }
+@keyframes eclat-papier {
+  0% { opacity: 1; transform: translate(0, 0) rotate(0); }
+  100% { opacity: 0; transform: translate(calc(var(--dd) * .45), calc(var(--dd) * -1)) rotate(var(--a)); } }
+
+/*  */
+/* --- Sortie des cartes ---
+   Le sachet conservé est ancré en bas, à sa taille réelle et sans rognage :
+   sa découpe fait déjà le travail, le conteneur n'a rien à couper. Les cartes
+   montent depuis derrière lui, donc leur base reste masquée par le papier —
+   c'est ce recouvrement qui donne la lecture « ils sortent du sachet ». */
+/* Toute la scène est exprimée en fraction de la largeur du sachet : le
+   recouvrement des cartes par le papier reste juste à n'importe quelle taille.
+   La hauteur vaut W/r pour le sachet plus la marge haute, si bien qu'il retombe
+   exactement là où il était intact, quel que soit le rapport du visuel. */
+.deroule { position: relative; width: calc(var(--sachet) * 1.54);
+  height: calc(var(--sachet) / var(--sachet-r) + var(--sachet-marge)); }
+.sachet-vide { position: absolute; left: 50%; bottom: 0; width: var(--sachet);
+  transform: translateX(-50%); z-index: 3;
+  filter: drop-shadow(0 12px 26px rgba(0, 0, 0, .65)); }
+
+/* Départ posé exactement sur la ligne de déchirure : la carte est alors
+   entièrement sous le papier, donc invisible. */
+.carte-sortante { position: absolute; left: 50%;
+  top: calc(var(--sachet-marge) + var(--sachet) / var(--sachet-r) * .25);
+  width: calc(var(--sachet) * .538); aspect-ratio: 2 / 3;
+  z-index: 1; opacity: 0; transform: translate(-50%, 0) scale(.86);
+  animation: sortie .52s cubic-bezier(.2, .8, .3, 1) forwards;
+  animation-delay: calc(220ms + var(--i) * 72ms); }
+/* Hors contexte 3D, le dos ne doit pas être retourné : sinon sa face arrière
+   est masquée et rien ne s'affiche. */
+.carte-sortante .dos { transform: none; backface-visibility: visible;
+  -webkit-backface-visibility: visible; box-shadow: 0 6px 16px rgba(0, 0, 0, .55); }
+@keyframes sortie {
+  0%   { opacity: 0; transform: translate(-50%, 30px) scale(.86); }
+  35%  { opacity: 1; }
+  100% { opacity: 1;
+         transform: translate(calc(-50% + (var(--i) - (var(--n) - 1) / 2) * 27px), -150px)
+                    rotate(calc((var(--i) - (var(--n) - 1) / 2) * 6deg)) scale(1); } }
+
+.ombre-scene { position: fixed; inset: 0; background: #05090b; opacity: 0; z-index: 1;
+  pointer-events: none; animation: ombre var(--gd) ease-out forwards; }
+@keyframes ombre { to { opacity: var(--d); } }
+
+.pile { position: relative; display: grid; place-items: center; z-index: 2;
+  min-height: calc(var(--carte-plein) * 1.5 + 24px); }
+/* Les dos empilés restent à l'échelle 1 : la carte du dessous occupe exactement
+   la place que prendra la suivante, ce qui supprime le saut de taille au moment
+   du passage. La profondeur se lit au décalage vertical et à l'opacité. */
+.dos-empile { position: absolute; width: var(--carte-plein); aspect-ratio: 2/3; border-radius: var(--r-md);
+  overflow: hidden; transform: translateY(calc(var(--o) * 7px));
+  opacity: calc(1 - var(--o) * .16); z-index: calc(5 - var(--o));
+  box-shadow: 0 8px 22px rgba(0, 0, 0, .5);
+  transition: transform .3s cubic-bezier(.2, .8, .3, 1), opacity .3s ease; }
+
+/* La carte qui arrive avance de la position du premier dos vers l'avant :
+   le remplacement devient un mouvement au lieu d'un échange sec. */
+.avance { position: relative; z-index: 6;
+  animation: avance .3s cubic-bezier(.2, .8, .3, 1) both; }
+@keyframes avance {
+  from { transform: translateY(7px); opacity: .55; }
+  to   { transform: none; opacity: 1; } }
+
+/* Badge d'entrée en collection */
+/* L'enveloppe porte le fondu, l'intérieur porte l'animation d'entrée : une
+   animation CSS écrase toute autre déclaration d'opacité sur le même élément. */
+.badge-fondu { position: absolute; top: -10px; right: -12px; z-index: 12;
+  pointer-events: none; opacity: calc(1 - var(--swipe, 0));
+  transition: opacity var(--swipe-t, 0s) ease; }
+.badge-new { display: inline-flex; align-items: center; white-space: nowrap;
+  font-size: 12px; font-weight: 700; letter-spacing: .04em;
+  padding: 5px 12px; border-radius: 100px;
+  background: var(--lamp); color: #241704;
+  box-shadow: 0 4px 16px rgba(232, 163, 61, .45);
+  animation: badge .34s cubic-bezier(.2, 1.4, .4, 1) both; animation-delay: .1s; }
+.badge-new.arc { background: linear-gradient(104deg, #f0567f, #f0b447 26%, #58d39a 50%, #4fb6f0 72%, #a583f5);
+  color: #1b1020; box-shadow: 0 4px 18px rgba(157, 124, 240, .5); }
+.case-carte .badge-fondu, .ev .badge-fondu { top: -8px; right: -8px; }
+.case-carte .badge-new, .ev .badge-new { font-size: 11px; padding: 3px 9px; }
+@keyframes badge { from { opacity: 0; transform: scale(.6) translateY(6px); }
+  to { opacity: 1; transform: none; } }
+/* Hors contexte 3D, le dos ne doit pas être retourné : sinon sa face arrière
+   est masquée et la pile devient invisible. */
+.dos-empile .dos { transform: none; backface-visibility: visible; -webkit-backface-visibility: visible; }
+.lueur { position: absolute; width: calc(var(--carte-plein) * 1.1);
+  height: calc(var(--carte-plein) * 1.1); border-radius: 50%; z-index: 1;
+  pointer-events: none; background: radial-gradient(circle, var(--gc) 0%, transparent 66%); opacity: 0; }
+.lueur.monte { animation: lueur-in var(--gd) cubic-bezier(.35,0,.6,1) forwards; }
+.lueur.retombe { animation: lueur-out .6s ease-out forwards; }
+@keyframes lueur-in  { 0% { opacity: 0; transform: scale(.25); } 100% { opacity: .72; transform: scale(1.18); } }
+@keyframes lueur-out { 0% { opacity: .62; transform: scale(1.18); } 100% { opacity: 0; transform: scale(1.8); } }
+.motes { position: absolute; width: 1px; height: 1px; pointer-events: none; z-index: 8; }
+.motes span { position: absolute; width: 5px; height: 5px; border-radius: 50%; background: var(--gc);
+  box-shadow: 0 0 10px var(--gc); opacity: 0; animation: mote .9s ease-in forwards; animation-delay: var(--dl); }
+@keyframes mote { 0% { opacity: 0; transform: rotate(var(--a)) translateX(225px) scale(var(--ds)); }
+  35% { opacity: .95; } 100% { opacity: 0; transform: rotate(var(--a)) translateX(16px) scale(.2); } }
+
+.jauge { display: flex; align-items: center; gap: 13px; position: relative; z-index: 3; }
+.pips { display: flex; gap: 7px; }
+.pips i { width: 22px; height: 2px; background: var(--edge); border-radius: 1px; display: block; }
+.pips i.fait { background: var(--ink4); }
+.pips i.actif { background: var(--lamp); }
+.restants { font-size: 12px; color: var(--ink4); font-variant-numeric: tabular-nums; }
+.bandeau-appel { font-family: var(--font-display); font-variation-settings: var(--wonk);
+  font-weight: 900; font-size: 15px; color: var(--lamp); position: relative; z-index: 3;
+  min-height: 22px; margin: 0; }
+/* Emplacement réservé : le bouton n'apparaît qu'en face visible, mais sa place
+   est tenue en permanence pour que rien ne bouge au moment du retournement. */
+.place-bouton { min-height: 34px; display: flex; align-items: center; }
+
+.eventail { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; align-items: flex-start; }
+.ev { position: relative; animation: pose .42s cubic-bezier(.2,.8,.3,1) both; animation-delay: calc(var(--i) * 75ms); }
+@keyframes pose { from { opacity: 0; transform: translateY(22px) scale(.93); } to { opacity: 1; transform: none; } }
+.ev.premier { transform: translateY(-10px); }
+.actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 14px; }
+
+/* --- Bibliothèque --- */
+.compteurs { display: flex; flex-wrap: wrap; gap: 8px; }
+.compteur { font-size: 12px; padding: 6px 12px; border-radius: 100px; background: var(--panel);
+  border: 1px solid var(--edge); color: var(--ink3); }
+.compteur b { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; margin-left: 5px; }
+.compteur.c-peucommun { color: var(--m-chene); }
+.compteur.c-rare { color: var(--m-noyer); }
+.compteur.c-legendaire { color: #e0a4b4; }
+.compteur.c-rainbow { color: var(--m-rainbow); }
+.compteur.c-total { background: var(--lamp); border-color: var(--lamp); color: #221604; }
+.compteur.c-total b { color: #221604; }
+
+/* Grille plutôt que flex : les cartes se répartissent régulièrement au lieu de
+   laisser un trou variable en fin de ligne. */
+.grille { display: grid; gap: 16px 14px; margin-top: 18px; justify-items: center;
+  grid-template-columns: repeat(auto-fill, minmax(var(--carte-petit), 1fr)); }
+/* Un set complet, c'est huit cents cases. Hors écran, le navigateur saute
+   entièrement leur mise en page et leur peinture ; la taille annoncée évite
+   que l'ascenseur ne saute pendant le défilement. */
+.grille .case-carte { content-visibility: auto;
+  contain-intrinsic-size: auto var(--carte-petit) auto calc(var(--carte-petit) * 1.62); }
+.case-carte { position: relative; }
+
+/* --- Choix du set --- */
+.sets { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 22px; }
+.set { display: flex; flex-direction: column; gap: 2px; align-items: flex-start; text-align: left;
+  background: var(--panel); border: 1px solid var(--edge); border-radius: var(--r-md);
+  padding: 10px 16px; cursor: pointer; transition: border-color .15s, background .15s; }
+.set:hover { border-color: var(--edge-hi); background: var(--panel2); }
+.set.on { border-color: var(--lamp); background: rgba(232, 163, 61, .08); }
+.set.on .set-nom { color: var(--lamp); }
+.set.verrou { opacity: .45; cursor: default; }
+.set.verrou:hover { border-color: var(--edge); background: var(--panel); }
+.set-nom { font-size: 14px; font-weight: 600; color: var(--ink); }
+.set-sous { font-size: 12px; color: var(--ink4); }
+
+/* Annonce vocale de la carte révélée : sans elle, un lecteur d'écran ne reçoit
+   rien du tout pendant toute l'ouverture. */
+.annonce { position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip-path: inset(50%); white-space: nowrap; }
+
+/* --- Étagère sur un seul écran ---
+   Au-dessus de 1024×680, la boutique ne défile plus : la coquille prend la
+   hauteur de la fenêtre et l'étagère occupe ce qui reste. Plutôt que de budgéter des
+   pixels — fragile dès qu'une police ou un texte change — la vignette du sachet
+   est élastique et absorbe l'écart. En dessous du seuil, tout redevient normal. */
+@media (min-width: 1024px) and (min-height: 680px) {
+  /* `overflow: hidden` rognerait le contenu pour qui agrandit uniquement la
+     taille du texte sans zoomer : la fenêtre garde ses dimensions, la requête
+     média s'applique toujours, et le débordement devient irrécupérable.
+     `auto` ne change rien tant que tout tient, et rend le défilement dès qu'il
+     le faut — c'est l'exigence WCAG 1.4.4. */
+  .shell.plein { height: 100dvh; overflow: auto; }
+  .shell.plein .view { display: flex; flex-direction: column; min-height: 0;
+    overflow: auto; padding-top: 22px; padding-bottom: 26px; }
+  /* Plancher de lisibilité : sous cette hauteur l'étagère cesse de se comprimer
+     et la page reprend son défilement normal. */
+  .shell.plein .etagere { min-height: 260px; }
+
+
+  .shell.plein .section-titre { margin: 0 0 14px; padding-bottom: 10px; }
+  .shell.plein .section-titre h2 { font-size: 21px; }
+
+  /* Personne n'absorbe la hauteur libre. Les deux tentatives précédentes
+     l'ont donnée à un enfant de la carte — d'abord la vignette (sachets de
+     sept cents pixels), puis le résumé (une boîte vide de six cents) — et dans
+     les deux cas la carte s'étirait jusqu'au bas de la fenêtre. La carte se
+     dimensionne maintenant sur son contenu : sachet borné, titre, quatre
+     lignes de résumé, prix. S'il reste du vide sous l'étagère, il reste vide,
+     ce qui est le comportement d'une vitrine. */
+  .shell.plein .etagere { flex: 0 0 auto; min-height: 0; align-content: start;
+    grid-template-columns: repeat(4, 1fr); }
+  .shell.plein .booster-carte { min-height: 0; padding: 18px; gap: 10px; }
+  /* Flex et non grille : la vignette est une grille à rangée automatique, et
+     un `height: 100%` sur l'image s'y résout contre cette rangée — donc en
+     `auto`. L'image reprenait alors sa taille intrinsèque, bornée par
+     `max-width`, et débordait de quatre-vingt-seize pixels que
+     `overflow: hidden` coupait net : le bas du sachet, avec son bandeau
+     « 5 cartes par booster », disparaissait. En flex, le pourcentage se résout
+     contre la hauteur définie du conteneur. */
+  .shell.plein .vignette-booster { flex: 0 0 auto; height: clamp(152px, 19vh, 200px);
+    display: flex; align-items: center; justify-content: center; }
+  .shell.plein .vignette-booster img { height: auto; width: auto;
+    max-height: 100%; max-width: 100%; object-fit: contain; }
+  .shell.plein .booster-carte h3 { font-size: 19px; }
+  /* Quatre lignes, pas de hauteur réservée : la carte suit le texte au lieu
+     que le texte suive la carte. Le résumé complet reste lisible dans la page
+     de l'extension, donc l'écrêtage ne perd rien d'irrécupérable (WCAG 1.4.4
+     porte sur du contenu sans autre accès). */
+  .shell.plein .booster-resume { flex: 0 0 auto; display: -webkit-box;
+    -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden;
+    font-size: 13px; }
+}
+
+/* --- Reprise d'une ouverture interrompue ---
+   Signalée sur la vignette de l'extension concernée, pas dans un bandeau. */
+.booster-carte.en-cours { border-color: rgba(232, 163, 61, .55);
+  box-shadow: 0 0 0 1px rgba(232, 163, 61, .2), 0 0 30px rgba(232, 163, 61, .12); }
+.booster-carte.en-cours:hover { border-color: var(--lamp); }
+.pastille-reprise { position: absolute; top: 10px; left: 10px; right: 10px; z-index: 2;
+  font-size: 11.5px; font-weight: 700; color: #241704; background: var(--lamp);
+  padding: 5px 10px; border-radius: 100px; text-align: center;
+  box-shadow: 0 3px 12px rgba(0, 0, 0, .45); }
+.prix.reprendre { color: #241704; background: var(--lamp); border-color: var(--lamp); }
+.alerte { font-size: 12px; font-weight: 600; color: var(--ember); padding: 6px 12px;
+  border-radius: 100px; border: 1px solid var(--ember); background: transparent; }
+
+/* --- Avancement --- */
+/* --- Avancement ---------------------------------------------------------
+   Quatre grands nombres et une barre plate : « 43 / 48 normales », « 14 / 48
+   rainbow », « 90 % du set », « 224 PO de revente automatique ». Le troisième
+   répétait le premier, le quatrième mesurait un réglage éteint par défaut, et
+   aucun ne disait ce qu'on vient chercher ici : ce qu'il reste à trouver, et
+   dans quel palier. Un seul chiffre, puis le détail palier par palier. */
+.avancement { margin-bottom: 22px; display: grid; gap: 14px;
+  grid-template-columns: minmax(150px, auto) minmax(0, 1fr); align-items: center; }
+.avc-tete { display: flex; flex-direction: column; gap: 2px; }
+.avc-chiffre { display: flex; align-items: baseline; gap: 5px;
+  font-family: var(--font-display); font-variation-settings: var(--wonk);
+  font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+.avc-chiffre b { font-size: 40px; font-weight: 700; color: var(--ink); line-height: 1; }
+.avc-chiffre span { font-size: 19px; font-weight: 600; color: var(--ink4); }
+.avc-legende { font-size: 12.5px; color: var(--ink4); }
+.avc-rainbow { color: var(--m-rainbow); font-weight: 600; }
+
+.avc-paliers { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.avc-paliers li { display: grid; grid-template-columns: 8.5em minmax(0, 1fr) 4.2em;
+  align-items: center; gap: 12px; }
+.avc-nom { font-size: 12.5px; color: var(--ink3); }
+.avc-jauge { height: 6px; border-radius: 6px; background: var(--edge); overflow: hidden; }
+.avc-jauge i { display: block; height: 100%; border-radius: 6px; background: var(--ink3);
+  transition: width .4s cubic-bezier(.2, .8, .3, 1); }
+.avc-compte { font-size: 12.5px; color: var(--ink2); text-align: right;
+  font-variant-numeric: tabular-nums; }
+.avc-sur { color: var(--ink4); }
+/* La teinte de rareté sur la barre seulement : en texte elle ne tient pas le
+   seuil de contraste (voir la charte, chapitre 2). */
+.avc-peucommun .avc-jauge i { background: var(--m-chene); }
+.avc-rare .avc-jauge i { background: var(--m-noyer); }
+.avc-legendaire .avc-jauge i { background: var(--m-ebene); }
+.avc-fullart .avc-jauge i { background: #e08496; }
+.avc-pj .avc-jauge i { background: #e3ecf4; }
+
+@media (max-width: 720px) {
+  .avancement { grid-template-columns: 1fr; }
+  .avc-paliers li { grid-template-columns: 7em minmax(0, 1fr) 3.8em; gap: 9px; }
+}
+
+/* --- Filtres --- */
+.barre-filtres { display: flex; flex-wrap: wrap; gap: 14px; align-items: center;
+  justify-content: space-between; }
+.biblio-recherche {
+  flex: 0 1 240px; min-width: 0; height: 34px; padding: 0 12px;
+  font: inherit; font-size: 13px; color: var(--ink);
+  background: var(--ground2); border: 1px solid var(--edge-ui); border-radius: var(--r-sm);
+}
+.biblio-recherche::placeholder { color: var(--ink4); }
+
+/* Au téléphone, cinq segments côte à côte poussent la page hors de l'écran :
+   le contrôle segmenté passe sur deux rangs et la recherche prend la largeur. */
+@media (max-width: 720px) {
+  .barre-filtres { flex-direction: column; align-items: stretch; gap: 10px; }
+  .barre-filtres .segments { flex-wrap: wrap; }
+  .barre-filtres .segments button { flex: 1 1 auto; padding: 7px 11px; }
+  .biblio-recherche { flex: 1 1 auto; }
+}
+.segments { display: flex; background: var(--panel); border: 1px solid var(--edge-ui);
+  border-radius: var(--r-sm); padding: 3px; gap: 3px; }
+.segments button { background: transparent; border: 0; border-radius: 2px; cursor: pointer;
+  padding: 7px 15px; font-size: 13px; font-weight: 500; color: var(--ink3); }
+.segments button:hover { color: var(--ink); }
+.segments button.on { background: var(--panel2); color: var(--ink); }
+.segments b { font-weight: 600; color: var(--ink4); margin-left: 6px; font-variant-numeric: tabular-nums; }
+.segments button.on b { color: var(--lamp); }
+
+.filtres { display: flex; flex-wrap: wrap; gap: 6px;
+  margin-top: 12px; padding-bottom: 16px; border-bottom: 1px solid var(--edge); }
+/* Le filet de séparation vit sur la rangée des raretés ; quand elle se tait —
+   un seul palier — il lui faut un porteur. */
+.filtres-filet { margin-top: 16px; border-bottom: 1px solid var(--edge); }
+.filtres button { background: transparent; border: 1px solid var(--edge-ui); border-radius: 100px;
+  padding: 6px 13px; font-size: 12.5px; color: var(--ink3); cursor: pointer;
+  transition: border-color .15s, color .15s; }
+.filtres button:hover { border-color: var(--edge-hi); color: var(--ink); }
+.filtres button.on { border-color: currentColor; color: var(--ink); }
+.filtres b { font-weight: 600; margin-left: 5px; font-variant-numeric: tabular-nums; opacity: .8; }
+.filtres .f-commun.on { color: #8fb8d8; }
+.filtres .f-peucommun.on { color: var(--m-chene); }
+.filtres .f-rare.on { color: var(--m-noyer); }
+.filtres .f-legendaire.on { color: #e0a4b4; }
+.filtres .f-fullart.on { color: #e08496; }
+.filtres .f-pj.on { color: #e3ecf4; }
+.resume-filtre { margin: 16px 0 0; }
+
+/* --- Cases manquantes : de dos et grisées --- */
+.case-carte.manquante { filter: grayscale(1) brightness(.42); opacity: .5; pointer-events: none; }
+.case-carte.manquante .flipper { transform: none; transition: none; }
+.case-carte.manquante .dos { transform: none; backface-visibility: visible;
+  -webkit-backface-visibility: visible; box-shadow: none; }
+.vide { text-align: center; display: flex; flex-direction: column; gap: 16px; align-items: center;
+  color: var(--ink4); padding: 60px 0; }
+
+/* --- Panneau de réglages --- */
+.panneau { background: var(--panel); border: 1px solid var(--edge); border-radius: var(--r-lg);
+  padding: 24px; margin-bottom: 26px; }
+.panneau h3 { font-size: 17px; font-weight: 600; margin-bottom: 6px; }
+.panneau h3 + p { margin-bottom: 14px; }
+.panneau .bloc + .bloc { margin-top: 28px; padding-top: 24px; border-top: 1px solid var(--edge); }
+.champs { display: flex; flex-wrap: wrap; gap: 12px; }
+.champ { display: flex; flex-direction: column; gap: 6px; min-width: 186px; }
+.champ.large { flex: 1; min-width: 258px; }
+.champ > span { font-size: 12px; color: var(--ink4); }
+.champ input[type=text], .champ select {
+  background: var(--ground2); border: 1px solid var(--edge-ui); border-radius: var(--r-sm);
+  padding: 9px 10px; color: var(--ink); font-size: 14px; font-family: inherit; }
+.champ input[type=range] { accent-color: var(--lamp); }
+.cache { display: none; }
+.table-grades { display: grid; grid-template-columns: repeat(auto-fill, minmax(238px, 1fr)); gap: 7px; margin-top: 14px; }
+.ligne-grade { display: flex; align-items: center; gap: 9px; background: var(--ground2);
+  padding: 7px 11px; border-radius: var(--r-sm); }
+.ligne-grade .g { flex: 1; font-size: 13.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ligne-grade .n { font-size: 12px; color: var(--ink4); font-variant-numeric: tabular-nums; }
+.ligne-grade select { background: var(--panel2); border: 1px solid var(--edge-ui); border-radius: var(--r-sm);
+  color: var(--ink2); font-size: 12px; padding: 4px 5px; font-family: inherit; }
+.avis { font-size: 13px; color: var(--lamp); background: rgba(232,163,61,.09);
+  border: 1px solid rgba(232,163,61,.24); border-radius: var(--r-sm); padding: 10px 12px; margin-top: 16px; }
+
+/* --- Loupe --- */
+/* Contenu plus haut que l'écran : un conteneur défilant centré par
+   justify-content rogne le haut. La marge auto sur les extrémités centre
+   quand il y a la place et laisse défiler sinon. */
+.loupe { position: fixed; inset: 0; z-index: 50; display: flex; flex-direction: column;
+  align-items: center; justify-content: flex-start; gap: 22px; overflow-y: auto;
+  padding: max(26px, env(safe-area-inset-top)) 26px
+           max(26px, env(safe-area-inset-bottom)) 26px;
+  background: rgba(6, 11, 13, .78); backdrop-filter: blur(11px); -webkit-backdrop-filter: blur(11px);
+  animation: fondu .22s ease-out; }
+@keyframes fondu { from { opacity: 0; } to { opacity: 1; } }
+.loupe > :first-child { margin-top: auto; }
+.loupe > :last-child { margin-bottom: auto; }
+.loupe-boite { animation: surgit .3s cubic-bezier(.2,.9,.3,1); }
+.loupe-titre { text-align: center; margin: 0; font-family: var(--font-display);
+  font-variation-settings: var(--wonk); font-weight: 700; font-size: 26px; color: var(--ink);
+  display: flex; flex-direction: column; gap: 5px; }
+.loupe-titre span { font-family: var(--font-ui); font-weight: 600; font-size: 12.5px;
+  color: var(--lamp); letter-spacing: .02em; }
+.legende-carte { display: block; text-align: center; font-size: 11.5px; color: var(--ink3);
+  margin-top: 7px; max-width: 190px; line-height: 1.35; }
+.compteur.c-fullart { color: #e08496; }
+.compteur.c-pj { background: #0b0f13; border-color: var(--edge-hi); color: #e3ecf4; }
+.compteur.c-pj b { color: #fff; }
+.loupe-fiche { display: flex; flex-direction: column; align-items: center; gap: 10px;
+  max-width: 48ch; }
+.loupe-reperes { font-size: 15px; font-weight: 600; color: var(--ink); text-align: center; }
+.loupe-secondaire { font-size: 13px; color: var(--ink3); text-align: center; margin-top: -4px; }
+.loupe-anecdote { text-align: center; font-style: italic; font-size: 16px;
+  line-height: 1.7; color: #e2ddd2; }
+@keyframes surgit { from { transform: scale(.9); opacity: 0; } to { transform: none; opacity: 1; } }
+
+@media (max-width: 900px) {
+  .barre-filtres { flex-direction: column; align-items: stretch; gap: 12px; }
+}
+
+@media (max-width: 640px) {
+  .hero { padding: 40px 0 30px; }
+  .avc-chiffre b { font-size: 31px; }
+  .sets { gap: 6px; }
+  .set { padding: 8px 13px; }
+  .etagere { grid-template-columns: 1fr; }
+}
+
+/* Écran bas. Le seuil était à 620 px, or un 360×640 très répandu passait juste
+   au-dessus et débordait quand même. */
+@media (max-height: 740px) {
+  .scene { padding: 12px 0 30px; gap: 11px; }
+  .section-titre { margin: 20px 0 14px; padding-bottom: 9px; }
+  .section-titre h2 { font-size: 21px; }
+  /* Largeur déduite du budget vertical réel : hauteur d'écran moins le bandeau,
+     le titre, la jauge, la ligne d'aide, le bouton, les gouttières et les marges.
+     La carte occupe ce qui reste, sans jamais forcer un défilement. */
+  :root { --carte-plein: clamp(168px, calc(45vh - 86px), 268px); }
+}
+
+/* Téléphone en paysage : la hauteur ne suffit à aucun arrangement, on assume un
+   défilement court en gardant carte, jauge et aide dans la même vue. */
+@media (max-height: 560px) {
+  .scene { padding: 8px 0 22px; gap: 8px; }
+  .hero { padding: 22px 0 16px; }
+  .section-titre { margin: 14px 0 10px; }
+  :root { --carte-plein: clamp(150px, 62vh, 240px); --sachet: clamp(132px, 54vh, 200px); }
+}
+
+/* Pointeur grossier : les cibles passent à 44 px, l'inclinaison au survol
+   n'existant de toute façon pas au doigt. */
+@media (pointer: coarse) {
+  .nav button, .filtres button, .segments button, .btn.sm {
+    min-height: 44px; padding-top: 10px; padding-bottom: 10px; }
+  .set { min-height: 56px; }
+}
+
+/* Le garde de mouvement n'est plus une requête média mais un attribut posé
+   sur la racine par l'application. La préférence du système reste la valeur
+   par défaut, mais elle devient discutable : sur un site où l'animation EST le
+   contenu — le sachet qui se déchire, la carte qui se retourne — le joueur doit
+   pouvoir la réclamer sans changer les réglages de son système d'exploitation.
+   Voir `--mouvement` dans src/jeu/Jeu.jsx et le réglage Animations. */
+[data-mouvement="reduit"] .brume i,
+[data-mouvement="reduit"] .lueur,
+[data-mouvement="reduit"] .motes span,
+[data-mouvement="reduit"] .ev,
+[data-mouvement="reduit"] .carte-sortante,
+[data-mouvement="reduit"] .ombre-scene,
+[data-mouvement="reduit"] .guide-dechirure,
+[data-mouvement="reduit"] .eclats-papier i,
+[data-mouvement="reduit"] .sachet.ouvert .sachet-haut,
+[data-mouvement="reduit"] .avance,
+[data-mouvement="reduit"] .badge-new { animation: none !important; }
+/* Sans transformation finale explicite, les cartes resteraient à leur position
+   de départ, c'est-à-dire cachées derrière le sachet. */
+[data-mouvement="reduit"] .carte-sortante { opacity: 1;
+  transform: translate(calc(-50% + (var(--i) - (var(--n) - 1) / 2) * var(--sachet) * .13),
+                       calc(var(--sachet) * -.6295)); }
+[data-mouvement="reduit"] .dos-empile { transition: none; }
+[data-mouvement="reduit"] .lueur.monte { opacity: .5; }

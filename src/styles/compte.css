@@ -1,0 +1,144 @@
+/* ------------------------------------------------------------------
+   Compte, profil, confidentialité.
+   Aucune couleur nouvelle : le vert et le rouge de l'état de
+   synchronisation reprennent les matières du chêne et de l'ébène.
+   ------------------------------------------------------------------ */
+
+/* ── Entrée du bandeau ─────────────────────────────────────────────────── */
+.compte-bouton {
+  position: relative; height: 34px; min-width: 34px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  border: 1px solid var(--edge-ui); border-radius: var(--r-sm);
+  color: var(--ink3); font-size: 12.5px; font-weight: 600;
+  transition: color .15s, background .15s, border-color .15s;
+}
+.compte-bouton:hover { color: var(--ink); background: var(--panel); }
+.compte-bouton.on { color: var(--lamp); border-color: var(--lamp); }
+.compte-bouton.invite { padding: 0 12px; }
+.compte-ico { font-size: 14px; }
+.compte-avatar {
+  width: 26px; height: 26px; border-radius: 50%; overflow: hidden;
+  display: grid; place-items: center; background: var(--panel2);
+  font-family: var(--font-display); font-variation-settings: var(--wonk);
+  font-weight: 700; font-size: 14px; color: var(--lamp);
+}
+.compte-bouton:not(.invite) { padding: 0 3px; border-radius: 100px; }
+.compte-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+/* Veilleuse de synchronisation, au pied de l'avatar. */
+.compte-sync {
+  position: absolute; right: -2px; bottom: -2px; width: 10px; height: 10px;
+  border-radius: 50%; border: 2px solid var(--ground); background: var(--m-chene);
+}
+.compte-sync.en-attente, .compte-sync.envoi, .compte-sync.hors-ligne { background: var(--lamp); }
+.compte-sync.envoi { animation: veille 1.2s ease-in-out infinite; }
+.compte-sync.erreur { background: var(--ember); }
+[data-mouvement="reduit"] .compte-sync.envoi { animation: none; }
+
+@media (max-width: 640px) {
+  .compte-bouton.invite { padding: 0; width: 34px; }
+  .compte-bouton.invite .compte-mot { position: absolute; width: 1px; height: 1px;
+    overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+}
+
+/* ── Page Profil ───────────────────────────────────────────────────────── */
+.profil .panneau, .legal .panneau { max-width: 760px; }
+.profil .panneau + .panneau, .legal .panneau + .panneau { margin-top: 22px; }
+.profil .petit { font-size: 12px; margin-top: 12px; line-height: 1.6; }
+.profil .muted + .muted { margin-top: 10px; }
+
+.profil-identite { display: flex; align-items: center; gap: 18px; }
+.profil-identite h3 { font-family: var(--font-display); font-variation-settings: var(--wonk);
+  font-size: 24px; font-weight: 700; margin-bottom: 2px; }
+.profil-avatar {
+  flex: 0 0 auto; width: 64px; height: 64px; border-radius: 50%; overflow: hidden;
+  display: grid; place-items: center; background: var(--panel2);
+  border: 1px solid var(--edge-hi);
+  font-family: var(--font-display); font-variation-settings: var(--wonk);
+  font-weight: 700; font-size: 28px; color: var(--lamp);
+}
+.profil-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+.profil-pseudo { display: flex; gap: 10px; flex-wrap: wrap; }
+.profil-pseudo input {
+  flex: 1 1 220px; min-width: 0; height: 38px; padding: 0 12px;
+  background: var(--ground2); color: var(--ink); font: inherit; font-size: 14px;
+  border: 1px solid var(--edge-ui); border-radius: var(--r-sm);
+}
+.profil-pseudo input:focus { outline: 2px solid var(--lamp); outline-offset: 1px; border-color: var(--lamp); }
+
+.profil-sync { display: flex; align-items: center; gap: 9px; font-size: 13.5px; color: var(--ink2); }
+.compte-sync-pastille { width: 9px; height: 9px; border-radius: 50%; background: var(--m-chene); }
+.profil-sync.attente .compte-sync-pastille { background: var(--lamp); }
+.profil-sync.ko .compte-sync-pastille { background: var(--ember); }
+
+.actions.gauche { justify-content: flex-start; }
+.btn.google { display: inline-flex; align-items: center; gap: 10px; margin-top: 18px;
+  background: var(--ink); color: #1b1b1b; }
+.btn.google:hover { background: #fff; }
+.btn.quiet.danger { color: var(--ember); border-color: rgba(229, 119, 75, .55); }
+.btn.quiet.danger:hover { background: rgba(229, 119, 75, .08); color: var(--ember); }
+.btn.danger-plein { background: var(--ember); color: #1d0c05; }
+.btn.danger-plein:hover { background: #ee8c63; }
+.profil-danger { margin-top: 16px; padding: 16px 18px; border-radius: var(--r-sm);
+  border: 1px solid var(--ember); background: rgba(229, 119, 75, .06);
+  font-size: 13.5px; line-height: 1.6; color: var(--ink2); }
+.profil-danger b { color: var(--ink); }
+
+.avis.ko { color: var(--ember); background: rgba(229, 119, 75, .09); }
+.avis-fermer { margin-left: 8px; background: none; border: 0; padding: 0; cursor: pointer;
+  color: inherit; font: inherit; font-weight: 700; text-decoration: underline; }
+.profil > .avis { max-width: 760px; margin-bottom: 18px; }
+
+.lien { color: var(--lamp); font-weight: 600; }
+.lien:hover { text-decoration: underline; }
+
+/* ── Page Confidentialité ──────────────────────────────────────────────── */
+.legal .lede { margin-bottom: 26px; }
+.legal h2 { font-size: 19px; font-weight: 600; margin-bottom: 10px; }
+.legal p { font-size: 14px; line-height: 1.7; color: var(--ink2); max-width: 70ch; }
+.legal p + p, .legal table + p, .legal p + table { margin-top: 12px; }
+.legal b { color: var(--ink); font-weight: 600; }
+.legal code { font-size: 12.5px; color: var(--ink); }
+.table-legal { width: 100%; border-collapse: collapse; font-size: 13px; color: var(--ink2); }
+.table-legal th { text-align: left; font-weight: 600; color: var(--ink); padding: 8px 10px 8px 0;
+  border-bottom: 1px solid var(--edge-hi); }
+.table-legal td { padding: 9px 10px 9px 0; border-bottom: 1px solid var(--edge); vertical-align: top; }
+.mentions { display: grid; grid-template-columns: max-content 1fr; gap: 8px 18px;
+  font-size: 13.5px; margin-bottom: 14px; }
+.mentions dt { color: var(--ink4); }
+.mentions dd { color: var(--ink2); margin: 0; }
+.a-completer { color: var(--ember); font-weight: 600; }
+
+@media (max-width: 640px) {
+  .table-legal thead { display: none; }
+  .table-legal tr { display: block; padding: 10px 0; border-bottom: 1px solid var(--edge); }
+  .table-legal td { display: block; border: 0; padding: 2px 0; }
+  .table-legal td:first-child { color: var(--ink); font-weight: 600; }
+  .mentions { grid-template-columns: 1fr; gap: 2px; }
+  .mentions dd { margin-bottom: 8px; }
+}
+
+/* Lien discret vers la confidentialité, en pied des pages qui défilent. */
+.pied-legal { text-align: center; font-size: 12px; color: var(--ink4); padding: 0 20px 24px; }
+.pied-legal a:hover { color: var(--ink2); text-decoration: underline; }
+/* La vue réserve déjà la hauteur de la barre d'onglets du mobile : quand le
+   pied la suit, c'est lui qui la réserve, sinon il passerait dessous. */
+.zone:has(> .pied-legal) > .view { padding-bottom: 36px; }
+@media (max-width: 860px) {
+  .pied-legal { padding-bottom: calc(84px + env(safe-area-inset-bottom)); }
+}
+
+/* Au doigt, l'entrée du compte fait une case de plus dans le bandeau : sans
+   ce resserrement, la bourse et les boutons passaient sous le titre et le
+   bandeau collant doublait de hauteur. */
+@media (max-width: 640px) {
+  .masthead { flex-wrap: nowrap; }
+  .brand { min-width: 0; flex: 0 1 auto; }
+  .brand b { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .masthead-droite { gap: 6px; flex: 0 0 auto; }
+  .masthead-droite .bourse { padding: 6px 10px; gap: 6px; }
+}
+@media (max-width: 400px) {
+  .brand b { font-size: 16px; }
+  .masthead-droite .bourse-veille { display: none; }
+}

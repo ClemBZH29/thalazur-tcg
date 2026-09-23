@@ -1,0 +1,255 @@
+/* ------------------------------------------------------------------
+   Le colporteur — la case animée de Mirko, au bilan d'une ouverture.
+   ------------------------------------------------------------------
+
+   Toute la page est en terre froide ; lui arrive avec une lanterne. C'est le
+   seul endroit du site où la lumière chaude porte un fond, et c'est voulu :
+   l'évènement doit se voir avant d'être lu.
+
+   La géométrie reprend la leçon du panneau de négoce : le portrait et la boîte
+   font exactement la même hauteur, et aucun des deux ne laisse de vide. Ici
+   c'est l'étal qui fixe cette hauteur — trois affaires, pas une de plus, donc
+   un contenu borné — et le portrait remplit sa colonne au cadrage près. Le
+   faire dans l'autre sens rendait la liste défilante, c'est-à-dire la faute
+   commise deux fois sur l'étagère de la boutique.
+   ------------------------------------------------------------------ */
+
+.colp {
+  --colp-h: clamp(318px, 44vh, 384px);   /* plancher de la boîte */
+  --colp-l: clamp(232px, 24vw, 300px);   /* largeur de la case */
+  position: relative;
+  /* Calé sur l'éventail de cinq cartes qui le surplombe : au dessous, les
+     répliques passent à la ligne et chaque affaire gagne vingt pixels. */
+  width: min(calc(var(--colp-l) + 664px), 100%);
+  margin: 6px auto 2px;
+}
+
+/* La lanterne sur la route, avant lui. */
+.colp-halo {
+  position: absolute; inset: -14% -8%;
+  background: radial-gradient(ellipse at 62% 50%, rgba(232, 163, 61, .17), transparent 66%);
+  pointer-events: none; z-index: 0;
+  animation: colp-souffle 4.4s ease-in-out infinite alternate;
+}
+@keyframes colp-souffle {
+  from { opacity: .55; transform: scale(.94); }
+  to   { opacity: 1;   transform: scale(1.04); }
+}
+
+.colp-route {
+  position: relative; z-index: 1;
+  text-align: center; font-size: 14.5px; color: var(--lamp);
+  font-family: var(--font-display); font-variation-settings: var(--wonk);
+  letter-spacing: .01em; padding: 34px 0 30px;
+  animation: colp-route 820ms ease-out both;
+}
+@keyframes colp-route {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.colp-corps {
+  position: relative; z-index: 1;
+  display: grid;
+  grid-template-columns: var(--colp-l) minmax(0, 1fr);
+  /* Plancher, pas hauteur fixe : l'étal peut demander vingt pixels de plus
+     selon la longueur d'une réplique, et il les prend. */
+  min-height: var(--colp-h);
+  background: linear-gradient(150deg, #1d2a2c, #182226 62%);
+  border: 1px solid rgba(232, 163, 61, .34);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-lift), 0 0 44px rgba(232, 163, 61, .1);
+  overflow: hidden;
+  /* Il arrive par la droite, avec un léger dépassement : c'est un pas, pas un
+     glissement de fenêtre. */
+  animation: colp-arrivee 620ms cubic-bezier(.22, .96, .36, 1.02) both;
+}
+@keyframes colp-arrivee {
+  from { opacity: 0; transform: translateX(52px) scale(.965); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* ── Sa case ──────────────────────────────────────────────────────────────
+   Deux pixels de gouttière laissent passer une lueur qui fait le tour du
+   cadre : le ballot est posé, mais la lanterne bouge encore. */
+.colp-case {
+  position: relative; padding: 2px; overflow: hidden;
+  background: #101b1f;
+}
+.colp-case::before {
+  content: ""; position: absolute; z-index: 0;
+  top: 50%; left: 50%; width: 190%; aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  background: conic-gradient(
+    from 0deg,
+    transparent 0 54%,
+    rgba(232, 163, 61, .16) 62%,
+    rgba(232, 163, 61, .92) 72%,
+    rgba(255, 226, 170, .5) 76%,
+    transparent 84%
+  );
+  animation: colp-ronde 6.5s linear infinite;
+}
+@keyframes colp-ronde { to { transform: translate(-50%, -50%) rotate(360deg); } }
+
+.colp-portrait {
+  position: relative; z-index: 1;
+  display: block; width: 100%; height: 100%;
+  /* `cover` ici, et non `contain` comme au Comptoir : la case de Mirko est un
+     cadre, avec sa gouttière et sa lueur tournante — une bande vide à
+     l'intérieur la ferait sonner creux. La découpe est carrée, la case plus
+     haute que large : le rognage se prend sur les côtés, loin du visage. */
+  object-fit: cover; object-position: 50% 12%;
+  background: #101b1f;
+  animation: colp-tangage 6.4s ease-in-out infinite alternate;
+}
+@keyframes colp-tangage {
+  from { transform: rotate(-.45deg) translateY(-2px) scale(1.012); }
+  to   { transform: rotate(.45deg)  translateY(1px)  scale(1.012); }
+}
+
+/* Trois éclats sur ses breloques, décalés pour ne jamais briller ensemble. */
+.colp-eclat {
+  position: absolute; z-index: 2; width: 7px; height: 7px; border-radius: 50%;
+  background: radial-gradient(circle, #fff8e6, rgba(255, 232, 180, .6) 42%, transparent 70%);
+  opacity: 0; pointer-events: none;
+  animation: colp-etincelle 5.2s ease-in-out infinite;
+}
+.colp-eclat.e0 { left: 18%; bottom: 12%; }
+.colp-eclat.e1 { left: 63%; bottom: 6%;  animation-delay: 1.8s; }
+.colp-eclat.e2 { left: 44%; bottom: 21%; animation-delay: 3.5s; width: 5px; height: 5px; }
+@keyframes colp-etincelle {
+  0%, 74%, 100% { opacity: 0; transform: scale(.4); }
+  80%           { opacity: 1; transform: scale(1.5); }
+  88%           { opacity: 0; transform: scale(.7); }
+}
+
+.colp-lueur {
+  position: absolute; inset: 0; z-index: 2; pointer-events: none;
+  background: radial-gradient(ellipse at 78% 18%, rgba(232, 163, 61, .3), transparent 58%);
+  mix-blend-mode: screen;
+}
+
+.colp-plaque {
+  position: absolute; z-index: 3; left: 0; right: 0; bottom: 0;
+  display: grid; gap: 1px; padding: 26px 14px 11px;
+  background: linear-gradient(rgba(13, 20, 23, 0), rgba(13, 20, 23, .92) 62%);
+}
+.colp-plaque h3 {
+  font-family: var(--font-display); font-variation-settings: var(--wonk);
+  font-size: 19px; font-weight: 700; color: var(--ink); letter-spacing: -.01em;
+}
+.colp-plaque span { font-size: 11.5px; color: var(--lamp); letter-spacing: .05em;
+  text-transform: uppercase; }
+
+/* ── Son étal ─────────────────────────────────────────────────────────── */
+.colp-etal {
+  display: flex; flex-direction: column; min-width: 0; min-height: 0;
+  padding: 15px 17px 13px; gap: 10px;
+}
+.colp-cite {
+  font-family: var(--font-display); font-variation-settings: var(--wonk);
+  font-size: 14.5px; font-style: italic; color: var(--ink2);
+  flex: 0 0 auto; padding-bottom: 9px;
+  border-bottom: 1px solid var(--edge);
+}
+
+.colp-deals {
+  flex: 1 1 auto; min-height: 0;
+  display: flex; flex-direction: column; justify-content: center; gap: 7px; list-style: none;
+  margin: 0; padding: 0;
+}
+.colp-deal {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center; gap: 12px;
+  padding: 8px 10px; border-radius: var(--r-md);
+  border: 1px solid var(--edge);
+  background: rgba(255, 255, 255, .014);
+  transition: border-color .16s, background .16s;
+}
+.colp-deal:hover { border-color: rgba(232, 163, 61, .4); background: rgba(232, 163, 61, .045); }
+/* Pas d'état « hors de portée » : Mirko ne propose que des affaires payables
+   (voir src/config/colporteur.js), donc aucune rangée n'est jamais inerte. */
+.colp-deal-texte { min-width: 0; display: grid; gap: 2px; }
+.colp-deal-texte strong { font-size: 13.5px; font-weight: 700; color: var(--ink); }
+.colp-phrase { font-size: 12.5px; line-height: 1.42; color: var(--ink2); font-style: italic; }
+.colp-detail { font-size: 11.5px; line-height: 1.4; color: var(--ink3);
+  font-variant-numeric: tabular-nums; }
+.colp-deal .btn { white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+.colp-pied {
+  flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; padding-top: 8px; border-top: 1px solid var(--edge);
+}
+.colp-regle { font-size: 11.5px; color: var(--ink3); }
+
+/* ── L'issue ──────────────────────────────────────────────────────────── */
+.colp-issue {
+  flex: 1 1 auto; min-height: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 12px; text-align: center;
+  animation: colp-conclu 420ms ease-out both;
+}
+@keyframes colp-conclu {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
+.colp-conclu {
+  font-family: var(--font-display); font-variation-settings: var(--wonk);
+  font-size: 15.5px; color: var(--lamp); font-variant-numeric: tabular-nums;
+}
+.colp-gain { display: flex; align-items: center; gap: 14px; }
+.colp-gain-mot { font-size: 12.5px; color: var(--ink2); max-width: 15ch; text-align: left; }
+
+.colp-adieu {
+  text-align: center; font-size: 13.5px; color: var(--ink3);
+  font-family: var(--font-display); font-variation-settings: var(--wonk);
+  font-style: italic; padding: 16px 0 6px;
+  animation: colp-adieu 520ms ease-out both;
+}
+@keyframes colp-adieu {
+  from { opacity: 0; transform: translateX(14px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* Le sachet qu'il vend sous le manteau, annoncé au-dessus du sachet. */
+.colp-bandeau {
+  font-size: 12.5px; font-weight: 600; color: var(--lamp);
+  border: 1px solid rgba(232, 163, 61, .38); border-radius: 100px;
+  background: rgba(232, 163, 61, .08);
+  padding: 6px 15px; font-variant-numeric: tabular-nums;
+}
+
+/* ── Mouvement réduit ─────────────────────────────────────────────────────
+   Il est là, éclairé, immobile. Rien ne tourne, rien ne tangue, rien ne
+   scintille : l'information passe entièrement par la mise en page. */
+[data-mouvement="reduit"] .colp-halo,
+[data-mouvement="reduit"] .colp-corps,
+[data-mouvement="reduit"] .colp-portrait,
+[data-mouvement="reduit"] .colp-case::before,
+[data-mouvement="reduit"] .colp-eclat,
+[data-mouvement="reduit"] .colp-issue,
+[data-mouvement="reduit"] .colp-adieu,
+[data-mouvement="reduit"] .colp-route { animation: none; }
+[data-mouvement="reduit"] .colp-eclat { opacity: .8; transform: none; }
+[data-mouvement="reduit"] .colp-case::before {
+  background: conic-gradient(from 210deg, transparent 0 58%,
+    rgba(232, 163, 61, .8) 72%, transparent 82%);
+}
+
+/* ── Étroit ───────────────────────────────────────────────────────────── */
+@media (max-width: 760px) {
+  .colp { width: 100%; }
+  /* Le portrait passe en bandeau. Deux cent huit pixels et non cent soixante :
+     sous cette hauteur le cadrage large ne garde plus que le chapeau et les
+     yeux, et le menton tombe hors de la bande. */
+  .colp-corps {
+    grid-template-columns: 1fr; min-height: 0;
+    grid-template-rows: 208px auto;
+  }
+  .colp-case { height: 208px; }
+  .colp-portrait { object-position: 50% 14%; }
+  .colp-deal { grid-template-columns: 1fr; gap: 8px; }
+  .colp-deal .btn { justify-self: start; }
+  .colp-pied { flex-direction: column; align-items: stretch; }
+}
