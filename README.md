@@ -144,3 +144,23 @@ Ajouter un dossier suffit : aucune autre ligne de code.
 - [Charte graphique](docs/charte-graphique.md)
 - Audits : [économie](docs/audit-economie.md), [sécurité](docs/audit-securite.md),
   [structure](docs/audit-structure.md)
+
+## Aperçu en ligne avant `main`
+
+La production (thalazur.io) ne se déploie que depuis `main`. Pour voir des
+branches en ligne avant de les y fusionner :
+
+1. Réunir les branches sur `recette` (`git switch -c recette …`, puis `git merge`).
+2. Avoir un `.env.local` rempli (voir `.env.example`), **sans**
+   `VITE_FIREBASE_MEASUREMENT_ID` pour ne pas mêler l'aperçu aux statistiques.
+3. `npm run apercu` : vérifie, construit, et publie sur un canal d'aperçu
+   Firebase Hosting, à une adresse `…--recette-….web.app` valable 7 jours.
+
+Première fois seulement : `npx firebase-tools login`, `npx firebase-tools use
+<id-du-projet>`, puis ajouter l'adresse de l'aperçu dans Firebase →
+Authentication → Paramètres → Domaines autorisés, sinon la connexion Google
+est refusée.
+
+L'aperçu parle à la **même base Firestore** que la production : on y joue avec
+son vrai compte. Une branche qui monte `SCHEMA` ne se teste donc pas ainsi
+sans précaution.

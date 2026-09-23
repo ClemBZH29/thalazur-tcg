@@ -14,6 +14,7 @@
     "format": "prettier --write",
     "audit": "node scripts/audit-economie.mjs && node scripts/audit-marche.mjs && node scripts/audit-colporteur.mjs",
     "verifier": "npm run lint && npm test && npm run build",
+    "apercu": "npm run verifier && npx firebase-tools hosting:channel:deploy recette --expires 7d",
     "roster": "node scripts/xlsx-to-json.mjs"
   },
   "dependencies": {
