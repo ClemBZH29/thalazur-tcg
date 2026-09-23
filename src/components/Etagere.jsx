@@ -1,4 +1,4 @@
-import { BOOSTERS } from "../config/boosters.js";
+import { BOOSTERS } from "../extensions/index.js";
 import { ECONOMIE, SLOTS } from "../config/tiers.js";
 import { attenteAvantAchat, formatDuree } from "../lib/economie.js";
 import { useJeu } from "../jeu/Jeu.jsx";
@@ -21,7 +21,7 @@ function Booster({ b, ouverts, achetable, attente, gratuit, reste }) {
           </span>
         )}
         {b.sachet ? (
-          <img src={`${import.meta.env.BASE_URL}${b.sachet}`} alt="" draggable="false" />
+          <img src={b.sachet} alt="" draggable="false" />
         ) : (
           <span
             className="cachet"

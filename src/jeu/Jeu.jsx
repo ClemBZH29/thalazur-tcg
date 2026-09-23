@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { BOOSTER_PAR_ID } from "../config/boosters.js";
+import { BOOSTER_DEFAUT, BOOSTER_PAR_ID } from "../extensions/index.js";
 import { specialesPour } from "../config/speciales.js";
 import { TAUX_DEFAUT, ECONOMIE, GARANTIES, MINE, TIER_ORDER, TIERS_ROSTER } from "../config/tiers.js";
 import { jourLocal, passeAujourdhui, propositions } from "../config/colporteur.js";
@@ -10,10 +10,7 @@ import { charger, sauver } from "../lib/storage.js";
 import {
   crediter, crediterGain, debiterLibre, peutAcheter, valeurRevente,
 } from "../lib/economie.js";
-import rosterValeran from "../../data/troupe-valeran.json";
-
-const ROSTERS = { "troupe-valeran": rosterValeran };
-const DEFAUT = "troupe-valeran";
+const DEFAUT = BOOSTER_DEFAUT;
 
 export const TEST_DEFAUT = {
   actif: false,
@@ -125,15 +122,16 @@ export function Jeu({ children }) {
   );
 
   const donnees = MJ ? etat.rosters[boosterId] : null;
-  const rows = donnees ? donnees.lignes : (ROSTERS[boosterId]?.lignes ?? []);
-  const source = donnees ? donnees.source : (ROSTERS[boosterId]?.source ?? "aucune");
+  const roster = BOOSTER_PAR_ID[boosterId]?.roster;
+  const rows = donnees ? donnees.lignes : (roster?.lignes ?? []);
+  const source = donnees ? donnees.source : (roster?.source ?? "aucune");
 
   const grades = useMemo(
     () => (MJ && etat.grades[boosterId]) || deduireGrades(rows),
     [etat.grades, boosterId, rows]
   );
   const pool = useMemo(() => construirePool(rows, grades), [rows, grades]);
-  const speciales = useMemo(() => specialesPour(boosterId), [boosterId]);
+  const speciales = useMemo(() => specialesPour(BOOSTER_PAR_ID[boosterId]), [boosterId]);
 
   /** L'ensemble du set, obtenu ou non : la bibliothèque affiche les manques. */
   const jeuComplet = useMemo(

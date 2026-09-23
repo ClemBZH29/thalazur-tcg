@@ -2,7 +2,7 @@ import { useMemo, useRef, useState } from "react";
 import Carte from "./Carte.jsx";
 import DosCarte from "./DosCarte.jsx";
 import { TIERS, TIER_ORDER, TIER_INFO } from "../config/tiers.js";
-import { BOOSTERS, BOOSTER_PAR_ID } from "../config/boosters.js";
+import { BOOSTERS, BOOSTER_PAR_ID } from "../extensions/index.js";
 import { nomComplet } from "../config/speciales.js";
 import { exporter, importer } from "../lib/storage.js";
 

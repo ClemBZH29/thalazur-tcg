@@ -262,7 +262,7 @@ export default function Ouverture({
             ))}
             <img
               className="sachet-vide"
-              src={`${import.meta.env.BASE_URL}${booster.sachet}`}
+              src={booster.sachet}
               alt="" draggable="false"
               style={{ clipPath: CLIP_BAS, WebkitClipPath: CLIP_BAS }}
             />

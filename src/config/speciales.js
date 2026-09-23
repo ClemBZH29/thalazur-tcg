@@ -4,20 +4,10 @@ import { slug } from "../lib/roster.js";
  * Cartes hors roster. Elles ne sortent pas des tables d'emplacement mais d'un
  * tirage propre au booster entier, résolu avant tout le reste.
  *
- * Les full art sont propres à une extension : une chance sur 4096 par booster.
+ * Les full art sont propres à une extension et déclarés dans son dossier
+ * (src/extensions/<id>/extension.js) : une chance sur 4096 par booster.
  * Les PJ traversent toutes les extensions : une chance sur 8192.
  */
-
-export const FULL_ART = {
-  "troupe-valeran": [
-    { nom: "Vyrin",    serie: "Maid Café" },
-    { nom: "Valéran",  serie: "Maid Café" },
-    { nom: "Selssy",   serie: "Sable Chaud" },
-    { nom: "Hida",     serie: "Sable Chaud" },
-    { nom: "Nemelye",  serie: "Passion Ardente" },
-    { nom: "Trodonak", serie: "Passion Ardente" },
-  ],
-};
 
 export const PJ = [
   { nom: "Siobhan" },
@@ -47,9 +37,10 @@ function normaliser(def, tier, prefixe) {
   };
 }
 
-export function specialesPour(boosterId) {
+/** Les cartes hors roster d'une extension : ses full art, et les PJ communs. */
+export function specialesPour(extension) {
   return {
-    fullart: (FULL_ART[boosterId] || []).map((d) => normaliser(d, "fullart", "fa")),
+    fullart: (extension?.fullart || []).map((d) => normaliser(d, "fullart", "fa")),
     pj: PJ.map((d) => normaliser(d, "pj", "pj")),
   };
 }
