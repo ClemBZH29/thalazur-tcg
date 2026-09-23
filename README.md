@@ -156,8 +156,8 @@ branches en ligne avant de les y fusionner :
 3. `npm run apercu` : vérifie, construit, et publie sur un canal d'aperçu
    Firebase Hosting, à une adresse `…--recette-….web.app` valable 7 jours.
 
-Première fois seulement : `npx firebase-tools login`, `npx firebase-tools use
-<id-du-projet>`, puis ajouter l'adresse de l'aperçu dans Firebase →
+Première fois seulement : `npx firebase-tools login` (le projet `thalazur-tcg`
+est déjà désigné par `.firebaserc`), puis ajouter l'adresse de l'aperçu dans Firebase →
 Authentication → Paramètres → Domaines autorisés, sinon la connexion Google
 est refusée.
 
