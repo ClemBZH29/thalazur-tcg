@@ -76,6 +76,57 @@ const EQUIPEMENT = [
    « Une frappe vaut 0,12 s de production de plus par point » était exact et
    illisible : c'est la formule de `secondesParFrappe`, recopiée dans l'interface.
    Le joueur n'a pas à lire le code pour savoir s'il doit dépenser son point. */
+/* ── Les améliorations de compagnon ───────────────────────────────────────
+   Le prix d'un compagnon monte de 15 % par exemplaire, sa production ne monte
+   pas du tout : passé une trentaine de porte-fanaux, un de plus coûtait deux
+   mille étoiles pour une seule de production, quand une foreuse en rendait
+   cinquante pour dix mille. L'équipe de départ ne mourait pas, elle cessait
+   simplement d'exister — et c'est la moitié du roster qui passait au rebut à
+   chaque palier franchi.
+
+   Quatre améliorations par compagnon, débloquées au nombre possédé, chacune
+   doublant sa production : ×16 pour une équipe complète. Elles ne rendent pas
+   un porte-fanal meilleur qu'un golem — avec des paliers de production à ×5,8,
+   aucun doublement ne le pourrait, et ce serait d'ailleurs absurde. Elles font
+   autre chose, qui est précisément ce qui manquait : elles donnent une raison
+   de continuer d'en acheter. À trente-six porte-fanaux avec les rangs I et II,
+   le suivant rend quatre fois plus qu'avant, et surtout il rapproche du
+   cinquantième, qui double de nouveau toute la ligne.
+
+   Le prix est indexé sur le compagnon lui-même — ce qu'a coûté d'arriver au
+   seuil, multiplié par un facteur qui double d'un rang à l'autre, comme
+   l'effet. Une seule constante, et chaque ligne suit sa propre courbe sans
+   table de prix à tenir à jour.
+
+   Ce que ça donne, en nombre d'exemplaires du compagnon concerné :
+
+     rang I   ≈ 10 exemplaires   pour en gagner 10  → l'entrée, au prix coûtant
+     rang II  ≈ 20               pour en gagner 50  → deux fois et demie
+     rang III ≈ 40               pour en gagner 200 → cinq fois
+     rang IV  ≈ 80               pour en gagner 800 → dix fois
+
+   La pente est voulue : le premier rang se paie au prix d'un achat ordinaire,
+   les suivants récompensent d'avoir tenu la ligne. Un rang uniformément cher
+   faisait l'inverse — on le prenait au début, où il ne servait à rien, et on
+   l'abandonnait à la fin, où il aurait tout changé. */
+const RANGS = ["I", "II", "III", "IV"];
+const SEUILS_AMELIORATION = [10, 25, 50, 100];
+const FACTEUR_AMELIORATION = 1.5;
+/* Ce qu'a coûté l'achat des n premiers exemplaires, somme de la géométrique. */
+const coutCumule = (base, n) => (base * (Math.pow(1.15, n) - 1)) / 0.15;
+
+const AMELIORATIONS = COMPAGNONS.flatMap((c) =>
+  SEUILS_AMELIORATION.map((seuil, i) => ({
+    id: "a-" + c.id + "-" + i,
+    compagnon: c.id,
+    sprite: c.sprite,
+    nom: c.nom + " " + RANGS[i],
+    seuil,
+    desc: "Production doublée. Il en faut " + seuil + ".",
+    cout: Math.ceil(coutCumule(c.base, seuil) * FACTEUR_AMELIORATION * Math.pow(2, i)),
+  }))
+);
+
 const TALENTS = [
   { id: "force",      nom: "Force",
     desc: "Vos coups de pioche font plus mal — et le restent quand vos compagnons pèsent des millions. Le seul talent qui récompense votre présence." },
@@ -215,8 +266,18 @@ const critChance = (S) =>
   ));
 const critMult = (S) => (equipA(S, "l2") ? 7.5 : 5);
 const prodUnitaire = (S) => (1 + S.talents.discipline * 0.12) * equipMult(S, "dps") * mEclats(S);
+/* Les améliorations d'un compagnon se cumulent en doublant : ×2, ×4, ×8, ×16.
+   Elles vivent dans le même tableau `equipement` que le chantier, donc un
+   effondrement les emporte comme le reste — « achats définitifs » vaut pour
+   la mine en cours, pas pour l'éternité. */
+const multCompagnon = (S, id) => Math.pow(
+  2,
+  AMELIORATIONS.reduce((n, a) => (a.compagnon === id && equipA(S, a.id) ? n + 1 : n), 0)
+);
+const dpsUn = (S, c) => c.dps * multCompagnon(S, c.id) * prodUnitaire(S);
 const dpsBrut = (S) =>
-  COMPAGNONS.reduce((a, c) => a + (S.compagnons[c.id] || 0) * c.dps, 0) * prodUnitaire(S);
+  COMPAGNONS.reduce((a, c) => a + (S.compagnons[c.id] || 0) * c.dps * multCompagnon(S, c.id), 0)
+  * prodUnitaire(S);
 const dps = dpsBrut;
 const multRecolte = (S) => equipMult(S, "recolte") * mEclats(S);
 /* Fortune ne touche pas la moyenne par la même porte que Discipline : elle
@@ -429,6 +490,10 @@ function MinesDeKazim({ onPO, storage, storageKey = "kazim:save", spritesBase = 
      « nouveaux » à chaque chargement d'une partie avancée. La détection n'est
      armée qu'une fois la lecture du magasin terminée. */
   const [charge, setCharge] = useState(false);
+  /* L'infobulle des jetons. Une seconde d'attente, parce qu'un survol de
+     passage en traverse six sans vouloir en lire aucun. */
+  const [survol, setSurvol] = useState(null);
+  const minuteurSurvol = useRef(null);
 
   const veinRef = useRef(null);
   const calqueRef = useRef(null);
@@ -903,8 +968,83 @@ function MinesDeKazim({ onPO, storage, storageKey = "kazim:save", spritesBase = 
   const gainEclats = eclatsDispo(s);
   const equipePosee = COMPAGNONS.filter((c) => s.compagnons[c.id]);
   const chantierPose = EQUIPEMENT.filter((e) => equipA(s, e.id));
+  const ameliorationsPosees = AMELIORATIONS.filter((a) => equipA(s, a.id));
 
-  const Vignette = ({ nom, eteinte }) => (
+  /* Ce qui s'installe maintenant : matériel atteint et non posé, améliorations
+     dont le seuil est franchi. Trié par prix — c'est l'ordre dans lequel on
+     les prendra, et il mélange volontiers le matériel et les équipes. */
+  const chantierDispo = [
+    ...EQUIPEMENT.filter((e) => s.profondeurMax >= e.req + 1 && !equipA(s, e.id)),
+    ...AMELIORATIONS.filter((a) => (s.compagnons[a.compagnon] || 0) >= a.seuil && !equipA(s, a.id)),
+  ].sort((x, y) => x.cout - y.cout);
+
+  /* Et la prochaine amélioration de chaque compagnon, dès la moitié du seuil. */
+  const verrouilles = COMPAGNONS.map((c) => {
+    const possede = s.compagnons[c.id] || 0;
+    const a = AMELIORATIONS.find((x) => x.compagnon === c.id && !equipA(s, x.id) && possede < x.seuil);
+    return a && possede >= a.seuil / 2 ? { a, possede } : null;
+  }).filter(Boolean).sort((x, y) => x.a.cout - y.a.cout);
+
+  /* Ce que dit la bulle, selon la nature du jeton survolé. */
+  const bulleSurvol = (() => {
+    if (!survol) return null;
+    const c = COMPAGNONS.find((x) => x.id === survol.cle);
+    if (c) {
+      const m = multCompagnon(s, c.id);
+      return { gauche: survol.gauche,
+        titre: c.nom + " ×" + (s.compagnons[c.id] || 0),
+        texte: c.desc + " " + fmt(dpsUn(s, c)) + " étoile par seconde chacun"
+          + (m > 1 ? ", améliorations comprises (×" + m + ")." : ".") };
+    }
+    const e = EQUIPEMENT.find((x) => x.id === survol.cle);
+    if (e) return { gauche: survol.gauche, titre: e.nom, texte: e.desc };
+    const a = AMELIORATIONS.find((x) => x.id === survol.cle);
+    if (a) return { gauche: survol.gauche, titre: a.nom,
+      texte: "Production des " + COMPAGNONS.find((x) => x.id === a.compagnon).nom.toLowerCase()
+        + " doublée." };
+    return null;
+  })();
+
+  /* ── Le jeton et son infobulle ──────────────────────────────────────────
+     L'attribut `title` faisait déjà le travail, mal : une à deux secondes
+     d'attente selon le navigateur, un cadre système qui ignore la charte, et
+     rien d'autre que le nom. La bulle dit ce que fait l'objet — c'est cette
+     phrase-là qui a quitté la liste du chantier en même temps que les lignes
+     « installé ». Une seconde d'attente à la souris, immédiat au clavier :
+     qui tabule jusqu'à un jeton l'a fait exprès. */
+  const montrer = (cle, el) => {
+    const haut = el.closest(".kz-top");
+    if (!haut) return;
+    const r = el.getBoundingClientRect(), h = haut.getBoundingClientRect();
+    setSurvol({ cle, gauche: Math.max(0, Math.min(r.left - h.left, h.width - 260)) });
+  };
+  /* Une fonction, pas un composant. Un composant défini dans le corps du
+     rendu change d'identité à chaque image — et le rendu tourne neuf fois par
+     seconde avec la boucle de jeu. React démonterait puis remonterait chaque
+     jeton à chaque tour : le focus sauterait, le survol se perdrait avant
+     d'avoir atteint sa seconde, et l'image se rechargerait. Une fonction qui
+     renvoie du JSX produit des `span`, un type stable, donc réconciliés. */
+  const jeton = (cle, sprite, nom, nb, rang) => (
+    <span className={"kz-jeton" + (neuf === cle ? " kz-neuf" : "")} key={cle}
+          tabIndex={0} aria-label={nom + (nb ? ", " + nb + " employés" : "")}
+          onPointerEnter={(e) => {
+            const el = e.currentTarget;
+            clearTimeout(minuteurSurvol.current);
+            minuteurSurvol.current = setTimeout(() => montrer(cle, el), 1000);
+          }}
+          onPointerLeave={() => { clearTimeout(minuteurSurvol.current); setSurvol(null); }}
+          onFocus={(e) => montrer(cle, e.currentTarget)}
+          onBlur={() => setSurvol(null)}>
+      <img src={src(sprite)} alt="" loading="lazy" />
+      {nb ? <b>{nb}</b> : null}
+      {rang ? <i>{rang}</i> : null}
+    </span>
+  );
+
+  /* Même raison : `Vignette` était un composant local, et les soixante-deux
+     pixels de sprite de chaque ligne repartaient en chargement à chaque
+     image. */
+  const vignette = (nom, eteinte) => (
     <span className={"kz-vignette" + (eteinte ? " kz-eteinte" : "")}>
       <img src={src(nom)} alt="" loading="lazy" onError={(e) => { e.currentTarget.style.opacity = 0; }} />
     </span>
@@ -928,13 +1068,19 @@ function MinesDeKazim({ onPO, storage, storageKey = "kazim:save", spritesBase = 
           const cout = coutN(s, c, n);
           return (
             <div className="kz-row" key={c.id}>
-              <Vignette nom={c.sprite} eteinte={!possede} />
+              {vignette(c.sprite, !possede)}
               <div className="kz-grow">
                 <h3>{c.nom}{possede > 0 && <span className="kz-tenu">{"\u00d7" + possede}</span>}</h3>
                 <p>
                   <span>{c.desc}</span>
                   <span className="kz-sep" />
-                  <span>{fmt(c.dps * prodUnitaire(s)) + " étoile par seconde"}</span>
+                  <span>{fmt(dpsUn(s, c)) + " étoile par seconde"}</span>
+                  {multCompagnon(s, c.id) > 1 && (
+                    <>
+                      <span className="kz-sep" />
+                      <span className="kz-tenu">{"×" + multCompagnon(s, c.id)}</span>
+                    </>
+                  )}
                 </p>
               </div>
               <div className="kz-actions">
@@ -951,29 +1097,53 @@ function MinesDeKazim({ onPO, storage, storageKey = "kazim:save", spritesBase = 
 
     equipement: (
       <>
-        <p className="kz-note">Achats définitifs. Un effondrement remet le chantier à zéro.</p>
-        {EQUIPEMENT.filter((e) => s.profondeurMax >= e.req + 1).map((e) => {
-          const pose = equipA(s, e.id);
-          return (
-            <div className="kz-row" key={e.id}>
-              <Vignette nom={e.sprite} eteinte={!pose} />
-              <div className="kz-grow">
-                <h3>{e.nom}</h3>
-                <p>{e.desc}</p>
-              </div>
-              <div className="kz-actions">
-                {pose ? <span className="kz-tenu">installé</span> : (
-                  <>
-                    <button type="button" className="kz-btn" disabled={s.etoile < e.cout} onClick={() => installer(e)}>
-                      Installer
-                    </button>
-                    <span className="kz-cout">{fmt(e.cout) + " étoile"}</span>
-                  </>
-                )}
-              </div>
+        <p className="kz-note">
+          Achats définitifs. Un effondrement remet le chantier à zéro.
+          {chantierDispo.length === 0 && verrouilles.length === 0
+            && " Rien à installer pour l'instant : descendez, ou étoffez une équipe."}
+        </p>
+        {chantierDispo.map((e) => (
+          <div className="kz-row" key={e.id}>
+            {vignette(e.sprite, true)}
+            <div className="kz-grow">
+              <h3>{e.nom}</h3>
+              <p>{e.desc}</p>
             </div>
-          );
-        })}
+            <div className="kz-actions">
+              <button type="button" className="kz-btn" disabled={s.etoile < e.cout}
+                      onClick={() => installer(e)}>Installer</button>
+              <span className="kz-cout">{fmt(e.cout) + " étoile"}</span>
+            </div>
+          </div>
+        ))}
+
+        {/* Ce qui est déjà posé a quitté la liste : il n'y avait plus rien à
+            décider dessus, et douze lignes « installé » repoussaient hors de
+            l'écran les deux seules qui demandaient un choix. On les retrouve
+            sur leur jeton, en haut de la mine, au survol.
+
+            Restent les améliorations à portée : elles ne s'achètent pas encore,
+            mais sans elles personne ne découvrirait qu'une équipe de dix
+            porte-fanaux vaut d'être poussée à vingt-cinq. Elles n'apparaissent
+            qu'à mi-chemin du seuil, c'est-à-dire au moment où viser devient
+            une décision. */}
+        {verrouilles.length > 0 && (
+          <>
+            <p className="kz-note kz-titre-liste">À portée</p>
+            {verrouilles.map(({ a, possede }) => (
+              <div className="kz-row kz-verrouille" key={a.id}>
+                {vignette(a.sprite, true)}
+                <div className="kz-grow">
+                  <h3>{a.nom}</h3>
+                  <p>{"Production doublée. Vous en avez " + possede + " sur " + a.seuil + "."}</p>
+                </div>
+                <div className="kz-actions">
+                  <span className="kz-cout">{fmt(a.cout) + " étoile"}</span>
+                </div>
+              </div>
+            ))}
+          </>
+        )}
       </>
     ),
 
@@ -1170,19 +1340,23 @@ function MinesDeKazim({ onPO, storage, storageKey = "kazim:save", spritesBase = 
           ) : (
             <>
             {equipePosee.map((c) => (
-              <span className={"kz-jeton" + (neuf === c.id ? " kz-neuf" : "")} key={c.id} title={c.nom}>
-                <img src={src(c.sprite)} alt={c.nom} loading="lazy" />
-                <b>{s.compagnons[c.id]}</b>
-              </span>
+              jeton(c.id, c.sprite, c.nom, s.compagnons[c.id])
             ))}
             {chantierPose.map((e) => (
-              <span className={"kz-jeton" + (neuf === e.id ? " kz-neuf" : "")} key={e.id} title={e.nom}>
-                <img src={src(e.sprite)} alt={e.nom} loading="lazy" />
-              </span>
+              jeton(e.id, e.sprite, e.nom)
+            ))}
+            {ameliorationsPosees.map((a) => (
+              jeton(a.id, a.sprite, a.nom, 0, a.nom.split(" ").pop())
             ))}
             </>
           )}
         </div>
+        {bulleSurvol && (
+          <div className="kz-infobulle" role="tooltip" style={{ left: bulleSurvol.gauche + "px" }}>
+            <strong>{bulleSurvol.titre}</strong>
+            <span>{bulleSurvol.texte}</span>
+          </div>
+        )}
 
         {/* Le lexique n'est pas une aide en ligne, c'est la contrepartie du
             vocabulaire : le jeu a le droit de dire « le filon cède » à
