@@ -88,6 +88,8 @@ seraient illisibles. Le plein écran l'affiche en entier.
 ## Portraits
 
 
+### D'où vient l'image d'une carte
+
 Trois sources en cascade, la première qui répond gagne :
 
 1. **Fichiers montés depuis le disque** (Réglages MJ → Dossier local, en développement). Appariés par
@@ -95,16 +97,89 @@ Trois sources en cascade, la première qui répond gagne :
    `17.jpg`, `ysoline-barq.png`. Ces URL sont éphémères, elles disparaissent au
    rechargement.
 2. **URL trouvée dans la ligne** du roster.
-3. **Motif construit sur une base** : `./portraits` + `{num}.jpg`. Les cartes
-   disponibles sont `{num}`, `{slug}` et `{nom}`. Pour une installation fixe,
-   déposer les images dans `public/portraits/` et laisser la base à `./portraits`.
+3. **Motif construit sur une base** : `{base}/{dossier}/{num}{taille}.webp`.
+   Le dossier est l'identifiant de l'extension (`troupe-valeran`), ou `pj` pour
+   les cartes PJ, communes à toutes ; la taille est vide pour la carte en grand,
+   `-v` pour la vignette. La base vaut `VITE_PORTRAITS_BASE` au build, sinon
+   `./portraits`.
 
-Le portrait couvre la fenêtre d'art. Avec une bibliothèque hétérogène — bustes
-carrés et illustrations pleines mélangés — le réglage **point focal vertical**
-choisit la hauteur retenue au recadrage ; 30 % garde la tête visible dans les
-deux cas.
+Le portrait couvre la fenêtre d'art (environ 0,93 de large pour 1 de haut) :
+une illustration 2:3 perd un peu de hauteur. Le **point focal vertical** choisit
+la hauteur retenue ; 30 % garde la tête visible, pour un buste comme pour une
+illustration pleine.
 
 Sans portrait, la carte affiche un monogramme gravé plutôt qu'une image cassée.
+
+### Pourquoi les portraits sont publiés à part
+
+Le dépôt est public : une illustration committée serait lisible par tous, avec
+son historique. Les portraits ne passent donc **jamais par Git**
+(`public/portraits/` est ignoré) et vivent sur un second site Firebase Hosting,
+`images.thalazur.io`, publié à la main. Le site, lui, continue de partir de
+`main` par GitHub Pages. Deux rythmes : le code au quotidien, les images quand
+il y en a de nouvelles.
+
+Ce n'est pas une protection : une image affichée est téléchargeable, et
+l'adresse d'une carte se devine. C'est seulement ne pas publier les
+illustrations sur GitHub.
+
+Firebase Hosting en gratuit (Spark) sert 360 Mo par jour. Pour une table d'une
+dizaine de joueurs, avec la vignette (≈ 35 Ko) dans la bibliothèque et l'image
+entière (≈ 130 Ko) seulement en grand, on en reste loin. Au-delà du quota, le
+site des portraits cesse de répondre jusqu'au lendemain — les cartes repassent
+au monogramme, rien n'est facturé.
+
+### L'inventaire
+
+`npm run portraits` écrit, à côté des images, un `inventaire.json` : pour chaque
+dossier, les numéros publiés et une empreinte de l'image. Le site le lit au
+démarrage et :
+
+- **ne demande que les images qui existent.** Sans lui, un set de 220 cartes
+  dont 12 sont illustrées produirait 208 requêtes en 404 à chaque visite de la
+  bibliothèque, et un clignotement sur chaque vignette ;
+- **ajoute l'empreinte à l'adresse** (`073.webp?v=…`). Les images sont servies
+  avec un cache d'un an : une illustration retouchée change d'empreinte, donc
+  d'adresse, et le navigateur la recharge.
+
+L'inventaire vit avec les images, pas dans le dépôt : publier une illustration
+ne demande ni commit ni redéploiement du site. Il est servi en `no-cache`
+(revalidation à chaque chargement, 304 s'il n'a pas bougé). Pendant qu'il
+charge, les cartes attendent sur leur monogramme ; s'il est introuvable, elles
+tentent leur image comme avant.
+
+### Publier des portraits
+
+```
+Base Image/                    à côté de « Base App TCG », hors du dépôt
+  troupe-valeran/
+    073-Scarabée des ruines.png  numéro en tête, le nom qui suit est libre
+    fa-vyrin.png                 full art : fa-<nom>
+  pj/
+    pj-<nom>.png
+```
+
+```bash
+npm run portraits           # convertit dans public/portraits/, pour npm run dev
+npm run portraits:publier   # idem, puis envoie sur images.thalazur.io
+```
+
+Le script convertit en WebP (720 × 1080 et vignette 360 × 540), ne réencode que
+ce qui a changé, retire de la sortie ce qui n'est plus dans la source — la
+publication remplace tout le site des portraits, elle doit donc tout contenir —
+et signale : fichiers sans numéro, numéro absent du roster, nom qui ne
+correspond pas à la carte (souvent un numéro décalé).
+
+**Mise en place, une seule fois :**
+
+1. `npx firebase-tools hosting:sites:create thalazur-portraits` (le nom est
+   celui de `.firebaserc`, cible `portraits`).
+2. Console Firebase → Hosting → site `thalazur-portraits` → Ajouter un domaine
+   personnalisé : `images.thalazur.io`, puis l'enregistrement DNS demandé chez
+   le registrar.
+3. Variable du dépôt GitHub `VITE_PORTRAITS_BASE` = `https://images.thalazur.io`,
+   puis relancer le déploiement. La CSP et la page Confidentialité en tiennent
+   compte d'elles-mêmes.
 
 ## Ajouter ou ouvrir une extension
 
