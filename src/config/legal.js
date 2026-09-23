@@ -28,6 +28,11 @@ export const LEGAL = {
     nom: "GitHub, Inc. (GitHub Pages)",
     adresse: "88 Colin P. Kelly Jr. Street, San Francisco, CA 94107, États-Unis",
   },
+  /** Les illustrations des cartes, servies à part (voir VITE_PORTRAITS_BASE). */
+  hebergeurImages: {
+    nom: "Google Ireland Limited (Firebase Hosting)",
+    adresse: "Gordon House, Barrow Street, Dublin 4, Irlande",
+  },
   sousTraitant: {
     nom: "Google Ireland Limited (Firebase)",
     adresse: "Gordon House, Barrow Street, Dublin 4, Irlande",

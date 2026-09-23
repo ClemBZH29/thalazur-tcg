@@ -26,7 +26,9 @@ export default function PageReglages() {
       onGrades={(g) =>
         jeu.setEtat((e) => ({ ...e, grades: { ...e.grades, [jeu.boosterId]: g } }))}
       onTaux={(t) => jeu.majReglages({ taux: t })}
-      onCfgImage={(c) => jeu.majReglages({ image: c })}
+      // L'extension et l'inventaire sont ajoutés par le jeu : seuls les trois
+      // réglages du meneur sont enregistrés.
+      onCfgImage={({ focal, base, motif }) => jeu.majReglages({ image: { focal, base, motif } })}
       onTest={(t) => jeu.majReglages({ test: t })}
       onSon={(v) => jeu.majReglages({ son: v })}
       onAnimations={(v) => jeu.majReglages({ animations: v })}

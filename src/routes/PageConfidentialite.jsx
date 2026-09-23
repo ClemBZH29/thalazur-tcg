@@ -1,6 +1,11 @@
 import { LEGAL } from "../config/legal.js";
 import { Lien } from "../lib/routeur.jsx";
 import { mesureDisponible, rouvrirBandeau, useConsentement } from "../lib/mesure.js";
+import { BASE_PORTRAITS } from "../lib/images.js";
+
+/** Le domaine des portraits quand ils sont servis à part, sinon null : la page
+ *  ne mentionne un second hébergeur que s'il existe vraiment. */
+const PORTRAITS_A_PART = /^https?:\/\//.test(BASE_PORTRAITS) ? new URL(BASE_PORTRAITS).host : null;
 
 /** Un champ laissé vide dans `config/legal.js` doit se voir, pas disparaître. */
 const A = ({ v }) => (v ? <>{v}</> : <span className="a-completer">[à compléter]</span>);
@@ -35,11 +40,21 @@ export default function PageConfidentialite() {
             l'exporter depuis la bibliothèque et l'effacer depuis les réglages ou
             en vidant les données du site dans votre navigateur.
           </p>
-          <p>
-            Les polices et les images sont servies par le site lui-même : sauf si
-            vous acceptez la mesure d'audience, afficher une page ne transmet votre
-            adresse IP qu'à l'hébergeur du site.
-          </p>
+          {PORTRAITS_A_PART ? (
+            <p>
+              Les polices et les images du site sont servies par le site lui-même ;
+              les illustrations des cartes viennent de <code>{PORTRAITS_A_PART}</code>,
+              hébergé par Firebase Hosting. Sauf si vous acceptez la mesure
+              d'audience, afficher une page ne transmet votre adresse IP qu'à ces
+              deux hébergeurs, sans cookie ni traceur.
+            </p>
+          ) : (
+            <p>
+              Les polices et les images sont servies par le site lui-même : sauf si
+              vous acceptez la mesure d'audience, afficher une page ne transmet votre
+              adresse IP qu'à l'hébergeur du site.
+            </p>
+          )}
         </div>
 
         <div className="bloc">
@@ -162,6 +177,9 @@ export default function PageConfidentialite() {
             <dt>Éditeur</dt><dd><A v={LEGAL.editeur} />, à titre personnel et non professionnel</dd>
             <dt>Contact</dt><dd><A v={LEGAL.contact} /></dd>
             <dt>Hébergement</dt><dd>{LEGAL.hebergeur.nom} — {LEGAL.hebergeur.adresse}</dd>
+            {PORTRAITS_A_PART && (
+              <><dt>Illustrations</dt><dd>{LEGAL.hebergeurImages.nom} — {LEGAL.hebergeurImages.adresse}</dd></>
+            )}
             <dt>Comptes et sauvegardes</dt><dd>{LEGAL.sousTraitant.nom} — {LEGAL.sousTraitant.adresse}</dd>
           </dl>
           <p className="muted">

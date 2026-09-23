@@ -27,10 +27,14 @@ function Monogramme({ nom }) {
   );
 }
 
-export default function FaceCarte({ c, cfgImage, fichiers }) {
+export default function FaceCarte({ c, cfgImage, fichiers, vignette = false }) {
   const t = TIER_INFO[c.tier];
-  const [rate, setRate] = useState(false);
-  const src = rate ? null : resoudreImage(c, cfgImage, fichiers);
+  const voulue = resoudreImage(c, cfgImage, fichiers, { vignette });
+  // On retient l'adresse qui a échoué, pas un simple drapeau : quand
+  // l'inventaire arrive ou qu'une image est publiée, l'adresse change et la
+  // carte retente sa chance au lieu de rester sur le monogramme.
+  const [ratee, setRatee] = useState(null);
+  const src = voulue && voulue !== ratee ? voulue : null;
   const refNom = useRef(null);
   const refDetail = useRef(null);
   useAjuste(refNom, [c.nom]);
@@ -51,7 +55,7 @@ export default function FaceCarte({ c, cfgImage, fichiers }) {
             <img
               src={src} alt="" draggable="false" loading="lazy"
               style={{ objectPosition: `50% ${cfgImage.focal ?? 30}%` }}
-              onError={() => setRate(true)}
+              onError={() => setRatee(voulue)}
             />
           ) : (
             <Monogramme nom={nomComplet(c)} />
@@ -82,7 +86,7 @@ export default function FaceCarte({ c, cfgImage, fichiers }) {
           <img
             src={src} alt="" draggable="false" loading="lazy"
             style={{ objectPosition: `50% ${cfgImage.focal ?? 30}%` }}
-            onError={() => setRate(true)}
+            onError={() => setRatee(voulue)}
           />
         ) : (
           <Monogramme nom={c.nom} />

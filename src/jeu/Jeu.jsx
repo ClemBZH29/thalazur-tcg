@@ -9,6 +9,7 @@ import { useReglages } from "./reglages.js";
 import { useMine } from "./mine.js";
 import { useMouvements } from "./marche.js";
 import { useColporteur } from "./colporteur.js";
+import { useInventaire } from "./portraits.js";
 const DEFAUT = BOOSTER_DEFAUT;
 
 
@@ -50,9 +51,13 @@ export function Jeu({ children }) {
   }, []);
 
   const {
-    reglages, son, animations, reventeAuto, MJ, taux, cfgImage, test, gratuit,
+    reglages, son, animations, reventeAuto, MJ, taux, cfgImage: cfgImageBase, test, gratuit,
     sobreSysteme, mouvementReduit, sfx, majReglages,
   } = useReglages(etat, setEtat);
+  const inventaire = useInventaire(cfgImageBase.base);
+  // Les portraits se rangent par extension : la carte a besoin de savoir où
+  // chercher, et si l'image existe (inventaire publié avec les portraits).
+  const cfgImage = { ...cfgImageBase, extension: boosterId, inventaire };
   const { crediterMine, mineJour, versionMine, rechargerMine } = useMine(etat, setEtat);
 
   const donnees = MJ ? etat.rosters[boosterId] : null;
