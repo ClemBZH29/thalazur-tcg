@@ -1,0 +1,39 @@
+/* ------------------------------------------------------------------
+   Le gabarit commun des pages.
+
+   Chaque page avait sa largeur (1 180 px ou 1 420 px), sa marge haute
+   (18, 22 ou 34 px) et sa taille de titre (32 ou 38 px) : passer de la
+   Boutique au Comptoir faisait sauter le titre de place. Toutes les pages
+   partagent maintenant la même largeur — celle de la plus large — et le
+   même en-tête, au même endroit. Chargée en dernier, cette feuille a le
+   dernier mot sur ces trois valeurs ; les pages n'y touchent plus.
+
+   L'accueil et la page introuvable, qui n'ont pas d'en-tête de section mais
+   une composition centrée, gardent la largeur commune et leur mise en page.
+   ------------------------------------------------------------------ */
+
+:root {
+  /* Largeur de contenu de toutes les pages, marges intérieures comprises. */
+  --page-max: 1420px;
+  --page-haut: 24px;          /* entre la navigation et le titre */
+  --page-titre: clamp(28px, 3.2vw, 36px);
+}
+
+.shell .zone > .view { padding-top: var(--page-haut); }
+
+.zone > .view > .section-titre:first-child {
+  margin: 0 0 18px;
+  padding-bottom: 12px;
+  min-height: 56px;           /* même trait sous le titre, bouton à droite ou non */
+  align-items: flex-start;   /* le titre commence au même point, quoi qu'il y ait à droite */
+}
+.zone > .view > .section-titre:first-child h1 {
+  font-size: var(--page-titre);
+  font-weight: 600;
+  line-height: 1.1;
+}
+
+@media (max-width: 640px) {
+  :root { --page-haut: 18px; }
+  .zone > .view > .section-titre:first-child { min-height: 0; margin-bottom: 14px; }
+}

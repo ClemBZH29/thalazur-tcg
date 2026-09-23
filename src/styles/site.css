@@ -82,10 +82,7 @@ a { color: inherit; text-decoration: none; }
 }
 
 .zone { flex: 1; display: flex; flex-direction: column; }
-.view.large { max-width: 1420px; }
 
-.section-titre h1 { font-size: clamp(28px, 4vw, 38px); font-weight: 600; }
-.section-titre:first-child { margin-top: 6px; }
 
 /* ── Navigation basse, au doigt ──────────────────────────────────────────── */
 
@@ -253,8 +250,6 @@ a { color: inherit; text-decoration: none; }
   .shell.mines-plein .zone { min-height: 0; }
   .mines { display: flex; flex-direction: column; min-height: 0;
     padding-top: 18px; padding-bottom: 20px; overflow: auto; }
-  .mines .section-titre { margin: 0 0 14px; padding-bottom: 12px; }
-  .mines .section-titre h1 { font-size: clamp(26px, 2.6vw, 32px); }
   .mines .kz { flex: 1; min-height: 0; display: flex; }
   .mines .kz-wrap { flex: 1; min-height: 0; display: flex; flex-direction: column;
     padding-top: 0; padding-bottom: 0; }
