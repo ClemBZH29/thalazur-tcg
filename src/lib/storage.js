@@ -1,36 +1,34 @@
 import { bourseNeuve } from "./economie.js";
 import { cles } from "./nuage/fusion.js";
+import { SCHEMA, migrer } from "./sauvegarde/schema.js";
 
 /**
  * Persistance locale. Le navigateur garde toujours la partie : c'est elle
  * qu'on lit au démarrage, hors ligne compris. Un joueur connecté voit en plus
- * cette même partie recopiée sur son compte (voir `src/lib/nuage/`) ; le
+ * cette même partie recopiée sur son compte (voir `src/jeu/Compte.jsx`) ; le
  * stockage local reste alors un cache, et la copie du compte fait foi entre
  * appareils. L'export produit un fichier JSON réimportable ou archivable.
+ *
+ * Deux clés, parce que la mine se sauve toutes les quinze secondes et qu'il
+ * serait absurde de réécrire toute la collection à ce rythme. Un seul format :
+ * les deux portent le même `schema` (voir `sauvegarde/schema.js`).
  *
  * Le porte-monnaie vit ici, donc quiconque avance l'horloge de sa machine ou
  * édite le stockage se donne autant de pièces qu'il veut. Pour un site de
  * campagne entre gens qui se connaissent, c'est sans importance.
  *
- * ── Version 5 ────────────────────────────────────────────────────────────
- * Les cases `normale` et `rainbow` étaient des booléens : une carte tombant
- * dans une case déjà remplie était revendue sur-le-champ. Le Comptoir a besoin
- * d'exemplaires à écouler, donc ces deux champs sont devenus des compteurs.
- *
- * Le choix vaut la peine d'être noté : les compteurs restent lus en booléen
- * partout où l'affichage ne demande que « possédée ou non », parce que 0 est
- * faux et tout entier positif est vrai. Aucune vue de la bibliothèque n'a eu
- * à changer. La migration se contente de projeter les booléens sur 0 et 1.
+ * Les compteurs d'exemplaires (`normale`, `rainbow`) se lisent aussi en
+ * booléen partout où l'affichage ne demande que « possédée ou non » : 0 est
+ * faux, tout entier positif est vrai.
  */
-const CLE = "brume-thalazur:v5";
-const CLE_KAZIM = "brume-thalazur:kazim";
-const VERSION = 5;
+const CLE = "brume-thalazur:partie";
+const CLE_MINE_STOCKAGE = "brume-thalazur:mine";
 
-/** Les versions antérieures, dans l'ordre, pour la reprise d'une partie. */
-const ANCIENNES = ["brume-thalazur:v4"];
+/** Clés des formats antérieurs au schéma 6, effacées à la première visite. */
+const PERIMEES = ["brume-thalazur:v4", "brume-thalazur:v5", "brume-thalazur:kazim"];
 
 const vide = () => ({
-  version: VERSION,
+  schema: SCHEMA,
   collections: {}, // boosterId -> { [carteId]: { normale: n, rainbow: n, carte } }
   boosters: {},    // boosterId -> nombre ouverts
   pity: {},        // boosterId -> { depuis, vu }
@@ -39,13 +37,10 @@ const vide = () => ({
   // fermeture d'onglet : les cartes sont déjà acquises, seul l'affichage manque.
   enCours: null,
   reglages: {},
-  rosters: {},     // boosterId -> lignes chargées à la main
-  grades: {},      // boosterId -> corrections de palier par grade
+  rosters: {},     // boosterId -> lignes chargées à la main (outils MJ, développement)
+  grades: {},      // boosterId -> corrections de palier par grade (outils MJ)
   comptoir: {},    // boosterId -> état du marché (voir comptoir/marche.js)
   mine: null,      // { jour: "AAAA-MM-JJ", credite: PO } — plafond quotidien
-  // Passages du colporteur : le dernier jour où il s'est arrêté, et le nombre
-  // de boosters ouverts depuis. Champ ajouté sans changer de version : les
-  // sauvegardes v5 antérieures le reçoivent par défaut au chargement.
   colporteur: null, // { jour: "AAAA-MM-JJ", depuis: n }
   // Ce que le joueur a choisi de montrer de lui. Rien n'est lu chez Google
   // pour le remplir : le pseudo est saisi à la main, ou reste vide.
@@ -54,42 +49,34 @@ const vide = () => ({
 
 export const etatVide = vide;
 
-/** Booléens de la v4 vers compteurs d'exemplaires de la v5. */
-function migrerV4(d) {
-  const collections = {};
-  for (const [bid, coll] of Object.entries(d.collections || {})) {
-    collections[bid] = {};
-    for (const [cid, e] of Object.entries(coll)) {
-      collections[bid][cid] = {
-        ...e,
-        normale: e.normale ? 1 : 0,
-        rainbow: e.rainbow ? 1 : 0,
-      };
-    }
-  }
-  return { ...d, collections, version: VERSION };
+/**
+ * Remet une sauvegarde du jeu, d'où qu'elle vienne (stockage local, compte,
+ * fichier importé), à la forme courante. `null` si elle n'est pas lisible.
+ */
+export function relireJeu(donnees) {
+  const d = migrer("jeu", donnees);
+  if (!d) return null;
+  return { ...vide(), ...d, schema: SCHEMA, bourse: { ...bourseNeuve(), ...(d.bourse || {}) } };
 }
 
-/** Une sauvegarde relue peut porter des booléens laissés par un vieil export. */
-const normaliser = (etat) => migrerV4(etat);
+/**
+ * Formats antérieurs : effacés, pas convertis (voir l'historique dans
+ * `sauvegarde/schema.js`). La base de synchronisation du compte part avec eux,
+ * sinon l'appareil croirait avoir quelque chose à fusionner.
+ */
+function nettoyerPerimees() {
+  let trouve = false;
+  for (const c of PERIMEES) {
+    if (localStorage.getItem(c) !== null) { localStorage.removeItem(c); trouve = true; }
+  }
+  if (trouve) localStorage.removeItem("brume-thalazur:compte-base");
+}
 
 export function charger() {
   try {
+    nettoyerPerimees();
     const brut = localStorage.getItem(CLE);
-    if (brut) {
-      const d = JSON.parse(brut);
-      if (d.version === VERSION) return { ...vide(), ...d, bourse: { ...bourseNeuve(), ...(d.bourse || {}) } };
-    }
-    // Reprise d'une partie de la version précédente : la collection est le
-    // fruit de dizaines d'ouvertures, la perdre au changement de format serait
-    // le pire accueil possible.
-    for (const ancienne of ANCIENNES) {
-      const vieux = localStorage.getItem(ancienne);
-      if (!vieux) continue;
-      const d = JSON.parse(vieux);
-      return { ...vide(), ...migrerV4(d), bourse: { ...bourseNeuve(), ...(d.bourse || {}) } };
-    }
-    return vide();
+    return (brut && relireJeu(JSON.parse(brut))) || vide();
   } catch {
     return vide();
   }
@@ -97,7 +84,7 @@ export function charger() {
 
 export function sauver(etat) {
   try {
-    localStorage.setItem(CLE, JSON.stringify({ ...etat, version: VERSION }));
+    localStorage.setItem(CLE, JSON.stringify({ ...etat, schema: SCHEMA }));
     return true;
   } catch {
     return false; // quota dépassé
@@ -107,8 +94,8 @@ export function sauver(etat) {
 export function effacer() {
   try {
     localStorage.removeItem(CLE);
-    localStorage.removeItem(CLE_KAZIM);
-    ANCIENNES.forEach((c) => localStorage.removeItem(c));
+    localStorage.removeItem(CLE_MINE_STOCKAGE);
+    PERIMEES.forEach((c) => localStorage.removeItem(c));
   } catch { /* stockage refusé : il n'y a rien à effacer */ }
 }
 
@@ -122,7 +109,7 @@ export function suivreMine(fn) {
 }
 
 export function lireMine() {
-  try { return localStorage.getItem(CLE_KAZIM); } catch { return null; }
+  try { return localStorage.getItem(CLE_MINE_STOCKAGE); } catch { return null; }
 }
 
 /**
@@ -139,8 +126,8 @@ let adoptee = null;
 export function ecrireMine(valeur) {
   adoptee = valeur ?? "";
   try {
-    if (valeur == null) localStorage.removeItem(CLE_KAZIM);
-    else localStorage.setItem(CLE_KAZIM, valeur);
+    if (valeur == null) localStorage.removeItem(CLE_MINE_STOCKAGE);
+    else localStorage.setItem(CLE_MINE_STOCKAGE, valeur);
   } catch { /* quota */ }
 }
 
@@ -150,29 +137,30 @@ export function ecrireMine(valeur) {
  * collection à chaque tour d'horloge pour rien.
  */
 export const magasinKazim = {
-  get: (cle) => {
+  get: () => {
     if (adoptee !== null) { const v = adoptee || null; adoptee = null; return Promise.resolve(v); }
-    try { return Promise.resolve(localStorage.getItem(cle)); }
-    catch { return Promise.resolve(null); }
+    return Promise.resolve(lireMine());
   },
-  set: (cle, valeur) => {
+  set: (valeur) => {
     if (adoptee !== null) return Promise.resolve();
-    try { localStorage.setItem(cle, valeur); } catch { /* quota : la partie continue */ }
+    try { localStorage.setItem(CLE_MINE_STOCKAGE, valeur); } catch { /* quota : la partie continue */ }
     suiveursMine.forEach((fn) => { try { fn(valeur); } catch { /* sans importance */ } });
     return Promise.resolve();
   },
 };
 
-export const CLE_MINE = CLE_KAZIM;
-export const VERSION_ETAT = VERSION;
+/* ── Fichier exporté ───────────────────────────────────────────────────── */
 
+/**
+ * Le fichier porte le jeu et la mine côte à côte, au même schéma :
+ * `{ format, schema, jeu, mine }`.
+ */
 export function exporter(etat) {
   const date = new Date().toISOString().slice(0, 10);
   let mine = null;
-  try { mine = localStorage.getItem(CLE_KAZIM); } catch { /* sans importance */ }
-  const blob = new Blob([JSON.stringify({ ...etat, mine, version: VERSION }, null, 2)], {
-    type: "application/json",
-  });
+  try { mine = JSON.parse(lireMine()); } catch { /* pas de mine */ }
+  const fichier = { format: "brume-thalazur", schema: SCHEMA, jeu: { ...etat, schema: SCHEMA }, mine };
+  const blob = new Blob([JSON.stringify(fichier, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
@@ -186,27 +174,28 @@ export function exporter(etat) {
  * porte-monnaie retenu est le plus garni des deux — on ne punit pas un import.
  */
 export async function importer(fichier, actuel, mode = "fusion") {
-  let entrant = JSON.parse(await fichier.text());
-  if (!entrant || typeof entrant !== "object") throw new Error("Fichier illisible");
-  if (entrant.version === 4) entrant = normaliser(entrant);
-  if (entrant.version !== VERSION) throw new Error("Version d'export incompatible");
+  let entrant;
+  try { entrant = JSON.parse(await fichier.text()); } catch { throw new Error("Fichier illisible"); }
+  if (!entrant || entrant.format !== "brume-thalazur") throw new Error("Ce fichier n'est pas une sauvegarde de La Brume de Thalazur");
+  const jeu = relireJeu(entrant.jeu);
+  if (!jeu) throw new Error("Sauvegarde d'une version incompatible");
 
-  if (entrant.mine) {
-    try { localStorage.setItem(CLE_KAZIM, entrant.mine); } catch { /* sans importance */ }
+  if (entrant.mine && migrer("mine", entrant.mine)) {
+    ecrireMine(JSON.stringify(migrer("mine", entrant.mine)));
   }
-  const { mine, ...net } = entrant;
-  if (mode === "remplacement") return { ...vide(), ...net };
-  return fusionner(actuel, net);
+  if (mode === "remplacement") return jeu;
+  return fusionner(actuel, jeu);
 }
 
 /**
  * Additionne deux parties : les exemplaires et les boosters se cumulent, le
  * porte-monnaie retenu est le plus garni des deux — on ne punit pas un import.
- * Sert à l'import d'un fichier comme à la première connexion d'un joueur qui
- * avait déjà joué sans compte.
  */
 export function fusionner(actuel, net) {
-  const fusion = { ...vide(), ...normaliser(actuel) };
+  const fusion = { ...vide(), ...actuel };
+  fusion.collections = { ...fusion.collections };
+  fusion.boosters = { ...fusion.boosters };
+  fusion.pity = { ...fusion.pity };
   for (const bid of cles(net.collections)) {
     const coll = net.collections[bid];
     fusion.collections[bid] = { ...(fusion.collections[bid] || {}) };
@@ -219,8 +208,7 @@ export function fusionner(actuel, net) {
     }
   }
   for (const bid of cles(net.boosters)) {
-    const n = net.boosters[bid];
-    fusion.boosters[bid] = (fusion.boosters[bid] || 0) + n;
+    fusion.boosters[bid] = (fusion.boosters[bid] || 0) + net.boosters[bid];
   }
   for (const bid of cles(net.pity)) {
     const p = net.pity[bid];

@@ -44,6 +44,7 @@
 
 /* en-tête */
 .kz-top {
+  position: relative;   /* repère de l'infobulle des jetons */
   display: flex; flex-wrap: wrap; gap: 14px 20px; align-items: stretch;
   padding-bottom: clamp(13px, 1.6vw, 18px);
   border-bottom: 1px solid var(--edge, #2c3d43);
@@ -619,3 +620,44 @@
 .kz-filon-marque b { font-variant-numeric: tabular-nums; color: hsl(var(--kz-teinte) 96% 90%); }
 
 .kz-sobre .kz-vein[data-filon="2"] { animation: none; }
+
+/* ------------------------------------------------------------------
+   L'INFOBULLE DES JETONS, ET LE CHANTIER QUI SE VIDE
+   ------------------------------------------------------------------ */
+
+/* Elle sort de l'en-tête, qui est son repère, et non de la rangée, qui défile
+   latéralement et la rognerait. Hors flux : la mine garde sa hauteur. */
+.kz-infobulle {
+  position: absolute; z-index: 12; top: calc(100% - 4px);
+  width: 260px; padding: 11px 13px;
+  display: grid; gap: 4px;
+  background: var(--panel, #1a272c);
+  border: 1px solid var(--edge-hi, #3d5259); border-radius: var(--r-md, 6px);
+  box-shadow: 0 16px 38px rgba(0, 0, 0, .66);
+  pointer-events: none;
+  animation: kz-infobulle 140ms ease-out both;
+}
+.kz-infobulle strong { font-size: 13px; font-weight: 600; color: var(--ink, #ece3d2); }
+.kz-infobulle span { font-size: 12.5px; line-height: 1.45; color: var(--ink2, #b7b2a4); text-wrap: pretty; }
+@keyframes kz-infobulle {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: none; }
+}
+.kz-sobre .kz-infobulle { animation: none; }
+
+.kz-jeton:focus-visible { outline: 2px solid var(--lamp, #e8a33d); outline-offset: 2px; }
+
+/* Une amélioration encore hors de portée : lisible, mais visiblement inerte. */
+.kz-row.kz-verrouille { opacity: .55; }
+.kz-row.kz-verrouille:hover { background: rgba(19, 30, 34, .5); border-color: var(--edge, #2c3d43); }
+.kz-note.kz-titre-liste {
+  margin: 16px 0 9px; padding-top: 13px; border-top: 1px solid var(--edge, #2c3d43);
+  font-size: 11.5px; text-transform: uppercase; letter-spacing: .07em; color: var(--ink4, #88999e);
+}
+
+/* God-Pioche (outil MJ, développement) : la pioche de fer, passée à l'or. */
+.kz-swing.kz-god {
+  filter: sepia(1) saturate(5) hue-rotate(-12deg) brightness(1.2)
+          drop-shadow(0 0 12px var(--lamp, #e8a33d));
+}
+.kz-n.kz-or-god { color: var(--lamp, #e8a33d); }

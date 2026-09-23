@@ -31,7 +31,7 @@
  * Le classeur ne porte pas le genre : la colonne reste vide, et la carte
  * n'affiche simplement pas cette mention.
  */
-import { readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, resolve } from "node:path";
 // read-excel-file plutôt que SheetJS : le paquet `xlsx` publié sur npm est
 // figé en 0.18.5, avec deux failles connues (pollution de prototype, ReDoS)
@@ -103,7 +103,13 @@ if (!lignes.length) {
   process.exit(1);
 }
 
-const cible = `data/${id || basename(chemin).replace(/\.[^.]+$/, "").toLowerCase()}.json`;
+const ext = id || basename(chemin).replace(/\.[^.]+$/, "").toLowerCase();
+const dossier = `src/extensions/${ext}`;
+if (!existsSync(`${dossier}/extension.js`)) {
+  console.error(`Aucune extension « ${ext} » : créez d'abord ${dossier}/extension.js (voir src/extensions/index.js).`);
+  process.exit(1);
+}
+const cible = `${dossier}/roster.json`;
 writeFileSync(
   cible,
   JSON.stringify({

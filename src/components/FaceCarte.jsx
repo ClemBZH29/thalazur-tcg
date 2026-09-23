@@ -36,7 +36,6 @@ export default function FaceCarte({ c, cfgImage, fichiers }) {
   useAjuste(refNom, [c.nom]);
   useAjuste(refDetail, [c.rep1, c.race, c.rep3, c.citation]);
 
-  const genre = c.genre === "F" ? "femme" : c.genre === "M" ? "homme" : c.genre;
   const base = import.meta.env.BASE_URL;
   const reperes = reperesDe(c);
 

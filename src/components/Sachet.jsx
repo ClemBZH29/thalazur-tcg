@@ -35,7 +35,7 @@ export default function Sachet({ booster, sfx, ouverts, prix, onRupture, onToutO
     setOuvert(true);
     fn();
   }, []);
-  const src = `${import.meta.env.BASE_URL}${booster.sachet}`;
+  const src = booster.sachet;
 
   const pousser = useCallback(
     (v) => {

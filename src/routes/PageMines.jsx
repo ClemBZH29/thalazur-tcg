@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import MinesDeKazim from "../mines/MinesDeKazim.jsx";
 import { useJeu } from "../jeu/Jeu.jsx";
-import { magasinKazim, CLE_MINE } from "../lib/storage.js";
+import { magasinKazim } from "../lib/storage.js";
 import AvisMouvement from "../components/AvisMouvement.jsx";
 
 /**
@@ -20,7 +20,7 @@ import AvisMouvement from "../components/AvisMouvement.jsx";
  * conversion — mais il ne s'annonce plus que le jour où il mord.
  */
 export default function PageMines() {
-  const { crediterMine, mineJour, versionMine } = useJeu();
+  const { crediterMine, mineJour, versionMine, test } = useJeu();
 
   const surPO = useCallback((brut) => crediterMine(brut), [crediterMine]);
   const plafondAtteint = mineJour.credite >= mineJour.plafond;
@@ -47,7 +47,7 @@ export default function PageMines() {
         key={versionMine}
         onPO={surPO}
         storage={magasinKazim}
-        storageKey={CLE_MINE}
+        godPioche={test.actif && test.godPioche}
         spritesBase={`${import.meta.env.BASE_URL}kazim/`}
       />
 

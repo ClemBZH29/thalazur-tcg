@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import Ouverture from "../components/Ouverture.jsx";
-import { BOOSTER_PAR_ID } from "../config/boosters.js";
+import { BOOSTER_PAR_ID } from "../extensions/index.js";
 import { useJeu } from "../jeu/Jeu.jsx";
 import { useRoute } from "../lib/routeur.jsx";
 

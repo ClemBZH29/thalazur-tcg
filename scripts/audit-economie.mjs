@@ -19,30 +19,15 @@
  *
  *   node scripts/audit-economie.mjs
  */
-import { readFileSync } from "node:fs";
 import { ECONOMIE, MINE } from "../src/config/tiers.js";
+import * as donnees from "../src/mines/donnees.js";
+import * as regles from "../src/mines/regles.js";
+import * as format from "../src/mines/format.js";
+import { etatNeuf } from "../src/mines/sauvegarde.js";
 
-const source = readFileSync(new URL("../src/mines/MinesDeKazim.jsx", import.meta.url), "utf8");
-const lignes = source.split("\n");
-const debut = lignes.findIndex((l) => l.includes("   DONNÉES")) + 2;
-const fin = lignes.findIndex((l) => l.includes("   COMPOSANT")) - 1;
-if (debut < 2 || fin < debut) throw new Error("bannières DONNÉES / COMPOSANT introuvables");
-
-let pur = lignes.slice(debut, fin).join("\n");
-pur = pur.replace(/function sobreParDefaut\(\)[\s\S]*?\n}\n/, "");
-pur = pur.replace(/function faireMagasin\([\s\S]*?\n}\n/, "");
-
-const noms = ["STRATES", "COMPAGNONS", "EQUIPEMENT", "TALENTS", "FILONS_PAR_STRATE",
-  "etatNeuf", "equipA", "equipMult", "mEclats", "secondesParFrappe", "degatsClic",
-  "critChance", "critMult", "prodUnitaire", "dpsBrut", "dps", "multRecolte",
-  "chanceEvenement", "pvFilon", "xpRequis", "margeKobold", "ancrePO", "dette",
-  "bonusVolume", "coursBase", "coursAffiche", "poPourMise", "prochainPO",
-  "eclatsDispo", "coutUn", "coutN", "nbAbordable", "fmt", "FATIGUE_PO",
-  "PLAFOND_JOUR", "RESONANCE_MAX"];
-const K = await import(
-  "data:text/javascript;base64," +
-  Buffer.from(`${pur}\nexport { ${noms.join(", ")} };`).toString("base64")
-);
+/* Les règles du module, importées telles quelles : l'audit rejoue exactement
+   les formules que le jeu applique. */
+const K = { ...donnees, ...regles, ...format, etatNeuf };
 
 /* ── La boucle du module ──────────────────────────────────────────────────── */
 

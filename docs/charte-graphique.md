@@ -291,6 +291,16 @@ zone de quarante-quatre pixels au moins. Le nom complet reste dans le flux, hors
 écran, pour le nom accessible du lien : seul l'affichage prend la version
 courte. La vue réserve la hauteur de la barre en bas de page.
 
+### Toutes les pages partagent un gabarit
+
+Changer d'onglet ne doit rien faire bouger d'autre que le contenu. Toutes les
+pages ont la même largeur (`--page-max`, 1 420 px) et le même en-tête : même
+marge haute, titre de même taille (`--page-titre`), aligné en haut quelle que
+soit la hauteur de ce qui l’accompagne à droite (un bouton, au plus). Le tout
+vit dans `src/styles/gabarit.css`, chargé en dernier : une page ne redéfinit
+ni sa largeur ni son titre. Seuls l'accueil et la page 404, centrés, font
+exception.
+
 ### Le focus suit l'adresse
 
 Sur un site en une seule page, le navigateur ne remet ni le défilement ni le
@@ -611,6 +621,58 @@ hauteur définitive** — avec une ligne qui dit ce qui l'occupera. Attention au
 `box-sizing: border-box` en réservant : le filet compte dans le `min-height`.
 Même règle pour les panneaux d'aide, qui s'ouvrent en surimpression et jamais
 dans le flux.
+
+### Une liste ne garde que ce sur quoi il reste à décider
+
+Un catalogue d'achats qui conserve ses lignes acquises grossit sans fin et
+repousse hors de l'écran les deux qui demandent encore un choix. Ce qui est
+acquis sort de la liste et va se ranger là où on en fait l'inventaire — ici la
+rangée de jetons de l'en-tête — avec l'information qui l'accompagnait, en
+infobulle. Ce qui n'est pas encore accessible reste visible, à part et en
+sourdine, mais seulement à partir du moment où l'atteindre devient une décision :
+une liste d'objectifs lointains est du bruit, un objectif à mi-chemin est un but.
+
+Une infobulle de survol attend **une seconde** : un curseur de passage traverse
+six éléments sans vouloir en lire aucun. Au clavier elle est immédiate — tabuler
+jusqu'à un élément est délibéré. Et elle sort hors flux, d'un parent qui ne
+défile pas, sinon elle se fait rogner par le conteneur qu'elle documente.
+
+### Un composant ne se définit pas dans le corps d'un rendu
+
+Il change d'identité à chaque image. Sur une page ordinaire cela passe inaperçu ;
+dans une boucle de jeu qui rend neuf fois par seconde, React démonte et remonte
+tout le sous-arbre à chaque tour — le focus saute, un survol n'atteint jamais son
+délai, les images repartent en chargement. Une fonction qui renvoie du JSX
+produit des éléments d'un type stable, que React réconcilie.
+
+### Une récompense aléatoire s'annonce avant, pas après
+
+Un tirage qui se joue au moment de la récompense est invisible : le joueur voit
+un gain sans cause, et le talent qui gouverne la fréquence de ces gains ne se
+voit nulle part. Le tirage se fait à la naissance de l'objet, qui porte alors sa
+nature — ici la couleur de la roche — et la probabilité reste identique au
+millième près. Ce qui change est qu'on peut réagir.
+
+Trois états doivent se distinguer par **trois signaux différents**, pas par trois
+intensités du même : deux rouges voisins ne se séparent pas d'un coup d'œil. Ici
+c'est la roche qui se teinte, puis les éclats qui s'allument, puis le halo qui
+respire. Et la couleur est toujours doublée d'un mot écrit — une teinte seule ne
+dit rien à qui les distingue mal.
+
+Une **variable CSS unique** porte la teinte (`--kz-teinte`), posée par le
+composant à partir de l'état du jeu ; toutes les couleurs du bloc en dérivent en
+`hsl()`. Une ligne de JavaScript déplace alors l'ensemble de la famille — pierre,
+lueur, halo, bordure, cartouche — au lieu de dix déclarations à tenir en accord.
+
+### Une barre fixe dans une colonne flex doit refuser de rétrécir
+
+Le défaut d'un enfant de flex est `flex-shrink: 1`. Une rangée d'onglets, un
+en-tête, un pied : tout ce qui doit garder sa hauteur dans une colonne flex dont
+un enfant déborde le déclare (`flex: 0 0 auto`), faute de quoi il se fait
+comprimer puis rogner par l'`overflow` du conteneur — on lit la moitié basse des
+libellés et aucune règle n'a échoué. C'est le quatrième échec silencieux du
+projet, avec le sélecteur orphelin, le `[hidden]` battu par une classe et le
+`z-index` passé sous une couche.
 
 ### Un mot d'ambiance qui porte une mécanique se définit quelque part
 

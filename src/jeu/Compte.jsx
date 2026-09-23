@@ -2,8 +2,8 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { useJeu } from "./Jeu.jsx";
 import { chargerFirebase, nuageConfigure } from "../lib/nuage/firebase.js";
 import { fusionner3, fusionnerMine, signature } from "../lib/nuage/fusion.js";
-import { effacer, ecrireMine, etatVide, lireMine, suivreMine, VERSION_ETAT } from "../lib/storage.js";
-import { bourseNeuve } from "../lib/economie.js";
+import { effacer, ecrireMine, etatVide, lireMine, relireJeu, suivreMine } from "../lib/storage.js";
+import { SCHEMA } from "../lib/sauvegarde/schema.js";
 import { LEGAL } from "../config/legal.js";
 
 /**
@@ -15,7 +15,7 @@ import { LEGAL } from "../config/legal.js";
  *   mine     — la sauvegarde des Mines de Kazim, telle que le module l'écrit
  *   revision — compteur, +1 à chaque écriture ; les règles l'exigent
  *   maj      — horodatage serveur de la dernière écriture
- *   schema   — version du format de `donnees`
+ *   schema   — version du format, commune au jeu et à la mine (sauvegarde/schema.js)
  *   expire   — échéance de conservation (maintenant + 5 ans), purge TTL
  *
  * L'état part en chaîne JSON plutôt qu'en carte Firestore : Firestore refuse
@@ -59,8 +59,17 @@ const ecrireJSON = (cle, v) => {
   catch { /* quota : la synchronisation repartira de zéro */ }
 };
 
-/** Une copie relue du compte, remise à la forme que le jeu attend. */
-const normaliser = (d) => ({ ...etatVide(), ...d, bourse: { ...bourseNeuve(), ...(d?.bourse || {}) } });
+/**
+ * La copie du compte, remise à la forme que le jeu attend. Un document d'un
+ * format trop ancien se lit comme une partie vide : l'appareil y réécrira la
+ * sienne, en gardant la révision pour que les règles acceptent l'écriture.
+ */
+function lireCompte(doc) {
+  let brut = null;
+  try { brut = JSON.parse(doc.donnees); } catch { /* illisible : partie vide */ }
+  const jeu = doc.schema === SCHEMA ? relireJeu(brut) : null;
+  return { jeu: jeu || etatVide(), mine: jeu ? doc.mine ?? null : null };
+}
 
 function serialiser(etat) {
   const complet = JSON.stringify(etat);
@@ -139,8 +148,7 @@ export function Compte({ children }) {
    * connaît. Renvoie vrai si l'appareil a encore quelque chose à envoyer.
    */
   const reconcilier = useCallback((doc) => {
-    const la = normaliser(JSON.parse(doc.donnees));
-    const laMine = doc.mine ?? null;
+    const { jeu: la, mine: laMine } = lireCompte(doc);
     const b = base.current;
     if (!aChange()) {
       adopter(la, laMine);
@@ -175,9 +183,9 @@ export function Compte({ children }) {
             const actuelle = snap.exists() ? snap.data().revision : 0;
             if (snap.exists() && actuelle !== connue) throw new Conflit(snap.data());
             tx.set(refDoc(), {
-              schema: VERSION_ETAT,
+              schema: SCHEMA,
               revision: actuelle + 1,
-              donnees: serialiser({ ...ici, version: VERSION_ETAT }),
+              donnees: serialiser({ ...ici, schema: SCHEMA }),
               mine: mine ?? null,
               maj: F.serverTimestamp(),
               expire: F.Timestamp.fromMillis(Date.now() + CONSERVATION),
@@ -251,9 +259,9 @@ export function Compte({ children }) {
           if (!avait) {
             // Appareil vierge : on prend le compte tel quel. Le fusionner
             // ferait gagner la bourse de départ d'une partie jamais jouée.
-            const la = normaliser(JSON.parse(doc.donnees));
-            adopter(la, doc.mine ?? null);
-            retenir(doc.revision, la, doc.mine ?? null);
+            const { jeu: la, mine: laMine } = lireCompte(doc);
+            adopter(la, laMine);
+            retenir(doc.revision, la, laMine);
             if (vieillie) await envoyer(true); else setSync("a-jour");
           } else {
             reconcilier(doc);

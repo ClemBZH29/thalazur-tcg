@@ -1,0 +1,9 @@
+# Fins de ligne LF dans le dépôt, quel que soit le poste : pas de
+# différences fantômes entre Windows et le build GitHub.
+* text=auto eol=lf
+*.webp binary
+*.png binary
+*.jpg binary
+*.woff2 binary
+*.tgz binary
+*.zip binary

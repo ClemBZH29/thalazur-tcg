@@ -5,10 +5,11 @@ import { construireMarche, Marche, jourCourant, CFG } from "../src/comptoir/marc
 import { acheteursDuJour } from "../src/comptoir/acheteurs.js";
 import { readFileSync } from "node:fs";
 
-const r = JSON.parse(readFileSync(new URL("../data/troupe-valeran.json", import.meta.url), "utf8"));
+const r = JSON.parse(readFileSync(new URL("../src/extensions/troupe-valeran/roster.json", import.meta.url), "utf8"));
+const { default: extension } = await import("../src/extensions/troupe-valeran/extension.js");
 const grades = deduireGrades(r.lignes);
 const pool = construirePool(r.lignes, grades);
-const sp = specialesPour("troupe-valeran");
+const sp = specialesPour(extension);
 const jeu = [...TIER_ORDER.flatMap(t => pool[t] || []), ...sp.fullart, ...sp.pj];
 console.log("cartes du set :", jeu.length, "| par palier :",
   Object.fromEntries(TIER_ORDER.map(t => [t, jeu.filter(c=>c.tier===t).length])));

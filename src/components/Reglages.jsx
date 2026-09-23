@@ -217,6 +217,17 @@ export default function Reglages({
                 <option value="jamais">Jamais</option>
               </select>
             </label>
+            <div className="champ">
+              <span>Mines de Kazim</span>
+              <button
+                className={test.godPioche ? "btn sm" : "btn quiet sm"}
+                disabled={!test.actif}
+                onClick={() => onTest({ ...test, godPioche: !test.godPioche })}
+                aria-pressed={test.godPioche}
+              >
+                {test.godPioche ? "God-Pioche" : "Pioche normale"}
+              </button>
+            </div>
           </div>
           {test.actif && (
             <p className="avis">
@@ -225,7 +236,8 @@ export default function Reglages({
               {test.palier !== "auto" && `, tout forcé en ${test.palier}`}
               {test.rainbow !== "auto" && `, écaille ${test.rainbow}`}
               {test.colporteur === "toujours" && ", le colporteur passe à chaque booster"}
-              {test.colporteur === "jamais" && ", le colporteur ne passe pas"}.
+              {test.colporteur === "jamais" && ", le colporteur ne passe pas"}
+              {test.godPioche && ", la God-Pioche brise chaque filon d'un coup"}.
             </p>
           )}
         </div>

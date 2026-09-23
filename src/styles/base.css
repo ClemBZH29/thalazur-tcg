@@ -94,7 +94,7 @@ main[tabindex="-1"]:focus, main[tabindex="-1"]:focus-visible { outline: none; }
 .btn.sm { padding: 8px 15px; font-size: 12.5px; }
 .btn[disabled] { opacity: .4; cursor: not-allowed; }
 
-.view { flex: 1; width: 100%; max-width: 1180px; margin: 0 auto;
+.view { flex: 1; width: 100%; max-width: var(--page-max); margin: 0 auto;
   padding: 34px max(28px, env(safe-area-inset-right)) calc(72px + env(safe-area-inset-bottom))
            max(28px, env(safe-area-inset-left)); }
 .lede { font-size: 16px; line-height: 1.75; color: var(--ink2); max-width: 58ch; }

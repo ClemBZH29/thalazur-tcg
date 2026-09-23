@@ -14,6 +14,7 @@ import "./styles/cards.css";
 import "./styles/app.css";
 import "./styles/colporteur.css";
 import "./styles/compte.css";
+import "./styles/gabarit.css";
 
 createRoot(document.getElementById("root")).render(
   <React.StrictMode>

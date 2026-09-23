@@ -82,10 +82,7 @@ a { color: inherit; text-decoration: none; }
 }
 
 .zone { flex: 1; display: flex; flex-direction: column; }
-.view.large { max-width: 1420px; }
 
-.section-titre h1 { font-size: clamp(28px, 4vw, 38px); font-weight: 600; }
-.section-titre:first-child { margin-top: 6px; }
 
 /* ── Navigation basse, au doigt ──────────────────────────────────────────── */
 
@@ -253,8 +250,6 @@ a { color: inherit; text-decoration: none; }
   .shell.mines-plein .zone { min-height: 0; }
   .mines { display: flex; flex-direction: column; min-height: 0;
     padding-top: 18px; padding-bottom: 20px; overflow: auto; }
-  .mines .section-titre { margin: 0 0 14px; padding-bottom: 12px; }
-  .mines .section-titre h1 { font-size: clamp(26px, 2.6vw, 32px); }
   .mines .kz { flex: 1; min-height: 0; display: flex; }
   .mines .kz-wrap { flex: 1; min-height: 0; display: flex; flex-direction: column;
     padding-top: 0; padding-bottom: 0; }
@@ -273,36 +268,42 @@ a { color: inherit; text-decoration: none; }
 .mines .kz-top { padding-bottom: 0; border-bottom: 0; }
 .mines .kz-wrap { padding-top: clamp(10px, 1.2vw, 14px); }
 
-/* ── Chronomètre du gain passif ──────────────────────────────────────────── */
+/* ── Caisse de la boutique ─────────────────────────────────────────────── */
 
-/* Il a remplacé le rappel des règles en tête de boutique. Ce qu'on vient lire
-   là n'est pas le prix d'un booster — il est sur chaque vignette — mais quand
-   on pourra en ouvrir un de plus. */
-.chrono {
-  display: grid; grid-template-columns: auto; justify-items: end;
-  gap: 3px; min-width: 172px; text-align: right;
+/* Une bande sous l'étagère, en trois blocs : la bourse, ce qu'elle paie, et le
+   gain passif. Sortie de l'en-tête pour que la Boutique ait le même gabarit
+   que les autres pages (voir gabarit.css). */
+.caisse {
+  display: grid; grid-template-columns: auto auto minmax(0, 1fr); gap: 0;
+  margin-top: 20px; background: var(--panel); border: 1px solid var(--edge);
+  border-radius: var(--r-md);
 }
-.chrono-quoi { font-size: 11.5px; letter-spacing: .05em; text-transform: uppercase;
-  color: var(--ink4); }
-.chrono-temps, .chrono b {
+.caisse-bloc { display: grid; align-content: center; gap: 5px; padding: 14px 22px; min-width: 0; }
+.caisse-bloc + .caisse-bloc { border-left: 1px solid var(--edge); }
+.caisse-quoi { font-size: 11.5px; letter-spacing: .05em; text-transform: uppercase; color: var(--ink4); }
+.caisse-valeur {
   font-family: var(--font-display); font-variation-settings: var(--wonk);
-  font-weight: 600; font-size: 27px; line-height: 1; color: var(--lamp);
-  font-variant-numeric: tabular-nums; letter-spacing: -.01em;
+  font-weight: 600; font-size: 26px; line-height: 1; color: var(--ink);
+  font-variant-numeric: tabular-nums; letter-spacing: -.01em; white-space: nowrap;
 }
-.chrono-jauge {
-  width: 100%; height: 3px; margin-top: 4px; border-radius: 3px;
-  background: var(--edge); overflow: hidden;
-}
-.chrono-jauge span { display: block; height: 100%; background: var(--lamp);
+.caisse-valeur.or { color: var(--lamp); }
+.caisse-valeur.petit { font-size: 18px; color: var(--ink3); }
+.caisse-jauge { display: block; height: 6px; border-radius: 6px; background: var(--edge); overflow: hidden; }
+.caisse-jauge span { display: block; height: 100%; border-radius: 6px; background: var(--lamp);
   transition: width 1s linear; }
-.chrono-note { font-size: 11.5px; color: var(--ink4); }
-.chrono.pleine b, .chrono.libre b { font-size: 21px; color: var(--ink3); }
-.chrono.pleine .chrono-quoi { color: var(--lamp); }
-.chrono.pleine .chrono-note { max-width: 26ch; text-wrap: pretty; }
+.caisse-jauge.pause span { background: var(--ink4); }
+.caisse-note { font-size: 12.5px; color: var(--ink4); }
+.caisse-note b { font-weight: 600; color: var(--ink2); }
+.caisse-minuteur { font-variant-numeric: tabular-nums; }
+.caisse-minuteur time { color: var(--lamp); }
+.caisse.libre { grid-template-columns: 1fr; }
 
-[data-mouvement="reduit"] .chrono-jauge span { transition: none; }
+[data-mouvement="reduit"] .caisse-jauge span { transition: none; }
 
-@media (max-width: 640px) {
-  .chrono { justify-items: start; text-align: left; min-width: 0; }
-  .chrono-jauge { max-width: 180px; }
+.boutique-corps { display: flex; flex-direction: column; min-height: 0; }
+
+@media (max-width: 720px) {
+  .caisse { grid-template-columns: 1fr 1fr; order: -1; margin: 0 0 18px; }
+  .caisse-passif { grid-column: 1 / -1; border-left: 0 !important; border-top: 1px solid var(--edge); }
+  .caisse-bloc { padding: 12px 16px; }
 }
