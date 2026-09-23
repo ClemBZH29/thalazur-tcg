@@ -13,3 +13,7 @@ firebase-debug.log
 *serviceAccount*.json
 *-firebase-adminsdk-*.json
 cle-*.json
+# Archives et dossiers temporaires : le dépôt Git est la seule source
+_a_supprimer/
+*.zip
+*.tgz
