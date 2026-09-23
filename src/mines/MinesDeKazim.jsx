@@ -21,7 +21,7 @@
 
 import { Fragment, useState, useRef, useEffect, useReducer, useCallback } from "react";
 import "../styles/kazim.css";
-import { COMPAGNONS, EQUIPEMENT, AMELIORATIONS, TALENTS, ONGLETS, LEXIQUE } from "./donnees.js";
+import { COMPAGNONS, EQUIPEMENT, AMELIORATIONS, RANGS, TALENTS, ONGLETS, LEXIQUE } from "./donnees.js";
 import {
   FILONS_PAR_STRATE, FATIGUE_PO, DETTE_PAS, DETTE_MAX, RESONANCE_MAX, PLAFOND_JOUR,
   PIOCHES, equipA, equipMult, degatsClic, critChance, critMult,
@@ -431,7 +431,9 @@ function MinesDeKazim({ onPO, storage, spritesBase, godPioche = false }) {
     if (s.etoile < e.cout || equipA(s, e.id)) return;
     s.etoile -= e.cout;
     s.equipement.push(e.id);
-    setNeuf(e.id);
+    /* Une amélioration n'a plus de jeton à elle : c'est celui du compagnon
+       qu'elle sert qui salue l'achat. */
+    setNeuf(e.compagnon || e.id);
     setTimeout(() => setNeuf(null), 640);
     noter(e.nom + " : installé.");
     forcer();
@@ -573,7 +575,6 @@ function MinesDeKazim({ onPO, storage, spritesBase, godPioche = false }) {
   const gainEclats = eclatsDispo(s);
   const equipePosee = COMPAGNONS.filter((c) => s.compagnons[c.id]);
   const chantierPose = EQUIPEMENT.filter((e) => equipA(s, e.id));
-  const ameliorationsPosees = AMELIORATIONS.filter((a) => equipA(s, a.id));
 
   /* Ce qui s'installe maintenant : matériel atteint et non posé, améliorations
      dont le seuil est franchi. Trié par prix — c'est l'ordre dans lequel on
@@ -596,17 +597,21 @@ function MinesDeKazim({ onPO, storage, spritesBase, godPioche = false }) {
     const c = COMPAGNONS.find((x) => x.id === survol.cle);
     if (c) {
       const m = multCompagnon(s, c.id);
+      /* Le rang atteint se lit dans la bulle plutôt qu'en jetons : quatre
+         rangs par compagnon, c'était jusqu'à vingt-quatre vignettes presque
+         identiques qui chassaient le chantier hors de la bande. On affiche le
+         plus haut rang tenu : rien n'oblige à prendre le II avant le I quand
+         les deux seuils sont franchis, donc le compte n'y suffirait pas. */
+      const rang = AMELIORATIONS.reduce((r, a, i) => (a.compagnon === c.id
+        && equipA(s, a.id) ? Math.max(r, (i % RANGS.length) + 1) : r), 0);
       return { gauche: survol.gauche,
-        titre: c.nom + " ×" + (s.compagnons[c.id] || 0),
+        titre: c.nom + " ×" + (s.compagnons[c.id] || 0)
+          + (rang > 0 ? " · Niv. " + RANGS[rang - 1] : ""),
         texte: c.desc + " " + fmt(dpsUn(s, c)) + " étoile par seconde chacun"
           + (m > 1 ? ", améliorations comprises (×" + m + ")." : ".") };
     }
     const e = EQUIPEMENT.find((x) => x.id === survol.cle);
     if (e) return { gauche: survol.gauche, titre: e.nom, texte: e.desc };
-    const a = AMELIORATIONS.find((x) => x.id === survol.cle);
-    if (a) return { gauche: survol.gauche, titre: a.nom,
-      texte: "Production des " + COMPAGNONS.find((x) => x.id === a.compagnon).nom.toLowerCase()
-        + " doublée." };
     return null;
   })();
 
@@ -629,7 +634,7 @@ function MinesDeKazim({ onPO, storage, spritesBase, godPioche = false }) {
      jeton à chaque tour : le focus sauterait, le survol se perdrait avant
      d'avoir atteint sa seconde, et l'image se rechargerait. Une fonction qui
      renvoie du JSX produit des `span`, un type stable, donc réconciliés. */
-  const jeton = (cle, sprite, nom, nb, rang) => (
+  const jeton = (cle, sprite, nom, nb) => (
     <span className={"kz-jeton" + (neuf === cle ? " kz-neuf" : "")} key={cle}
           tabIndex={0} aria-label={nom + (nb ? ", " + nb + " employés" : "")}
           onPointerEnter={(e) => {
@@ -642,7 +647,6 @@ function MinesDeKazim({ onPO, storage, spritesBase, godPioche = false }) {
           onBlur={() => setSurvol(null)}>
       <img src={src(sprite)} alt="" loading="lazy" />
       {nb ? <b>{nb}</b> : null}
-      {rang ? <i>{rang}</i> : null}
     </span>
   );
 
@@ -949,9 +953,6 @@ function MinesDeKazim({ onPO, storage, spritesBase, godPioche = false }) {
             ))}
             {chantierPose.map((e) => (
               jeton(e.id, e.sprite, e.nom)
-            ))}
-            {ameliorationsPosees.map((a) => (
-              jeton(a.id, a.sprite, a.nom, 0, a.nom.split(" ").pop())
             ))}
             </>
           )}

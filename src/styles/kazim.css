@@ -646,14 +646,6 @@
 .kz-sobre .kz-infobulle { animation: none; }
 
 .kz-jeton:focus-visible { outline: 2px solid var(--lamp, #e8a33d); outline-offset: 2px; }
-/* Le rang d'une amélioration, en haut à gauche : le chiffre du bas est déjà
-   pris par l'effectif d'un compagnon, et les deux ne cohabitent jamais. */
-.kz-jeton i {
-  position: absolute; left: 0; top: 0; padding: 0 4px;
-  font-style: normal; font-size: 10px; font-weight: 700; letter-spacing: .04em;
-  color: var(--kz-etoile); background: rgba(13, 20, 23, .92);
-  border-bottom-right-radius: 3px;
-}
 
 /* Une amélioration encore hors de portée : lisible, mais visiblement inerte. */
 .kz-row.kz-verrouille { opacity: .55; }
