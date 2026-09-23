@@ -12,6 +12,7 @@
  *     onPO={(gain, totalSession) => crediterJoueur(gain)}
  *     storage={{ get: () => Promise<string|null>, set: (json) => Promise }}
  *     spritesBase="/kazim/"
+ *     godPioche={false}             // outil MJ : chaque frappe brise le filon
  *   />
  *
  * Le module n'écrit jamais le solde du joueur, il annonce un gain via onPO.
@@ -54,7 +55,7 @@ function sobreParDefaut() {
    COMPOSANT
    ══════════════════════════════════════════════════════════════════════ */
 
-function MinesDeKazim({ onPO, storage, spritesBase }) {
+function MinesDeKazim({ onPO, storage, spritesBase, godPioche = false }) {
   const S = useRef(etatNeuf());
   const [, forcer] = useReducer((n) => n + 1, 0);
 
@@ -182,18 +183,19 @@ function MinesDeKazim({ onPO, storage, spritesBase }) {
 
   const swing = useCallback((p, crit) => {
     if (!effetsRef.current || !calqueRef.current) return;
-    const id = PIOCHES.find((i) => equipA(S.current, i)) || "p1";
+    // La God-Pioche est la pioche de fer, dorée : on la reconnaît au premier coup.
+    const id = godPioche ? "p1" : PIOCHES.find((i) => equipA(S.current, i)) || "p1";
     const piece = EQUIPEMENT.find((e) => e.id === id);
     const url = src(piece.sprite);
     if (!url) return;
     const img = document.createElement("img");
-    img.className = "kz-swing" + (crit ? " kz-crit" : "");
+    img.className = "kz-swing" + (crit ? " kz-crit" : "") + (godPioche ? " kz-god" : "");
     img.alt = "";
     img.src = url;
     img.style.left = p.x + "px";
     img.style.top = p.y + "px";
     ephemere(img, crit ? 440 : 320);
-  }, [ephemere, src]);
+  }, [ephemere, src, godPioche]);
 
   const pulseNiveau = useCallback(() => {
     const el = xpRef.current;
@@ -289,7 +291,9 @@ function MinesDeKazim({ onPO, storage, spritesBase }) {
     const s = S.current;
     const crit = Math.random() * 100 < critChance(s);
     if (crit) s.resonance = Math.min(RESONANCE_MAX / 0.004, (s.resonance || 0) + 1);
-    const d = degatsClic(s) * (crit ? critMult(s) : 1);
+    // God-Pioche : exactement ce qui reste au filon, pour qu'il se brise sans
+    // que le surplus ne file dans les suivants.
+    const d = godPioche ? Math.max(1, s.pv) : degatsClic(s) * (crit ? critMult(s) : 1);
     appliquerDegats(d);
     if (effetsRef.current) {
       const p = point(ev);
@@ -306,7 +310,7 @@ function MinesDeKazim({ onPO, storage, spritesBase }) {
       minuteurs.current.hit = setTimeout(() => el.classList.remove("kz-hit"), 100);
     }
     forcer();
-  }, [appliquerDegats, point, swing, bulle, onde, particules, rejouer]);
+  }, [appliquerDegats, point, swing, bulle, onde, particules, rejouer, godPioche]);
 
   /* ---------- boucle ---------- */
 
@@ -337,7 +341,14 @@ function MinesDeKazim({ onPO, storage, spritesBase }) {
 
   /* ---------- persistance ---------- */
 
+  /* Rien ne s'écrit tant que la sauvegarde n'a pas été relue. Sans ce garde,
+     un démontage survenu avant la fin de la lecture — quitter la page tout de
+     suite, ou le double montage de React en développement — enregistrait la
+     mine neuve du montage par-dessus la vraie partie. */
+  const relue = useRef(false);
+
   const sauver = useCallback(() => {
+    if (!relue.current) return;
     S.current.dernierTick = Date.now();
     try { storage.set(JSON.stringify(S.current)); } catch { /* la partie continue */ }
   }, [storage]);
@@ -366,6 +377,7 @@ function MinesDeKazim({ onPO, storage, spritesBase }) {
         }
       }
       if (!S.current.pvMax) nouveauFilon();
+      relue.current = true;
       setCharge(true);
       forcer();
     })
@@ -374,6 +386,7 @@ function MinesDeKazim({ onPO, storage, spritesBase }) {
       .catch((err) => {
         console.warn("[Kazim] chargement ignoré", err);
         if (!S.current.pvMax) nouveauFilon();
+        relue.current = true;
         setCharge(true);
         forcer();
       });
@@ -386,6 +399,8 @@ function MinesDeKazim({ onPO, storage, spritesBase }) {
       document.removeEventListener("visibilitychange", surVisibilite);
       Object.keys(minuteurs.current).forEach((k) => clearTimeout(minuteurs.current[k]));
       sauver();
+      // Le prochain montage relira la sauvegarde avant d'avoir le droit d'écrire.
+      relue.current = false;
     };
   }, [storage, sauver, noter, nouveauFilon]);
 
@@ -1085,7 +1100,7 @@ function MinesDeKazim({ onPO, storage, spritesBase }) {
           </div>
 
           <div className="kz-stats">
-            <div>par frappe<b className="kz-n">{fmt(degatsClic(s))}</b></div>
+            <div>par frappe<b className={"kz-n" + (godPioche ? " kz-or-god" : "")}>{godPioche ? "God-Pioche" : fmt(degatsClic(s))}</b></div>
             <div>par seconde<b className="kz-n">{fmt(dps(s))}</b></div>
             <div>
               niveau<b className="kz-n">{s.niveau + (s.points ? " (+" + s.points + ")" : "")}</b>

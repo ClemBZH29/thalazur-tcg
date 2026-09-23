@@ -180,3 +180,15 @@ que sous ce seuil.
 - **Le cadre du filon répond au clavier.** Il portait `role="button"` et
   n'écoutait que le pointeur, ce que la charte du projet interdit
   explicitement — Entrée et Espace frappent maintenant le filon.
+
+## Outils MJ
+
+En développement (`npm run dev`), **Réglages MJ → Mode test → Mines de Kazim**
+active la **God-Pioche** : chaque frappe inflige exactement ce qui reste au
+filon, qui se brise d'un coup. Elle se reconnaît à la pioche de fer passée à
+l'or, et « par frappe » affiche « God-Pioche ». Comme tout le mode test, elle
+n'existe pas sur le site publié.
+
+La mine n'écrit rien tant qu'elle n'a pas relu sa sauvegarde : un démontage
+avant la fin de la lecture (quitter la page aussitôt, ou le double montage de
+React en développement) enregistrait sinon la mine neuve par-dessus la partie.

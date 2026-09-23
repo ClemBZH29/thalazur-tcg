@@ -13,6 +13,9 @@ export const TEST_DEFAUT = {
   // Le colporteur passe huit fois sur cent : sans ce levier, le vérifier
   // demandait d'ouvrir une douzaine de boosters à chaque retouche.
   colporteur: "auto", // auto | toujours | jamais
+  // Mines : chaque frappe brise le filon, pour traverser les strates en
+  // quelques minutes au lieu de quelques jours.
+  godPioche: false,
 };
 
 /** Les préférences du joueur et les leviers du meneur, lus dans l'état sauvegardé. */

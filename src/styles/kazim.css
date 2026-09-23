@@ -662,3 +662,10 @@
   margin: 16px 0 9px; padding-top: 13px; border-top: 1px solid var(--edge, #2c3d43);
   font-size: 11.5px; text-transform: uppercase; letter-spacing: .07em; color: var(--ink4, #88999e);
 }
+
+/* God-Pioche (outil MJ, développement) : la pioche de fer, passée à l'or. */
+.kz-swing.kz-god {
+  filter: sepia(1) saturate(5) hue-rotate(-12deg) brightness(1.2)
+          drop-shadow(0 0 12px var(--lamp, #e8a33d));
+}
+.kz-n.kz-or-god { color: var(--lamp, #e8a33d); }
