@@ -14,7 +14,7 @@ Raisonnement de conception : ce que fait cette partie du site, et pourquoi elle 
 - **Deux appareils.** Chaque écriture porte une révision ; les règles refusent
   celle qui ne part pas de la dernière. L'appareil refusé intègre la copie du
   compte par une fusion à trois voies (`src/lib/nuage/fusion.js`, testée par
-  `npm run test:fusion`) : les exemplaires et boosters des deux côtés
+  `tests/fusion.test.js`) : les exemplaires et boosters des deux côtés
   s'additionnent, le gain passif n'est pas payé deux fois.
 - **Première connexion** : la partie jouée sans compte s'ajoute au compte.
   **Déconnexion** : l'appareil est vidé, la partie reste sur le compte.
