@@ -6,6 +6,18 @@ automatiquement et ne puisse pas écraser le travail précédent.
 
 Un seul joueur à ce jour : on s'autorise à casser le format des sauvegardes.
 
+## État au 23/09/2026
+
+| Point | État |
+|---|---|
+| § 1 Flux de travail | Fait dans le dépôt (`.gitattributes`, `.editorconfig`, `CLAUDE.md`, `CHARTE.md` retiré, archives ignorées). Reste dans GitHub : protéger `main` |
+| § 2 Mines | Fait : `donnees.js`, `regles.js`, `sauvegarde.js`, `format.js`, interface. L'audit d'économie importe les règles (résultats identiques à l'octet). Le découpage de l'interface en sous-composants reste à faire au fil des modifications |
+| § 3 Sauvegardes | Fait : schéma commun n° 6, registre de migrations, anciens formats effacés |
+| § 4 Extensions | Fait : `src/extensions/<id>/`, catalogue automatique |
+| § 5 État du jeu | Fait en partie : `Jeu.jsx` découpé en crochets (`reglages.js`, `marche.js`, `colporteur.js`, `mine.js`) derrière le même `useJeu()`. Correction : le gain de rendu annoncé était surévalué, la coque lit déjà la bourse et redessine tout ; le bénéfice est la lisibilité, pas la vitesse |
+| § 6 Outillage | Fait : ESLint, Prettier, EditorConfig, Vitest (36 tests), workflow bloquant sur lint et tests |
+| § 7 Documentation | Fait : README réduit, `docs/conception/` |
+
 ---
 
 ## 0. Incident constaté pendant l'audit
