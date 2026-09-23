@@ -1,27 +1,16 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { BOOSTER_DEFAUT, BOOSTER_PAR_ID } from "../extensions/index.js";
 import { specialesPour } from "../config/speciales.js";
-import { TAUX_DEFAUT, ECONOMIE, GARANTIES, MINE, TIER_ORDER, TIERS_ROSTER } from "../config/tiers.js";
-import { jourLocal, passeAujourdhui, propositions } from "../config/colporteur.js";
-import { CFG_IMAGE_DEFAUT } from "../lib/images.js";
+import { ECONOMIE, GARANTIES, TIER_ORDER, TIERS_ROSTER } from "../config/tiers.js";
 import { construirePool, deduireGrades } from "../lib/roster.js";
-import { useAudio } from "../lib/audio.js";
 import { charger, sauver } from "../lib/storage.js";
-import {
-  crediter, crediterGain, debiterLibre, peutAcheter, valeurRevente,
-} from "../lib/economie.js";
+import { crediter, crediterGain, debiterLibre, peutAcheter, valeurRevente } from "../lib/economie.js";
+import { useReglages } from "./reglages.js";
+import { useMine } from "./mine.js";
+import { useMouvements } from "./marche.js";
+import { useColporteur } from "./colporteur.js";
 const DEFAUT = BOOSTER_DEFAUT;
 
-export const TEST_DEFAUT = {
-  actif: false,
-  sansPO: false,
-  taille: 5,
-  palier: "auto",
-  rainbow: "auto",
-  // Le colporteur passe huit fois sur cent : sans ce levier, le vérifier
-  // demandait d'ouvrir une douzaine de boosters à chaque retouche.
-  colporteur: "auto", // auto | toujours | jamais
-};
 
 /**
  * L'état du jeu, en un seul endroit.
@@ -39,6 +28,8 @@ export const useJeu = () => useContext(Ctx);
 /** La clé d'une case de collection : normale et rainbow sont deux cases. */
 export const CASE = { normale: "normale", rainbow: "rainbow" };
 
+export { TEST_DEFAUT } from "./reglages.js";
+
 export function Jeu({ children }) {
   const [etat, setEtat] = useState(charger);
   const [boosterId, setBoosterId] = useState(DEFAUT);
@@ -47,11 +38,6 @@ export function Jeu({ children }) {
   const [fichiers, setFichiers] = useState(new Map());
   const [nbImages, setNbImages] = useState(0);
   const [stockageKo, setStockageKo] = useState(false);
-  // Monte de un quand la sauvegarde de la mine a été remplacée de l'extérieur
-  // (copie du compte adoptée) : la page des Mines s'en sert de clé, et le
-  // module relit sa sauvegarde au lieu d'écraser la nouvelle avec l'ancienne.
-  const [versionMine, setVersionMine] = useState(0);
-  const rechargerMine = useCallback(() => setVersionMine((v) => v + 1), []);
 
   useEffect(() => { setStockageKo(!sauver(etat)); }, [etat]);
 
@@ -63,63 +49,11 @@ export function Jeu({ children }) {
     return () => clearInterval(iv);
   }, []);
 
-  const reglages = etat.reglages || {};
-  const son = reglages.son !== false;
-  /**
-   * Animations : « systeme » (défaut), « pleines » ou « reduites ».
-   *
-   * Les feuilles de style gardaient leurs animations derrière
-   * `prefers-reduced-motion`, ce qui est juste par défaut et malheureux ici :
-   * sur ce site l'animation est le contenu — le sachet qui se déchire, la lueur
-   * qui annonce le palier, la carte qui se retourne. Un système réglé sur
-   * « moins d'animations » vidait donc l'ouverture et la mine de leur
-   * substance, sans rien dire et sans recours. Le garde est devenu un attribut
-   * de la racine, et ce réglage le gouverne.
-   */
-  const animations = reglages.animations || "systeme";
-  // La revente automatique était le comportement unique de l'app ; elle est
-  // devenue une option, parce que le Comptoir a besoin d'exemplaires à écouler.
-  const reventeAuto = reglages.reventeAuto === true;
-  /* Les leviers de meneur — taux de tirage, cadrage des portraits, mode test,
-     roster chargé à la main — ne se règlent qu'en développement. En
-     production, des valeurs laissées par une ancienne version du site (où la
-     page Réglages était publique) sont ignorées : tout le monde joue avec les
-     mêmes tables, et le mode test ne peut pas servir à ouvrir sans payer. */
-  const MJ = import.meta.env.DEV;
-  const taux = { ...TAUX_DEFAUT, ...(MJ ? reglages.taux || {} : {}) };
-  const cfgImage = { ...CFG_IMAGE_DEFAUT, ...(MJ ? reglages.image || {} : {}) };
-  const test = { ...TEST_DEFAUT, ...(MJ ? reglages.test || {} : {}) };
-  const gratuit = test.actif && test.sansPO;
-
-  /** La préférence du système, suivie en direct : elle peut changer en session. */
-  const [sobreSysteme, setSobreSysteme] = useState(
-    () => typeof window !== "undefined" && window.matchMedia
-      ? window.matchMedia("(prefers-reduced-motion: reduce)").matches
-      : false
-  );
-  useEffect(() => {
-    if (!window.matchMedia) return;
-    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const suivre = (e) => setSobreSysteme(e.matches);
-    mq.addEventListener("change", suivre);
-    return () => mq.removeEventListener("change", suivre);
-  }, []);
-
-  const mouvementReduit =
-    animations === "reduites" || (animations === "systeme" && sobreSysteme);
-
-  useEffect(() => {
-    document.documentElement.dataset.mouvement = mouvementReduit ? "reduit" : "plein";
-  }, [mouvementReduit]);
-
-  const sonRef = useRef(son);
-  useEffect(() => { sonRef.current = son; }, [son]);
-  const sfx = useAudio(sonRef);
-
-  const majReglages = useCallback(
-    (patch) => setEtat((e) => ({ ...e, reglages: { ...e.reglages, ...patch } })),
-    []
-  );
+  const {
+    reglages, son, animations, reventeAuto, MJ, taux, cfgImage, test, gratuit,
+    sobreSysteme, mouvementReduit, sfx, majReglages,
+  } = useReglages(etat, setEtat);
+  const { crediterMine, mineJour, versionMine, rechargerMine } = useMine(etat, setEtat);
 
   const donnees = MJ ? etat.rosters[boosterId] : null;
   const roster = BOOSTER_PAR_ID[boosterId]?.roster;
@@ -281,144 +215,10 @@ export function Jeu({ children }) {
     [collection]
   );
 
-  /* ── Mouvements d'inventaire et de bourse ──────────────────────────────── */
 
-  /** Vente au Comptoir : n exemplaires quittent l'inventaire, les PO entrent. */
-  const vendreExemplaires = useCallback((carteId, version, n, po) => {
-    setEtat((e) => {
-      const coll = { ...(e.collections[boosterId] || {}) };
-      const a = coll[carteId];
-      if (!a) return e;
-      coll[carteId] = { ...a, [version]: Math.max(0, (a[version] || 0) - n) };
-      return {
-        ...e,
-        collections: { ...e.collections, [boosterId]: coll },
-        bourse: crediterGain(e.bourse, po),
-      };
-    });
-  }, [boosterId]);
-
-  /** Achat d'une carte à l'échoppe : les PO sortent, l'exemplaire entre. */
-  const acheterExemplaire = useCallback((carte, version, po) => {
-    setEtat((e) => {
-      const coll = { ...(e.collections[boosterId] || {}) };
-      const a = coll[carte.id];
-      coll[carte.id] = {
-        normale: 0, rainbow: 0, ...(a || {}),
-        [version]: ((a && a[version]) || 0) + 1,
-        carte,
-      };
-      return {
-        ...e,
-        collections: { ...e.collections, [boosterId]: coll },
-        bourse: debiterLibre(e.bourse, po),
-      };
-    });
-  }, [boosterId]);
-
-  /**
-   * Un échange du colporteur, appliqué d'un bloc.
-   *
-   * Le Comptoir n'avait besoin que de vendre ou d'acheter un exemplaire à la
-   * fois. Les affaires de Mirko déplacent plusieurs lignes à la fois — trois
-   * doublons contre une carte neuve, tout un lot contre des pièces — et cela
-   * doit tomber en une seule écriture : un troc appliqué en deux temps
-   * laisserait, si le rendu s'intercale, une collection allégée sans sa
-   * contrepartie.
-   */
-  const appliquerMarche = useCallback(({ retire = [], ajoute = [], po = 0 }) => {
-    setEtat((e) => {
-      const coll = { ...(e.collections[boosterId] || {}) };
-      for (const r of retire) {
-        const a = coll[r.carteId];
-        if (!a) continue;
-        coll[r.carteId] = { ...a, [r.version]: Math.max(0, (a[r.version] || 0) - r.n) };
-      }
-      for (const j of ajoute) {
-        const a = coll[j.carte.id];
-        coll[j.carte.id] = {
-          normale: 0, rainbow: 0, ...(a || {}),
-          [j.version]: ((a && a[j.version]) || 0) + (j.n || 1),
-          carte: j.carte,
-        };
-      }
-      const bourse = po >= 0 ? crediterGain(e.bourse, po) : debiterLibre(e.bourse, -po);
-      return { ...e, collections: { ...e.collections, [boosterId]: coll }, bourse };
-    });
-  }, [boosterId]);
-
-  /**
-   * Le passage du colporteur, décidé une fois par booster ouvert.
-   *
-   * La décision et les propositions vivent au même endroit parce qu'elles
-   * dépendent des mêmes choses : la date locale, le compteur de boosters
-   * depuis sa dernière visite, et l'état de la collection *après* récolte —
-   * c'est ce qui lui permet de proposer d'emporter les doublons qui viennent
-   * tout juste de sortir du sachet.
-   */
-  const tirerVisiteColporteur = useCallback(() => {
-    if (test.actif && test.colporteur === "jamais") return null;
-    const jour = jourLocal();
-    const memoire = etat.colporteur;
-    const force = test.actif && test.colporteur === "toujours";
-    const vient = force || passeAujourdhui(memoire, ouverts, Math.random, jour);
-
-    if (!vient) {
-      setEtat((e) => ({
-        ...e,
-        colporteur: { jour: (e.colporteur && e.colporteur.jour) || null,
-                      depuis: ((e.colporteur && e.colporteur.depuis) || 0) + 1 },
-      }));
-      return null;
-    }
-
-    const deals = propositions(
-      { collection: etat.collections[boosterId] || {}, pool, bourse: etat.bourse },
-      // Graine stable pour la journée et le rang du booster : rouvrir la page
-      // pendant la visite ne rebat pas les prix.
-      Number(jour.replaceAll("-", "")) + ouverts
-    );
-    if (!deals.length) return null;
-
-    if (!force) setEtat((e) => ({ ...e, colporteur: { jour, depuis: 0 } }));
-    return { jour, deals };
-  }, [etat, boosterId, pool, ouverts, test]);
-
-  /**
-   * Les kobolds de Kazim paient. Le crédit passe par la même porte que la
-   * revente d'un doublon, donc hors du plafond d'accumulation passive : borner
-   * ce que le joueur est allé chercher lui-même n'aurait aucun sens.
-   *
-   * Deux choses se passent ici et pas dans le module. La conversion, parce que
-   * c'est l'application qui sait ce qu'un PO vaut chez elle. Et le plafond
-   * quotidien, indexé sur la date locale : sans lui, deux heures de frappe par
-   * jour rapportaient cinq fois trente minutes, la mine devenant le jeu et les
-   * boosters un accessoire.
-   */
-  const crediterMine = useCallback((poBrut) => {
-    const aujourdhui = new Date().toLocaleDateString("sv");  // AAAA-MM-JJ, local
-    setEtat((e) => {
-      const jour = e.mine && e.mine.jour === aujourdhui ? e.mine : { jour: aujourdhui, credite: 0 };
-      const reste = Math.max(0, MINE.plafondJour - jour.credite);
-      const po = Math.min(Math.round(poBrut * MINE.multiplicateur), reste);
-      if (po <= 0) return { ...e, mine: jour };
-      return {
-        ...e,
-        bourse: crediterGain(e.bourse, po),
-        mine: { jour: aujourdhui, credite: jour.credite + po },
-      };
-    });
-  }, []);
-
-  const mineJour = (() => {
-    const aujourdhui = new Date().toLocaleDateString("sv");
-    const m = etat.mine && etat.mine.jour === aujourdhui ? etat.mine : null;
-    return { credite: m ? m.credite : 0, plafond: MINE.plafondJour };
-  })();
-
-  const majComptoir = useCallback((sauve) => {
-    setEtat((e) => ({ ...e, comptoir: { ...(e.comptoir || {}), [boosterId]: sauve } }));
-  }, [boosterId]);
+  const { vendreExemplaires, acheterExemplaire, appliquerMarche, majComptoir } =
+    useMouvements(setEtat, boosterId);
+  const tirerVisiteColporteur = useColporteur({ etat, setEtat, boosterId, pool, ouverts, test });
 
   const booster = BOOSTER_PAR_ID[boosterId];
   const achetable = peutAcheter(etat.bourse, gratuit);

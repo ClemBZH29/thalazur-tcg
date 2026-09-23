@@ -25,7 +25,9 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npm run test:fusion
+      # Rien ne part en ligne si le lint ou un test échoue.
+      - run: npm run lint
+      - run: npm test
       - run: npm run build
         env:
           VITE_FIREBASE_API_KEY: ${{ vars.VITE_FIREBASE_API_KEY }}

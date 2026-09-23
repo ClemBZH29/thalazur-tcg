@@ -1,7 +1,5 @@
-/**
- * Vérifie la fusion à trois voies de src/lib/nuage/fusion.js.
- * `npm run test:fusion` — aucun réseau, aucune dépendance.
- */
+/** Fusion à trois voies de deux copies d'une partie (src/lib/nuage/fusion.js). */
+import { test } from "vitest";
 import assert from "node:assert/strict";
 import { fusionner3, fusionnerMine, signature } from "../src/lib/nuage/fusion.js";
 import { ECONOMIE } from "../src/config/tiers.js";
@@ -35,9 +33,6 @@ const la = {
   bourse: { po: 50 + 2 * P - 20, credite: 2 * H, gagne: 10 },
   reglages: { son: true, x: 1 },
 };
-
-let n = 0;
-const test = (nom, fn) => { fn(); n++; console.log("  ✓", nom); };
 
 test("les exemplaires des deux côtés s'additionnent", () => {
   const f = fusionner3(base, ici, la, vide);
@@ -96,4 +91,3 @@ test("une clé __proto__ venue de l'extérieur ne touche pas au prototype", () =
   assert.equal(Object.getPrototypeOf(f.collections), Object.prototype);
 });
 
-console.log(`${n} vérifications passées.`);
