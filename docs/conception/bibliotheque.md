@@ -54,13 +54,20 @@ réglage éteint par défaut, et aucun ne disait ce qu'on vient chercher ici :
 le détail palier par palier en barres — la teinte de rareté sur la barre, jamais
 sur le texte, où elle ne tiendrait pas le seuil de contraste.
 
+Cet avancement se consulte plus qu'il ne sert à chaque visite : il est replié
+derrière « Statistiques de ma collection », un onglet rangé à droite des
+extensions, pour que la grille arrive tout de suite. Ouvert, il montre le
+chiffre seul, en grand (`5 / 226`), puis les barres. L'appareil retient s'il
+était ouvert (`brume-thalazur:biblio-stats`), sans l'envoyer sur le compte.
+
 Les filtres se lisent en deux rangs : l'**état** de la case — toutes, obtenues,
-manquantes, en double, rainbow — puis la **rareté**, avec son avancement. Ils
+en double, rainbow — puis la **rareté**, avec son avancement. Ils
 portent sur les cases, pas sur les cartes : « en double » compte les cases à deux
 exemplaires ou plus, « rainbow » isole les cases rainbow. Un champ de recherche
 par nom complète l'ensemble, insensible aux accents et à la casse ; il ne servait
 à rien sur quarante-huit cartes, il est indispensable sur trois cent quatorze. La rangée des raretés et les barres se taisent quand il n'y a
-qu'un palier à montrer, c'est-à-dire sur l'onglet des PJ.
+qu'un palier à montrer, c'est-à-dire sur l'onglet des PJ. Le filtre « manquantes » a été retiré : la grille montre
+déjà les dos gris, et isoler deux cents dos identiques n'apprenait rien.
 
 Un badge **New** apparaît à la révélation quand la carte remplit une case vide,
 en pastille ambre pour une case normale et en dégradé arc-en-ciel pour une case

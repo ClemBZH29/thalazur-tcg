@@ -19,6 +19,15 @@ function Manquante() {
   );
 }
 
+/**
+ * L'ouverture du volet des statistiques est une commodité d'affichage propre à
+ * cet appareil : elle ne part pas sur le compte, et un stockage refusé la
+ * laisse simplement fermée.
+ */
+const CLE_STATS = "brume-thalazur:biblio-stats";
+const lireStats = () => { try { return localStorage.getItem(CLE_STATS) === "1"; } catch { return false; } };
+const ecrireStats = (v) => { try { localStorage.setItem(CLE_STATS, v ? "1" : "0"); } catch { /* sans importance */ } };
+
 const pli = (t) => String(t || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
 /**
@@ -55,6 +64,8 @@ export default function Bibliotheque({
   const [filtre, setFiltre] = useState("toutes");
   const [etatCarte, setEtatCarte] = useState("tout");
   const [recherche, setRecherche] = useState("");
+  const [statsOuvertes, setStatsOuvertes] = useState(lireStats);
+  const basculerStats = () => setStatsOuvertes((v) => { ecrireStats(!v); return !v; });
 
   const booster = BOOSTER_PAR_ID[boosterId];
   const cartesPJ = useMemo(() => jeuComplet.filter((c) => c.tier === "pj"), [jeuComplet]);
@@ -127,7 +138,6 @@ export default function Bibliotheque({
     const garde = ({ c, version, n }) => {
       if (filtre !== "toutes" && c.tier !== filtre) return false;
       if (etatCarte === "obtenues" && n === 0) return false;
-      if (etatCarte === "manquantes" && n > 0) return false;
       if (etatCarte === "rainbow" && version !== "rainbow") return false;
       if (etatCarte === "doubles" && n < 2) return false;
       if (q && !pli(nomComplet(c)).includes(q)) return false;
@@ -154,13 +164,11 @@ export default function Bibliotheque({
   const paliersPresents = TIERS.filter((t) => stats.paliers[t.id]?.total > 0);
   const part = (n, t) => (t ? Math.round((100 * n) / t) : 0);
   const nDoubles = cases.filter((x) => x.n >= 2).length;
-  const nManquantes = stats.total - stats.obtenues;
   const nPJ = cartesPJ.filter((c) => (collectionPJ[c.id]?.normale || 0) > 0).length;
 
   const etats = [
     ["tout", "Toutes", cases.length],
     ["obtenues", "Obtenues", cases.filter((x) => x.n > 0).length],
-    ["manquantes", "Manquantes", nManquantes],
     ["doubles", "En double", nDoubles],
     ["rainbow", "Rainbow", stats.rainbow],
   ];
@@ -222,17 +230,33 @@ export default function Bibliotheque({
           <span className="set-nom">Cartes PJ</span>
           <span className="set-sous">{nPJ} sur {cartesPJ.length} · toutes extensions</span>
         </button>
+        {/* L'avancement se consulte, il ne sert pas à chaque visite : replié
+            par défaut, pour que la grille arrive tout de suite. */}
+        <button
+          className={`set stats-bascule${statsOuvertes ? " on" : ""}`}
+          aria-expanded={statsOuvertes}
+          aria-controls="stats-collection"
+          onClick={basculerStats}
+        >
+          <span className="set-nom">Statistiques de ma collection</span>
+          <span className="set-sous">
+            {statsOuvertes ? "Masquer" : "Afficher"}
+          </span>
+          <span className="stats-chevron" aria-hidden="true" />
+        </button>
       </div>
 
       {/* --- Avancement : un chiffre, et le détail par palier --- */}
+      <div
+        id="stats-collection"
+        className={`stats-repli${statsOuvertes ? " ouvert" : ""}`}
+        {...(statsOuvertes ? {} : { inert: "" })}
+      >
       <div className="avancement">
         <div className="avc-tete">
-          <p className="avc-chiffre">
-            <b>{stats.obtenues}</b><span> / {stats.total}</span>
-          </p>
-          <p className="avc-legende">
-            {ongletPJ ? "cartes PJ, toutes extensions" : `cartes · ${booster ? booster.titre : boosterId}`}
-            {stats.rainbow > 0 && <> · <b className="avc-rainbow">{stats.rainbow} rainbow</b></>}
+          <p className="avc-chiffre"
+             aria-label={`${stats.obtenues} cartes sur ${stats.total}, ${ongletPJ ? "cartes PJ" : booster ? booster.titre : boosterId}`}>
+            <b>{stats.obtenues}</b><span>/ {stats.total}</span>
           </p>
         </div>
         {/* Un seul palier — l'onglet PJ — et la liste répète le chiffre de
@@ -253,6 +277,7 @@ export default function Bibliotheque({
             );
           })}
         </ul>
+      </div>
       </div>
 
       {/* --- Filtres : l'état d'abord, la rareté ensuite --- */}
