@@ -1,5 +1,13 @@
 {
   "projects": {
     "default": "thalazur-tcg"
+  },
+  "targets": {
+    "thalazur-tcg": {
+      "hosting": {
+        "site": ["thalazur-tcg"],
+        "portraits": ["thalazur-portraits"]
+      }
+    }
   }
 }
