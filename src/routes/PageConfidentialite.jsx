@@ -1,5 +1,6 @@
 import { LEGAL } from "../config/legal.js";
 import { Lien } from "../lib/routeur.jsx";
+import { mesureDisponible, rouvrirBandeau, useConsentement } from "../lib/mesure.js";
 
 /** Un champ laissé vide dans `config/legal.js` doit se voir, pas disparaître. */
 const A = ({ v }) => (v ? <>{v}</> : <span className="a-completer">[à compléter]</span>);
@@ -7,23 +8,20 @@ const A = ({ v }) => (v ? <>{v}</> : <span className="a-completer">[à compléte
 /**
  * Confidentialité, traceurs et mentions légales, sur une seule page.
  *
- * Le site ne pose aucun traceur soumis à consentement : pas de mesure
- * d'audience, pas de publicité, pas de police ni de script chargé chez un
- * tiers tant qu'on ne se connecte pas. Ce qu'il écrit dans le navigateur sert
- * à faire fonctionner le jeu et la session que le joueur a lui-même ouverte —
- * c'est l'exemption de l'article 82 de la loi Informatique et Libertés. Il n'y
- * a donc pas de bandeau, mais il y a cette page, et elle doit dire vrai : si
- * un jour un outil de mesure ou un contenu tiers s'ajoute, elle change, et le
- * bandeau devient nécessaire.
+ * Un seul traceur est soumis à consentement : la mesure d'audience (Google
+ * Analytics), qui ne se charge qu'après « Accepter » dans le bandeau. Le reste
+ * — la partie dans le navigateur, la session de connexion — sert à faire
+ * fonctionner ce que le joueur a demandé, et relève de l'exemption de
+ * l'article 82 de la loi Informatique et Libertés. Cette page doit dire vrai :
+ * tout nouveau traceur ou contenu tiers s'y ajoute, et passe par le bandeau.
  */
 export default function PageConfidentialite() {
   return (
     <main className="view legal" id="contenu">
       <div className="section-titre"><h1>Confidentialité</h1></div>
       <p className="lede">
-        La Brume de Thalazur est un site de loisir, sans publicité ni mesure
-        d'audience. Cette page dit ce qu'il enregistre, où, pourquoi, et comment
-        le reprendre.
+        La Brume de Thalazur est un site de loisir, sans publicité. Cette page
+        dit ce qu'il enregistre, où, pourquoi, et comment le reprendre.
       </p>
 
       <section className="panneau">
@@ -38,8 +36,9 @@ export default function PageConfidentialite() {
             en vidant les données du site dans votre navigateur.
           </p>
           <p>
-            Les polices et les images sont servies par le site lui-même : afficher
-            une page ne transmet votre adresse IP qu'à l'hébergeur du site.
+            Les polices et les images sont servies par le site lui-même : sauf si
+            vous acceptez la mesure d'audience, afficher une page ne transmet votre
+            adresse IP qu'à l'hébergeur du site.
           </p>
         </div>
 
@@ -86,6 +85,8 @@ export default function PageConfidentialite() {
           </p>
         </div>
 
+        {mesureDisponible && <BlocMesure />}
+
         <div className="bloc">
           <h2>Vos droits</h2>
           <p>
@@ -101,9 +102,9 @@ export default function PageConfidentialite() {
         <div className="bloc">
           <h2>Cookies et stockage</h2>
           <p>
-            Le site ne dépose <b>aucun cookie de mesure d'audience ni de
-            publicité</b>. Il n'utilise que des stockages nécessaires à son
-            fonctionnement, exemptés de consentement :
+            Le site ne dépose <b>aucun cookie publicitaire</b>. Les stockages
+            suivants sont nécessaires à son fonctionnement et exemptés de
+            consentement :
           </p>
           <table className="table-legal">
             <thead>
@@ -116,12 +117,36 @@ export default function PageConfidentialite() {
                 <td>Jusqu'à effacement ou déconnexion</td>
               </tr>
               <tr>
-                <td><code>firebaseLocalStorageDb</code> (IndexedDB)</td>
-                <td>Votre session de connexion, seulement si vous vous connectez</td>
+                <td><code>firebaseLocalStorageDb</code>, <code>firebase-heartbeat-database</code> (IndexedDB)</td>
+                <td>Votre session de connexion et son fonctionnement technique, seulement si vous vous connectez</td>
                 <td>Jusqu'à la déconnexion</td>
               </tr>
+              {mesureDisponible && (
+                <tr>
+                  <td><code>brume-thalazur:consentement</code> (stockage local)</td>
+                  <td>Retenir votre choix sur la mesure d'audience</td>
+                  <td>6 mois</td>
+                </tr>
+              )}
             </tbody>
           </table>
+          {mesureDisponible && (
+            <>
+              <p>Soumis à votre accord :</p>
+              <table className="table-legal">
+                <thead>
+                  <tr><th scope="col">Nom</th><th scope="col">Rôle</th><th scope="col">Durée</th></tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><code>_ga</code>, <code>_ga_*</code> (cookies), <code>firebase-installations-database</code> (IndexedDB)</td>
+                    <td>Mesure d'audience Google Analytics : distinguer les visites, compter les pages vues</td>
+                    <td>13 mois au plus</td>
+                  </tr>
+                </tbody>
+              </table>
+            </>
+          )}
           <p>
             La fenêtre de connexion est celle de Google : ce qui s'y passe relève
             des <a className="lien" href="https://policies.google.com/privacy?hl=fr" target="_blank" rel="noopener noreferrer">règles de confidentialité de Google</a>.
@@ -146,5 +171,36 @@ export default function PageConfidentialite() {
         </div>
       </section>
     </main>
+  );
+}
+
+/** La mesure d'audience : ce qu'elle fait, sur quelle base, et le choix en cours. */
+function BlocMesure() {
+  const { choix } = useConsentement();
+  const etat = !choix ? "aucun choix enregistré" : choix.mesure ? "acceptée" : "refusée";
+  return (
+    <div className="bloc">
+      <h2>Mesure d'audience</h2>
+      <p>
+        Si vous l'acceptez, le site utilise <b>Google Analytics</b> (fourni par
+        Google Ireland Limited) pour compter ses visites : pages vues, durée,
+        type d'appareil, pays approximatif. Ces statistiques servent uniquement
+        à savoir quelles parties du jeu sont utilisées. Elles ne sont pas
+        reliées à votre compte, et aucun usage publicitaire n'en est fait :
+        le stockage publicitaire et les signaux Google sont désactivés.
+      </p>
+      <p>
+        <b>Base légale :</b> votre consentement (article 82 de la loi
+        Informatique et Libertés, article 6.1.a du RGPD). <b>Durée :</b> cookies
+        de 13 mois au plus ; statistiques conservées 14 mois dans Google
+        Analytics. Google peut traiter ces données hors de l'Union européenne,
+        dans le cadre de protection des données UE – États-Unis. Refuser n'a
+        aucune conséquence sur le jeu.
+      </p>
+      <p>
+        Votre choix actuel : <b>{etat}</b>.{" "}
+        <button type="button" className="lien lien-bouton" onClick={rouvrirBandeau}>Modifier mon choix</button>
+      </p>
+    </div>
   );
 }

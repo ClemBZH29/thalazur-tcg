@@ -142,3 +142,43 @@
   .brand b { font-size: 16px; }
   .masthead-droite .bourse-veille { display: none; }
 }
+
+/* ── Bandeau de consentement ───────────────────────────────────────────── */
+.bandeau-cookies {
+  position: fixed; z-index: 60; left: 50%; transform: translateX(-50%);
+  bottom: calc(16px + env(safe-area-inset-bottom));
+  width: min(760px, calc(100% - 24px));
+  display: flex; align-items: center; gap: 18px 24px; flex-wrap: wrap;
+  padding: 18px 20px; border-radius: var(--r-lg, 8px);
+  background: var(--panel); border: 1px solid var(--edge-hi);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, .55);
+}
+.bandeau-cookies:focus { outline: 2px solid var(--lamp); outline-offset: 2px; }
+.bandeau-cookies-texte { flex: 1 1 360px; min-width: 0; }
+.bandeau-cookies h2 { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+.bandeau-cookies p { font-size: 13px; line-height: 1.6; color: var(--ink2); }
+.bandeau-cookies code { font-size: 12px; color: var(--ink); }
+.bandeau-cookies-actions { display: flex; gap: 10px; flex: 0 0 auto; }
+/* Même forme, même couleur : aucun des deux choix n'est mis en avant. */
+.btn.choix { background: var(--ink); color: #1b1b1b; min-width: 112px; }
+.btn.choix:hover { background: #fff; }
+@media (max-width: 860px) {
+  /* Au-dessus de la barre d'onglets du bas. */
+  .bandeau-cookies { bottom: calc(72px + env(safe-area-inset-bottom)); padding: 16px; }
+  .bandeau-cookies-actions { width: 100%; }
+  .btn.choix { flex: 1 1 0; }
+}
+.pied-legal button { background: none; border: 0; padding: 0; font: inherit; color: inherit; cursor: pointer; }
+.pied-legal button:hover { color: var(--ink2); text-decoration: underline; }
+.profil .sous-titre { margin-top: 34px; max-width: 760px; }
+
+/* ── Page introuvable ──────────────────────────────────────────────────── */
+.introuvable { display: flex; align-items: center; }
+.perdu { max-width: 620px; padding: 6vh 0; }
+.perdu-code { font-family: var(--font-display); font-variation-settings: var(--wonk);
+  font-weight: 900; font-size: clamp(72px, 14vw, 140px); line-height: .9;
+  color: transparent; -webkit-text-stroke: 1px var(--edge-hi); margin-bottom: 12px; }
+.perdu h1 { font-size: clamp(32px, 5vw, 48px); font-weight: 700; margin-bottom: 14px; }
+.perdu .lede code { font-size: .9em; color: var(--ink); word-break: break-all; }
+.perdu .hero-actions { margin-top: 26px; display: flex; gap: 10px; flex-wrap: wrap; }
+.lien-bouton { background: none; border: 0; padding: 0; font: inherit; cursor: pointer; }

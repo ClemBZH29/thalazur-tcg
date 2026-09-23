@@ -33,7 +33,10 @@
  */
 import { readFileSync, writeFileSync } from "node:fs";
 import { basename, resolve } from "node:path";
-import * as XLSX from "xlsx";
+// read-excel-file plutôt que SheetJS : le paquet `xlsx` publié sur npm est
+// figé en 0.18.5, avec deux failles connues (pollution de prototype, ReDoS)
+// qui ne seront jamais corrigées là.
+import readXlsxFile from "read-excel-file/node";
 
 const [entree, id] = process.argv.slice(2);
 if (!entree) {
@@ -42,7 +45,9 @@ if (!entree) {
 }
 
 const chemin = resolve(entree);
-const wb = XLSX.read(readFileSync(chemin), { type: "buffer" });
+const feuilles = new Map(
+  (await readXlsxFile(readFileSync(chemin))).map(({ sheet, data }) => [sheet, data])
+);
 
 /** Les trois onglets, et ce que chacun met dans les colonnes de repères. */
 const ONGLETS = [
@@ -56,12 +61,12 @@ const propre = (v) => String(v ?? "").trim();
 
 /** Lit un onglet et rend ses lignes au format de l'application. */
 function lireOnglet({ feuille, type, rep1, race, rep3 }) {
-  const ws = wb.Sheets[feuille];
+  const ws = feuilles.get(feuille);
   if (!ws) {
     console.warn(`  onglet « ${feuille} » absent, ignoré`);
     return [];
   }
-  const brut = XLSX.utils.sheet_to_json(ws, { header: 1, blankrows: false });
+  const brut = ws.filter((r) => r.some((v) => v !== null && v !== ""));
   if (!brut.length) return [];
 
   // L'en-tête donne la position de chaque colonne : le classeur peut gagner

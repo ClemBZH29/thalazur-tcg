@@ -12,13 +12,20 @@ const LIBELLE_SYNC = {
 /**
  * L'entrée du compte, dans le bandeau. Connecté, elle montre l'initiale (ou la
  * photo) du joueur et une veilleuse d'état de synchronisation ; sinon, un mot.
- * Rien ne s'affiche dans un build sans Firebase.
  */
 export default function BoutonCompte() {
   const { disponible, statut, utilisateur, sync } = useCompte();
   const { chemin } = useRoute();
-  if (!disponible) return null;
   const ici = chemin === "/profil";
+  // Sans Firebase, le profil reste l'entrée des préférences de joueur.
+  if (!disponible) {
+    return (
+      <Lien vers="/profil" className="compte-bouton invite" actif={ici} title="Profil et préférences">
+        <span className="compte-ico" aria-hidden="true">◌</span>
+        <span className="compte-mot">Profil</span>
+      </Lien>
+    );
+  }
 
   if (statut !== "connecte" || !utilisateur) {
     return (

@@ -1,4 +1,5 @@
 import { bourseNeuve } from "./economie.js";
+import { cles } from "./nuage/fusion.js";
 
 /**
  * Persistance locale. Le navigateur garde toujours la partie : c'est elle
@@ -206,19 +207,23 @@ export async function importer(fichier, actuel, mode = "fusion") {
  */
 export function fusionner(actuel, net) {
   const fusion = { ...vide(), ...normaliser(actuel) };
-  for (const [bid, coll] of Object.entries(net.collections || {})) {
+  for (const bid of cles(net.collections)) {
+    const coll = net.collections[bid];
     fusion.collections[bid] = { ...(fusion.collections[bid] || {}) };
-    for (const [cid, e] of Object.entries(coll)) {
+    for (const cid of cles(coll)) {
+      const e = coll[cid];
       const a = fusion.collections[bid][cid];
       fusion.collections[bid][cid] = a
         ? { ...a, normale: (a.normale || 0) + (e.normale || 0), rainbow: (a.rainbow || 0) + (e.rainbow || 0) }
         : e;
     }
   }
-  for (const [bid, n] of Object.entries(net.boosters || {})) {
+  for (const bid of cles(net.boosters)) {
+    const n = net.boosters[bid];
     fusion.boosters[bid] = (fusion.boosters[bid] || 0) + n;
   }
-  for (const [bid, p] of Object.entries(net.pity || {})) {
+  for (const bid of cles(net.pity)) {
+    const p = net.pity[bid];
     const a = fusion.pity[bid];
     fusion.pity[bid] = a ? { depuis: Math.min(a.depuis, p.depuis), vu: a.vu || p.vu } : p;
   }

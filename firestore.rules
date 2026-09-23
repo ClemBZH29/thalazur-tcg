@@ -19,7 +19,7 @@ service cloud.firestore {
         && d.schema is int
         && d.revision is int
         && d.donnees is string && d.donnees.size() < 950000
-        && (d.mine == null || (d.mine is string && d.mine.size() < 60000))
+        && (!('mine' in d) || d.mine == null || (d.mine is string && d.mine.size() < 60000))
         && d.maj == request.time
         // Échéance de conservation : cinq ans (à quelques jours près, l'horloge
         // de l'appareil n'étant pas celle du serveur). Politique TTL sur `expire`.

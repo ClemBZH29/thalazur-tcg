@@ -9,11 +9,12 @@ import PageAccueil from "./routes/PageAccueil.jsx";
 import PageBoutique from "./routes/PageBoutique.jsx";
 import PageOuverture from "./routes/PageOuverture.jsx";
 import PageBibliotheque from "./routes/PageBibliotheque.jsx";
-import PageReglages from "./routes/PageReglages.jsx";
 import PageProfil from "./routes/PageProfil.jsx";
 import PageConfidentialite from "./routes/PageConfidentialite.jsx";
 import BoutonCompte from "./components/BoutonCompte.jsx";
 import { Compte } from "./jeu/Compte.jsx";
+import BandeauCookies from "./components/BandeauCookies.jsx";
+import { demarrerMesure, mesureDisponible, pageVue, rouvrirBandeau } from "./lib/mesure.js";
 
 /* Les deux modules pèsent chacun plus que tout le reste de l'application :
    le Comptoir porte son moteur de marché, la mine son gréement d'animation.
@@ -24,6 +25,13 @@ const chargerMines = () => import("./routes/PageMines.jsx");
 const PageComptoir = lazy(chargerComptoir);
 const PageMines = lazy(chargerMines);
 
+/* Les réglages de meneur (roster, portraits, taux, mode test) ne sont plus
+   une page du site : ils n'existent qu'en développement (`npm run dev`).
+   En production, la condition est fausse à la compilation et le module —
+   avec la lecture de classeurs .xlsx — ne figure même pas dans le build.
+   Les réglages de joueur (animations, doublons) sont passés au profil. */
+const PageReglages = import.meta.env.DEV ? lazy(() => import("./routes/PageReglages.jsx")) : null;
+
 /** Les entrées de navigation, dans l'ordre où elles se lisent. */
 const PAGES = [
   { vers: "/", nom: "Accueil", court: "Accueil", ico: "◈" },
@@ -33,7 +41,7 @@ const PAGES = [
   { vers: "/bibliotheque", nom: "Bibliothèque", court: "Cartes", ico: "▣" },
   { vers: "/comptoir", nom: "Comptoir", court: "Comptoir", ico: "⚖" },
   { vers: "/mines", nom: "Mines", court: "Mines", ico: "⛏" },
-  { vers: "/reglages", nom: "Réglages", court: "Réglages", ico: "⚙" },
+  ...(import.meta.env.DEV ? [{ vers: "/reglages", nom: "Réglages MJ", court: "MJ", ico: "⚙" }] : []),
 ];
 
 /** Pages dessinées pour tenir sur un écran, sans défilement ni pied. */
@@ -51,7 +59,10 @@ function Attente() {
 }
 
 function Route() {
-  const { chemin } = useRoute();
+  const { chemin, remplacer } = useRoute();
+  // Ancienne adresse des réglages : les préférences de joueur sont au profil.
+  const ancienne = !PageReglages && chemin === "/reglages";
+  useEffect(() => { if (ancienne) remplacer("/profil"); }, [ancienne, remplacer]);
   const segments = chemin.split("/").filter(Boolean);
 
   if (segments[0] === "boutique" && segments[1]) return <PageOuverture id={segments[1]} />;
@@ -61,7 +72,9 @@ function Route() {
     case "bibliotheque": return <PageBibliotheque />;
     case "comptoir": return <Suspense fallback={<Attente />}><PageComptoir /></Suspense>;
     case "mines": return <Suspense fallback={<Attente />}><PageMines /></Suspense>;
-    case "reglages": return <PageReglages />;
+    case "reglages": return PageReglages
+      ? <Suspense fallback={<Attente />}><PageReglages /></Suspense>
+      : <Attente />;
     case "profil": return <PageProfil />;
     case "confidentialite": return <PageConfidentialite />;
     default: return <Introuvable chemin={chemin} />;
@@ -70,14 +83,19 @@ function Route() {
 
 function Introuvable({ chemin }) {
   return (
-    <main className="view" id="contenu">
-      <section className="section-titre">
-        <h1>Page introuvable</h1>
-        <p className="muted">Rien ne répond à {chemin}.</p>
+    <main className="view introuvable" id="contenu">
+      <section className="perdu">
+        <p className="perdu-code" aria-hidden="true">404</p>
+        <h1>Perdu dans la brume</h1>
+        <p className="lede">
+          Aucun sentier ne mène à <code>{chemin}</code>. La carte a peut-être
+          changé, ou le brouillard a mangé la fin de l'adresse.
+        </p>
+        <div className="hero-actions">
+          <Lien vers="/" className="btn" actif={false}>Revenir au camp</Lien>
+          <Lien vers="/boutique" className="btn quiet" actif={false}>Voir la boutique</Lien>
+        </div>
       </section>
-      <p style={{ marginTop: 18 }}>
-        <Lien vers="/" className="btn">Revenir à l'accueil</Lien>
-      </p>
     </main>
   );
 }
@@ -110,6 +128,12 @@ function Coque() {
    * passer tout ce qui compte vraiment. Le clic, lui, ne trouve plus qu'un
    * module déjà en cache.
    */
+  // Mesure d'audience : reprise si l'accord est encore valable, puis une
+  // page vue à chaque changement d'adresse (sans effet tant qu'il n'y a pas
+  // d'accord).
+  useEffect(() => { demarrerMesure(); }, []);
+  useEffect(() => { pageVue(chemin); }, [chemin]);
+
   useEffect(() => {
     let annule = false;
     const precharger = () => {
@@ -233,10 +257,15 @@ function Coque() {
           {!PLEIN.has(racine(chemin)) && (
             <footer className="pied-legal">
               <Lien vers="/confidentialite" actif={false}>Confidentialité et mentions légales</Lien>
+              {mesureDisponible && (
+                <>{" · "}<button type="button" onClick={rouvrirBandeau}>Gérer les cookies</button></>
+              )}
             </footer>
           )}
         </div>
       </div>
+
+      <BandeauCookies />
 
       {loupe && (
         <Loupe c={loupe} cfgImage={cfgImage} fichiers={fichiers} onFermer={() => setLoupe(null)} />

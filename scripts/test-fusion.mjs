@@ -89,4 +89,11 @@ test("le gain passif seul ne compte pas comme un changement", () => {
   assert.notEqual(signature(ici, null), signature(base, null));
 });
 
+test("une clé __proto__ venue de l'extérieur ne touche pas au prototype", () => {
+  const piege = JSON.parse('{"collections":{"__proto__":{"pollue":{"normale":1}}},"boosters":{"__proto__":5}}');
+  const f = fusionner3(base, { ...ici, ...piege }, la, vide);
+  assert.equal({}.pollue, undefined);
+  assert.equal(Object.getPrototypeOf(f.collections), Object.prototype);
+});
+
 console.log(`${n} vérifications passées.`);

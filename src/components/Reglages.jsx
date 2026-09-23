@@ -19,10 +19,11 @@ export default function Reglages({
 
   const lireXlsx = async (f) => {
     try {
-      const XLSX = await import("xlsx"); // chargé à la demande : la lib pèse lourd
-      const wb = XLSX.read(await f.arrayBuffer(), { type: "array" });
-      const ws = wb.Sheets["Liste"] || wb.Sheets[wb.SheetNames[0]];
-      let data = XLSX.utils.sheet_to_json(ws, { header: 1, blankrows: false });
+      // Chargé à la demande. read-excel-file et non SheetJS : voir scripts/xlsx-to-json.mjs.
+      const { default: lire } = await import("read-excel-file/browser");
+      const feuilles = await lire(f);
+      const ws = (feuilles.find((s) => s.sheet === "Liste") || feuilles[0]).data;
+      let data = ws.filter((r) => r.some((v) => v !== null && v !== ""));
       if (data.length && isNaN(Number(data[0][COL.num]))) data = data.slice(1);
       data = data.filter((r) => String(r[COL.nom] ?? "").trim());
       if (!data.length) return onAvis("Aucune ligne exploitable. La colonne B doit contenir les noms.");

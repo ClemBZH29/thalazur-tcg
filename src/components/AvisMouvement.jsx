@@ -21,7 +21,7 @@ export default function AvisMouvement({ quoi = "les animations" }) {
         Les activer quand même
       </button>
       {" · "}
-      <Lien vers="/reglages" actif={false}>Réglages</Lien>
+      <Lien vers="/profil" actif={false}>Préférences</Lien>
     </p>
   );
 }

@@ -26,8 +26,8 @@ aucune requête hors de son propre hébergement.
 | `#/bibliotheque` | Bibliothèque | Le set entier, obtenu ou non, et les exemplaires en trop |
 | `#/comptoir` | Le Comptoir | Marché de l'occasion : vendre ses doublons, acheter au rayon du jour |
 | `#/mines` | Les Mines de Kazim | Module idle : frapper le filon, embaucher, vendre l'étoile |
-| `#/reglages` | Réglages | Roster, portraits, taux, économie, mode test |
-| `#/profil` | Profil | Connexion Google, pseudo, synchronisation, export et suppression du compte |
+| `#/profil` | Profil | Connexion Google, pseudo, synchronisation, export et suppression du compte, préférences (animations, doublons, son, cookies) |
+| `#/reglages` | Réglages MJ | **Développement seulement** (`npm run dev`) : roster, portraits, taux, mode test. Absente du site publié ; l'ancienne adresse renvoie au profil |
 | `#/confidentialite` | Confidentialité | Données, stockages, droits, mentions légales |
 
 **Le routage passe par le fragment**, pas par l'historique. Le site est publié
@@ -77,12 +77,29 @@ La configuration passe par `VITE_FIREBASE_*` (voir `.env.example`) :
 Sans elles, le build sort un site entièrement local, sans bouton de connexion.
 Les mentions légales se tiennent dans `src/config/legal.js`.
 
-**Conservation : cinq ans sans utilisation.** Chaque écriture repousse le champ
-`expire` du document à cinq ans ; une politique TTL Firestore sur ce champ
-efface les parties échues. Les identités (Firebase Authentication) ne sont pas
-couvertes par le TTL : `scripts/purge-comptes.mjs`, lancé une fois par an,
-supprime les comptes sans connexion depuis cinq ans (simulation par défaut,
-`--effacer` pour agir).
+**Mesure d'audience.** Google Analytics (via Firebase) ne se charge qu'après
+« Accepter » dans le bandeau (`src/lib/mesure.js`) : ni script, ni requête,
+ni cookie avant. Refuser est aussi simple qu'accepter, le choix se garde six
+mois et se change depuis le pied de page, le profil ou la page
+Confidentialité ; retirer l'accord coupe la collecte et efface les cookies
+`_ga`. Stockage publicitaire refusé, signaux Google coupés, cookies à 13 mois.
+Sans `VITE_FIREBASE_MEASUREMENT_ID`, ni bandeau ni mesure.
+
+**Sécurité.** Politique CSP posée au build dans `index.html`
+(`vite.config.js`, GitHub Pages ne permettant pas d'en-têtes HTTP). Règles
+Firestore : un document par joueur, lisible et modifiable par lui seul,
+forme et taille vérifiées, écriture refusée si elle ne part pas de la
+dernière révision. Les leviers de meneur (taux, mode test, roster) sont
+ignorés en production. `public/404.html` renvoie `/comptoir` vers
+`/#/comptoir` et affiche une page d'erreur pour le reste.
+
+**Conservation : cinq ans sans utilisation.** `scripts/purge-comptes.mjs`,
+lancé une fois par an, supprime les comptes sans connexion depuis cinq ans,
+partie comprise (simulation par défaut, `--effacer` pour agir). Chaque
+écriture porte aussi un champ `expire` (maintenant + cinq ans) : la
+suppression automatique par TTL Firestore exige la facturation (offre Blaze)
+et n'est pas active ; le jour où elle l'est, une règle TTL sur `joueurs.expire`
+suffit, sans toucher au code.
 
 ---
 

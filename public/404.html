@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex" />
+  <meta name="theme-color" content="#0d1417" />
+  <title>Perdu dans la brume — La Brume de Thalazur</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <script>
+    /* Le site route par fragment (#/comptoir). Une adresse « propre » comme
+       /comptoir, tapée à la main ou venue d'un ancien lien, arrive ici :
+       si elle correspond à une page connue, on la renvoie vers sa forme à
+       fragment plutôt que d'afficher une erreur. */
+    (function () {
+      var connues = ["boutique", "bibliotheque", "comptoir", "mines", "profil", "confidentialite", "reglages"];
+      var p = location.pathname.replace(/\/+$/, "").replace(/^\/+/, "");
+      var tete = p.split("/")[0];
+      if (connues.indexOf(tete) >= 0) location.replace("/#/" + p);
+    })();
+  </script>
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; margin: 0; }
+    html, body { height: 100%; }
+    body {
+      display: grid; place-items: center; padding: 24px;
+      background: radial-gradient(ellipse at 30% 40%, #182a30 0%, #0d1417 60%);
+      color: #ece3d2; font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    }
+    main { max-width: 560px; }
+    .code { font-family: Georgia, "Times New Roman", serif; font-weight: 900;
+      font-size: clamp(80px, 18vw, 150px); line-height: .9; color: transparent;
+      -webkit-text-stroke: 1px #3d5259; margin-bottom: 14px; }
+    h1 { font-family: Georgia, "Times New Roman", serif; font-size: clamp(30px, 6vw, 44px); margin-bottom: 14px; }
+    p { color: #b7b2a4; line-height: 1.7; font-size: 16px; }
+    a { display: inline-block; margin-top: 26px; padding: 12px 24px; border-radius: 3px;
+      background: #e8a33d; color: #221604; font-weight: 600; text-decoration: none; font-size: 14px; }
+    a:hover { background: #f4b558; }
+    a:focus-visible { outline: 2px solid #ece3d2; outline-offset: 3px; }
+  </style>
+</head>
+<body>
+  <main>
+    <p class="code" aria-hidden="true">404</p>
+    <h1>Perdu dans la brume</h1>
+    <p>Aucun sentier ne mène ici. La carte a peut-être changé, ou le brouillard a mangé la fin de l'adresse.</p>
+    <a href="/">Revenir au camp</a>
+  </main>
+</body>
+</html>

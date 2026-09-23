@@ -2,7 +2,9 @@ import { useEffect, useState } from "react";
 import { useCompte } from "../jeu/Compte.jsx";
 import { useJeu } from "../jeu/Jeu.jsx";
 import { Lien } from "../lib/routeur.jsx";
-import { exporter } from "../lib/storage.js";
+import { effacer, exporter } from "../lib/storage.js";
+import { REVENTE } from "../config/tiers.js";
+import { mesureDisponible, rouvrirBandeau, useConsentement } from "../lib/mesure.js";
 import { LEGAL } from "../config/legal.js";
 
 const ETAT_SYNC = {
@@ -186,6 +188,76 @@ function Connecte() {
   );
 }
 
+/**
+ * Préférences de joueur. Elles vivaient dans la page Réglages, au milieu des
+ * outils de meneur (roster, taux, mode test) ; ceux-ci ne sont plus publics,
+ * et ce qui concerne le joueur a rejoint son profil.
+ */
+function Preferences() {
+  const jeu = useJeu();
+  const compte = useCompte();
+  const consentement = useConsentement();
+  const connecte = compte.statut === "connecte";
+  const { animations, sobreSysteme, reventeAuto, son, majReglages } = jeu;
+
+  const toutEffacer = () => {
+    const quoi = connecte
+      ? "Effacer la bibliothèque, les boosters ouverts, le porte-monnaie et les Mines, sur cet appareil ET sur votre compte ? Cette action est définitive. (Pour vider seulement cet appareil, déconnectez-vous.)"
+      : "Effacer la bibliothèque, les boosters ouverts, le porte-monnaie et les Mines ? Cette action est définitive.";
+    if (window.confirm(quoi)) { effacer(); window.location.reload(); }
+  };
+
+  return (
+    <section className="panneau" aria-labelledby="pref-titre">
+      <div className="bloc">
+        <h3 id="pref-titre">Animations</h3>
+        <p className="muted">
+          Ici l'animation porte l'information : le sachet qui se déchire, la lueur
+          qui annonce le palier, la carte qui se retourne. Par défaut le site suit
+          la préférence de votre système
+          {sobreSysteme ? ", qui demande actuellement moins d'animations." : "."}
+        </p>
+        <div className="segments" role="group" aria-label="Animations" style={{ marginTop: 12 }}>
+          {[["systeme", "Suivre le système"], ["pleines", "Toujours animer"], ["reduites", "Jamais animer"]]
+            .map(([v, libelle]) => (
+              <button key={v} className={animations === v ? "on" : ""} aria-pressed={animations === v}
+                onClick={() => majReglages({ animations: v })}>{libelle}</button>
+            ))}
+        </div>
+      </div>
+
+      <div className="bloc">
+        <h3>Doublons</h3>
+        <p className="muted">
+          Par défaut, un doublon reste dans votre inventaire pour être vendu au
+          Comptoir, où il vaut plus que le rachat immédiat
+          ({REVENTE.commun} PO un commun, {REVENTE.legendaire} un légendaire).
+        </p>
+        <label className="bascule" style={{ marginTop: 14 }}>
+          <input type="checkbox" checked={reventeAuto === true}
+            onChange={(e) => majReglages({ reventeAuto: e.target.checked })} />
+          <span>Revendre les doublons automatiquement à la révélation</span>
+        </label>
+      </div>
+
+      <div className="bloc">
+        <h3>Divers</h3>
+        <div className="actions gauche" style={{ marginTop: 0 }}>
+          <button className="btn quiet sm" onClick={() => majReglages({ son: !son })}>
+            {son ? "Couper le son" : "Rétablir le son"}
+          </button>
+          {mesureDisponible && (
+            <button className="btn quiet sm" onClick={rouvrirBandeau}>
+              Cookies : {consentement.choix ? (consentement.choix.mesure ? "acceptés" : "refusés") : "à choisir"} — modifier
+            </button>
+          )}
+          <button className="btn quiet sm danger" onClick={toutEffacer}>Tout effacer…</button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export default function PageProfil() {
   const compte = useCompte();
   const { statut, annonce } = compte;
@@ -220,6 +292,9 @@ export default function PageProfil() {
           <Invite />
         </>
       )}
+
+      <div className="section-titre sous-titre"><h2>Préférences</h2></div>
+      <Preferences />
     </main>
   );
 }

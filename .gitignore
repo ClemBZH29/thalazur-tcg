@@ -8,3 +8,8 @@ data/*.xlsx
 .env
 .firebase
 firebase-debug.log
+# Clés de compte de service Firebase (scripts/purge-comptes.mjs) : jamais dans le dépôt
+*service-account*.json
+*serviceAccount*.json
+*-firebase-adminsdk-*.json
+cle-*.json

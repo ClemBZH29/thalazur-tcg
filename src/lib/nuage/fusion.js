@@ -42,14 +42,23 @@ export function signature(etat, mine) {
   return empreinte(JSON.stringify(reste) + "|" + (mine || ""));
 }
 
+/**
+ * Clés refusées partout où l'on recopie des clés venues de l'extérieur
+ * (fichier importé, copie du compte) : les affecter changerait le prototype
+ * de l'objet cible au lieu d'y ranger une valeur.
+ */
+const INTERDITES = new Set(["__proto__", "constructor", "prototype"]);
+export const cles = (...objets) =>
+  [...new Set(objets.flatMap((o) => Object.keys(o || {})))].filter((k) => !INTERDITES.has(k));
+
 const meme = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
 
 function fusionnerCollections(base = {}, ici = {}, la = {}) {
   const sortie = {};
-  const boosters = new Set([...Object.keys(ici), ...Object.keys(la)]);
+  const boosters = cles(ici, la);
   for (const bid of boosters) {
     const b = base[bid] || {}, i = ici[bid] || {}, l = la[bid] || {};
-    const cartes = new Set([...Object.keys(i), ...Object.keys(l)]);
+    const cartes = cles(i, l);
     const coll = {};
     for (const cid of cartes) {
       const eb = b[cid] || {}, ei = i[cid] || {}, el = l[cid] || {};
@@ -68,7 +77,7 @@ function fusionnerCollections(base = {}, ici = {}, la = {}) {
 
 function fusionnerCompteurs(base = {}, ici = {}, la = {}) {
   const sortie = {};
-  for (const k of new Set([...Object.keys(ici), ...Object.keys(la)])) {
+  for (const k of cles(ici, la)) {
     sortie[k] = Math.max(0, (la[k] || 0) + (ici[k] || 0) - (base[k] || 0));
   }
   return sortie;
@@ -128,7 +137,7 @@ export function fusionner3(base, ici, la, vide) {
     // Première connexion : on garde le plus garni, comme à l'import.
     : ((ici.bourse?.po || 0) > (la.bourse?.po || 0) ? ici.bourse : la.bourse);
   sortie.mine = fusionnerJourMine(ici.mine, la.mine);
-  for (const k of new Set([...Object.keys(ici), ...Object.keys(la)])) {
+  for (const k of cles(ici, la)) {
     if (COMPTEURS.has(k)) continue;
     // Valeur : l'appareil l'a changée depuis la base → la sienne.
     sortie[k] = !meme(ici[k], b[k]) ? ici[k] : la[k];

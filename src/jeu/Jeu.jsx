@@ -83,9 +83,15 @@ export function Jeu({ children }) {
   // La revente automatique était le comportement unique de l'app ; elle est
   // devenue une option, parce que le Comptoir a besoin d'exemplaires à écouler.
   const reventeAuto = reglages.reventeAuto === true;
-  const taux = { ...TAUX_DEFAUT, ...(reglages.taux || {}) };
-  const cfgImage = { ...CFG_IMAGE_DEFAUT, ...(reglages.image || {}) };
-  const test = { ...TEST_DEFAUT, ...(reglages.test || {}) };
+  /* Les leviers de meneur — taux de tirage, cadrage des portraits, mode test,
+     roster chargé à la main — ne se règlent qu'en développement. En
+     production, des valeurs laissées par une ancienne version du site (où la
+     page Réglages était publique) sont ignorées : tout le monde joue avec les
+     mêmes tables, et le mode test ne peut pas servir à ouvrir sans payer. */
+  const MJ = import.meta.env.DEV;
+  const taux = { ...TAUX_DEFAUT, ...(MJ ? reglages.taux || {} : {}) };
+  const cfgImage = { ...CFG_IMAGE_DEFAUT, ...(MJ ? reglages.image || {} : {}) };
+  const test = { ...TEST_DEFAUT, ...(MJ ? reglages.test || {} : {}) };
   const gratuit = test.actif && test.sansPO;
 
   /** La préférence du système, suivie en direct : elle peut changer en session. */
@@ -118,12 +124,12 @@ export function Jeu({ children }) {
     []
   );
 
-  const donnees = etat.rosters[boosterId];
+  const donnees = MJ ? etat.rosters[boosterId] : null;
   const rows = donnees ? donnees.lignes : (ROSTERS[boosterId]?.lignes ?? []);
   const source = donnees ? donnees.source : (ROSTERS[boosterId]?.source ?? "aucune");
 
   const grades = useMemo(
-    () => etat.grades[boosterId] || deduireGrades(rows),
+    () => (MJ && etat.grades[boosterId]) || deduireGrades(rows),
     [etat.grades, boosterId, rows]
   );
   const pool = useMemo(() => construirePool(rows, grades), [rows, grades]);

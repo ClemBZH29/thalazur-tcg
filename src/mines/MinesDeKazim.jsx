@@ -410,7 +410,7 @@ function MinesDeKazim({ onPO, storage, storageKey = "kazim:save", spritesBase = 
    * Les effets suivent le réglage Animations de l'application, sans bascule
    * propre. Le module en portait une, en haut à droite : deux commandes pour
    * un seul réglage, dont l'une invisible depuis la page où l'on va la
-   * chercher. Réglages → Animations décide, ici comme partout ailleurs.
+   * chercher. Profil → Préférences → Animations décide, ici comme partout ailleurs.
    */
   const [effets, setEffets] = useState(() => !sobreParDefaut());
   const mouvementApp = typeof document !== "undefined"
