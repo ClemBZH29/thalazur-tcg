@@ -160,6 +160,14 @@ latéralement plutôt que de passer à la ligne — l'en-tête doit garder la ha
 des plaques quoi qu'on achète, sinon toute la mine redescend au moment d'un
 achat, ce qu'on venait précisément de corriger en bas de colonne.
 
+**Les améliorations de compagnon n'ont plus de jeton.** Quatre rangs par
+compagnon, c'étaient jusqu'à vingt-quatre vignettes presque identiques (le même
+portrait, un chiffre romain en coin) qui repoussaient le chantier hors de la
+bande. Le rang se lit désormais dans la bulle du compagnon — « Porte-fanal ×31 ·
+Niv. IV » —, le plus haut tenu et non le nombre d'achats, puisque rien n'oblige
+à prendre le I avant le II une fois les deux seuils franchis. À l'achat, c'est
+le jeton du compagnon qui salue.
+
 **Et une barre fixe dans une colonne flex doit refuser de rétrécir.** La rangée
 d'onglets n'avait pas de `flex` déclaré, donc `flex-shrink: 1` par défaut : dès
 qu'un onglet un peu long faisait déborder le corps, elle se laissait comprimer
