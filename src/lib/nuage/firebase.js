@@ -64,3 +64,40 @@ export function chargerFirebase() {
   }
   return promesse;
 }
+
+/**
+ * Ce navigateur garde-t-il une session Firebase ouverte ? Lu directement dans
+ * la base IndexedDB où Firebase Auth la range, sans télécharger le SDK.
+ *
+ * Le site ne rétablissait la session qu'en présence de sa propre marque
+ * (`brume-thalazur:compte`, posée à la première synchronisation). Qu'elle
+ * manque — synchronisation interrompue, stockage local vidé à part — et le
+ * joueur se retrouvait déconnecté alors que Firebase le connaissait encore.
+ *
+ * Ouvrir une base qui n'existe pas la créerait vide, et Firebase la trouverait
+ * ensuite sans son magasin : l'ouverture est donc annulée dès qu'elle
+ * déclencherait une création.
+ */
+export function sessionMemorisee() {
+  if (!nuageConfigure || typeof indexedDB === "undefined") return Promise.resolve(false);
+  return new Promise((resoudre) => {
+    let req;
+    try { req = indexedDB.open("firebaseLocalStorageDb"); } catch { resoudre(false); return; }
+    req.onupgradeneeded = () => { req.transaction.abort(); };
+    req.onerror = () => resoudre(false);
+    req.onblocked = () => resoudre(false);
+    req.onsuccess = () => {
+      const db = req.result;
+      try {
+        if (!db.objectStoreNames.contains("firebaseLocalStorage")) { db.close(); resoudre(false); return; }
+        const lecture = db.transaction("firebaseLocalStorage", "readonly")
+          .objectStore("firebaseLocalStorage").getAllKeys();
+        lecture.onsuccess = () => {
+          db.close();
+          resoudre((lecture.result || []).some((k) => String(k).startsWith("firebase:authUser:")));
+        };
+        lecture.onerror = () => { db.close(); resoudre(false); };
+      } catch { db.close(); resoudre(false); }
+    };
+  });
+}

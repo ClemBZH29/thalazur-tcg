@@ -87,3 +87,44 @@ describe("format", () => {
     expect(fmtEnt(1234567)).toBe("1 234 567");
   });
 });
+
+describe("absence", () => {
+  const equipe = () => {
+    const S = partie({ compagnons: { [COMPAGNONS[0].id]: 25, [COMPAGNONS[1].id]: 10 } });
+    R.naitreFilon(S, () => 0.9);
+    return S;
+  };
+
+  test("une mine sans équipe ne produit rien, même après huit heures", () => {
+    const S = partie();
+    R.naitreFilon(S, () => 0.9);
+    const b = R.simulerAbsence(S, 8 * 3600000);
+    expect(b.filons).toBe(0);
+    expect(S.etoile).toBe(0);
+  });
+
+  test("l'équipe brise des filons et descend, comme en direct", () => {
+    const S = equipe();
+    const b = R.simulerAbsence(S, 3 * 3600000, R.RENDEMENT_ABSENCE, () => 0.9);
+    expect(b.filons).toBeGreaterThan(R.FILONS_PAR_STRATE);
+    expect(b.strates).toBeGreaterThan(0);
+    expect(S.profondeur).toBe(1 + b.strates);
+    expect(S.brisesTotal).toBe(b.filons);
+    expect(S.etoile).toBeCloseTo(b.etoile, 6);
+  });
+
+  test("plus longtemps absent ne rapporte jamais moins, et plafonne à huit heures", () => {
+    const court = R.simulerAbsence(equipe(), 3600000, 0.35, () => 0.9);
+    const long = R.simulerAbsence(equipe(), 5 * 3600000, 0.35, () => 0.9);
+    const huit = R.simulerAbsence(equipe(), 8 * 3600000, 0.35, () => 0.9);
+    const vingt = R.simulerAbsence(equipe(), 20 * 3600000, 0.35, () => 0.9);
+    expect(long.etoile).toBeGreaterThan(court.etoile);
+    expect(vingt.etoile).toBe(huit.etoile);
+  });
+
+  test("le rendement d'absence réduit le travail par rapport à la page ouverte", () => {
+    const reduit = R.simulerAbsence(equipe(), 2 * 3600000, R.RENDEMENT_ABSENCE, () => 0.9);
+    const plein = R.simulerAbsence(equipe(), 2 * 3600000, 1, () => 0.9);
+    expect(plein.etoile).toBeGreaterThan(reduit.etoile);
+  });
+});

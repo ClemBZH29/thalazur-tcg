@@ -262,14 +262,15 @@ export default function Reglages({
           <p className="muted">
             Le sachet qui se déchire, la lueur qui annonce le palier avant que le
             nom soit lisible, la carte qui se retourne, les éclats du filon : ici
-            l'animation porte l'information, elle ne décore pas. Par défaut le
-            site suit la préférence de votre système
+            l'animation porte l'information, elle ne décore pas. Le site est animé
+            par défaut ; « Suivre le système » applique la préférence de votre
+            système
             {sobreSysteme
-              ? " — et il demande actuellement moins d'animations, donc tout est coupé."
+              ? ", qui demande actuellement moins d'animations."
               : ", qui ne demande actuellement rien de particulier."}
           </p>
           <div className="segments" role="group" aria-label="Animations" style={{ marginTop: 12 }}>
-            {[["systeme", "Suivre le système"], ["pleines", "Toujours animer"],
+            {[["pleines", "Toujours animer"], ["systeme", "Suivre le système"],
               ["reduites", "Jamais animer"]].map(([v, libelle]) => (
               <button
                 key={v}

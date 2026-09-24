@@ -25,13 +25,17 @@ import { COMPAGNONS, EQUIPEMENT, AMELIORATIONS, RANGS, TALENTS, ONGLETS, LEXIQUE
 import {
   FILONS_PAR_STRATE, FATIGUE_PO, DETTE_PAS, DETTE_MAX, RESONANCE_MAX, PLAFOND_JOUR,
   PIOCHES, equipA, equipMult, degatsClic, critChance, critMult,
-  multCompagnon, dpsUn, dps, multRecolte, chanceEvenement, unFilonSur,
-  teinteFortune, pvFilon, xpRequis, brisesIci, dette, bonusVolume,
+  multCompagnon, dpsUn, dps, unFilonSur,
+  teinteFortune, xpRequis, brisesIci, dette, bonusVolume,
   resonance, coursAffiche, poPourMise, prochainPO, eclatsDispo, coutUn,
   coutN, nbAbordable, genererEclats, strate,
+  naitreFilon, briser, simulerAbsence, RENDEMENT_ABSENCE,
 } from "./regles.js";
 import { fmt, signe, fmtEnt, fmtDuree } from "./format.js";
 import { etatNeuf, relireMine } from "./sauvegarde.js";
+
+/** Au-delà, la boucle n'a pas tourné : le navigateur avait suspendu l'onglet. */
+const TROU = 3000;
 
 /**
  * Effets actifs par défaut ?
@@ -222,18 +226,10 @@ function MinesDeKazim({ onPO, storage, spritesBase, godPioche = false }) {
   /* ---------- moteur ---------- */
 
   const nouveauFilon = useCallback(() => {
-    const s = S.current;
-    s.pvMax = pvFilon(s.profondeur, brisesIci(s));
-    s.pv = s.pvMax;
-    /* Le sort du filon se jouait à sa rupture : la récompense tombait après
-       coup, sans que rien ne l'ait annoncée, et douze points placés dans
-       Fortune ne se voyaient donc jamais. Il se joue maintenant à la naissance
-       du bloc, qui prend sa couleur en conséquence — on voit le filon riche
-       avant de le casser, et on se jette dessus. La probabilité, elle, n'a pas
-       bougé d'un millième. */
-    const seuil = chanceEvenement(s);
-    const r = Math.random();
-    s.filonRang = r < seuil * 0.4 ? 2 : r < seuil ? 1 : 0;
+    /* Le sort du filon se joue à sa naissance (voir `naitreFilon`) : le bloc
+       prend sa couleur en conséquence, on voit le filon riche avant de le
+       casser. */
+    naitreFilon(S.current);
     /* Même bride que la rupture : à trois cents filons par seconde, la roche ne
        doit pas se recomposer à chaque image. */
     const t = Date.now();
@@ -244,37 +240,24 @@ function MinesDeKazim({ onPO, storage, spritesBase, godPioche = false }) {
   }, []);
 
   const briserFilon = useCallback(() => {
-    const s = S.current;
-    const rang = s.filonRang || 0;
-    const recolte = s.pvMax * 0.24 * multRecolte(s) * (rang === 2 ? 12 : rang === 1 ? 4 : 1);
-    const evenement = rang === 2 ? "Filon exceptionnel : douze fois plus d'étoile."
-                    : rang === 1 ? "Filon généreux : quatre fois plus d'étoile."
-                    : null;
-
-    s.etoile += recolte;
-    s.etoileTotale += recolte;
-    s.brises[s.profondeur] = brisesIci(s) + 1;
-    s.brisesTotal++;
-    s.xp += Math.round(5 * Math.pow(s.profondeur, 1.25));
-
-    while (s.xp >= xpRequis(s)) {
-      s.xp -= xpRequis(s);
-      s.niveau++;
-      s.points++;
-      noter("Niveau " + s.niveau + " atteint. Un point de talent à placer.");
-      pulseNiveau();
+    const r = briser(S.current);
+    for (let i = 0; i < r.niveaux; i++) {
+      noter("Niveau " + (S.current.niveau - r.niveaux + i + 1) + " atteint. Un point de talent à placer.");
     }
-    if (evenement) noter(evenement + " Vous sortez " + fmt(recolte) + " d'étoile.");
+    if (r.niveaux) pulseNiveau();
+    if (r.rang === 2) noter("Filon exceptionnel : douze fois plus d'étoile. Vous sortez " + fmt(r.recolte) + " d'étoile.");
+    else if (r.rang === 1) noter("Filon généreux : quatre fois plus d'étoile. Vous sortez " + fmt(r.recolte) + " d'étoile.");
     /* La strate épuisée, on descend tout seul : rester en haut n'a aucun intérêt
        mécanique, et la descente manuelle n'était qu'un clic de péage. */
-    if (s.brises[s.profondeur] >= FILONS_PAR_STRATE && s.profondeur === s.profondeurMax) {
-      s.profondeur++;
-      s.profondeurMax = s.profondeur;
-      noter("La strate cède. Vous descendez dans " + strate(s.profondeur).nom + ".");
+    if (r.descente) noter("La strate cède. Vous descendez dans " + strate(S.current.profondeur).nom + ".");
+    // `briser` a déjà fait naître le suivant ; il reste à lui donner sa forme.
+    const t = Date.now();
+    if (t - compteurs.current.derniereForme > 130) {
+      compteurs.current.derniereForme = t;
+      formeRef.current = genererEclats();
     }
-    nouveauFilon();
     rupture();
-  }, [noter, nouveauFilon, pulseNiveau, rupture]);
+  }, [noter, pulseNiveau, rupture]);
 
   const appliquerDegats = useCallback((d) => {
     const s = S.current;
@@ -314,15 +297,41 @@ function MinesDeKazim({ onPO, storage, spritesBase, godPioche = false }) {
 
   /* ---------- boucle ---------- */
 
+  /**
+   * Rejoue un laps de temps où la boucle n'a pas tourné, et le raconte. Sert
+   * au retour d'une absence (page quittée, rendement réduit) comme au retour
+   * d'un onglet resté en arrière-plan (plein rendement : la page était
+   * ouverte, seul le navigateur avait suspendu l'animation).
+   */
+  const rattraper = useCallback((ms, rendement, pourquoi) => {
+    const b = simulerAbsence(S.current, ms, rendement);
+    if (pourquoi && (b.filons > 0 || b.etoile > 0)) {
+      const morceaux = [];
+      if (b.filons > 0) morceaux.push(b.filons + " filon" + (b.filons > 1 ? "s" : "") + " brisé" + (b.filons > 1 ? "s" : ""));
+      if (b.strates > 0) morceaux.push("descente de " + b.strates + " strate" + (b.strates > 1 ? "s" : ""));
+      if (b.niveaux > 0) morceaux.push("+" + b.niveaux + " niveau" + (b.niveaux > 1 ? "x" : ""));
+      noter(pourquoi + " " + fmtDuree(Math.min(ms, 8 * 3600000)) + " : "
+        + (morceaux.length ? morceaux.join(", ") + ", " : "")
+        + fmt(b.etoile) + " d'étoile" + (rendement < 1 ? ", à rendement réduit." : "."));
+      if (b.niveaux) pulseNiveau();
+      formeRef.current = genererEclats();
+    }
+    return b;
+  }, [noter, pulseNiveau]);
+
   const tick = useCallback(() => {
     const s = S.current;
     const t = Date.now();
-    const dt = Math.min(1000, Math.max(0, t - s.dernierTick)) / 1000;
+    const ecart = Math.max(0, t - s.dernierTick);
     s.dernierTick = t;
-    const p = dps(s);
-    if (p > 0) appliquerDegats(p * dt);
+    if (ecart > TROU) {
+      rattraper(ecart, 1, ecart > 60000 ? "Onglet en arrière-plan pendant" : null);
+    } else {
+      const p = dps(s);
+      if (p > 0) appliquerDegats(p * (ecart / 1000));
+    }
     if (t - s.coursT > 150000) { s.coursT = t; s.cours = 0.82 + Math.random() * 0.4; }
-  }, [appliquerDegats]);
+  }, [appliquerDegats, rattraper]);
 
   const tickRef = useRef(tick);
   tickRef.current = tick;
@@ -347,9 +356,13 @@ function MinesDeKazim({ onPO, storage, spritesBase, godPioche = false }) {
      mine neuve du montage par-dessus la vraie partie. */
   const relue = useRef(false);
 
+  /* `dernierTick` n'est touché que par la boucle : c'est l'instant jusqu'où
+     le temps a été joué. La sauvegarde le posait à « maintenant », ce qui
+     effaçait tout le temps passé onglet caché — le navigateur suspend alors
+     l'animation, mais pas la sauvegarde périodique. Le temps non joué reste
+     donc en attente dans la sauvegarde, et se rattrape au retour. */
   const sauver = useCallback(() => {
     if (!relue.current) return;
-    S.current.dernierTick = Date.now();
     try { storage.set(JSON.stringify(S.current)); } catch { /* la partie continue */ }
   }, [storage]);
 
@@ -364,16 +377,15 @@ function MinesDeKazim({ onPO, storage, spritesBase, godPioche = false }) {
         const avant = d.dernierTick;
         S.current = d;
         const t = Date.now();
-        const absence = Math.min(8 * 3600000, t - (typeof avant === "number" ? avant : t));
+        const absence = Math.max(0, t - (typeof avant === "number" ? avant : t));
         S.current.coursT = t;
         S.current.dernierTick = t;
-        if (absence > 60000) {
-          const gain = dps(S.current) * (absence / 1000) * 0.35 * 0.24 * multRecolte(S.current);
-          if (gain > 0) {
-            S.current.etoile += gain;
-            S.current.etoileTotale += gain;
-            noter("Absence de " + fmtDuree(absence) + ". L'équipe a sorti " + fmt(gain) + " d'étoile, à rendement réduit.");
-          }
+        // L'équipe a continué sans vous : mêmes règles qu'en direct, filons
+        // brisés et strates descendues compris, au rendement d'absence.
+        // Une absence de quelques secondes se rejoue aussi, sans message.
+        if (absence > 3000) {
+          if (!S.current.pvMax) nouveauFilon();
+          rattraper(absence, RENDEMENT_ABSENCE, absence > 60000 ? "Absence de" : null);
         }
       }
       if (!S.current.pvMax) nouveauFilon();
@@ -390,7 +402,7 @@ function MinesDeKazim({ onPO, storage, spritesBase, godPioche = false }) {
         setCharge(true);
         forcer();
       });
-    const horloge = setInterval(sauver, 15000);
+    const horloge = setInterval(sauver, 5000);
     const surVisibilite = () => { if (document.hidden) sauver(); };
     document.addEventListener("visibilitychange", surVisibilite);
     return () => {
@@ -402,7 +414,7 @@ function MinesDeKazim({ onPO, storage, spritesBase, godPioche = false }) {
       // Le prochain montage relira la sauvegarde avant d'avoir le droit d'écrire.
       relue.current = false;
     };
-  }, [storage, sauver, noter, nouveauFilon]);
+  }, [storage, sauver, rattraper, nouveauFilon]);
 
   /* ---------- actions ---------- */
 

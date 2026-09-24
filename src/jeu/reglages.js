@@ -31,7 +31,7 @@ export function useReglages(etat, setEtat) {
   const reglages = etat.reglages || {};
   const son = reglages.son !== false;
   /**
-   * Animations : « systeme » (défaut), « pleines » ou « reduites ».
+   * Animations : « pleines » (défaut), « systeme » ou « reduites ».
    *
    * Les feuilles de style gardaient leurs animations derrière
    * `prefers-reduced-motion`, ce qui est juste par défaut et malheureux ici :
@@ -40,8 +40,13 @@ export function useReglages(etat, setEtat) {
    * « moins d'animations » vidait donc l'ouverture et la mine de leur
    * substance, sans rien dire et sans recours. Le garde est devenu un attribut
    * de la racine, et ce réglage le gouverne.
+   *
+   * Le défaut est « toujours animer » : suivre le système coupait l'ouverture
+   * des boosters chez tous ceux dont Windows a les effets visuels réduits,
+   * souvent sans qu'ils le sachent. Qui a besoin de moins de mouvement le
+   * choisit dans le profil, en un clic.
    */
-  const animations = reglages.animations || "systeme";
+  const animations = reglages.animations || "pleines";
   // La revente automatique était le comportement unique de l'app ; elle est
   // devenue une option, parce que le Comptoir a besoin d'exemplaires à écouler.
   const reventeAuto = reglages.reventeAuto === true;

@@ -213,12 +213,12 @@ function Preferences() {
         <h3 id="pref-titre">Animations</h3>
         <p className="muted">
           Ici l'animation porte l'information : le sachet qui se déchire, la lueur
-          qui annonce le palier, la carte qui se retourne. Par défaut le site suit
-          la préférence de votre système
-          {sobreSysteme ? ", qui demande actuellement moins d'animations." : "."}
+          qui annonce le palier, la carte qui se retourne. Le site est animé par
+          défaut ; vous pouvez suivre la préférence de votre système
+          {sobreSysteme ? ", qui demande actuellement moins d'animations," : ""} ou tout couper.
         </p>
         <div className="segments" role="group" aria-label="Animations" style={{ marginTop: 12 }}>
-          {[["systeme", "Suivre le système"], ["pleines", "Toujours animer"], ["reduites", "Jamais animer"]]
+          {[["pleines", "Toujours animer"], ["systeme", "Suivre le système"], ["reduites", "Jamais animer"]]
             .map(([v, libelle]) => (
               <button key={v} className={animations === v ? "on" : ""} aria-pressed={animations === v}
                 onClick={() => majReglages({ animations: v })}>{libelle}</button>

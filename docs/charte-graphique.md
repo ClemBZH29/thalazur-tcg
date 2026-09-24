@@ -184,8 +184,9 @@ pouvoir lire quoi que ce soit.
 Courbes usuelles : `cubic-bezier(.2,.8,.3,1)` pour une entrée, `.34,.85,.36,1`
 pour le retournement, `.2,1.3,.4,1` pour un retour en ressort.
 
-**`prefers-reduced-motion` coupe toutes les animations d'ambiance et de
-révélation.** Une règle absolue l'accompagne : une animation supprimée doit voir
+**Le réglage « moins d'animations » coupe toutes les animations d'ambiance et
+de révélation** (profil : « Jamais animer », ou « Suivre le système » quand le
+système le demande ; le défaut est « Toujours animer »). Une règle absolue l'accompagne : une animation supprimée doit voir
 sa **position finale posée explicitement**. Les cartes sortant du sachet
 démarrent cachées derrière le papier ; sans transformation finale de repli, la
 scène était entièrement vide pour qui a désactivé les animations.
@@ -596,8 +597,12 @@ la hauteur définie du conteneur.
 
 **Une animation gardée derrière `prefers-reduced-motion` disparaît sans dire
 pourquoi.** Sur un site où l'animation porte l'information, la préférence du
-système doit rester la valeur par défaut mais pas le dernier mot. Le garde est un
-attribut de la racine, réglable, et son effet est annoncé là où il se voit.
+système ne peut pas avoir le dernier mot. Le garde est un attribut de la racine,
+réglable, et son effet est annoncé là où il se voit. Suivre le système a été le
+défaut ; il ne l'est plus depuis septembre 2026 : Windows réduit les effets
+visuels sur bien des postes sans que leur utilisateur l'ait demandé, et
+l'ouverture des boosters se trouvait vidée chez eux. Le défaut est « Toujours
+animer », et le choix reste dans le profil.
 
 ---
 

@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useJeu } from "./Jeu.jsx";
-import { chargerFirebase, nuageConfigure } from "../lib/nuage/firebase.js";
+import { chargerFirebase, nuageConfigure, sessionMemorisee } from "../lib/nuage/firebase.js";
 import { fusionner3, fusionnerMine, signature } from "../lib/nuage/fusion.js";
 import { effacer, ecrireMine, etatVide, lireMine, relireJeu, suivreMine } from "../lib/storage.js";
 import { SCHEMA } from "../lib/sauvegarde/schema.js";
@@ -313,10 +313,19 @@ export function Compte({ children }) {
     return f;
   }, [ouvrirSession]);
 
-  // Une session ouverte lors d'une visite précédente se rétablit seule.
+  // Une session ouverte lors d'une visite précédente se rétablit seule : la
+  // marque de l'appareil suffit, et à défaut on regarde si Firebase en garde une.
   useEffect(() => {
-    if (statut !== "ouverture") return;
-    brancher().catch((e) => { setErreur(expliquer(e)); setStatut("invite"); });
+    const retablir = () => brancher().catch((e) => { setErreur(expliquer(e)); setStatut("invite"); });
+    if (statut === "ouverture") { retablir(); return; }
+    if (statut !== "invite") return;
+    let vivant = true;
+    sessionMemorisee().then((oui) => {
+      if (!vivant || !oui || fb.current) return;
+      setStatut("ouverture");
+      retablir();
+    });
+    return () => { vivant = false; };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Chaque changement de partie, et chaque sauvegarde de la mine, programme un envoi.
@@ -324,16 +333,22 @@ export function Compte({ children }) {
   useEffect(() => suivreMine(() => planifier()), [planifier]);
 
   // L'onglet qui passe en arrière-plan est souvent le dernier signe de vie.
+  // On n'attend pas le délai d'envoi, et on ne compte pas sur un envoi déjà
+  // programmé : la mine se sauve sur ce même événement, parfois après nous.
+  // Le `setTimeout` laisse passer les autres écouteurs avant de comparer.
   useEffect(() => {
-    const cacher = () => { if (document.visibilityState === "hidden" && minuteur.current) envoyer(); };
+    const partir = () => setTimeout(() => { if (user.current && aChange()) envoyer(); }, 0);
+    const cacher = () => { if (document.visibilityState === "hidden") partir(); };
     const retour = () => { if (sync === "hors-ligne") envoyer(); };
     document.addEventListener("visibilitychange", cacher);
+    window.addEventListener("pagehide", partir);
     window.addEventListener("online", retour);
     return () => {
       document.removeEventListener("visibilitychange", cacher);
+      window.removeEventListener("pagehide", partir);
       window.removeEventListener("online", retour);
     };
-  }, [envoyer, sync]);
+  }, [aChange, envoyer, sync]);
 
   /* ── Actions offertes à l'interface ──────────────────────────────────── */
 
