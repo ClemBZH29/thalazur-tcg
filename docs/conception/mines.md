@@ -189,6 +189,28 @@ que sous ce seuil.
   n'écoutait que le pointeur, ce que la charte du projet interdit
   explicitement — Entrée et Espace frappent maintenant le filon.
 
+### L'équipe travaille sans vous
+
+La mine ne tourne que sur sa page. Quitter la page, fermer l'onglet ou le
+navigateur : au retour, le temps écoulé (huit heures au plus) est **rejoué
+avec les mêmes règles qu'en direct** (`simulerAbsence`, `src/mines/regles.js`) —
+filons brisés, filons généreux, niveaux, strates descendues — à 35 % du
+rendement de l'équipe. Un message du journal en fait le bilan.
+
+L'absence ne donnait auparavant que de l'étoile, calculée d'un bloc : aucun
+filon ne cédait, on revenait au même endroit, et l'impression était que rien
+ne s'était passé.
+
+Un **onglet resté en arrière-plan** sur la page des Mines n'est pas une
+absence : le navigateur suspend l'animation, mais la page est ouverte. Au
+retour, ce temps est rejoué à plein rendement. La sauvegarde ne touche plus à
+`dernierTick` — l'instant jusqu'où le temps a été joué — : la poser à
+« maintenant », comme avant, effaçait chaque minute passée onglet caché.
+
+La mine se sauve localement toutes les cinq secondes, et part sur le compte
+dès que l'onglet passe en arrière-plan ou que la page se ferme, sans attendre
+le délai d'envoi de trente secondes.
+
 ## Outils MJ
 
 En développement (`npm run dev`), **Réglages MJ → Mode test → Mines de Kazim**

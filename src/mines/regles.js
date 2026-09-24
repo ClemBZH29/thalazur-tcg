@@ -194,3 +194,83 @@ export function strate(p) {
   return { nom: "Abîme de Kazim, niveau " + (p - STRATES.length + 1),
            sous: "On ne remonte pas d'ici avec la même tête." };
 }
+
+/* ── Le cycle d'un filon, sans interface ──────────────────────────────────
+   Le filon naît, prend des coups, se brise et paie. Ce cycle vivait dans le
+   composant, mêlé aux particules et aux messages ; il est ici pour que
+   l'absence rejoue exactement les mêmes règles que le jeu en direct. */
+
+/** Rang d'un filon à sa naissance : 0 ordinaire · 1 généreux (×4) · 2 exceptionnel (×12). */
+export function tirerRang(S, r = Math.random()) {
+  const seuil = chanceEvenement(S);
+  return r < seuil * 0.4 ? 2 : r < seuil ? 1 : 0;
+}
+
+/** Un filon neuf à la profondeur courante. */
+export function naitreFilon(S, alea = Math.random) {
+  S.pvMax = pvFilon(S.profondeur, brisesIci(S));
+  S.pv = S.pvMax;
+  S.filonRang = tirerRang(S, alea());
+}
+
+/**
+ * Le filon courant cède : récolte, expérience, niveaux, et descente quand la
+ * strate la plus profonde atteinte est épuisée. Rend ce qui s'est passé, pour
+ * que l'appelant l'annonce à sa façon.
+ */
+export function briser(S, alea = Math.random) {
+  const rang = S.filonRang || 0;
+  const recolte = S.pvMax * 0.24 * multRecolte(S) * (rang === 2 ? 12 : rang === 1 ? 4 : 1);
+  S.etoile += recolte;
+  S.etoileTotale += recolte;
+  S.brises[S.profondeur] = brisesIci(S) + 1;
+  S.brisesTotal++;
+  S.xp += Math.round(5 * Math.pow(S.profondeur, 1.25));
+  let niveaux = 0;
+  while (S.xp >= xpRequis(S)) {
+    S.xp -= xpRequis(S);
+    S.niveau++;
+    S.points++;
+    niveaux++;
+  }
+  let descente = false;
+  if (S.brises[S.profondeur] >= FILONS_PAR_STRATE && S.profondeur === S.profondeurMax) {
+    S.profondeur++;
+    S.profondeurMax = S.profondeur;
+    descente = true;
+  }
+  naitreFilon(S, alea);
+  return { rang, recolte, niveaux, descente };
+}
+
+/** Part du travail de l'équipe retenue pendant une absence. */
+export const RENDEMENT_ABSENCE = 0.35;
+/** Au-delà, l'absence ne rapporte plus rien : la mine attend son contremaître. */
+export const ABSENCE_MAX = 8 * 3600000;
+/** Garde-fou de boucle ; les filons durcissent assez vite pour ne jamais l'atteindre. */
+const FILONS_MAX_ABSENCE = 20000;
+
+/**
+ * Rejoue `ms` millisecondes de travail de l'équipe, au rendement donné : les
+ * filons se brisent, la strate se vide, on descend — comme si l'on avait
+ * laissé la page ouverte, en plus lent. Rend le bilan.
+ */
+export function simulerAbsence(S, ms, rendement = RENDEMENT_ABSENCE, alea = Math.random) {
+  const bilan = { ms, filons: 0, etoile: 0, niveaux: 0, strates: 0, exceptionnels: 0 };
+  const duree = Math.max(0, Math.min(ABSENCE_MAX, ms));
+  let d = dps(S) * (duree / 1000) * rendement;
+  if (!(d > 0)) return bilan;
+  if (!S.pvMax) naitreFilon(S, alea);
+  while (d > 0 && bilan.filons < FILONS_MAX_ABSENCE) {
+    if (d < S.pv) { S.pv -= d; d = 0; break; }
+    d -= S.pv;
+    S.pv = 0;
+    const r = briser(S, alea);
+    bilan.filons++;
+    bilan.etoile += r.recolte;
+    bilan.niveaux += r.niveaux;
+    if (r.descente) bilan.strates++;
+    if (r.rang === 2) bilan.exceptionnels++;
+  }
+  return bilan;
+}
