@@ -615,6 +615,15 @@ se voyait comme une couture, un rectangle plus clair posé sur la page. Un modul
 autonome hérite du fond ; il peint la lumière qu'il produit (un fanal, une lueur
 de vente), pas le noir sur lequel elle porte.
 
+### Une image qu'on vient d'afficher ne s'anime pas en transformation
+
+La loupe faisait surgir la carte d'un `scale(.9)`. Pendant une animation de
+transformation, le navigateur dessine l'élément à sa position exacte,
+fractionnaire ; à la fin, il le recale au pixel entier. Centrée dans une
+largeur quelconque, la carte tombait sur un demi-pixel, et le portrait sautait
+visiblement vers la droite à l'instant où l'animation s'achevait. Pour une
+apparition, un fondu d'opacité suffit et ne déplace rien.
+
 ### Une interface de jeu ne change pas de taille pendant qu'on joue
 
 Une mise en page dimensionnée par son contenu grandit au moment exact où le
