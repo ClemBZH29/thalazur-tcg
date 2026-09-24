@@ -47,6 +47,8 @@ Les règles communes aux conversations Claude sont dans
 | `npm run format -- <fichiers>` | Prettier sur les fichiers indiqués |
 | `npm run audit` | Audits d'économie, du Comptoir et du colporteur |
 | `npm run roster -- <fichier.xlsx> <id>` | Roster d'une extension, voir [roster et portraits](docs/conception/roster-et-portraits.md) |
+| `npm run portraits` | Convertit `../Base Image/<extension>/` en WebP dans `public/portraits/` |
+| `npm run portraits:publier` | Idem, puis publie sur le site Firebase des portraits (voir [roster et portraits](docs/conception/roster-et-portraits.md#publier-des-portraits)) |
 
 ### Configuration
 
@@ -54,6 +56,9 @@ Firebase (comptes, sauvegardes, mesure d'audience) se configure par les
 variables `VITE_FIREBASE_*` : voir `.env.example`. En local, `.env.local`
 (de préférence vers un projet Firebase de test) ; en production, les
 variables du dépôt GitHub. Sans elles, le site tourne entièrement en local.
+
+Les portraits des cartes ne sont pas dans le dépôt : ils sont publiés à part,
+sur `images.thalazur.io` (`VITE_PORTRAITS_BASE`), par `npm run portraits:publier`.
 
 ---
 
@@ -108,6 +113,7 @@ src/
 tests/                 Vitest
 scripts/               roster, audits, purge annuelle des comptes
 public/                cadre et dos de carte, portraits du Comptoir, vignettes de la mine, 404
+                       (portraits/ : portraits des cartes, hors Git, rempli par npm run portraits)
 docs/
   conception/          le pourquoi de chaque partie du jeu
   charte-graphique.md  palette, typographie, mouvement — le code fait foi

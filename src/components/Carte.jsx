@@ -147,7 +147,7 @@ export default function Carte({
             style={dureeFlip ? { "--fd": `${dureeFlip}ms` } : undefined}
           >
             <DosCarte />
-            <FaceCarte c={c} cfgImage={cfgImage} fichiers={fichiers} />
+            <FaceCarte c={c} cfgImage={cfgImage} fichiers={fichiers} vignette={taille === "petit"} />
           </div>
         </div>
       </div>

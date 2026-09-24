@@ -3,6 +3,14 @@ import { TAUX_DEFAUT } from "../config/tiers.js";
 import { CFG_IMAGE_DEFAUT } from "../lib/images.js";
 import { useAudio } from "../lib/audio.js";
 
+/** Un motif enregistré avant le rangement par extension (`{num}.jpg`) masquerait
+ *  le nouveau : on l'écarte, le meneur garde son point focal. */
+function imageSansAnciensDefauts(image) {
+  if (!image) return {};
+  const { motif, ...reste } = image;
+  return motif && motif !== "{num}.jpg" ? { ...reste, motif } : reste;
+}
+
 /** Leviers du mode test (outils MJ, développement seulement). */
 export const TEST_DEFAUT = {
   actif: false,
@@ -44,7 +52,7 @@ export function useReglages(etat, setEtat) {
      mêmes tables, et le mode test ne peut pas servir à ouvrir sans payer. */
   const MJ = import.meta.env.DEV;
   const taux = { ...TAUX_DEFAUT, ...(MJ ? reglages.taux || {} : {}) };
-  const cfgImage = { ...CFG_IMAGE_DEFAUT, ...(MJ ? reglages.image || {} : {}) };
+  const cfgImage = { ...CFG_IMAGE_DEFAUT, ...(MJ ? imageSansAnciensDefauts(reglages.image) : {}) };
   const test = { ...TEST_DEFAUT, ...(MJ ? reglages.test || {} : {}) };
   const gratuit = test.actif && test.sansPO;
 
