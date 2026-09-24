@@ -77,6 +77,13 @@ test("première connexion : la partie locale s'ajoute", () => {
 test("la mine la plus récemment jouée l'emporte", () => {
   assert.equal(fusionnerMine('{"dernierTick":5}', '{"dernierTick":9}'), '{"dernierTick":9}');
   assert.equal(fusionnerMine(null, '{"dernierTick":9}'), '{"dernierTick":9}');
+  // Une vieille partie sauvée plus tard ne l'emporte pas sur une partie plus avancée.
+  const avancee = '{"brisesTotal":40,"etoileTotale":900,"dernierTick":5}';
+  const vieille = '{"brisesTotal":31,"etoileTotale":700,"dernierTick":9}';
+  assert.equal(fusionnerMine(vieille, avancee), avancee);
+  assert.equal(fusionnerMine(avancee, vieille), avancee);
+  // Un effondrement remet les filons à zéro mais reste le plus avancé.
+  assert.equal(fusionnerMine('{"effondrements":1,"brisesTotal":2}', '{"brisesTotal":500}'), '{"effondrements":1,"brisesTotal":2}');
 });
 
 test("le gain passif seul ne compte pas comme un changement", () => {

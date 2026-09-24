@@ -33,6 +33,7 @@ import {
 } from "./regles.js";
 import { fmt, signe, fmtEnt, fmtDuree } from "./format.js";
 import { etatNeuf, relireMine } from "./sauvegarde.js";
+import { comparerMines } from "../lib/nuage/fusion.js";
 
 /** Au-delà, la boucle n'a pas tourné : le navigateur avait suspendu l'onglet. */
 const TROU = 3000;
@@ -361,8 +362,13 @@ function MinesDeKazim({ onPO, storage, spritesBase, godPioche = false }) {
      effaçait tout le temps passé onglet caché — le navigateur suspend alors
      l'animation, mais pas la sauvegarde périodique. Le temps non joué reste
      donc en attente dans la sauvegarde, et se rattrape au retour. */
-  const sauver = useCallback(() => {
+  /* Un onglet caché ne sauve plus rien de lui-même : sa partie est figée, et
+     ses sauvegardes périodiques écrasaient celle de l'onglet où l'on jouait —
+     des achats qui disparaissaient. Il sauve une fois en se cachant (`force`),
+     et reprend au retour la partie la plus avancée (voir `reprendre`). */
+  const sauver = useCallback((force = false) => {
     if (!relue.current) return;
+    if (!force && document.hidden) return;
     try { storage.set(JSON.stringify(S.current)); } catch { /* la partie continue */ }
   }, [storage]);
 
@@ -402,15 +408,26 @@ function MinesDeKazim({ onPO, storage, spritesBase, godPioche = false }) {
         setCharge(true);
         forcer();
       });
-    const horloge = setInterval(sauver, 5000);
-    const surVisibilite = () => { if (document.hidden) sauver(); };
+    const horloge = setInterval(() => sauver(), 5000);
+    /* Au retour, une autre fenêtre a pu jouer entre-temps : sa partie, plus
+       avancée, remplace celle qu'on avait laissée. */
+    const reprendre = () => {
+      if (!relue.current || !storage.voir) return;
+      const d = relireMine(storage.voir());
+      if (!d || comparerMines(d, S.current) <= 0) return;
+      S.current = d;
+      if (!S.current.pvMax) nouveauFilon();
+      formeRef.current = genererEclats();
+      forcer();
+    };
+    const surVisibilite = () => { if (document.hidden) sauver(true); else reprendre(); };
     document.addEventListener("visibilitychange", surVisibilite);
     return () => {
       vivant = false;
       clearInterval(horloge);
       document.removeEventListener("visibilitychange", surVisibilite);
       Object.keys(minuteurs.current).forEach((k) => clearTimeout(minuteurs.current[k]));
-      sauver();
+      sauver(true);
       // Le prochain montage relira la sauvegarde avant d'avoir le droit d'écrire.
       relue.current = false;
     };
