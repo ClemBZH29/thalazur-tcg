@@ -133,6 +133,30 @@ Le profil « trois minutes » plafonne : sans présence, la Discipline seule ne
 finance pas les compagnons chers. Le profil « trente minutes » continue de
 monter au bout de trois mois, mais son plafond quotidien de 480 PO l'attend.
 
+### Après la correction des éclats (25/09/2026)
+
+Les éclats ne touchent plus que les dégâts et suivent la racine cubique de
+l'étoile cumulée (voir `docs/conception/mines.md`). Même joueur, même
+conversion :
+
+| Profil de jeu | PO kobold | Créditées | Boosters/jour | × l'app seule | Avant |
+|---------------|----------:|----------:|--------------:|--------------:|------:|
+| Trois minutes par jour | 5 | 82 | 3,7 | × 1,23 | × 1,16 |
+| Dix minutes par jour | 5 | 80 | 3,7 | × 1,22 | × 1,35 |
+| Trente minutes par jour | 8 | 123 | 4,0 | × 1,34 | × 1,93 |
+| Deux heures par jour | 13 | 190 | 4,6 | × 1,53 | × 2,33 |
+
+Le joueur simulé perd surtout aux profils longs : il vivait de la même boucle
+qui s'emballait, en plus lent. Ce joueur reste un plancher — un joueur réel
+qui enchaîne les effondrements dans la journée remet la fatigue des kobolds à
+zéro à chaque fois et atteint toujours le plafond. Si l'on veut retrouver la
+courbe d'avant pour les profils moyens, le levier est `MINE.multiplicateur`,
+pas la mine : vers 25, le profil « trente minutes » repasse à × 1,55 et le
+plafond borne toujours le reste.
+
+`scripts/audit-eclats.mjs`, lancé par `npm run audit`, rejoue désormais le
+joueur qui effondre en boucle, que cet audit-ci ne simule pas.
+
 ---
 
 ## 6. Le Comptoir n'ouvre pas de machine à pièces d'or

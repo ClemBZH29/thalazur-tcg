@@ -27,7 +27,7 @@ import {
   PIOCHES, equipA, equipMult, degatsClic, critChance, critMult,
   multCompagnon, dpsUn, dps, unFilonSur,
   teinteFortune, xpRequis, brisesIci, dette, bonusVolume,
-  resonance, coursAffiche, poPourMise, prochainPO, eclatsDispo, coutUn,
+  resonance, coursAffiche, poPourMise, prochainPO, eclatsDispo, ECLAT_BONUS, coutUn,
   coutN, nbAbordable, genererEclats, strate,
   naitreFilon, briser, simulerAbsence, RENDEMENT_ABSENCE,
 } from "./regles.js";
@@ -905,7 +905,7 @@ function MinesDeKazim({ onPO, storage, spritesBase, godPioche = false }) {
         <div className="kz-row">
           <div className="kz-grow">
             <h3>Éclats de Kazim</h3>
-            <p>Chaque éclat ajoute 3 % de récolte et de dégâts.</p>
+            <p>{"Chaque éclat ajoute " + Math.round(ECLAT_BONUS * 100) + " % de dégâts, frappes et compagnons."}</p>
           </div>
           <div className="kz-actions"><span className="kz-tenu">{fmtEnt(s.eclats)}</span></div>
         </div>

@@ -156,7 +156,7 @@ export const LEXIQUE = [
   { mot: "Prix de rachat", des: (s) => s.brisesTotal >= 1,
     def: "Ce que les kobolds consentent à payer, en pourcentage. Il monte quand vous vendez gros, il baisse à mesure qu'ils ont déjà payé." },
   { mot: "Éclat de Kazim", des: (s) => s.profondeurMax >= 5,
-    def: "Ce qu'on retrouve dans les gravats après un effondrement. Chaque éclat ajoute 3 % de récolte et de dégâts, pour toujours." },
+    def: "Ce qu'on retrouve dans les gravats après un effondrement. Chaque éclat ajoute 3 % de dégâts, pour toujours." },
   { mot: "Effondrement", des: (s) => s.profondeurMax >= 5,
     def: "Faire sauter les étais : la mine repart de zéro, mais vos pièces d'or et vos éclats restent." },
 ];

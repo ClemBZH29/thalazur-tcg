@@ -66,6 +66,24 @@ describe("mine", () => {
     expect(relu.talents).toEqual(etatNeuf().talents);
   });
 
+  test("des éclats gagnés sous l'ancienne règle sont ramenés à la nouvelle", () => {
+    // 1 814 éclats pour 1,4e13 d'étoile : la racine carrée les donnait,
+    // la racine cubique en autorise 327.
+    const relu = relireMine(JSON.stringify({ ...etatNeuf(), eclats: 1814, etoileTotale: 1.4e13 }));
+    expect(relu.eclats).toBe(327);
+  });
+
+  test("des éclats conformes à la règle ne bougent pas", () => {
+    const relu = relireMine(JSON.stringify({ ...etatNeuf(), eclats: 12, etoileTotale: 1e13 }));
+    expect(relu.eclats).toBe(12);
+  });
+
+  test("une étoile cumulée infinie ne donne droit à aucun éclat", () => {
+    const relu = relireMine(JSON.stringify({ ...etatNeuf(), eclats: 5e9, etoileTotale: Infinity }));
+    expect(relu.etoileTotale).toBe(0);
+    expect(relu.eclats).toBe(0);
+  });
+
   test("une clé inconnue est ignorée", () => {
     const relu = relireMine(JSON.stringify({ ...etatNeuf(), piege: 1 }));
     expect(relu).not.toHaveProperty("piege");
