@@ -40,7 +40,27 @@ export const PIOCHES = ["p4", "p3", "p2", "p1"];
 export const equipA = (S, id) => S.equipement.indexOf(id) !== -1;
 export const equipMult = (S, type) =>
   EQUIPEMENT.reduce((m, e) => (e.type === type && equipA(S, e.id) ? m * e.val : m), 1);
-export const mEclats = (S) => 1 + S.eclats * 0.03;
+/* ── Les éclats ───────────────────────────────────────────────────────────
+   Un éclat valait 3 % de dégâts *et* 3 % de récolte, et leur nombre suivait
+   la racine carrée de l'étoile cumulée. L'étoile par seconde étant le produit
+   des dégâts par la récolte, elle montait comme le carré des éclats, et les
+   éclats comme la racine de l'étoile : la boucle se refermait à l'identique,
+   chaque effondrement doublait les éclats en un temps constant, puis de plus
+   en plus court — la profondeur remplit les compagnons plus vite qu'ils ne
+   coûtent. Simulé : 2 éclats à 16 minutes, 1 551 à 99, l'infini à 167.
+
+   Deux changements, et il faut les deux :
+   - l'éclat ne touche plus que les dégâts (frappes et compagnons). La récolte
+     suit déjà les dégâts — un filon rend ce qu'il a coûté à briser —, donc
+     l'étoile par seconde monte comme les éclats, plus comme leur carré ;
+   - leur nombre suit la racine cubique de l'étoile cumulée : doubler ses
+     éclats demande huit fois plus d'étoile, et non quatre.
+   Même joueur simulé : 2 éclats à 14 minutes, 267 à 3 h, 1 112 à 6 h 30, et
+   chaque doublement prend plus longtemps que le précédent. Détail et chiffres
+   dans docs/conception/mines.md. */
+export const ECLAT_BONUS = 0.03;      // dégâts ajoutés par éclat
+export const ECLAT_DIVISEUR = 4e5;    // étoile cumulée pour le premier éclat
+export const mEclats = (S) => 1 + S.eclats * ECLAT_BONUS;
 /* Force convertit la présence en revenu : une frappe vaut une fraction de la
    production passive, donc cliquer reste utile quand les compagnons pèsent des
    millions. Sans cela, Discipline écrase tout le reste par construction. */
@@ -69,7 +89,8 @@ export const dpsBrut = (S) =>
   COMPAGNONS.reduce((a, c) => a + (S.compagnons[c.id] || 0) * c.dps * multCompagnon(S, c.id), 0)
   * prodUnitaire(S);
 export const dps = dpsBrut;
-export const multRecolte = (S) => equipMult(S, "recolte") * mEclats(S);
+/* Sans les éclats : voir plus haut, c'est le carré qui emballait la mine. */
+export const multRecolte = (S) => equipMult(S, "recolte");
 /* Fortune ne touche pas la moyenne par la même porte que Discipline : elle
    gonfle la fréquence des filons qui rendent plus, donc la variance. */
 export const chanceEvenement = (S) => Math.min(0.35, 0.05 * (1 + 0.5 * S.talents.fortune));
@@ -118,8 +139,11 @@ export const prochainPO = (S) =>
   Math.ceil((ancrePO(S) / coursBase(S, 0)) * FATIGUE_PO
     * (Math.exp((S.poRun + 1) / FATIGUE_PO) - Math.exp(S.poRun / FATIGUE_PO)));
 
+/* Les éclats qu'autorise l'étoile cumulée : on en a gagné au plus autant. */
+export const eclatsMerites = (S) =>
+  Math.floor(Math.cbrt(Math.max(0, S.etoileTotale || 0) / ECLAT_DIVISEUR));
 export const eclatsDispo = (S) =>
-  S.profondeurMax < 5 ? 0 : Math.max(0, Math.floor(Math.sqrt(S.etoileTotale / 4e6)) - S.eclats);
+  S.profondeurMax < 5 ? 0 : Math.max(0, eclatsMerites(S) - S.eclats);
 export const coutUn = (S, c) => Math.ceil(c.base * Math.pow(1.15, S.compagnons[c.id] || 0));
 export const coutN = (S, c, n) =>
   Math.ceil(c.base * Math.pow(1.15, S.compagnons[c.id] || 0) * (Math.pow(1.15, n) - 1) / 0.15);

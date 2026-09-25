@@ -211,6 +211,58 @@ La mine se sauve localement toutes les cinq secondes, et part sur le compte
 dès que l'onglet passe en arrière-plan ou que la page se ferme, sans attendre
 le délai d'envoi de trente secondes.
 
+**Plusieurs fenêtres, plusieurs adresses.** Un onglet caché ne sauve plus sa
+partie qu'une fois, en se cachant ; au retour, il reprend celle du stockage si
+elle est plus avancée. Entre deux copies (onglets, appareils, ou le site et son
+aperçu, qui partagent le compte), c'est **la plus avancée** qui l'emporte —
+effondrements, puis filons brisés, puis étoile sortie au total
+(`comparerMines`, `src/lib/nuage/fusion.js`) — et non plus la plus récemment
+sauvée : un vieil onglet oublié effaçait ainsi des talents et des achats.
+
+### Les éclats ne s'emballent plus
+
+Au premier jour de jeu réel, un joueur a vendu, effondré, doublé ses éclats en
+cinq minutes, effondré de nouveau : 1 814 éclats, et un troisième puits qui en
+promettait cinq fois plus. L'audit d'économie ne l'avait pas vu venir, parce
+que son joueur simulé ne s'effondre qu'une fois par jour, cours mort.
+
+**Pourquoi.** Un éclat donnait 3 % de dégâts *et* 3 % de récolte. Un filon rend
+ce qu'il a coûté à briser, donc l'étoile par seconde est le produit des deux :
+elle montait comme le **carré** des éclats. Et les éclats suivaient la racine
+carrée de l'étoile cumulée. Les deux exposants s'annulaient : chaque
+effondrement doublait les éclats en un temps constant — puis de plus en plus
+court, parce que la profondeur gagnée remplit les compagnons plus vite qu'ils
+ne coûtent. Rejoué : 2 éclats à 16 minutes, 1 551 à 99, l'infini à 167.
+
+**Deux changements, et il faut les deux** (`src/mines/regles.js`) :
+
+- l'éclat ne touche plus que les **dégâts** — frappes et compagnons. La récolte
+  suit déjà les dégâts ; l'étoile par seconde monte désormais comme les
+  éclats, et non plus comme leur carré ;
+- leur nombre suit la **racine cubique** de l'étoile cumulée
+  (`ECLAT_DIVISEUR`) : doubler ses éclats demande huit fois plus d'étoile.
+
+Chacun seul ne suffit pas : racine cubique avec les deux canaux, 660 000 éclats
+en dix heures ; dégâts seuls avec la racine carrée, 3,3 millions.
+
+| Même joueur, effondre à × 2 | 16 min | 1 h 40 | 3 h | 6 h 30 | 10 h |
+|-----------------------------|-------:|-------:|----:|-------:|-----:|
+| Avant | 2 | 1 551 | infini | — | — |
+| Après | 2 | 32 | 267 | 1 112 | 1 112 |
+
+Chaque doublement prend plus longtemps que le précédent (15, 19, 21, 24, 25,
+36, 64, 150 minutes). `scripts/audit-eclats.mjs` rejoue ce joueur à chaque
+`npm run audit` et **échoue** si les effondrements se rapprochent ou si un
+nombre sort des flottants.
+
+**Les parties déjà jouées** sont ramenées à la nouvelle règle au chargement
+(`relireMine`) : les éclats ne dépassent jamais ce que l'étoile cumulée
+autorise — 1 814 éclats pour 1,4 × 10¹³ d'étoile en deviennent 327. C'est un
+invariant et non une migration : le sens du champ n'a pas changé, et monter
+`SCHEMA` aurait fait lire comme vide toute copie de compte encore au n° 6
+(`lireCompte`, `src/jeu/Compte.jsx`, exige l'égalité stricte — à corriger avant
+la prochaine vraie migration).
+
 ## Outils MJ
 
 En développement (`npm run dev`), **Réglages MJ → Mode test → Mines de Kazim**

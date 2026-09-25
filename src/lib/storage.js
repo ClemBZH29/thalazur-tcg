@@ -141,6 +141,8 @@ export const magasinKazim = {
     if (adoptee !== null) { const v = adoptee || null; adoptee = null; return Promise.resolve(v); }
     return Promise.resolve(lireMine());
   },
+  /** Lecture sans effet : ne consomme pas une adoption en attente. */
+  voir: () => (adoptee !== null ? adoptee || null : lireMine()),
   set: (valeur) => {
     if (adoptee !== null) return Promise.resolve();
     try { localStorage.setItem(CLE_MINE_STOCKAGE, valeur); } catch { /* quota : la partie continue */ }

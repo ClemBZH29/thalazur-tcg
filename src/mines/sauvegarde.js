@@ -1,4 +1,5 @@
 import { SCHEMA, migrer } from "../lib/sauvegarde/schema.js";
+import { eclatsMerites } from "./regles.js";
 
 /**
  * Mines de Kazim — la partie sauvegardée.
@@ -37,6 +38,16 @@ export function relireMine(brut) {
   if (!d) return null;
   const n = etatNeuf();
   Object.keys(n).forEach((k) => { if (d[k] !== undefined && d[k] !== null) n[k] = d[k]; });
+  /* Les éclats ne dépassent jamais ce que l'étoile cumulée autorise. Sous la
+     règle en vigueur c'est vrai par construction, et cette ligne ne touche à
+     rien ; elle ramène les parties jouées sous l'ancienne règle (racine carrée,
+     voir `regles.js`) à ce que la nouvelle leur aurait donné. C'est un
+     invariant, pas une migration : le sens du champ n'a pas changé, et monter
+     `SCHEMA` ferait lire comme vide toute copie de compte encore au n° 6
+     (`lireCompte` exige l'égalité stricte). Une étoile cumulée infinie sort du
+     JSON en `null`, reprend sa valeur par défaut, et ne donne droit à rien. */
+  if (!Number.isFinite(n.etoileTotale)) n.etoileTotale = 0;
+  n.eclats = Math.min(Number.isFinite(n.eclats) ? n.eclats : 0, eclatsMerites(n));
   n.schema = SCHEMA;
   return n;
 }
