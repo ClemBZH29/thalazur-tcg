@@ -211,6 +211,14 @@ La mine se sauve localement toutes les cinq secondes, et part sur le compte
 dès que l'onglet passe en arrière-plan ou que la page se ferme, sans attendre
 le délai d'envoi de trente secondes.
 
+**Plusieurs fenêtres, plusieurs adresses.** Un onglet caché ne sauve plus sa
+partie qu'une fois, en se cachant ; au retour, il reprend celle du stockage si
+elle est plus avancée. Entre deux copies (onglets, appareils, ou le site et son
+aperçu, qui partagent le compte), c'est **la plus avancée** qui l'emporte —
+effondrements, puis filons brisés, puis étoile sortie au total
+(`comparerMines`, `src/lib/nuage/fusion.js`) — et non plus la plus récemment
+sauvée : un vieil onglet oublié effaçait ainsi des talents et des achats.
+
 ## Outils MJ
 
 En développement (`npm run dev`), **Réglages MJ → Mode test → Mines de Kazim**

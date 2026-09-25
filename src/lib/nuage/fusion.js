@@ -113,12 +113,32 @@ function fusionnerJourMine(ici, la) {
   return { jour: ici.jour, credite: Math.max(ici.credite || 0, la.credite || 0) };
 }
 
-/** La sauvegarde du module de la mine : la plus récemment jouée l'emporte. */
+/**
+ * Compare l'avancement de deux parties de mine (objets déjà lus) : positif si
+ * `a` est plus avancée. Effondrements, puis filons brisés, puis étoile sortie
+ * au total — trois compteurs qui ne reculent jamais, contrairement à l'étoile
+ * en poche qu'un achat fait baisser. L'horodatage ne départage qu'à égalité.
+ */
+export function comparerMines(a, b) {
+  const cle = (m) => [m?.effondrements || 0, m?.brisesTotal || 0, m?.etoileTotale || 0, m?.dernierTick || 0];
+  const x = cle(a), y = cle(b);
+  for (let i = 0; i < x.length; i++) if (x[i] !== y[i]) return x[i] - y[i];
+  return 0;
+}
+
+/**
+ * La sauvegarde du module de la mine : la plus avancée l'emporte, entière.
+ *
+ * C'était la plus récemment sauvegardée. Or un onglet oublié en arrière-plan
+ * — ou le site ouvert à deux adresses, qui partagent le compte — sauvait sa
+ * vieille partie avec l'heure du moment, et effaçait sur le compte les achats
+ * faits ailleurs entre-temps : des talents et une foreuse qui disparaissent.
+ */
 export function fusionnerMine(ici, la) {
   if (!ici) return la || null;
   if (!la) return ici;
-  const t = (s) => { try { return JSON.parse(s).dernierTick || 0; } catch { return 0; } };
-  return t(ici) >= t(la) ? ici : la;
+  const lire = (s) => { try { return JSON.parse(s); } catch { return null; } };
+  return comparerMines(lire(ici), lire(la)) >= 0 ? ici : la;
 }
 
 const COMPTEURS = new Set(["collections", "boosters", "bourse", "mine", "schema"]);

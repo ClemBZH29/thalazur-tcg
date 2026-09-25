@@ -489,7 +489,12 @@
 @keyframes fondu { from { opacity: 0; } to { opacity: 1; } }
 .loupe > :first-child { margin-top: auto; }
 .loupe > :last-child { margin-bottom: auto; }
-.loupe-boite { animation: surgit .3s cubic-bezier(.2,.9,.3,1); }
+/* Un fondu seul, sans agrandissement. La carte surgissait d'un `scale(.9)` :
+   pendant l'animation, le navigateur la dessine à une position fractionnaire
+   (la loupe centre 396 px dans une largeur quelconque) ; à la fin, il la
+   recale au pixel entier, et le portrait sautait d'un pixel ou deux vers la
+   droite. Une opacité ne déplace rien : rien à recaler. */
+.loupe-boite { animation: parait .24s ease-out; }
 .loupe-titre { text-align: center; margin: 0; font-family: var(--font-display);
   font-variation-settings: var(--wonk); font-weight: 700; font-size: 26px; color: var(--ink);
   display: flex; flex-direction: column; gap: 5px; }
@@ -506,7 +511,7 @@
 .loupe-secondaire { font-size: 13px; color: var(--ink3); text-align: center; margin-top: -4px; }
 .loupe-anecdote { text-align: center; font-style: italic; font-size: 16px;
   line-height: 1.7; color: #e2ddd2; }
-@keyframes surgit { from { transform: scale(.9); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes parait { from { opacity: 0; } to { opacity: 1; } }
 
 @media (max-width: 900px) {
   .barre-filtres { flex-direction: column; align-items: stretch; gap: 12px; }
