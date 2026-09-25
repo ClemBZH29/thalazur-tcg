@@ -128,3 +128,24 @@ describe("absence", () => {
     expect(plein.etoile).toBeGreaterThan(reduit.etoile);
   });
 });
+
+describe("éclats", () => {
+  test("un éclat augmente les dégâts, pas la récolte", () => {
+    const sans = partie({ compagnons: { [COMPAGNONS[0].id]: 10 } });
+    const avec = partie({ compagnons: { [COMPAGNONS[0].id]: 10 }, eclats: 100 });
+    expect(R.dps(avec) / R.dps(sans)).toBeCloseTo(1 + 100 * R.ECLAT_BONUS);
+    expect(R.multRecolte(avec)).toBe(R.multRecolte(sans));
+  });
+
+  test("doubler ses éclats demande huit fois plus d'étoile", () => {
+    const n = (T) => R.eclatsMerites(partie({ etoileTotale: T }));
+    const T = R.ECLAT_DIVISEUR * 1000;
+    expect(n(T)).toBe(10);
+    expect(n(T * 8)).toBe(20);
+  });
+
+  test("rien avant la cinquième strate", () => {
+    expect(R.eclatsDispo(partie({ etoileTotale: 1e15, profondeurMax: 4 }))).toBe(0);
+    expect(R.eclatsDispo(partie({ etoileTotale: 1e15, profondeurMax: 5 }))).toBeGreaterThan(0);
+  });
+});
