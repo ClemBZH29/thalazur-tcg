@@ -23,7 +23,7 @@ export const LEGAL = {
    */
   conservationAns: 5,
   /** Date de dernière mise à jour de la politique (JJ/MM/AAAA). */
-  miseAJour: "23/09/2026",
+  miseAJour: "26/09/2026",
   hebergeur: {
     nom: "GitHub, Inc. (GitHub Pages)",
     adresse: "88 Colin P. Kelly Jr. Street, San Francisco, CA 94107, États-Unis",

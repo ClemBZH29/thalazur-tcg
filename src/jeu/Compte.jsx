@@ -1,7 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useJeu } from "./Jeu.jsx";
 import { chargerFirebase, nuageConfigure, sessionMemorisee } from "../lib/nuage/firebase.js";
-import { fusionner3, fusionnerMine, signature } from "../lib/nuage/fusion.js";
+import { empreinte, fusionner3, fusionnerMine, signature } from "../lib/nuage/fusion.js";
+import { ligneClassement, pseudoValide } from "../succes/classement.js";
 import { effacer, ecrireMine, etatVide, lireMine, relireJeu, suivreMine } from "../lib/storage.js";
 import { SCHEMA } from "../lib/sauvegarde/schema.js";
 import { LEGAL } from "../config/legal.js";
@@ -17,6 +18,12 @@ import { LEGAL } from "../config/legal.js";
  *   maj      — horodatage serveur de la dernière écriture
  *   schema   — version du format, commune au jeu et à la mine (sauvegarde/schema.js)
  *   expire   — échéance de conservation (maintenant + 5 ans), purge TTL
+ *
+ * Et, seulement si le joueur l'a demandé, une ligne publique
+ * `classement/{uid}` : pseudo, titre affiché, progression (voir
+ * `src/succes/classement.js`). Elle est lisible par tout joueur connecté,
+ * republiée après chaque envoi réussi quand elle a changé, et effacée dès
+ * que le joueur se retire du classement ou supprime son compte.
  *
  * L'état part en chaîne JSON plutôt qu'en carte Firestore : Firestore refuse
  * les tableaux de tableaux et les valeurs `undefined`, et la forme de l'état
@@ -38,6 +45,7 @@ import { LEGAL } from "../config/legal.js";
 
 const CLE_COMPTE = "brume-thalazur:compte";      // { uid, revision }
 const CLE_BASE = "brume-thalazur:compte-base";   // { etat, mine } vus en dernier
+const CLE_CLASSEMENT = "brume-thalazur:classement"; // { uid, empreinte, t } publiés en dernier
 const DELAI_ENVOI = 30000;
 /**
  * Échéance de conservation, repoussée à chaque écriture. Firestore supprime
@@ -94,7 +102,7 @@ function expliquer(e) {
 }
 
 export function Compte({ children }) {
-  const { etat, setEtat, rechargerMine } = useJeu();
+  const { etat, setEtat, rechargerMine, succes } = useJeu();
 
   // inactif : pas de Firebase dans ce build · invite : personne n'est connecté
   // ouverture : le SDK arrive ou la session se rétablit · connecte
@@ -106,6 +114,10 @@ export function Compte({ children }) {
   const [derniere, setDerniere] = useState(null);
   const [erreur, setErreur] = useState(null);
   const [annonce, setAnnonce] = useState(null);
+  // Vrai une fois la première rencontre avec le compte terminée : avant, la
+  // partie locale n'est pas encore celle du compte (le pseudo peut manquer
+  // ici et exister là-bas).
+  const [sessionPrete, setSessionPrete] = useState(false);
 
   const fb = useRef(null);
   const user = useRef(null);
@@ -118,6 +130,9 @@ export function Compte({ children }) {
   const ecoute = useRef(null);
 
   useEffect(() => { etatRef.current = etat; }, [etat]);
+  const succesRef = useRef(succes);
+  useEffect(() => { succesRef.current = succes; }, [succes]);
+  const publie = useRef(lireJSON(CLE_CLASSEMENT));
 
   const refDoc = useCallback(() => fb.current.F.doc(fb.current.db, "joueurs", user.current.uid), []);
 
@@ -163,6 +178,57 @@ export function Compte({ children }) {
     return signature(fusion, mine) !== signature(la, laMine);
   }, [adopter, aChange, retenir]);
 
+  /**
+   * Met à jour la ligne publique du classement, ou la retire.
+   *
+   * Appelée après chaque envoi réussi de la partie, et quand le joueur change
+   * son pseudo, son titre ou son choix d'y figurer. Rien ne part si la ligne
+   * n'a pas bougé depuis la dernière publication — sauf pour repousser son
+   * échéance de conservation, une fois par mois. Un échec n'a pas de
+   * conséquence : la prochaine synchronisation réessaiera.
+   */
+  const publierClassement = useCallback(async () => {
+    if (!user.current || !fb.current) return;
+    const { F, db } = fb.current;
+    const uid = user.current.uid;
+    const e = etatRef.current;
+    const s = succesRef.current;
+    const ref = F.doc(db, "classement", uid);
+    const avant = publie.current?.uid === uid ? publie.current : null;
+    const retenirPublie = (v) => { publie.current = v; ecrireJSON(CLE_CLASSEMENT, v); };
+    try {
+      if (!e.profil?.classement || !pseudoValide(e.profil?.pseudo)) {
+        // Un autre appareil a pu publier : on efface même sans trace locale,
+        // mais une seule fois.
+        if (avant?.empreinte !== "retire") {
+          await F.deleteDoc(ref);
+          retenirPublie({ uid, empreinte: "retire", t: Date.now() });
+        }
+        return;
+      }
+      const ligne = ligneClassement(s.catalogue, e, s.mine, s.titres);
+      const emp = empreinte(JSON.stringify(ligne));
+      if (avant?.empreinte === emp && Date.now() - avant.t < RAFRAICHIR) return;
+      await F.setDoc(ref, {
+        ...ligne,
+        maj: F.serverTimestamp(),
+        expire: F.Timestamp.fromMillis(Date.now() + CONSERVATION),
+      });
+      retenirPublie({ uid, empreinte: emp, t: Date.now() });
+    } catch { /* le classement suivra au prochain envoi */ }
+  }, []);
+
+  /** Le classement entier. Réservé aux joueurs connectés (règles Firestore). */
+  const lireClassement = useCallback(async () => {
+    if (!user.current || !fb.current) throw new Error("non connecté");
+    const { F, db } = fb.current;
+    const snap = await F.getDocs(F.collection(db, "classement"));
+    return snap.docs.map((d) => {
+      const x = d.data();
+      return { ...x, uid: d.id, maj: x.maj?.toMillis ? x.maj.toMillis() : 0, expire: undefined };
+    });
+  }, []);
+
   /** Envoie l'état local sur le compte, si quelque chose a changé. */
   const envoyer = useCallback(async (force = false) => {
     if (!user.current || !fb.current) return;
@@ -196,6 +262,7 @@ export function Compte({ children }) {
           setDerniere(new Date());
           setErreur(null);
           setSync(aChange() ? "en-attente" : "a-jour");
+          publierClassement();
           return;
         } catch (e) {
           if (!(e instanceof Conflit)) throw e;
@@ -214,7 +281,7 @@ export function Compte({ children }) {
       enVol.current = false;
       if (relancer.current) { relancer.current = false; envoyer(); }
     }
-  }, [aChange, reconcilier, refDoc, retenir]);
+  }, [aChange, reconcilier, refDoc, retenir, publierClassement]);
 
   const planifier = useCallback(() => {
     if (!user.current) return;
@@ -278,6 +345,8 @@ export function Compte({ children }) {
       setSync(e?.code === "unavailable" ? "hors-ligne" : "erreur");
       setErreur(expliquer(e));
     }
+    setSessionPrete(true);
+    publierClassement();
 
     // Les écritures d'un autre appareil arrivent d'elles-mêmes.
     ecoute.current?.();
@@ -289,7 +358,7 @@ export function Compte({ children }) {
         setDerniere(new Date());
       }
     }, () => { /* hors ligne : on réessaiera à l'envoi */ });
-  }, [adopter, envoyer, planifier, reconcilier, refDoc, retenir]);
+  }, [adopter, envoyer, planifier, reconcilier, refDoc, retenir, publierClassement]);
 
   const brancher = useCallback(async () => {
     if (fb.current) return fb.current;
@@ -307,6 +376,7 @@ export function Compte({ children }) {
         ecoute.current?.(); ecoute.current = null;
         user.current = null;
         setUtilisateur(null);
+        setSessionPrete(false);
         setStatut("invite");
       }
     });
@@ -327,6 +397,12 @@ export function Compte({ children }) {
     });
     return () => { vivant = false; };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Se montrer ou se retirer du classement n'attend pas le prochain envoi.
+  const profil = etat.profil || {};
+  useEffect(() => {
+    if (sessionPrete) publierClassement();
+  }, [sessionPrete, profil.classement, profil.pseudo, profil.titre, publierClassement]);
 
   // Chaque changement de partie, et chaque sauvegarde de la mine, programme un envoi.
   useEffect(() => { planifier(); }, [etat, planifier]);
@@ -371,6 +447,8 @@ export function Compte({ children }) {
     effacer();
     ecrireJSON(CLE_COMPTE, null);
     ecrireJSON(CLE_BASE, null);
+    ecrireJSON(CLE_CLASSEMENT, null);
+    publie.current = null;
     marque.current = null;
     base.current = null;
     user.current = null;
@@ -406,6 +484,7 @@ export function Compte({ children }) {
       const u = auth.currentUser;
       await A.reauthenticateWithPopup(u, new A.GoogleAuthProvider());
       ecoute.current?.(); ecoute.current = null;
+      await F.deleteDoc(F.doc(fb.current.db, "classement", u.uid));
       await F.deleteDoc(refDoc());
       await A.deleteUser(u);
       oublierAppareil();
@@ -419,12 +498,13 @@ export function Compte({ children }) {
 
   const valeur = useMemo(() => ({
     disponible: nuageConfigure,
-    statut, utilisateur, sync, derniere, erreur, annonce,
-    connecter, deconnecter, supprimerCompte,
+    statut, utilisateur, sync, derniere, erreur, annonce, sessionPrete,
+    connecter, deconnecter, supprimerCompte, lireClassement,
     synchroniser: () => envoyer(true),
     oublierAnnonce: () => setAnnonce(null),
     oublierErreur: () => setErreur(null),
-  }), [statut, utilisateur, sync, derniere, erreur, annonce, connecter, deconnecter, supprimerCompte, envoyer]);
+  }), [statut, utilisateur, sync, derniere, erreur, annonce, sessionPrete, connecter, deconnecter,
+    supprimerCompte, lireClassement, envoyer]);
 
   return <Ctx.Provider value={valeur}>{children}</Ctx.Provider>;
 }

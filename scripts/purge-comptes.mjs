@@ -1,8 +1,9 @@
 /**
  * Purge des comptes inutilisés depuis plus de cinq ans.
  *
- * La politique TTL de Firestore efface déjà les parties dont l'échéance
- * (`expire`) est passée. Elle ne touche pas aux identités de Firebase
+ * La politique TTL de Firestore efface déjà les parties et les lignes du
+ * classement dont l'échéance (`expire`) est passée. Elle ne touche pas aux
+ * identités de Firebase
  * Authentication (uid, nom, e-mail, photo) : c'est le rôle de ce script.
  * À lancer une fois par an, à la main :
  *
@@ -50,6 +51,7 @@ do {
     console.log(`${effacer ? "suppression" : "à supprimer"} : ${u.uid} (dernier usage le ${quand})`);
     if (effacer) {
       if (doc.exists) await doc.ref.delete();
+      await db.doc(`classement/${u.uid}`).delete();
       await auth.deleteUser(u.uid);
     }
   }

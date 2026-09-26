@@ -14,6 +14,8 @@ import PageConfidentialite from "./routes/PageConfidentialite.jsx";
 import BoutonCompte from "./components/BoutonCompte.jsx";
 import { Compte } from "./jeu/Compte.jsx";
 import BandeauCookies from "./components/BandeauCookies.jsx";
+import ChoixPseudo from "./components/ChoixPseudo.jsx";
+import PageSucces from "./routes/PageSucces.jsx";
 import { demarrerMesure, mesureDisponible, pageVue, rouvrirBandeau } from "./lib/mesure.js";
 
 /* Les deux modules pèsent chacun plus que tout le reste de l'application :
@@ -41,6 +43,9 @@ const PAGES = [
   { vers: "/bibliotheque", nom: "Bibliothèque", court: "Cartes", ico: "▣" },
   { vers: "/comptoir", nom: "Comptoir", court: "Comptoir", ico: "⚖" },
   { vers: "/mines", nom: "Mines", court: "Mines", ico: "⛏" },
+  // Succès et classement partagent une entrée : la barre en compte déjà six
+  // en développement, et le classement n'a de sens qu'à côté des titres.
+  { vers: "/succes", nom: "Succès", court: "Succès", ico: "✦" },
   ...(import.meta.env.DEV ? [{ vers: "/reglages", nom: "Réglages MJ", court: "MJ", ico: "⚙" }] : []),
 ];
 
@@ -75,6 +80,7 @@ function Route() {
     case "reglages": return PageReglages
       ? <Suspense fallback={<Attente />}><PageReglages /></Suspense>
       : <Attente />;
+    case "succes": return <PageSucces onglet={segments[1]} />;
     case "profil": return <PageProfil />;
     case "confidentialite": return <PageConfidentialite />;
     default: return <Introuvable chemin={chemin} />;
@@ -176,7 +182,7 @@ function Coque() {
   }, [chemin]);
 
   const { bourse, gratuit, collecte, surplusTotal, stockageKo, son, majReglages, loupe,
-    setLoupe, cfgImage, fichiers } = jeu;
+    setLoupe, cfgImage, fichiers, succes } = jeu;
 
   return (
     <>
@@ -239,6 +245,11 @@ function Coque() {
                 {p.vers === "/bibliotheque" && collecte > 0 && (
                   <span className="count">{collecte}</span>
                 )}
+                {p.vers === "/succes" && succes.aReclamer.length > 0 && (
+                  <span className="count pastille" title={`${succes.aReclamer.length} succès à réclamer`}>
+                    {succes.aReclamer.length}
+                  </span>
+                )}
                 {p.vers === "/comptoir" && surplusTotal > 0 && (
                   <span className="count pastille" title={`${surplusTotal} exemplaires en surplus`}>
                     {surplusTotal}
@@ -266,6 +277,7 @@ function Coque() {
       </div>
 
       <BandeauCookies />
+      <ChoixPseudo />
 
       {loupe && (
         <Loupe c={loupe} cfgImage={cfgImage} fichiers={fichiers} onFermer={() => setLoupe(null)} />
