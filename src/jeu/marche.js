@@ -1,6 +1,9 @@
 import { useCallback } from "react";
 import { crediterGain, debiterLibre } from "../lib/economie.js";
 
+/** Ajoute `n` à un compteur de `etat.stats` (les succès les lisent). */
+export const compte = (e, cle, n = 1) => ({ ...(e.stats || {}), [cle]: ((e.stats || {})[cle] || 0) + n });
+
 /**
  * Les mouvements d'inventaire et de bourse du Comptoir et du colporteur,
  * sur l'extension courante.
@@ -17,6 +20,7 @@ export function useMouvements(setEtat, boosterId) {
         ...e,
         collections: { ...e.collections, [boosterId]: coll },
         bourse: crediterGain(e.bourse, po),
+        stats: compte(e, "ventes", n),
       };
     });
   }, [setEtat, boosterId]);
@@ -35,6 +39,7 @@ export function useMouvements(setEtat, boosterId) {
         ...e,
         collections: { ...e.collections, [boosterId]: coll },
         bourse: debiterLibre(e.bourse, po),
+        stats: compte(e, "achats"),
       };
     });
   }, [setEtat, boosterId]);
@@ -66,7 +71,10 @@ export function useMouvements(setEtat, boosterId) {
         };
       }
       const bourse = po >= 0 ? crediterGain(e.bourse, po) : debiterLibre(e.bourse, -po);
-      return { ...e, collections: { ...e.collections, [boosterId]: coll }, bourse };
+      return {
+        ...e, collections: { ...e.collections, [boosterId]: coll }, bourse,
+        stats: compte(e, "affaires"),
+      };
     });
   }, [setEtat, boosterId]);
 
@@ -74,5 +82,10 @@ export function useMouvements(setEtat, boosterId) {
     setEtat((e) => ({ ...e, comptoir: { ...(e.comptoir || {}), [boosterId]: sauve } }));
   }, [setEtat, boosterId]);
 
-  return { vendreExemplaires, acheterExemplaire, appliquerMarche, majComptoir };
+  /** Compteur seul, pour ce qui ne passe pas par un mouvement (la botte de Mirko). */
+  const compter = useCallback((cle, n = 1) => {
+    setEtat((e) => ({ ...e, stats: compte(e, cle, n) }));
+  }, [setEtat]);
+
+  return { vendreExemplaires, acheterExemplaire, appliquerMarche, majComptoir, compter };
 }

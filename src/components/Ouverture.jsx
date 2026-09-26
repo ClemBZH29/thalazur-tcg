@@ -13,7 +13,7 @@ export default function Ouverture({
   booster, pool, speciales, taux, test, gratuit, bourse, garantirLegendaire,
   cfgImage, fichiers, sfx, ouverts, enCours, collection, mouvementReduit,
   onRecolte, onLoupe, onRetour, onBibliotheque, onProgres, onFini,
-  onColporteur, onAffaire,
+  onColporteur, onAffaire, onBotte, sachet = null,
 }) {
   /**
    * Une ouverture laissée en plan est reprise là où elle s'était arrêtée. Les
@@ -41,7 +41,12 @@ export default function Ouverture({
   const [botte, setBotte] = useState(null);
   const visiteFaite = useRef(false);
 
-  const prixCourant = botte ?? ECONOMIE.prix;
+  /**
+   * Un sachet offert par les succès passe avant la bourse, mais après la
+   * botte du colporteur : celle-ci a été choisie pour l'ouverture suivante.
+   */
+  const offert = !gratuit && botte == null && sachet ? sachet : null;
+  const prixCourant = offert ? 0 : (botte ?? ECONOMIE.prix);
   const peutOuvrir = gratuit || bourse.po >= prixCourant;
 
   /** Un roster vide ne peut rien produire : on l'annonce au lieu de bloquer. */
@@ -71,7 +76,7 @@ export default function Ouverture({
     setIndex(0);
     setEtat("dos");
     setPhase("sortie");
-    setNouvelles(onRecolte(t, prixCourant) || new Set());
+    setNouvelles(onRecolte(t, prixCourant, offert ? offert.cle : null) || new Set());
     sfx.deroule();
     // Un frottement par carte, calé sur sa sortie du sachet.
     t.cards.forEach((_, i) => differer(() => sfx.glisse(), 240 + i * 72));
@@ -94,7 +99,7 @@ export default function Ouverture({
     } else {
       differer(() => setPhase("revelation"), 1060);
     }
-  }, [pool, videPool, speciales, taux, test, garantirLegendaire, onRecolte, sfx, onFini, prixCourant]);
+  }, [pool, videPool, speciales, taux, test, garantirLegendaire, onRecolte, sfx, onFini, prixCourant, offert]);
 
   /**
    * L'arrivée du colporteur, une fois par ouverture. Le garde par référence
@@ -173,6 +178,7 @@ export default function Ouverture({
 
   /** Il sort un sachet du ballot : on repart au sachet, à son prix. */
   const prendreBotte = (prix) => {
+    onBotte?.();
     setBotte(prix);
     relancer();
   };
@@ -232,9 +238,15 @@ export default function Ouverture({
                   Le sachet du colporteur — {botte} PO au lieu de {ECONOMIE.prix}.
                 </p>
               )}
+              {offert && (
+                <p className="colp-bandeau" role="status">
+                  Sachet offert par vos succès{offert.cle === "*" ? " (au choix)" : ""} —
+                  {offert.n > 1 ? ` il vous en reste ${offert.n}.` : " c'est le dernier."}
+                </p>
+              )}
               <Sachet
                 booster={booster} sfx={sfx} ouverts={ouverts}
-                prix={gratuit ? null : prixCourant}
+                prix={gratuit || offert ? null : prixCourant}
                 onRupture={() => ouvrir(false)}
                 onToutOuvrir={() => ouvrir(true)}
               />
@@ -402,7 +414,9 @@ export default function Ouverture({
           )}
           <div className="actions">
             <button className="btn" onClick={relancer}>
-              {gratuit ? "Ouvrir un autre booster" : `Ouvrir un autre booster · ${ECONOMIE.prix} PO`}
+              {gratuit ? "Ouvrir un autre booster"
+                : sachet ? "Ouvrir un sachet offert"
+                  : `Ouvrir un autre booster · ${ECONOMIE.prix} PO`}
             </button>
             <button className="btn quiet" onClick={onBibliotheque}>Voir la bibliothèque</button>
           </div>

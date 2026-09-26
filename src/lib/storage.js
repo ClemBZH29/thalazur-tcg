@@ -44,7 +44,16 @@ const vide = () => ({
   colporteur: null, // { jour: "AAAA-MM-JJ", depuis: n }
   // Ce que le joueur a choisi de montrer de lui. Rien n'est lu chez Google
   // pour le remplir : le pseudo est saisi à la main, ou reste vide.
-  profil: {},       // { pseudo }
+  profil: {},       // { pseudo, titre, classement, pseudoReporte }
+  // Succès réclamés : id -> { t, po, n, cle } (voir src/succes/regles.js).
+  succes: {},
+  // Sachets offerts par les succès, à ouvrir sans payer : boosterId -> n,
+  // et "*" pour les sachets au choix.
+  sachets: {},
+  // Compteurs que rien d'autre ne garde : exemplaires vendus au Comptoir,
+  // affaires conclues avec le colporteur. Ils ne partent que de leur mise en
+  // service ; les parties plus anciennes commencent à zéro.
+  stats: {},
 });
 
 export const etatVide = vide;
@@ -228,5 +237,14 @@ export function fusionner(actuel, net) {
   // le faire repasser le jour même s'il est déjà venu ici.
   fusion.colporteur = actuel.colporteur || net.colporteur || null;
   fusion.profil = { ...(net.profil || {}), ...(actuel.profil || {}) };
+  // Un succès réclamé l'est une fois pour toutes, où qu'il l'ait été. Les
+  // sachets et les compteurs ne s'additionnent pas : importer un fichier ne
+  // doit pas rendre deux fois ce qu'il a déjà rendu.
+  fusion.succes = { ...(net.succes || {}), ...(actuel.succes || {}) };
+  fusion.sachets = { ...(actuel.sachets || {}) };
+  fusion.stats = { ...(actuel.stats || {}) };
+  for (const k of cles(net.stats)) {
+    fusion.stats[k] = Math.max(fusion.stats[k] || 0, net.stats[k] || 0);
+  }
   return fusion;
 }

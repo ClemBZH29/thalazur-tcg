@@ -5,12 +5,12 @@ import { Lien } from "../lib/routeur.jsx";
 import AvisMouvement from "./AvisMouvement.jsx";
 import Caisse from "./Caisse.jsx";
 
-function Booster({ b, ouverts, achetable, gratuit, reste }) {
+function Booster({ b, ouverts, achetable, gratuit, reste, offerts }) {
   const pret = b.statut === "ouvert";
   // Une ouverture laissée en plan appartient à une extension précise : elle se
   // signale sur sa vignette plutôt que dans un bandeau qui pousse toute la page.
   const enCours = pret && reste > 0;
-  const actif = pret && (enCours || gratuit || achetable);
+  const actif = pret && (enCours || gratuit || achetable || offerts > 0);
   const contenu = (
     <>
       <div className="vignette-booster">
@@ -35,7 +35,11 @@ function Booster({ b, ouverts, achetable, gratuit, reste }) {
         {enCours ? (
           <span className="prix reprendre">Reprendre l'ouverture</span>
         ) : pret ? (
-          <span className="prix">{gratuit ? "Disponible" : `${ECONOMIE.prix} PO`}</span>
+          <span className="prix">
+            {gratuit ? "Disponible"
+              : offerts > 0 ? `${offerts} sachet${offerts > 1 ? "s" : ""} offert${offerts > 1 ? "s" : ""}`
+                : `${ECONOMIE.prix} PO`}
+          </span>
         ) : (
           <span className="etat attente">Bientôt</span>
         )}
@@ -118,6 +122,8 @@ export default function Etagere() {
                 : 0
             }
             achetable={achetable} gratuit={gratuit}
+            // Les sachets de l'extension, plus les sachets au choix.
+            offerts={(etat.sachets?.[b.id] || 0) + (etat.sachets?.["*"] || 0)}
           />
         ))}
       </div>

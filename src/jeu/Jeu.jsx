@@ -10,6 +10,7 @@ import { useMine } from "./mine.js";
 import { useMouvements } from "./marche.js";
 import { useColporteur } from "./colporteur.js";
 import { useInventaire } from "./portraits.js";
+import { useSucces } from "./succes.js";
 const DEFAUT = BOOSTER_DEFAUT;
 
 
@@ -117,7 +118,7 @@ export function Jeu({ children }) {
    * d'afficher le badge « New » au moment de la révélation.
    */
   const recolter = useCallback(
-    (booster, prix = ECONOMIE.prix) => {
+    (booster, prix = ECONOMIE.prix, sachet = null) => {
       const avant = etat.collections[boosterId] || {};
       const nouvelles = new Set();
       booster.cards.forEach((c) => {
@@ -147,14 +148,22 @@ export function Jeu({ children }) {
         });
         const leg = booster.cards.some((c) => c.tier === "legendaire");
         const p = e.pity[boosterId] || { depuis: 0, vu: false };
+        // Sachet offert par un succès : il remplace le prix, s'il en reste.
+        // Relu ici et non à l'appel, pour qu'un double clic n'en consomme
+        // pas un qui n'existe plus.
+        const offert = !gratuit && sachet && ((e.sachets || {})[sachet] || 0) > 0;
+        const sachets = offert
+          ? { ...e.sachets, [sachet]: e.sachets[sachet] - 1 }
+          : (e.sachets || {});
         return {
           ...e,
+          sachets,
           collections: { ...e.collections, [boosterId]: coll },
           boosters: { ...e.boosters, [boosterId]: (e.boosters[boosterId] || 0) + 1 },
           pity: { ...e.pity, [boosterId]: { depuis: leg ? 0 : p.depuis + 1, vu: p.vu || leg } },
           // `debiterLibre` et non `debiter` : le prix n'est plus une constante
           // depuis que le colporteur vend un sachet sous le manteau.
-          bourse: crediterGain(debiterLibre(e.bourse, gratuit ? 0 : prix), revente),
+          bourse: crediterGain(debiterLibre(e.bourse, gratuit || offert ? 0 : prix), revente),
           enCours: {
             boosterId,
             tirage: booster,
@@ -221,8 +230,21 @@ export function Jeu({ children }) {
   );
 
 
-  const { vendreExemplaires, acheterExemplaire, appliquerMarche, majComptoir } =
+  const { vendreExemplaires, acheterExemplaire, appliquerMarche, majComptoir, compter } =
     useMouvements(setEtat, boosterId);
+  const succes = useSucces(etat, setEtat, versionMine);
+
+  /**
+   * Le sachet offert que l'ouverture de cette extension consommerait : un
+   * sachet de l'extension d'abord, un sachet au choix ensuite. Les premiers
+   * ne servent qu'ici ; les seconds servent partout.
+   */
+  const sachetOffert = (() => {
+    const s = etat.sachets || {};
+    if ((s[boosterId] || 0) > 0) return { cle: boosterId, n: s[boosterId], libre: (s["*"] || 0) };
+    if ((s["*"] || 0) > 0) return { cle: "*", n: s["*"], libre: s["*"] };
+    return null;
+  })();
   const tirerVisiteColporteur = useColporteur({ etat, setEtat, boosterId, pool, ouverts, test });
 
   const booster = BOOSTER_PAR_ID[boosterId];
@@ -238,7 +260,8 @@ export function Jeu({ children }) {
     collection, collecte, surplusTotal, exemplaires, surplus,
     bourse: etat.bourse, achetable, prixBooster: ECONOMIE.prix,
     recolter, majProgres, finirOuverture,
-    vendreExemplaires, acheterExemplaire, appliquerMarche, crediterMine, mineJour,
+    vendreExemplaires, acheterExemplaire, appliquerMarche, compter, crediterMine, mineJour,
+    succes, sachetOffert,
     tirerVisiteColporteur,
     comptoirSauve: (etat.comptoir || {})[boosterId] || null, majComptoir,
     sfx, fichiers, setFichiers, nbImages, setNbImages,
