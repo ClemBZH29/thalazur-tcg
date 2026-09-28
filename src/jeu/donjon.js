@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import { DONJON } from "../config/tiers.js";
 import { crediterGain } from "../lib/economie.js";
+import { crediterXP, niveauDe } from "../donjon/experience.js";
 
 const aujourdhui = () => new Date().toLocaleDateString("sv"); // AAAA-MM-JJ, local
 
@@ -44,9 +45,13 @@ export function useDonjon(etat, setEtat, test) {
    * Fin de descente : le butin rapporté part à la bourse, converti, et la
    * partie se referme. Rend les PO créditées.
    */
-  const terminerDonjon = useCallback((butin, resume, repos = []) => {
+  const terminerDonjon = useCallback((butin, resume, repos = [], gains = []) => {
     const po = Math.round(butin * DONJON.multiplicateur);
-    setEtat((e) => {
+    // Le bilan d'expérience se lit sur l'état du moment ; le setter le refait
+    // sur l'état le plus frais, qui est le même au clic près.
+    const { bilan, po: poXP } = crediterXP(etat, gains);
+    setEtat((e0) => {
+      const { etat: e, po: bonus } = crediterXP(e0, gains);
       const d = e.donjon || { jour: aujourdhui(), tentatives: 0 };
       const stats = { ...(e.stats || {}) };
       stats.gardiens = (stats.gardiens || 0) + (resume.gardiens || 0);
@@ -61,13 +66,16 @@ export function useDonjon(etat, setEtat, test) {
       }
       return {
         ...e,
-        bourse: crediterGain(e.bourse, po),
+        bourse: crediterGain(e.bourse, po + bonus),
         stats,
         donjon: { ...d, partie: null, convalescence, dernier: { ...resume, jour: j, butin, po, repos: repos.length } },
       };
     });
-    return po;
-  }, [setEtat]);
+    return { po, bilan, poXP };
+  }, [setEtat, etat]);
+
+  /** Le niveau d'une carte, et la table des niveaux pour une descente. */
+  const niveauCarte = (c) => niveauDe(etat.xp?.[`${c.ext}:${c.id}`]?.xp || 0);
 
   /** Jusqu'à quand une carte est au repos, ou null si elle est disponible. */
   const convalescence = (c) => {
@@ -76,7 +84,7 @@ export function useDonjon(etat, setEtat, test) {
   };
 
   return {
-    donjon: brut, convalescence, tentativesRestantes: restantes, tentativesParJour: DONJON.tentativesParJour, illimite,
+    donjon: brut, convalescence, niveauCarte, tentativesRestantes: restantes, tentativesParJour: DONJON.tentativesParJour, illimite,
     commencerDonjon, sauverPartie, terminerDonjon,
   };
 }

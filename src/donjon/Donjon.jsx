@@ -8,8 +8,9 @@ import {
   BONUS_ARTEFACT, ETAGES, GENRES, RANGS, RENCONTRES, ROLES, STRATEGIES, TRAITS,
   atqDe, cartesDonjon, choixAuto, choixIA, creerPartie, demarrerCombat, descendre, entrer, fuir,
   gestes, graineDuJour, issue, ouverts, parUid, prochain, rapporte, repos, resoudre,
-  tresor, victoire, vivants, allie, ciblesPossibles, convalescences, fiche, peutFuir,
+  tresor, victoire, vivants, allie, ciblesPossibles, convalescences, fiche, peutFuir, gainsXP,
 } from "./regles.js";
+import { NIVEAU_MAX, PALIER_IRISEE, avancement, xpDe } from "./experience.js";
 import "../styles/donjon.css";
 
 /**
@@ -150,7 +151,7 @@ function Plan({ partie, onEntrer, onSurvol }) {
 
 export default function Donjon({ jeu }) {
   const { etat, cfgImage, fichiers, mouvementReduit, donjon, tentativesRestantes, tentativesParJour, illimite,
-    commencerDonjon, sauverPartie, terminerDonjon, convalescence } = jeu;
+    commencerDonjon, sauverPartie, terminerDonjon, convalescence, niveauCarte } = jeu;
 
   const partieRef = useRef(donjon.partie ? structuredClone(donjon.partie) : null);
   const combatRef = useRef(null);
@@ -202,7 +203,8 @@ export default function Donjon({ jeu }) {
     const equipe = choix.map((id) => collection.allies.find((c) => c.id === id)).filter(Boolean);
     if (equipe.length !== TAILLE_EQUIPE || tentativesRestantes <= 0) return;
     const jour = aujourdhui();
-    const p = creerPartie({ equipe, artefact, graine: graineDuJour(jour), jour, pools: POOLS });
+    const niveaux = Object.fromEntries(equipe.map((c) => [`${c.ext}:${c.id}`, niveauCarte(c)]));
+    const p = creerPartie({ equipe, artefact, graine: graineDuJour(jour), jour, pools: POOLS, niveaux });
     partieRef.current = p;
     commencerDonjon(structuredClone(p));
     setEcran("carte");
@@ -251,10 +253,10 @@ export default function Donjon({ jeu }) {
     const butin = rapporte(p, iss);
     const complete = iss === "sortie" && p.etage >= ETAGES && p.stats.gardiens >= ETAGES;
     const repos = convalescences(p, iss);
-    const po = terminerDonjon(butin, { issue: iss, etage: p.etage, gardiens: p.stats.gardiens, complete }, repos);
+    const { po, bilan } = terminerDonjon(butin, { issue: iss, etage: p.etage, gardiens: p.stats.gardiens, complete }, repos, gainsXP(p, iss));
     const noms = new Map([...p.equipe.map((u) => u.c), ...p.perdus].map((c) => [`${c.ext}:${c.id}`, c.nom]));
     setFin({ issue: iss, butin, perdu: p.sac - butin, po, stats: { ...p.stats }, etage: p.etage, debout: vivants(p.equipe).length,
-      total: p.equipe.length, reliques: p.reliques.length, repos: repos.map((x) => ({ nom: noms.get(x.cle), jours: x.jours })) });
+      total: p.equipe.length, reliques: p.reliques.length, repos: repos.map((x) => ({ nom: noms.get(x.cle), jours: x.jours })), xp: bilan });
     combatRef.current = null;
     partieRef.current = null;
     setEcran("fin");
@@ -513,7 +515,9 @@ export default function Donjon({ jeu }) {
             <div className="dj-grille">
               {collection.allies.map((c) => {
                 const pris = choix.includes(c.id);
-                const u = allie({ uid: 0 }, c), R = ROLES[u.role];
+                const niv = niveauCarte(c);
+                const u = allie({ uid: 0 }, c, niv), R = ROLES[u.role];
+                const palier = PALIER_IRISEE[c.tier] || 20;
                 // Mode test : la convalescence s'affiche mais n'empêche rien.
                 const repos = convalescence(c);
                 const bloque = repos && !illimite;
@@ -531,8 +535,14 @@ export default function Donjon({ jeu }) {
                       <CarteDJ c={c} cfgImage={cfgImage} fichiers={fichiers} />
                     </button>
                     <div className="dj-choix-pied">
-                      <span className={`dj-mot r-${u.role}`}>{R.nom}</span>
+                      <span className="dj-ligne1">
+                        <span className={`dj-mot r-${u.role}`}>{R.nom}</span>
+                        <span className="dj-niv" title={niv < palier ? `Irisée au niveau ${palier}` : niv < NIVEAU_MAX ? `Sachet offert au niveau ${NIVEAU_MAX}` : "Niveau maximal"}>
+                          Niv. {niv}
+                        </span>
+                      </span>
                       <span className="dj-chiffres"><span>{u.pvMax} PV</span><span>{u.atq} ATQ</span><span>INI {u.ini}</span></span>
+                      <span className="dj-xp" aria-hidden="true"><span style={{ width: `${Math.round(avancement(xpDe(etat, c)) * 100)}%` }} /></span>
                     </div>
                   </div>
                 );
@@ -586,6 +596,22 @@ export default function Donjon({ jeu }) {
             <tr><td>Reliques</td><td>{fin.reliques}</td></tr>
             <tr><td>Compagnons debout</td><td>{fin.debout} / {fin.total}</td></tr>
           </tbody></table>
+          {fin.xp.length > 0 && (
+            <div className="dj-bilan-xp">
+              <h3>Expérience</h3>
+              <ul>
+                {fin.xp.map((l) => (
+                  <li key={`${l.c.ext}:${l.c.id}`}>
+                    <b>{l.c.nom}</b> <span className="muted">+{l.gain} XP</span>
+                    {l.apres > l.avant ? <span className="monte"> · niveau {l.avant} → {l.apres}</span> : <span className="muted"> · niveau {l.apres}</span>}
+                    {l.irisee && <span className="gain"> · version irisée gagnée !</span>}
+                    {l.po > 0 && <span className="gain"> · déjà irisée : +{l.po} PO</span>}
+                    {l.sachet && <span className="gain"> · niveau 100 : un sachet offert</span>}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           {fin.repos.length > 0 && (
             <p className="dj-convalescence">
               Au repos : {fin.repos.map((x) => `${x.nom} (${x.jours} jour${x.jours > 1 ? "s" : ""})`).join(", ")}.
@@ -836,6 +862,7 @@ function Lexique({ focus, onFermer }) {
           {entree("pv", "PV", "Points de vie. À zéro, la carte est à terre pour le reste du combat ; un repos la relève.")}
           {entree("atq", "ATQ", "Dégâts d'une attaque, à peu près : chaque coup varie de 15 % autour.")}
           {entree("ini", "INI", "Initiative : l'ordre de passage dans le tour. À égalité, l'équipe passe devant.")}
+          {entree("niveau", "Niveau", `Chaque combat remporté donne de l'expérience à toute l'équipe (la moitié seulement si elle tombe). Un niveau ajoute un peu de solidité : +1 PV tous les 10 niveaux, +1 ATQ tous les 25. Au niveau ${PALIER_IRISEE.commun} pour une commune, ${PALIER_IRISEE.peucommun} une peu commune, ${PALIER_IRISEE.rare} une rare et ${PALIER_IRISEE.legendaire} une légendaire, la carte gagne sa version irisée — ou des PO si vous l'avez déjà. Au niveau ${NIVEAU_MAX}, un sachet offert de son extension.`)}
         </dl>
         <h3>Rôles et capacités</h3>
         <p className="muted petit">Le rôle d'un PNJ vient de son archétype. Les PNJ rivaux ont les mêmes, et s'en servent contre vous.</p>
