@@ -1,5 +1,5 @@
 /**
- * Les Profondeurs : les règles du donjon, sans React ni navigateur.
+ * Le Donjon : les règles du donjon, sans React ni navigateur.
  *
  * Tout ce qui décide — la carte d'un étage, les unités, l'ordre
  * d'initiative, les dégâts, l'intelligence des adversaires, les stratégies
@@ -34,6 +34,8 @@ export const hacher = (s) => {
   return h >>> 0;
 };
 /** Le donjon du jour : même carte pour tous les joueurs, tirée de la date locale. */
+// Le préfixe garde l'ancien nom du module : le changer changerait le donjon
+// de tous les joueurs au milieu de la journée. Il n'apparaît nulle part.
 export const graineDuJour = (jour) => hacher(`profondeurs-${jour}`);
 
 const choisir = (r, l) => l[Math.floor(r() * l.length)];

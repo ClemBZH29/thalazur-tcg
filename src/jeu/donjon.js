@@ -11,7 +11,7 @@ export function plusJours(jour, n) {
 }
 
 /**
- * Ce que l'application sait des Profondeurs : les tentatives du jour, la
+ * Ce que l'application sait du Donjon : les tentatives du jour, la
  * partie en cours, et le crédit du butin.
  *
  * Le module décide de tout ce qui se passe sous terre ; il remet ici le

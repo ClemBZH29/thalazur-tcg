@@ -98,8 +98,8 @@ export const GLOBAL = [
   },
   {
     id: "gardiens",
-    nom: "Les Profondeurs",
-    quoi: "Vaincre {n} gardien{s} des Profondeurs",
+    nom: "Le Donjon",
+    quoi: "Vaincre {n} gardien{s} du Donjon",
     mesure: "gardiens",
     paliers: [
       { seuil: 1, recompense: { po: 120 } },
@@ -111,10 +111,10 @@ export const GLOBAL = [
   {
     id: "remontees",
     nom: "Revenir d'en bas",
-    quoi: "Remonter {n} fois du troisième étage des Profondeurs",
+    quoi: "Remonter {n} fois du troisième étage du Donjon",
     mesure: "remontees",
     paliers: [
-      { seuil: 1, recompense: { sachets: 2 }, titre: "Revenu des Profondeurs" },
+      { seuil: 1, recompense: { sachets: 2 }, titre: "Revenu du Donjon" },
       { seuil: 10, recompense: { sachets: 5 } },
     ],
   },

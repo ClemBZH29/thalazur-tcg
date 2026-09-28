@@ -13,7 +13,7 @@ import {
 import "../styles/donjon.css";
 
 /**
- * Les Profondeurs : l'interface.
+ * Le Donjon : l'interface.
  *
  * Les règles sont dans `regles.js`. Ici on affiche la partie, on anime les
  * gestes et on tient le fil du combat : à qui la main, qui attend une cible,
@@ -828,7 +828,7 @@ function Lexique({ focus, onFermer }) {
       <section className="dj-lexique" role="dialog" aria-modal="true" aria-labelledby="dj-lex-titre" tabIndex={-1} ref={boite}
         onClick={(e) => e.stopPropagation()}>
         <header>
-          <h2 id="dj-lex-titre"><Icone nom="lexique" taille={20} /> Lexique des Profondeurs</h2>
+          <h2 id="dj-lex-titre"><Icone nom="lexique" taille={20} /> Lexique du Donjon</h2>
           <button type="button" className="btn quiet sm" onClick={onFermer}>Fermer</button>
         </header>
         <h3>Chiffres</h3>

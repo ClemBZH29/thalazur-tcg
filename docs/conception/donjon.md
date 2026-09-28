@@ -1,4 +1,4 @@
-# Les Profondeurs
+# Le Donjon
 
 Raisonnement de conception : ce que fait cette partie du site, et pourquoi elle le fait ainsi. Pour travailler sur le projet, voir le [README](../../README.md).
 

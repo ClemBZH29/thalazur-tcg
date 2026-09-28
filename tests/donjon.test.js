@@ -1,4 +1,4 @@
-/** Les Profondeurs : carte, combat, descente complète au pilote automatique. */
+/** Le Donjon : carte, combat, descente complète au pilote automatique. */
 import { describe, expect, test } from "vitest";
 import { readFileSync } from "node:fs";
 import extension from "../src/extensions/troupe-valeran/extension.js";
