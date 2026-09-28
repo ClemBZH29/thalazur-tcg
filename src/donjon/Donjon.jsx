@@ -170,6 +170,8 @@ export default function Donjon({ jeu }) {
   const [occupe, setOccupe] = useState(false);
   const [journal, setJournal] = useState([]);
   const [inspecte, setInspecte] = useState(null);
+  // null : fermé ; "" : ouvert en entier ; un rôle : ouvert sur ce rôle.
+  const [lexique, setLexique] = useState(null);
   const zone = useRef(null);
   const minuteurs = useRef([]);
   const rnd = useRef(Math.random);
@@ -503,8 +505,11 @@ export default function Donjon({ jeu }) {
             <p className="muted">Il faut au moins {TAILLE_EQUIPE} PNJ alliés dans votre collection pour descendre. Les créatures, les animaux et les criminels sont dans l'autre camp.</p></section>
         ) : (
           <>
-            <div className="section-titre sous-titre"><h2>Vos compagnons <span className="muted petit">({n} / {TAILLE_EQUIPE})</span></h2></div>
-            <p className="muted petit dj-aide">Le rôle vient de l'archétype de la carte ; l'initiative, du rôle et du palier.</p>
+            <div className="section-titre sous-titre">
+              <h2>Vos compagnons <span className="muted petit">({n} / {TAILLE_EQUIPE})</span></h2>
+              <button type="button" className="dj-lex-bouton" onClick={() => setLexique("")}><Icone nom="lexique" taille={16} /> Lexique</button>
+            </div>
+            <p className="muted petit dj-aide">Le rôle vient de l'archétype de la carte ; l'initiative, du rôle et du palier. Le ? d'une carte ouvre son rôle au lexique.</p>
             <div className="dj-grille">
               {collection.allies.map((c) => {
                 const pris = choix.includes(c.id);
@@ -512,16 +517,25 @@ export default function Donjon({ jeu }) {
                 // Mode test : la convalescence s'affiche mais n'empêche rien.
                 const repos = convalescence(c);
                 const bloque = repos && !illimite;
+                // Sous la carte, deux lignes de hauteur fixe : le mot-clé du rôle
+                // et les chiffres. Le détail est au lexique : le texte complet
+                // des capacités, variable d'une carte à l'autre, désalignait la grille.
                 return (
-                  <button key={`${c.ext}:${c.id}`} type="button" aria-pressed={pris} disabled={bloque && !pris}
-                    className={`dj-choix${pris ? " pris" : ""}${(n >= TAILLE_EQUIPE && !pris) || bloque ? " grise" : ""}${repos ? " repos" : ""}`}
-                    onClick={() => setChoix((l) => (l.includes(c.id) ? l.filter((x) => x !== c.id) : l.length < TAILLE_EQUIPE ? [...l, c.id] : l))}>
-                    {pris && <span className="dj-coche" aria-hidden="true">✓</span>}
-                    {repos && <span className="dj-repos">Au repos jusqu'au {dateFr(repos).slice(0, 5)}</span>}
-                    <CarteDJ c={c} cfgImage={cfgImage} fichiers={fichiers} />
-                    <span className="dj-role"><b>{R.nom}</b> · {u.pvMax} PV · {u.atq} ATQ · INI {u.ini}
-                      <span className="muted">{R.cap.nom} : {R.cap.aide}</span></span>
-                  </button>
+                  <div key={`${c.ext}:${c.id}`}
+                    className={`dj-choix${pris ? " pris" : ""}${(n >= TAILLE_EQUIPE && !pris) || bloque ? " grise" : ""}${repos ? " repos" : ""}`}>
+                    <button type="button" className="dj-choix-carte" aria-pressed={pris} disabled={bloque && !pris}
+                      aria-label={`${c.nom}, ${R.nom}${repos ? `, au repos jusqu'au ${dateFr(repos)}` : ""}`}
+                      onClick={() => setChoix((l) => (l.includes(c.id) ? l.filter((x) => x !== c.id) : l.length < TAILLE_EQUIPE ? [...l, c.id] : l))}>
+                      {pris && <span className="dj-coche" aria-hidden="true">✓</span>}
+                      {repos && <span className="dj-repos">Au repos jusqu'au {dateFr(repos).slice(0, 5)}</span>}
+                      <CarteDJ c={c} cfgImage={cfgImage} fichiers={fichiers} />
+                    </button>
+                    <div className="dj-choix-pied">
+                      <span className={`dj-mot r-${u.role}`}>{R.nom}</span>
+                      <button type="button" className="dj-info" aria-label={`Lexique : ${R.nom}, ${R.cap.nom}`} onClick={() => setLexique(u.role)}>?</button>
+                      <span className="dj-chiffres"><span>{u.pvMax} PV</span><span>{u.atq} ATQ</span><span>INI {u.ini}</span></span>
+                    </div>
+                  </div>
                 );
               })}
             </div>
@@ -529,12 +543,18 @@ export default function Donjon({ jeu }) {
             {collection.artefacts.length === 0 ? <p className="muted petit">Aucun artéfact dans votre collection.</p> : (
               <div className="dj-grille">
                 {collection.artefacts.map((a) => (
-                  <button key={`${a.ext}:${a.id}`} type="button" aria-pressed={artefact?.id === a.id}
-                    className={`dj-choix${artefact?.id === a.id ? " pris" : ""}`} onClick={() => setArtefact((x) => (x?.id === a.id ? null : a))}>
-                    {artefact?.id === a.id && <span className="dj-coche" aria-hidden="true">✓</span>}
-                    <CarteDJ c={a} cfgImage={cfgImage} fichiers={fichiers} />
-                    <span className="dj-role">{bonusTexte(a.tier)}</span>
-                  </button>
+                  <div key={`${a.ext}:${a.id}`} className={`dj-choix${artefact?.id === a.id ? " pris" : ""}`}>
+                    <button type="button" className="dj-choix-carte" aria-pressed={artefact?.id === a.id} aria-label={`${a.nom}, ${bonusTexte(a.tier)}`}
+                      onClick={() => setArtefact((x) => (x?.id === a.id ? null : a))}>
+                      {artefact?.id === a.id && <span className="dj-coche" aria-hidden="true">✓</span>}
+                      <CarteDJ c={a} cfgImage={cfgImage} fichiers={fichiers} />
+                    </button>
+                    <div className="dj-choix-pied">
+                      <span className="dj-mot r-artefact">Artéfact</span>
+                      <button type="button" className="dj-info" aria-label="Lexique : artéfacts" onClick={() => setLexique("artefact")}>?</button>
+                      <span className="dj-chiffres"><span>{bonusTexte(a.tier).replace(" à l'équipe", "")}</span><span>à l'équipe</span></span>
+                    </div>
+                  </div>
                 ))}
               </div>
             )}
@@ -546,6 +566,7 @@ export default function Donjon({ jeu }) {
           </>
         )}
         <Regles />
+        {lexique !== null && <Lexique focus={lexique} onFermer={() => setLexique(null)} />}
       </div>
     );
   }
@@ -697,6 +718,7 @@ export default function Donjon({ jeu }) {
               <span className="segments" role="group" aria-label="Vitesse">
                 {[1, 2, 4].map((v) => <button key={v} type="button" className={vitesse === v ? "on" : ""} aria-pressed={vitesse === v} onClick={() => setVitesse(v)}>×{v}</button>)}
               </span>
+              <button type="button" className="dj-lex-bouton" onClick={() => setLexique("")}><Icone nom="lexique" taille={16} /> Lexique</button>
               {C.genre !== "boss" && (
                 <button className="btn quiet sm" type="button" onClick={seReplier} disabled={occupe || !!C.fini || !peutFuir(partie, C)}
                   title="Deux cinquièmes du sac perdus, chacun blessé, et le compagnon le plus mal en point reste derrière : absent jusqu'à demain.">
@@ -707,6 +729,7 @@ export default function Donjon({ jeu }) {
           </div>
           <p className="muted petit">{STRATEGIES[strategie].aide}</p>
         </div>
+        {lexique !== null && <Lexique focus={lexique} onFermer={() => setLexique(null)} />}
       </div>
     );
   }
@@ -774,6 +797,70 @@ export default function Donjon({ jeu }) {
     <div className="dj">
       {entete}
       <div className="actions gauche"><button className="btn" type="button" onClick={() => aller("carte")}>Reprendre la descente</button></div>
+    </div>
+  );
+}
+
+/**
+ * Le lexique : tout ce que les mots-clés des cartes veulent dire. Ouvert en
+ * entier, ou sur le rôle d'une carte (son ?), qu'il met en avant.
+ */
+function Lexique({ focus, onFermer }) {
+  const boite = useRef(null);
+  const fermer = useRef(onFermer);
+  fermer.current = onFermer;
+  // Une seule fois à l'ouverture : en combat la page se redessine à chaque
+  // coup, et l'on ne doit ni reprendre le focus ni refaire défiler.
+  useEffect(() => {
+    const el = focus ? boite.current?.querySelector(`[data-lex="${focus}"]`) : null;
+    boite.current?.focus();
+    el?.scrollIntoView?.({ block: "center" });
+    const k = (e) => { if (e.key === "Escape") fermer.current(); };
+    window.addEventListener("keydown", k);
+    return () => window.removeEventListener("keydown", k);
+  }, [focus]);
+  const entree = (id, titre, texte, sous = null) => (
+    <div key={id} data-lex={id} className={`dj-lex-entree${focus === id ? " vise" : ""}`}>
+      <dt>{titre}</dt>
+      <dd>{texte}{sous && <span className="sous">{sous}</span>}</dd>
+    </div>
+  );
+  return (
+    <div className="dj-voile" onClick={onFermer}>
+      <section className="dj-lexique" role="dialog" aria-modal="true" aria-labelledby="dj-lex-titre" tabIndex={-1} ref={boite}
+        onClick={(e) => e.stopPropagation()}>
+        <header>
+          <h2 id="dj-lex-titre"><Icone nom="lexique" taille={20} /> Lexique des Profondeurs</h2>
+          <button type="button" className="btn quiet sm" onClick={onFermer}>Fermer</button>
+        </header>
+        <h3>Chiffres</h3>
+        <dl>
+          {entree("pv", "PV", "Points de vie. À zéro, la carte est à terre pour le reste du combat ; un repos la relève.")}
+          {entree("atq", "ATQ", "Dégâts d'une attaque, à peu près : chaque coup varie de 15 % autour.")}
+          {entree("ini", "INI", "Initiative : l'ordre de passage dans le tour. À égalité, l'équipe passe devant.")}
+        </dl>
+        <h3>Rôles et capacités</h3>
+        <p className="muted petit">Le rôle d'un PNJ vient de son archétype. Les PNJ rivaux ont les mêmes, et s'en servent contre vous.</p>
+        <dl>
+          {Object.entries(ROLES).map(([id, R]) => entree(id, R.nom,
+            <><b>{R.cap.nom}</b> — {R.cap.aide}.</>,
+            `${R.passif ? `${R.passif}. ` : ""}Recharge : ${R.cap.cd ? `${R.cap.cd} tour${R.cap.cd > 1 ? "s" : ""}` : "aucune"}. Initiative de base ${R.ini}.`))}
+        </dl>
+        <h3>Adversaires</h3>
+        <dl>
+          {Object.entries(TRAITS).map(([id, T]) => entree(id, T.nom, `${T.aide}.`, id === "rapide" ? "Les Animaux." : id === "fourbe" ? "Les Criminels." : "Les Créatures."))}
+          {entree("elite", "Élite", "Un adversaire renforcé, au milieu des salles d'élite. Butin plus gros, relique probable.")}
+          {entree("gardien", "Gardien", "Au bout de chaque étage. Balaie toute l'équipe tous les trois tours. On ne le fuit pas.")}
+        </dl>
+        <h3>États</h3>
+        <dl>
+          {entree("provoc", "Provoque", "Seule cible possible pour le camp d'en face, armure +2, jusqu'à son prochain tour.")}
+          {entree("galva", "+2 ATQ", "Galvanisé par un meneur, pour deux tours.")}
+          {entree("recharge", "Recharge", "Tours avant que la capacité serve à nouveau.")}
+          {entree("repos", "Au repos", "Convalescence après une défaite (un jour par étage atteint) ou une fuite (un jour) : la carte ne peut pas redescendre avant.")}
+          {entree("artefact", "Artéfact", "Emporté au départ ou trouvé en route (relique) : son bonus vaut pour toute l'équipe jusqu'à la sortie. Commun +2 PV, peu commun +1 ATQ, rare +1 ATQ et +3 PV, légendaire +2 ATQ et +5 PV.")}
+        </dl>
+      </section>
     </div>
   );
 }

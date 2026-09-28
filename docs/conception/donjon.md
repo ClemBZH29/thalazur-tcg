@@ -38,6 +38,15 @@ Le classement par repère est mécanique : un PNJ légendaire du camp d'en face
 dans la campagne peut se retrouver allié s'il n'est pas classé Criminel. C'est
 le roster qui fait foi ; pour exclure une carte, la reclasser.
 
+### La préparation, et le lexique
+
+Chaque vignette porte la carte, puis deux lignes de hauteur fixe : le
+mot-clé du rôle et les chiffres (PV, ATQ, INI). Le texte des capacités n'y
+figure plus : sa longueur variait d'une carte à l'autre et désalignait la
+grille. Il est au **lexique** — le ? d'une vignette l'ouvre sur son rôle, le
+bouton Lexique en entier, en préparation comme en combat : chiffres, rôles et
+capacités, traits des adversaires, états.
+
 ### La carte d'un étage
 
 Inspirée de Slay the Spire : sept rangs, quatre sentiers qui descendent en
