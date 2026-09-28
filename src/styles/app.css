@@ -235,8 +235,8 @@
 .ev.premier { transform: translateY(-10px); }
 .actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 14px; }
 /* Au téléphone, cinq cartes sur deux colonnes repoussaient « Ouvrir un autre
-   booster » sous le pli, derrière la barre basse : on défilait pour relancer.
-   Les deux actions du bilan restent posées juste au-dessus de la barre. */
+   booster » sous le pli : on défilait pour relancer. Les deux actions du bilan
+   restent posées en bas de l'écran, au-dessus du bouton du menu. */
 @media (max-width: 720px), (max-width: 860px) and (max-height: 500px) {
   .actions-bilan { position: sticky; z-index: 20; align-self: stretch;
     bottom: calc(72px + env(safe-area-inset-bottom));

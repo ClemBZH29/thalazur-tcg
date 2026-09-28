@@ -89,6 +89,9 @@ const TRACES = {
     </>
   ),
   fait: <path d="M4.5 10.5l3.5 3.5 7.5-8" />,
+  // Le menu, au doigt, et sa croix.
+  menu: <path d="M3.5 5.5h13M3.5 10h13M3.5 14.5h13" />,
+  fermer: <path d="M5 5l10 10M15 5 5 15" />,
   // Un livre ouvert : le lexique.
   lexique: (
     <>

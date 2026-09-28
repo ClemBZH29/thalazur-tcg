@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, useRef } from "react";
+import { Suspense, lazy, useEffect, useRef, useState } from "react";
 import Icone from "./components/Icone.jsx";
 import Brume from "./components/Brume.jsx";
 import Loupe from "./components/Loupe.jsx";
@@ -122,6 +122,20 @@ function Coque() {
   const premier = useRef(true);
   const zone = useRef(null);
   const tete = useRef(null);
+  const nav = useRef(null);
+  const burger = useRef(null);
+  // Au doigt, la navigation n'est plus une barre d'onglets : sept sections n'y
+  // tenaient plus. Elle se replie dans un menu, ouvert par le bouton en bas à
+  // droite, là où tombe le pouce. Sur grand écran, rien ne change.
+  const [menu, setMenu] = useState(false);
+  useEffect(() => { setMenu(false); }, [chemin]);
+  useEffect(() => {
+    if (!menu) return;
+    nav.current?.querySelector("a.on, a")?.focus();
+    const k = (e) => { if (e.key === "Escape") { setMenu(false); burger.current?.focus(); } };
+    window.addEventListener("keydown", k);
+    return () => window.removeEventListener("keydown", k);
+  }, [menu]);
 
   /* Hauteur du bandeau collant, pour ce qui se colle dessous (la barre de
      recherche de la bibliothèque). Elle change avec l'encoche, la connexion
@@ -261,7 +275,7 @@ function Coque() {
           </div>
         </header>
 
-          <nav className="nav" aria-label="Pages du site">
+          <nav className={`nav${menu ? " ouverte" : ""}`} id="nav-site" aria-label="Pages du site" ref={nav}>
             {PAGES.map((p) => (
               <Lien key={p.vers} vers={p.vers} actif={ici === p.vers}>
                 <Icone nom={p.ico} className="nav-ico" />
@@ -283,6 +297,15 @@ function Coque() {
               </Lien>
             ))}
           </nav>
+          {menu && <div className="nav-voile" aria-hidden="true" onClick={() => setMenu(false)} />}
+          <button type="button" ref={burger} className={`burger${menu ? " ouvert" : ""}`}
+            aria-expanded={menu} aria-controls="nav-site" aria-label={menu ? "Fermer le menu" : "Ouvrir le menu"}
+            onClick={() => setMenu((m) => !m)}>
+            <Icone nom={menu ? "fermer" : "menu"} taille={24} />
+            {!menu && succes.aReclamer.length + (surplusTotal > 0 ? 1 : 0) > 0 && (
+              <span className="burger-pastille" aria-hidden="true" />
+            )}
+          </button>
         </div>
 
         <div className="zone" ref={zone}>

@@ -48,3 +48,18 @@ large là où la compilation compte.
 
 L'accueil et la boutique tiennent chacun sur un écran et ne défilent pas
 au-dessus de 1024 × 680 ; les Mines font de même au-dessus de 1024 × 700.
+
+## La navigation au doigt
+
+Sur grand écran, la navigation est un ruban d'onglets sous le bandeau. Au
+doigt (720 px et moins, ou téléphone en paysage), elle était une barre
+d'onglets fixée en bas de l'écran ; avec sept sections, les libellés s'y
+tronquaient et les pastilles se chevauchaient. Elle se replie désormais
+derrière un bouton rond en bas à droite, sous le pouce : il ouvre juste
+au-dessus un menu en liste, icône, nom entier et compteurs. Une pastille sur
+le bouton signale qu'un compteur attend (succès à réclamer, surplus au
+Comptoir). Le menu se ferme au choix d'une page, d'un toucher à côté ou avec
+Échap ; le focus passe au lien de la page courante à l'ouverture. Les liens
+restent ceux du ruban (`src/App.jsx`), seul l'habillage change
+(`src/styles/site.css`).
+
