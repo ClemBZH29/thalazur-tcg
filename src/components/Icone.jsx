@@ -52,6 +52,56 @@ const TRACES = {
   succes: (
     <path d="M10 2.5c.5 4.2 1.8 5.9 5.5 7.5-3.7 1.6-5 3.3-5.5 7.5-.5-4.2-1.8-5.9-5.5-7.5 3.7-1.6 5-3.3 5.5-7.5z" />
   ),
+  // Une arche sur un escalier qui descend : les Profondeurs.
+  donjon: (
+    <>
+      <path d="M4 17.5V9a6 6 0 0 1 12 0v8.5" />
+      <path d="M2.5 17.5h15" />
+      <path d="M7.5 17.5v-2.4h2.6v-2.4h2.6" />
+    </>
+  ),
+  // Les salles des Profondeurs, sur la carte d'un étage.
+  combat: (
+    <>
+      <path d="M4 4l9.5 9.5M16 4l-9.5 9.5" />
+      <path d="M11.5 15.5l4-4M8.5 15.5l-4-4M14 14l2.5 2.5M6 14l-2.5 2.5" />
+    </>
+  ),
+  elite: (
+    <>
+      <path d="M5 9.5a5 5 0 0 1 10 0c0 2-1 3-2 3.6V16H7v-2.9C6 12.5 5 11.5 5 9.5z" />
+      <circle cx="8" cy="9.6" r="1.1" />
+      <circle cx="12" cy="9.6" r="1.1" />
+      <path d="M9 16v-1.6M11 16v-1.6" />
+    </>
+  ),
+  tresor: (
+    <>
+      <path d="M3.5 8.5h13v7.5a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1z" />
+      <path d="M3.5 8.5 5 4.5h10l1.5 4" />
+      <path d="M10 8.5v3.5" />
+    </>
+  ),
+  rencontre: (
+    <>
+      <path d="M7 7.2a3 3 0 1 1 4.4 2.6c-.9.5-1.4 1.1-1.4 2.2v.5" />
+      <path d="M10 15.6v.2" />
+    </>
+  ),
+  fait: <path d="M4.5 10.5l3.5 3.5 7.5-8" />,
+  // Le menu, au doigt, et sa croix.
+  menu: <path d="M3.5 5.5h13M3.5 10h13M3.5 14.5h13" />,
+  fermer: <path d="M5 5l10 10M15 5 5 15" />,
+  // Un livre ouvert : le lexique.
+  lexique: (
+    <>
+      <path d="M10 5.5C8.3 4.2 6 3.8 3 4v11c3-.2 5.3.2 7 1.5 1.7-1.3 4-1.7 7-1.5V4c-3-.2-5.3.2-7 1.5z" />
+      <path d="M10 5.5v11" />
+    </>
+  ),
+  repos: (
+    <path d="M14.5 13.2A6 6 0 0 1 8.3 4.1a6.2 6.2 0 1 0 7.6 8.6 5.9 5.9 0 0 1-1.4.5z" />
+  ),
   // Les réglages du meneur, en développement seulement.
   reglages: (
     <>

@@ -1,0 +1,295 @@
+/* ------------------------------------------------------------------
+   Les Profondeurs. Chargée avec le module seulement.
+   Aucune couleur nouvelle : l'ambre de la lampe désigne ce qui se joue,
+   la braise ce qui frappe, le chêne ce qui soigne et ce qui est acquis.
+   ------------------------------------------------------------------ */
+
+.dj { --dj-soin: #7fd1b9; --dj-vert: #5fa894; }
+.dj-intro { max-width: 760px; color: var(--ink2); margin: 0 0 6px; }
+.dj .petit { font-size: 12px; }
+.dj .sous-titre { margin-top: 26px; }
+.dj-aide { margin: -6px 0 12px; }
+.dj-entete { display: flex; gap: 8px; flex-wrap: wrap; margin: -4px 0 14px; }
+.dj-entete .pastille { font-size: 12px; padding: 5px 11px; border-radius: 100px; background: var(--panel);
+  border: 1px solid var(--edge-hi); color: var(--ink2); font-variant-numeric: tabular-nums; }
+.dj-entete .pastille b { color: var(--ink); }
+.dj-entete .pastille.or { background: rgba(232,163,61,.12); border-color: rgba(232,163,61,.45); color: var(--lamp); }
+.dj-entete .pastille.or b { color: var(--lamp); }
+
+/* ── La carte, au cadre du site ──────────────────────────────────────── */
+/* La boîte porte le conteneur des tailles en cqw (voir cards.css) : elle
+   doit donc avoir une largeur explicite, que lui donne sa rangée. */
+.dj-carte { width: 100%; }
+.dj-face { position: relative; width: 100%; aspect-ratio: 2 / 3; }
+.dj-sur { position: absolute; left: 8.2%; top: 8.66%; width: 83.69%; height: 60.09%; z-index: 7; pointer-events: none; }
+.dj-badges { position: absolute; left: 4%; top: 3%; display: flex; flex-direction: column; gap: 1.6cqw; }
+.dj-badges b, .dj-statuts i { font-size: max(9px, 6.6cqw); font-weight: 700; font-style: normal; line-height: 1.3;
+  padding: .5cqw 2.8cqw; border-radius: 100px; background: rgba(5, 12, 16, .8);
+  box-shadow: 0 0 0 1px rgba(255,255,255,.1); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.dj-badges .atq { color: #f6c979; }
+.dj-badges .ini { color: #9fd0ff; }
+.dj-statuts { position: absolute; right: 4%; top: 3%; display: flex; flex-direction: column; align-items: flex-end; gap: 1.6cqw; }
+.dj-statuts i { color: var(--ink); }
+.dj-pv { position: absolute; left: 4%; right: 4%; bottom: 4%; height: 6.5%; min-height: 4px; border-radius: 100px;
+  background: rgba(5, 12, 16, .78); overflow: hidden; box-shadow: 0 0 0 1px rgba(0,0,0,.4); }
+.dj-pv span { display: block; height: 100%; background: linear-gradient(90deg, #3f8c77, #5fa894); transition: width .35s ease-out; }
+.dj-pv.bas span { background: linear-gradient(90deg, #b8522c, var(--ember)); }
+.dj-pvtxt { position: absolute; right: 5%; bottom: 12%; font-size: max(9px, 7cqw); font-weight: 700; color: #fff;
+  text-shadow: 0 1px 3px #000, 0 0 6px #000; font-variant-numeric: tabular-nums; }
+
+/* ── Préparation ─────────────────────────────────────────────────────── */
+.dj-grille { display: grid; gap: 16px 12px; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); }
+/* Une vignette : la carte, puis un pied de hauteur fixe. Tout est aligné en
+   haut ; un bouton centrait son contenu, ce qui décalait les cartes d'une
+   même rangée dès que leurs textes n'avaient pas la même longueur. */
+.dj-choix { position: relative; display: flex; flex-direction: column; gap: 7px; transition: transform .15s, opacity .15s; }
+.dj-choix:hover { transform: translateY(-3px); }
+.dj-choix-carte { position: relative; display: block; width: 100%; border: 0; padding: 0; background: none; color: inherit; cursor: pointer; }
+.dj-choix-carte:disabled { cursor: not-allowed; }
+.dj-choix.pris .plaque { outline: 3px solid var(--lamp); outline-offset: 2px; }
+.dj-choix.grise .dj-choix-carte, .dj-choix.grise .dj-chiffres { opacity: .38; }
+.dj-choix-carte:focus-visible { outline: 2px solid var(--lamp); outline-offset: 4px; border-radius: 6px; }
+.dj-choix-pied { display: grid; grid-template-rows: 22px 18px; gap: 3px; align-items: center; }
+.dj-mot { justify-self: start; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 11.5px; font-weight: 600; line-height: 20px; padding: 0 9px; border-radius: 100px;
+  color: var(--lamp); background: rgba(232,163,61,.1); border: 1px solid rgba(232,163,61,.35); }
+.dj-mot.r-soigneur { color: #9fe0c8; background: rgba(127,209,185,.1); border-color: rgba(127,209,185,.35); }
+.dj-mot.r-garde { color: #cfe2ff; background: rgba(157,194,224,.1); border-color: rgba(157,194,224,.35); }
+.dj-mot.r-mage { color: #c9b8f5; background: rgba(157,124,240,.12); border-color: rgba(157,124,240,.4); }
+.dj-mot.r-tireur, .dj-mot.r-frappeur { color: #f3b393; background: rgba(229,119,75,.1); border-color: rgba(229,119,75,.35); }
+.dj-mot.r-debrouillard, .dj-mot.r-artefact { color: var(--ink2); background: var(--panel); border-color: var(--edge-hi); }
+.dj-chiffres { display: flex; gap: 8px; font-size: 11.5px; color: var(--ink3); white-space: nowrap; overflow: hidden;
+  font-variant-numeric: tabular-nums; }
+.dj-chiffres span:first-child { color: var(--ink2); }
+
+/* ── Lexique ─────────────────────────────────────────────────────────── */
+.dj .section-titre { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.dj-lex-bouton { display: inline-flex; align-items: center; gap: 6px; padding: 6px 11px; border-radius: 4px; cursor: pointer;
+  font-size: 12.5px; color: var(--ink2); background: transparent; border: 1px solid var(--edge-hi); }
+.dj-lex-bouton:hover, .dj-lex-bouton:focus-visible { color: var(--lamp); border-color: var(--lamp); }
+.dj-voile { position: fixed; inset: 0; z-index: 70; display: grid; place-items: center; padding: 16px;
+  background: rgba(6, 11, 13, .74); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+.dj-lexique { width: min(100%, 640px); max-height: min(86vh, 760px); overflow-y: auto; padding: 20px 22px;
+  background: var(--panel); border: 1px solid var(--edge-hi); border-radius: 14px; box-shadow: 0 20px 60px rgba(0,0,0,.6); }
+.dj-lexique:focus { outline: none; }
+.dj-lexique header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 6px; }
+.dj-lexique h2 { display: inline-flex; align-items: center; gap: 8px; font-size: 21px; }
+.dj-lexique h3 { font-size: 14px; font-family: var(--font-ui); text-transform: uppercase; letter-spacing: .07em; color: var(--ink3); margin: 18px 0 6px; }
+.dj-lexique dl { margin: 0; display: flex; flex-direction: column; gap: 2px; }
+.dj-lex-entree { display: grid; grid-template-columns: 112px 1fr; gap: 10px; padding: 7px 9px; border-radius: 8px; font-size: 13px; }
+.dj-lex-entree.vise { background: rgba(232,163,61,.1); outline: 1px solid rgba(232,163,61,.4); }
+.dj-lex-entree dt { font-weight: 600; color: var(--lamp); }
+.dj-lex-entree dd { margin: 0; color: var(--ink2); line-height: 1.45; }
+.dj-lex-entree dd b { color: var(--ink); font-weight: 600; }
+.dj-lex-entree .sous { display: block; color: var(--ink3); font-size: 12px; }
+@media (max-width: 560px) { .dj-lex-entree { grid-template-columns: 1fr; gap: 2px; } }
+.dj-coche { position: absolute; z-index: 9; top: -7px; right: -7px; width: 24px; height: 24px; border-radius: 50%;
+  background: var(--lamp); color: #221604; display: grid; place-items: center; font-weight: 800; font-size: 13px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.5); }
+.dj-partir { margin-top: 22px; }
+.dj-regles { margin-top: 26px; max-width: 780px; background: var(--panel); border: 1px solid var(--edge);
+  border-radius: var(--r-lg); padding: 10px 16px; }
+.dj-regles summary { cursor: pointer; color: var(--ink2); font-weight: 600; }
+.dj-regles li { color: var(--ink2); margin: 5px 0; font-size: 13px; }
+
+/* ── La carte d'un étage ─────────────────────────────────────────────── */
+.dj-etage { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 20px; align-items: start; }
+.dj-planbox { position: relative; overflow: hidden; border: 1px solid var(--edge); border-radius: 14px; padding: 14px 8px 12px;
+  background: radial-gradient(ellipse at 20% 25%, rgba(160,190,200,.06), transparent 40%),
+              radial-gradient(ellipse at 80% 70%, rgba(160,190,200,.05), transparent 45%),
+              radial-gradient(ellipse at 50% 0%, #182a31, #0f191c 70%); }
+.dj-planbox h2 { text-align: center; font-size: 22px; }
+.dj-planbox > p { text-align: center; margin: 2px 0 6px; }
+.dj-plan { display: block; width: 100%; height: auto; max-width: 560px; margin: 0 auto; }
+.dj-arete { fill: none; stroke: var(--edge-hi); stroke-width: 2; stroke-dasharray: 3 6; stroke-linecap: round; }
+.dj-arete.prise { stroke: var(--dj-vert); stroke-width: 3; stroke-dasharray: none; }
+.dj-arete.ouverte { stroke: #8a7a55; stroke-dasharray: 4 5; }
+.dj-noeud .fond { fill: var(--panel); stroke: var(--edge-hi); stroke-width: 2; }
+.dj-noeud .dj-ico { color: var(--ink2); pointer-events: none; }
+/* Ce qui est fait se lit en vert : les salles traversées et le chemin pris.
+   La salle où l'on se tient garde l'anneau de la lampe. */
+.dj-noeud.fait .fond { fill: #1d4034; stroke: var(--dj-vert); stroke-width: 2.5; }
+.dj-noeud.fait .dj-ico { color: #b9ecd9; }
+.dj-noeud.ici .fond { fill: #1d4034; stroke: var(--lamp); stroke-width: 3; }
+.dj-noeud.ici .dj-ico { color: #b9ecd9; }
+.dj-noeud.ouvert { cursor: pointer; }
+.dj-noeud.ouvert .fond { fill: #262215; stroke: var(--lamp); }
+.dj-noeud.ouvert .dj-ico { color: var(--lamp); }
+.dj-noeud.ouvert:hover .fond, .dj-noeud.ouvert:focus .fond { fill: #3a2f15; }
+.dj-noeud:focus { outline: none; }
+.dj-noeud.ouvert:focus-visible .fond { stroke-width: 4; }
+.dj-noeud .halo { fill: none; stroke: var(--lamp); stroke-width: 2; opacity: .5; transform-box: fill-box; transform-origin: center;
+  animation: dj-halo 1.6s ease-out infinite; }
+.dj-noeud.ferme { opacity: .42; }
+.dj-noeud.boss .fond { stroke: var(--m-ebene); stroke-width: 3; }
+.dj-noeud.boss .dj-ico { color: #e0a4b4; }
+@keyframes dj-halo { from { transform: scale(1); opacity: .6; } to { transform: scale(1.7); opacity: 0; } }
+[data-mouvement="reduit"] .dj-noeud .halo { animation: none; opacity: .5; }
+.dj-legende { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 14px; margin-top: 6px; font-size: 11.5px; color: var(--ink3); }
+.dj-legende span { display: inline-flex; align-items: center; gap: 5px; }
+
+.dj-cote { display: flex; flex-direction: column; gap: 14px; position: sticky; top: calc(var(--page-haut, 20px) + 60px); }
+.dj-cote .bloc { background: var(--panel); border: 1px solid var(--edge); border-radius: 12px; padding: 14px; }
+.dj-cote h3 { font-size: 15px; margin-bottom: 8px; }
+.dj-apercu { display: grid; grid-template-columns: 104px 1fr; gap: 12px; align-items: start; }
+.dj-apercu .genre { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--lamp); font-weight: 600; }
+.dj-apercu h3 { font-family: var(--font-display); font-variation-settings: var(--wonk); font-size: 17px; margin: 3px 0 4px; }
+.dj-apercu .btn { margin-top: 8px; }
+.dj-mini { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.dj-mini li { display: grid; grid-template-columns: 1fr auto; gap: 3px 10px; font-size: 12.5px; }
+.dj-mini li.ko { opacity: .45; }
+.dj-mini-nom { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border-left: 3px solid var(--m-fresne); padding-left: 7px; }
+.dj-mini li[data-palier="peucommun"] .dj-mini-nom { border-color: var(--m-chene); }
+.dj-mini li[data-palier="rare"] .dj-mini-nom { border-color: var(--m-noyer); }
+.dj-mini li[data-palier="legendaire"] .dj-mini-nom { border-color: var(--m-ebene); }
+.dj-mini-pv { font-size: 12px; font-variant-numeric: tabular-nums; color: var(--ink2); grid-row: 1; grid-column: 2; }
+.dj-mini-barre { grid-column: 1 / -1; height: 5px; border-radius: 100px; background: var(--ground2); overflow: hidden; }
+.dj-mini-barre span { display: block; height: 100%; background: #5fa894; }
+.dj-mini-barre.bas span { background: var(--ember); }
+.dj-reliques { display: flex; flex-wrap: wrap; gap: 6px; }
+.dj-reliques span { font-size: 11.5px; padding: 3px 9px; border-radius: 100px; background: var(--ground2);
+  border: 1px solid var(--edge-hi); color: var(--ink2); }
+.dj-reliques [data-palier="peucommun"] { border-color: var(--m-chene); }
+.dj-reliques [data-palier="rare"] { border-color: var(--m-noyer); }
+.dj-reliques [data-palier="legendaire"] { border-color: var(--m-ebene); }
+
+/* ── Combat ──────────────────────────────────────────────────────────── */
+.dj-arene { position: relative; border: 1px solid var(--edge); border-radius: 16px; padding: 14px 14px 12px;
+  background: radial-gradient(ellipse at 50% 18%, rgba(179,48,73,.08), transparent 55%),
+              radial-gradient(ellipse at 50% 100%, rgba(232,163,61,.07), transparent 55%), #0f181b; }
+.dj-frise { display: flex; align-items: center; gap: 6px; overflow-x: auto; padding: 4px 2px 10px; scrollbar-width: thin; min-height: 58px; }
+.dj-frise .tour { font-size: 11px; color: var(--ink3); text-transform: uppercase; letter-spacing: .07em; margin-right: 4px; white-space: nowrap; }
+.dj-jeton { position: relative; flex: 0 0 auto; width: 34px; height: 34px; border-radius: 50%; overflow: hidden;
+  display: grid; place-items: center; background: #14304c; border: 2px solid var(--m-chene);
+  font-family: var(--font-display); font-weight: 800; font-size: 12px; color: #9dc2e0; transition: width .2s, height .2s; }
+.dj-jeton img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 30%; }
+.dj-jeton.e { border-color: #8a3a2a; background: #2a1512; color: #e7a58e; }
+.dj-jeton.actif { width: 42px; height: 42px; border-color: var(--lamp); box-shadow: 0 0 0 3px rgba(232,163,61,.25); }
+.dj-jeton.passe { opacity: .35; }
+.dj-jeton .ini { position: absolute; right: -1px; bottom: -1px; font-family: var(--font-ui); font-size: 9px; font-weight: 700;
+  line-height: 14px; padding: 0 4px; border-radius: 100px; background: var(--ground); color: #9fd0ff; }
+
+.dj-rang { display: flex; justify-content: center; gap: 14px; }
+.dj-rang.ennemis { margin: 6px 0 2px; }
+.dj-u { position: relative; flex: 0 1 150px; min-width: 0; transition: transform .2s, filter .25s, opacity .3s; }
+.dj-u .dj-etiquette { display: block; text-align: center; margin-top: 5px; font-size: 11.5px; color: var(--ink3);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dj-u.actif { transform: translateY(-10px); }
+.dj-u.actif .plaque { box-shadow: 0 0 0 3px var(--lamp), 0 0 30px rgba(232,163,61,.45), 0 16px 34px rgba(0,0,0,.6); }
+.dj-u.actif .dj-etiquette { color: var(--lamp); }
+.dj-u.ciblable { cursor: crosshair; }
+.dj-u.ciblable .plaque { box-shadow: 0 0 0 2px var(--ember), 0 0 24px rgba(229,119,75,.45); }
+.dj-u.ciblable.allie { cursor: pointer; }
+.dj-u.ciblable.allie .plaque { box-shadow: 0 0 0 2px var(--dj-soin), 0 0 24px rgba(127,209,185,.4); }
+.dj-u.ciblable:hover { transform: translateY(-4px) scale(1.03); }
+.dj-u.ciblable:focus-visible { outline: 2px solid var(--lamp); outline-offset: 4px; border-radius: 6px; }
+.dj-u.ko { filter: grayscale(1) brightness(.5); opacity: .55; transform: rotate(-3deg) translateY(6px); }
+.dj-u.boss { flex-basis: 170px; }
+.dj-u.touche .dj-face { animation: dj-touche .38s; }
+.dj-u.soigne .plaque { animation: dj-soigne .6s; }
+@keyframes dj-touche { 0% { transform: translate(0) } 20% { transform: translate(-7px, 2px) } 45% { transform: translate(6px, -2px) }
+  70% { transform: translate(-3px, 0) } 100% { transform: translate(0) } }
+@keyframes dj-soigne { 40% { box-shadow: 0 0 0 4px rgba(127,209,185,.8), 0 0 40px rgba(127,209,185,.6); } }
+.dj-eclat { position: absolute; inset: 0 0 20px; z-index: 8; pointer-events: none; border-radius: 4%;
+  background: radial-gradient(circle, rgba(255,210,170,.75), rgba(229,119,75,.2) 45%, transparent 70%);
+  animation: dj-eclat .35s ease-out forwards; }
+@keyframes dj-eclat { from { opacity: 1; transform: scale(.6); } to { opacity: 0; transform: scale(1.25); } }
+.dj-flottant { position: absolute; left: 50%; top: 28%; z-index: 9; transform: translateX(-50%); pointer-events: none;
+  font-family: var(--font-display); font-variation-settings: var(--wonk); font-weight: 900; font-size: clamp(18px, 3vw, 28px);
+  color: #ffb08f; text-shadow: 0 2px 0 #3a1206, 0 0 10px rgba(0,0,0,.8); white-space: nowrap; animation: dj-flotte 1s ease-out forwards; }
+.dj-flottant.soin { color: var(--dj-soin); text-shadow: 0 2px 0 #0b2c24, 0 0 10px rgba(0,0,0,.8); }
+.dj-flottant.crit { color: #ffd36e; font-size: clamp(22px, 3.6vw, 34px); }
+.dj-flottant.info { color: #cfe2ff; font-size: clamp(13px, 2vw, 16px); }
+@keyframes dj-flotte { 0% { opacity: 0; transform: translate(-50%, 8px) scale(.8); } 15% { opacity: 1; transform: translate(-50%, 0) scale(1.1); }
+  100% { opacity: 0; transform: translate(-50%, -38px) scale(1); } }
+[data-mouvement="reduit"] .dj-flottant { animation-duration: 1.4s; }
+
+/* Hauteurs fixes : la consigne, le journal et les gestes changent à chaque
+   tour, et sans cela toute l'arène sautait d'une ligne à l'autre. */
+.dj-milieu { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: start; margin: 14px 0 18px; height: 112px; }
+.dj-consigne { font-size: 14px; line-height: 1.45; min-width: 0; }
+.dj-consigne > :first-child { min-height: 2.9em; }
+.dj-consigne b { color: var(--lamp); font-weight: 600; }
+.dj-journal { margin-top: 6px; font-size: 12px; line-height: 17px; height: 51px; overflow: hidden; color: var(--ink3); }
+.dj-journal div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dj-journal div:first-child { color: var(--ink2); }
+.dj-gestes { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; align-content: flex-start; }
+.dj-geste { min-width: 150px; text-align: left; padding: 8px 12px; border-radius: 8px; color: var(--ink);
+  background: var(--panel); border: 1px solid var(--edge-hi); cursor: pointer; }
+.dj-geste b { display: block; font-size: 13px; font-weight: 600; }
+.dj-geste span { display: block; font-size: 11.5px; color: var(--ink3); }
+.dj-geste.on { border-color: var(--lamp); background: #2a2416; }
+.dj-geste:hover:not(:disabled) { border-color: var(--lamp); }
+.dj-geste:disabled { opacity: .38; cursor: not-allowed; }
+.dj-pilote { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between;
+  margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--edge); }
+.dj-pilote .groupe { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.dj-pilote .lib { font-size: 12px; color: var(--ink3); }
+.dj-pilote .segments button { padding: 7px 11px; font-size: 12px; }
+.dj-arene > .petit { margin: 8px 0 0; }
+
+/* ── Scènes et bilan ─────────────────────────────────────────────────── */
+.dj-scene { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 24px; align-items: start; max-width: 880px; }
+.dj-panneau { max-width: 720px; }
+.dj-panneau h2 { font-size: 26px; margin-bottom: 6px; }
+.dj-panneau p { color: var(--ink2); margin: 8px 0; }
+.dj-panneau .dj-mini { margin: 16px 0 6px; }
+.dj-butin { font-family: var(--font-display); font-variation-settings: var(--wonk); font-size: 36px; font-weight: 800; color: var(--lamp); }
+.dj-tableau { border-collapse: collapse; font-size: 13px; margin: 8px 0 4px; }
+.dj-tableau td { padding: 5px 16px 5px 0; border-bottom: 1px solid var(--edge); color: var(--ink2); }
+.dj-tableau td:last-child { text-align: right; color: var(--ink); font-variant-numeric: tabular-nums; }
+
+@media (max-width: 860px) {
+  .dj-etage { grid-template-columns: 1fr; }
+  .dj-cote { position: static; }
+  .dj-milieu { grid-template-columns: 1fr; height: auto; }
+  .dj-consigne { height: 104px; }
+  .dj-gestes { min-height: 58px; }
+  .dj-gestes { justify-content: flex-start; }
+  .dj-scene { grid-template-columns: 1fr; }
+  .dj-scene-carte { max-width: 120px; }
+}
+@media (max-width: 560px) {
+  .dj-rang { gap: 6px; }
+  .dj-u.boss { flex-basis: 150px; }
+  .dj-geste { min-width: 0; flex: 1 1 44%; }
+  .dj-grille { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
+  .dj-mot { font-size: 11px; padding: 0 7px; }
+  .dj-chiffres { gap: 6px; font-size: 11px; }
+  .dj-apercu { grid-template-columns: 84px 1fr; }
+}
+
+/* ── Fiches d'unité ──────────────────────────────────────────────────── */
+.dj-fiche { position: absolute; left: 50%; z-index: 30; width: max(200px, 150%); max-width: 260px; transform: translateX(-50%);
+  display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border-radius: 10px; pointer-events: none;
+  background: rgba(13, 20, 23, .96); border: 1px solid var(--edge-hi); box-shadow: 0 12px 30px rgba(0,0,0,.6);
+  font-size: 12px; line-height: 1.4; color: var(--ink2); text-align: left; }
+.dj-fiche.bas { top: calc(100% + 4px); }
+.dj-fiche.haut { bottom: calc(100% + 16px); }
+.dj-fiche .t { font-family: var(--font-display); font-variation-settings: var(--wonk); font-size: 14px; color: var(--ink); }
+.dj-fiche .s { color: var(--ink3); font-variant-numeric: tabular-nums; }
+.dj-fiche .l b { color: var(--lamp); font-weight: 600; }
+.dj-u:focus-visible { outline: 2px solid var(--lamp); outline-offset: 4px; border-radius: 6px; }
+
+/* ── Effets des capacités ────────────────────────────────────────────── */
+.dj-arene { isolation: isolate; }
+.dj-proj { position: absolute; z-index: 25; pointer-events: none; }
+.dj-proj.fleche { width: 46px; height: 3px; border-radius: 2px;
+  background: linear-gradient(90deg, transparent, #e8d9b8 30%, #fff 92%, var(--lamp)); box-shadow: 0 0 10px rgba(232,163,61,.7); }
+.dj-proj.orbe { width: 20px; height: 20px; border-radius: 50%;
+  background: radial-gradient(circle, #eafff7, var(--dj-soin) 45%, rgba(127,209,185,0) 72%); box-shadow: 0 0 22px rgba(127,209,185,.9); }
+.dj-vague { position: absolute; z-index: 24; pointer-events: none; border-radius: 14px; background-size: 60% 100%; background-repeat: no-repeat; }
+.dj-vague.brume { background-image: linear-gradient(90deg, transparent, rgba(190,215,235,.55), rgba(157,124,240,.35), transparent); }
+.dj-vague.sang { background-image: linear-gradient(90deg, transparent, rgba(229,119,75,.5), rgba(179,48,73,.6), transparent); }
+.dj-anneau { position: absolute; z-index: 24; width: 120px; height: 120px; border-radius: 50%; pointer-events: none; }
+.dj-anneau.garde { border: 4px solid var(--lamp); box-shadow: 0 0 24px rgba(232,163,61,.6); }
+.dj-anneau.galva { border: 3px solid #f6c979; box-shadow: 0 0 30px rgba(246,201,121,.6), inset 0 0 20px rgba(246,201,121,.4); }
+.dj-anneau.soin { border: 3px solid var(--dj-soin); box-shadow: 0 0 30px rgba(127,209,185,.7); }
+.dj-eclat.lourd { inset: -10% -10% 10%; background: radial-gradient(circle, rgba(255,236,200,.95), rgba(229,119,75,.45) 40%, transparent 72%); }
+
+/* ── Convalescence ───────────────────────────────────────────────────── */
+.dj-choix.repos .plaque { filter: grayscale(.8) brightness(.6); }
+.dj-repos { position: absolute; z-index: 9; left: 6%; right: 6%; top: 34%; padding: 5px 6px; border-radius: 6px; text-align: center;
+  font-size: 11.5px; font-weight: 600; line-height: 1.3; color: var(--ink); background: rgba(13, 20, 23, .88); border: 1px solid var(--edge-hi); }
+.dj-convalescence { color: var(--ember) !important; font-size: 13px; }

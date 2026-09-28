@@ -122,6 +122,8 @@ export function mesuresGlobales(etat, mine) {
     effondrements: mine?.effondrements || 0,
     ventes: etat.stats?.ventes || 0,
     affaires: etat.stats?.affaires || 0,
+    gardiens: etat.stats?.gardiens || 0,
+    remontees: etat.stats?.remontees || 0,
     pj: pj.size,
   };
 }
