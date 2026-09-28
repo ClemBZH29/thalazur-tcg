@@ -101,13 +101,17 @@ export const ROLES = {
   tireur: { nom: "Tireur", ini: 7, passif: "Agit tôt",
     cap: { id: "vise", nom: "Tir visé", cd: 2, cible: "e", aide: "Dégâts ×1,6, ignore l'armure" } },
   soigneur: { nom: "Soigneur", ini: 3, passif: "",
-    cap: { id: "soin", nom: "Soin", cd: 0, cible: "a", aide: "Rend ATQ + 3 PV à un allié" } },
+    cap: { id: "soin", nom: "Soin", cd: 0, cible: "a", aide: "Rend ATQ + 2 PV à un allié" } },
   mage: { nom: "Mage", ini: 4, passif: "",
-    cap: { id: "vague", nom: "Vague de brume", cd: 2, aide: "Frappe tous les adversaires (×0,75)" } },
+    cap: { id: "vague", nom: "Vague de brume", cd: 1, aide: "Frappe tous les adversaires" } },
   meneur: { nom: "Meneur", ini: 4, passif: "",
-    cap: { id: "galva", nom: "Galvaniser", cd: 3, aide: "+2 ATQ à toute l'équipe pendant deux tours" } },
+    cap: { id: "galva", nom: "Galvaniser", cd: 2, aide: "+3 ATQ à toute l'équipe pendant trois tours" } },
   debrouillard: { nom: "Débrouillard", ini: 5, passif: "+10 % de butin",
-    cap: { id: "coupbas", nom: "Coup bas", cd: 2, cible: "e", aide: "Dégâts ×1,2, et chaparde quelques PO" } },
+    cap: { id: "coupbas", nom: "Coup bas", cd: 2, cible: "e", aide: "Dégâts ×1,4, et chaparde quelques PO" } },
+  artificier: { nom: "Artificier", ini: 3, passif: "",
+    cap: { id: "rempart", nom: "Rempart", cd: 2, aide: "Armure +3 à toute l'équipe pendant deux tours" } },
+  intendant: { nom: "Intendant", ini: 3, passif: "Repos +25 %",
+    cap: { id: "ravit", nom: "Ravitaillement", cd: 2, aide: "Rend ATQ PV à toute l'équipe" } },
 };
 export const TRAITS = {
   rapide: { nom: "Rapide", aide: "Agit tôt dans le tour" },
@@ -128,6 +132,9 @@ export function roleDe(rep1) {
   if (/médecin|clerc|infirm|herbor|shaman|chaman|druide/.test(s)) return "soigneur";
   if (/sorcier|magicien|scorceleur|enchanteresse/.test(s)) return "mage";
   if (/souverain|prince|noble|conseiller|ambassadeur|barde/.test(s)) return "meneur";
+  // Ceux qui bâtissent protègent ; ceux qui nourrissent requinquent.
+  if (/forgeron|ingénieur|ingenieur|bricol|charpentier|architecte|artisan|géologue|geologue/.test(s)) return "artificier";
+  if (/cuisini|aubergiste|intendant|brasseu|porteu/.test(s)) return "intendant";
   return "debrouillard";
 }
 
@@ -141,9 +148,9 @@ export function allie(partie, c, niveau = 1) {
   let pv = b.pv + bn.pv, atq = b.atq + bn.atq;
   if (role === "garde") pv = Math.round(pv * 1.3);
   if (role === "frappeur") atq += 1;
-  if (role === "soigneur" || role === "debrouillard" || role === "mage") pv = Math.round(pv * 0.9);
+  if (["soigneur", "debrouillard", "mage", "intendant"].includes(role)) pv = Math.round(pv * 0.9);
   return { uid: partie.uid++, c: legere(c), camp: "a", role, pvMax: pv, pv, atq, niveau, xp: 0,
-    ini: ROLES[role].ini + (INI_PALIER[c.tier] || 0), ko: false, cd: 0, provoque: 0, galva: 0 };
+    ini: ROLES[role].ini + (INI_PALIER[c.tier] || 0), ko: false, cd: 0, provoque: 0, galva: 0, rempart: 0 };
 }
 /**
  * Un adversaire. Le bestiaire et la pègre portent un trait (rapide, fourbe,
@@ -151,14 +158,15 @@ export function allie(partie, c, niveau = 1) {
  * sa capacité, comme un compagnon.
  */
 export function monstre(partie, c, etage, mult = 1) {
+  const dif = partie.difficulte ?? 1;
   const b = BASE[c.tier] || BASE.commun;
   const hostile = HOSTILES.has(c.rep1);
   const role = hostile ? (c.rep1 === "Animal" ? "rapide" : c.rep1 === "Criminel" ? "fourbe" : "brute") : roleDe(c.rep1);
-  let pvMax = Math.round(b.pv * (0.9 + 0.4 * etage) * (role === "brute" || role === "garde" ? 1.2 : 1) * mult);
-  if (!hostile && ["soigneur", "mage", "debrouillard"].includes(role)) pvMax = Math.round(pvMax * 0.9);
-  const atq = Math.round(b.atq * 0.85) + Math.round((etage - 1) * 1.4) + (mult > 1.5 ? 2 : mult > 1 ? 1 : 0) + (role === "frappeur" ? 1 : 0);
+  let pvMax = Math.round(b.pv * (0.9 + 0.4 * etage) * (role === "brute" || role === "garde" ? 1.2 : 1) * mult * dif);
+  if (!hostile && ["soigneur", "mage", "debrouillard", "intendant"].includes(role)) pvMax = Math.round(pvMax * 0.9);
+  const atq = Math.max(1, Math.round((Math.round(b.atq * 0.85) + Math.round((etage - 1) * 1.4) + (mult > 1.5 ? 2 : mult > 1 ? 1 : 0) + (role === "frappeur" ? 1 : 0)) * dif));
   const ini = (hostile ? { rapide: 7, fourbe: 5, brute: 3 }[role] : ROLES[role].ini) + (INI_PALIER[c.tier] || 0);
-  return { uid: partie.uid++, c: legere(c), camp: "e", role, pvMax, pv: pvMax, atq, ini, ko: false, cd: 0, provoque: 0, galva: 0 };
+  return { uid: partie.uid++, c: legere(c), camp: "e", role, pvMax, pv: pvMax, atq, ini, ko: false, cd: 0, provoque: 0, galva: 0, rempart: 0 };
 }
 
 export const vivants = (l) => l.filter((u) => !u.ko);
@@ -174,8 +182,8 @@ export function bonusEquipe(partie) {
   return { atq, pv };
 }
 export const atqDe = (partie, u) =>
-  u.atq + (u.camp === "a" ? bonusEquipe(partie).atq : 0) + (u.galva > 0 ? 2 : 0);
-const multButin = (partie) => 1 + 0.1 * partie.equipe.filter((u) => u.role === "debrouillard").length;
+  u.atq + (u.camp === "a" ? bonusEquipe(partie).atq : 0) + (u.galva > 0 ? 3 : 0);
+const multButin = (partie) => (1 + 0.1 * partie.equipe.filter((u) => u.role === "debrouillard").length) * (partie.gain ?? 1);
 export function gagner(partie, po) {
   const n = Math.round(po * multButin(partie));
   partie.sac += n;
@@ -241,8 +249,11 @@ export function ouverts(plan) {
 
 /* ── La partie ───────────────────────────────────────────────────────── */
 
-export function creerPartie({ equipe, artefact, graine, jour, pools, niveaux = {} }) {
+export function creerPartie({ equipe, artefact, graine, jour, pools, niveaux = {}, apprenti = null }) {
+  // `apprenti` : l'adoucissement des débuts (voir `apprentissage`). Il est
+  // figé pour toute la descente : la difficulté ne bouge pas en chemin.
   const partie = { jour, graine, uid: 1, etage: 1, sac: 0, benediction: 0, reliques: [], perdus: [], xpPerdus: {},
+    difficulte: apprenti?.difficulte ?? 1, gain: apprenti?.gain ?? 1, combat: null, rencontre: null,
     artefact: artefact ? legere(artefact) : null, equipe: [], ecran: "carte", noeud: null,
     stats: { salles: 0, combats: 0, ennemis: 0, gardiens: 0 } };
   partie.equipe = equipe.map((c) => allie(partie, c, niveaux[`${c.ext}:${c.id}`] || 1));
@@ -286,9 +297,11 @@ export function tresor(partie, r, artefacts) {
 }
 export function repos(partie) {
   let releves = 0;
+  // Un intendant dans l'équipe, et le repas est meilleur.
+  const bonus = partie.equipe.some((u) => u.role === "intendant" && !u.ko) ? 1.25 : 1;
   for (const u of partie.equipe) {
-    if (u.ko) { u.ko = false; u.pv = Math.ceil(u.pvMax * 0.35); releves++; }
-    else u.pv = Math.min(u.pvMax, u.pv + Math.ceil(u.pvMax * 0.5));
+    if (u.ko) { u.ko = false; u.pv = Math.ceil(u.pvMax * 0.35 * bonus); releves++; }
+    else u.pv = Math.min(u.pvMax, u.pv + Math.ceil(u.pvMax * 0.5 * bonus));
   }
   return { titre: "Un abri", texte: `Un peu de répit. L'équipe panse ses plaies${releves ? ` et ${releves} compagnon${releves > 1 ? "s" : ""} se relève${releves > 1 ? "nt" : ""}` : ""}.` };
 }
@@ -331,7 +344,10 @@ export const RENCONTRES = [
   { id: "blesse", titre: "Quelqu'un au bord du chemin",
     texte: () => "Un voyageur blessé, adossé à la roche. Il demande à vous suivre jusqu'à la sortie.",
     choix: (p, { r, pools }) => {
-      const recrue = parmiPalier(r, pools.allies, tirer(r, { commun: 70, peucommun: 25, rare: 5 }));
+      // Jamais une carte déjà dans l'équipe.
+      const deja = new Set(p.equipe.map((u) => `${u.c.ext}:${u.c.id}`));
+      const libres = pools.allies.filter((c) => !deja.has(`${c.ext}:${c.id}`));
+      const recrue = parmiPalier(r, libres.length ? libres : pools.allies, tirer(r, { commun: 70, peucommun: 25, rare: 5 }));
       return [
         { lib: p.equipe.length < 5 ? `L'emmener (${recrue.nom} rejoint l'équipe)` : "L'équipe est au complet", ok: p.equipe.length < 5, f: () => {
           const u = allie(p, recrue); u.recrue = true; u.pvMax += bonusEquipe(p).pv; u.pv = Math.ceil(u.pvMax * 0.5); p.equipe.push(u);
@@ -375,7 +391,7 @@ function composer(partie, genre, r, pools) {
   return l;
 }
 export function demarrerCombat(partie, genre, r, pools) {
-  for (const u of partie.equipe) { u.cd = 0; u.provoque = 0; u.galva = 0; }
+  for (const u of partie.equipe) { u.cd = 0; u.provoque = 0; u.galva = 0; u.rempart = 0; }
   partie.stats.combats++;
   return { genre, ennemis: composer(partie, genre, r, pools), round: 0, ordre: [], idx: -1, actif: null, compteBoss: 0, fini: null };
 }
@@ -400,7 +416,7 @@ export function prochain(partie, C) {
     C.round++;
     C.ordre = vivants(unites(partie, C)).sort((a, b) => (b.ini - a.ini) || (a.camp === "a" ? -1 : 1)).map((u) => u.uid);
     C.idx = -1;
-    for (const u of unites(partie, C)) if (u.galva > 0) u.galva--;
+    for (const u of unites(partie, C)) { if (u.galva > 0) u.galva--; if (u.rempart > 0) u.rempart--; }
   }
   return null;
 }
@@ -413,11 +429,20 @@ export function gestes(partie, u) {
   ];
 }
 
-function frapper(partie, att, cible, mult, r, perce = false) {
-  let d = atqDe(partie, att) * mult * (0.85 + r() * 0.3);
+/**
+ * La brume qui monte : passé le tour BRUME_TOUR, chaque tour ajoute 20 % aux
+ * dégâts des deux camps. Aucun combat ne peut durer toujours — un soigneur
+ * resté seul se soignait plus vite qu'on ne le frappait, et on ne fuit pas
+ * seul.
+ */
+export const BRUME_TOUR = 10;
+export const brume = (C) => (C && C.round > BRUME_TOUR ? 1 + 0.2 * (C.round - BRUME_TOUR) : 1);
+
+function frapper(partie, att, cible, mult, r, perce = false, C = null) {
+  let d = atqDe(partie, att) * mult * brume(C) * (0.85 + r() * 0.3);
   let crit = false;
   if (att.role === "fourbe" && r() < 0.25) { d *= 2; crit = true; }
-  const armure = perce ? 0 : (cible.role === "garde" ? 1 : 0) + (cible.provoque ? 2 : 0);
+  const armure = perce ? 0 : (cible.role === "garde" ? 1 : 0) + (cible.provoque ? 2 : 0) + (cible.rempart > 0 ? 3 : 0);
   const reel = Math.max(1, Math.round(d) - armure);
   cible.pv = Math.max(0, cible.pv - reel);
   if (cible.pv === 0) cible.ko = true;
@@ -435,8 +460,8 @@ export function resoudre(partie, C, u, geste, cible, r) {
   let note = "", anim = "pulser";
   if (["attaque", "lourde", "vise", "coupbas"].includes(geste)) {
     anim = "ruer";
-    const mult = { attaque: 1, lourde: 1.9, vise: 1.6, coupbas: 1.2 }[geste];
-    const { reel, crit } = frapper(partie, u, cible, mult, r, geste === "vise");
+    const mult = { attaque: 1, lourde: 1.9, vise: 1.6, coupbas: 1.4 }[geste];
+    const { reel, crit } = frapper(partie, u, cible, mult, r, geste === "vise", C);
     effets.push({ uid: cible.uid, txt: `−${reel}`, cls: crit || geste !== "attaque" ? "crit" : "", anim: "touche" });
     note = geste === "attaque"
       ? `${nom(u)} frappe ${nom(cible)} : −${reel}${crit ? " (critique)" : ""}`
@@ -444,23 +469,34 @@ export function resoudre(partie, C, u, geste, cible, r) {
     if (geste === "coupbas" && u.camp === "a") { const po = gagner(partie, entre(r, 1, 3) * partie.etage); effets.push({ uid: u.uid, txt: `+${po} PO`, cls: "info" }); note += `, +${po} PO`; }
     if (cible.ko) note += " — à terre";
   } else if (geste === "soin") {
-    const s = Math.min(cible.pvMax - cible.pv, atqDe(partie, u) + 3);
+    const s = Math.min(cible.pvMax - cible.pv, atqDe(partie, u) + 2);
     cible.pv += s;
     effets.push({ uid: cible.uid, txt: `+${s}`, cls: "soin", anim: "soigne" });
     note = `${nom(u)} soigne ${nom(cible)} : +${s}`;
   } else if (geste === "vague") {
-    for (const e of vivants(u.camp === "a" ? C.ennemis : partie.equipe)) { const { reel } = frapper(partie, u, e, 0.75, r); effets.push({ uid: e.uid, txt: `−${reel}`, anim: "touche" }); }
+    for (const e of vivants(u.camp === "a" ? C.ennemis : partie.equipe)) { const { reel } = frapper(partie, u, e, 1, r, false, C); effets.push({ uid: e.uid, txt: `−${reel}`, anim: "touche" }); }
     note = `${nom(u)} déchaîne la brume sur ${u.camp === "a" ? "tous les adversaires" : "toute l'équipe"}.`;
   } else if (geste === "provoc") {
     u.provoque = 1;
     effets.push({ uid: u.uid, txt: "Provocation", cls: "info" });
     note = `${nom(u)} attire les coups sur lui.`;
   } else if (geste === "galva") {
-    for (const a of vivants(u.camp === "a" ? partie.equipe : C.ennemis)) { a.galva = 2; effets.push({ uid: a.uid, txt: "+2 ATQ", cls: "info" }); }
+    // Décompté à chaque nouveau tour : 3, c'est la fin de celui-ci et deux tours pleins.
+    for (const a of vivants(u.camp === "a" ? partie.equipe : C.ennemis)) { a.galva = 3; effets.push({ uid: a.uid, txt: "+3 ATQ", cls: "info" }); }
     note = `${nom(u)} galvanise ${u.camp === "a" ? "l'équipe" : "les siens"}.`;
   } else if (geste === "balayage") {
-    for (const a of vivants(partie.equipe)) { const { reel } = frapper(partie, u, a, 0.6, r); effets.push({ uid: a.uid, txt: `−${reel}`, anim: "touche" }); }
+    for (const a of vivants(partie.equipe)) { const { reel } = frapper(partie, u, a, 0.6, r, false, C); effets.push({ uid: a.uid, txt: `−${reel}`, anim: "touche" }); }
     note = `${nom(u)} balaie toute l'équipe.`;
+  } else if (geste === "rempart") {
+    for (const a of vivants(u.camp === "a" ? partie.equipe : C.ennemis)) { a.rempart = 2; effets.push({ uid: a.uid, txt: "Rempart", cls: "info" }); }
+    note = `${nom(u)} dresse un rempart devant ${u.camp === "a" ? "l'équipe" : "les siens"}.`;
+  } else if (geste === "ravit") {
+    const s = atqDe(partie, u);
+    for (const a of vivants(u.camp === "a" ? partie.equipe : C.ennemis)) {
+      const g = Math.min(a.pvMax - a.pv, s); a.pv += g;
+      if (g) effets.push({ uid: a.uid, txt: `+${g}`, cls: "soin", anim: "soigne" });
+    }
+    note = `${nom(u)} ravitaille ${u.camp === "a" ? "l'équipe" : "les siens"}.`;
   }
   // Recharge : comptée en tours de l'unité, le sien compris, d'où le +1.
   if (ROLES[u.role] && geste !== "attaque" && geste !== "balayage") { const cd = ROLES[u.role].cap.cd; u.cd = cd ? cd + 1 : 0; }
@@ -515,6 +551,8 @@ export function choixAuto(partie, C, u, strategie) {
   if (u.role === "soigneur" && blesse && blesse.pv / blesse.pvMax < (strategie === "prudence" ? 0.6 : 0.45)) return { geste: "soin", cible: blesse };
   if (pret && u.role === "garde" && (strategie === "prudence" || allies.some((a) => a !== u && a.pv / a.pvMax < 0.5))) return { geste: "provoc", cible: null };
   if (pret && u.role === "meneur") return { geste: "galva", cible: null };
+  if (pret && u.role === "intendant" && allies.reduce((s, a) => s + (a.pvMax - a.pv), 0) >= allies.length * 3) return { geste: "ravit", cible: null };
+  if (pret && u.role === "artificier" && allies.some((a) => !a.rempart)) return { geste: "rempart", cible: null };
   if (pret && u.role === "mage" && ennemis.length >= 2) return { geste: "vague", cible: null };
   if (pret && u.role === "frappeur") return { geste: "lourde", cible };
   if (pret && u.role === "tireur") return { geste: "vise", cible };
@@ -531,7 +569,7 @@ export function victoire(partie, C, r, artefacts) {
   // cinq par étage pour le gardien. Toute l'équipe la reçoit, tombés compris :
   // ils étaient de l'expédition.
   const xp = C.ennemis.reduce((s, m) => s + (m.boss ? 5 : m.elite ? 3 : 1) * partie.etage, 0);
-  for (const u of partie.equipe) { u.provoque = 0; u.galva = 0; u.cd = 0; u.xp = (u.xp || 0) + xp; }
+  for (const u of partie.equipe) { u.provoque = 0; u.galva = 0; u.rempart = 0; u.cd = 0; u.xp = (u.xp || 0) + xp; }
   let relique = null;
   if (C.genre === "elite" && r() < 0.55) relique = trouverRelique(partie, r, artefacts);
   if (C.genre === "boss") relique = trouverRelique(partie, r, artefacts);
@@ -598,8 +636,22 @@ export function fiche(partie, u) {
     lignes.push({ t: R.cap.nom, d: `${u.camp === "e" ? R.cap.aide.replace("un allié", "un des siens").replace("toute l'équipe", "tous les siens").replace("tous les adversaires", "toute votre équipe") : R.cap.aide}${u.cd > 0 ? ` — prêt dans ${u.cd} tour${u.cd > 1 ? "s" : ""}` : " — prêt"}` });
   } else if (TRAITS[u.role]) lignes.push({ t: TRAITS[u.role].nom, d: TRAITS[u.role].aide });
   if (u.provoque) lignes.push({ t: "Provocation", d: "Attire tous les coups, armure +2." });
-  if (u.galva > 0) lignes.push({ t: "Galvanisé", d: "+2 ATQ." });
+  if (u.galva > 0) lignes.push({ t: "Galvanisé", d: "+3 ATQ." });
+  if (u.rempart > 0) lignes.push({ t: "Rempart", d: "Armure +3." });
   return { nom: u.nomAffiche || u.c.nom, stats: `${u.camp === "a" ? `Niveau ${u.niveau || 1} · ` : ""}${u.pv} / ${u.pvMax} PV · ATQ ${atqDe(partie, u)} · INI ${u.ini}`, lignes };
 }
 /** Ce que l'on rapporte : tout le sac en remontant, un quart si l'équipe tombe. */
 export const rapporte = (partie, iss) => (iss === "defaite" ? Math.round(partie.sac * 0.25) : partie.sac);
+
+/**
+ * L'apprentissage : un Donjon adouci pour qui commence sa collection. Les
+ * adversaires sont affaiblis, le butin aussi, et les deux remontent en ligne
+ * droite jusqu'au jeu normal au `jusqua`-ième booster ouvert. `cfg` vient de
+ * `DONJON.apprentissage` (src/config/tiers.js).
+ */
+export function apprentissage(boosters, cfg) {
+  if (!cfg || !cfg.jusqua) return { difficulte: 1, gain: 1, avance: 1, restant: 0 };
+  const a = Math.max(0, Math.min(1, boosters / cfg.jusqua));
+  const lisse = (x0) => Math.round((x0 + (1 - x0) * a) * 100) / 100;
+  return { difficulte: lisse(cfg.difficulte), gain: lisse(cfg.gain), avance: a, restant: Math.max(0, Math.ceil(cfg.jusqua - boosters)) };
+}

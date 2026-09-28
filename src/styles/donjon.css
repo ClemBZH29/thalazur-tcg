@@ -61,6 +61,9 @@
 .dj-mot.r-garde { color: #cfe2ff; background: rgba(157,194,224,.1); border-color: rgba(157,194,224,.35); }
 .dj-mot.r-mage { color: #c9b8f5; background: rgba(157,124,240,.12); border-color: rgba(157,124,240,.4); }
 .dj-mot.r-tireur, .dj-mot.r-frappeur { color: #f3b393; background: rgba(229,119,75,.1); border-color: rgba(229,119,75,.35); }
+.dj-mot.r-artificier { color: #e9cf95; background: rgba(232,163,61,.08); border-color: rgba(232,163,61,.3); }
+.dj-mot.r-intendant { color: #b9dca0; background: rgba(150,200,120,.08); border-color: rgba(150,200,120,.3); }
+.dj-mot.r-meneur { color: #f0d27a; background: rgba(240,210,122,.08); border-color: rgba(240,210,122,.3); }
 .dj-mot.r-debrouillard, .dj-mot.r-artefact { color: var(--ink2); background: var(--panel); border-color: var(--edge-hi); }
 .dj-chiffres { display: flex; gap: 8px; font-size: 11.5px; color: var(--ink3); white-space: nowrap; overflow: hidden;
   font-variant-numeric: tabular-nums; }
@@ -321,7 +324,7 @@
   text-transform: uppercase; letter-spacing: .06em; }
 .dj-bulle .lieu { font-family: var(--font-display); font-variation-settings: var(--wonk); font-size: 15px; color: var(--ink); }
 .dj-bulle .btn { margin-top: 4px; align-self: stretch; justify-content: center; }
-.dj-barre-carte { display: flex; justify-content: center; margin: 2px 0 4px; }
+.dj-barre-carte { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; margin: 2px 0 4px; }
 .dj-feuille { max-height: 80vh; }
 .dj-feuille h3 { font-size: 15px; margin: 14px 0 8px; }
 
@@ -366,3 +369,10 @@
   .dj-geste { padding: 6px 9px; }
   .dj-pilote { margin-top: 10px; }
 }
+
+/* Remonter se confirme : le bouton armé change de ton. */
+.dj-arme { border-color: var(--lamp) !important; color: var(--lamp) !important; }
+/* La brume qui monte, dans la frise. */
+.dj-brume { flex: 0 0 auto; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 100px; white-space: nowrap;
+  color: #cfe2ff; background: rgba(157,124,240,.18); border: 1px solid rgba(157,124,240,.45); }
+.dj-apprenti { border-left: 3px solid var(--dj-soin); }

@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import extension from "../src/extensions/troupe-valeran/extension.js";
 import {
   RANGS, RENCONTRES, cartesDonjon, choixAuto, choixIA, ciblesPossibles, convalescences, creerPartie, demarrerCombat,
-  descendre, entrer, fuir, gainsXP, genererEtage, monstre, peutFuir,
+  descendre, entrer, fuir, gainsXP, genererEtage, monstre, peutFuir, apprentissage, brume, BRUME_TOUR, atqDe, allie,
   graineDuJour, issue, ouverts, parUid, prochain, rapporte, repos, resoudre, roleDe, tirage, tresor, victoire,
 } from "../src/donjon/regles.js";
 
@@ -74,7 +74,11 @@ describe("cartes", () => {
     expect(roleDe("Archère")).toBe("tireur");
     expect(roleDe("Médecin")).toBe("soigneur");
     expect(roleDe("Souverain")).toBe("meneur");
-    expect(roleDe("Artisan")).toBe("debrouillard");
+    expect(roleDe("Gueux")).toBe("debrouillard");
+    expect(roleDe("Artisan")).toBe("artificier");
+    expect(roleDe("Forgeronne")).toBe("artificier");
+    expect(roleDe("Cuisinière")).toBe("intendant");
+    expect(roleDe("Aubergiste")).toBe("intendant");
     // Le moine de D&D frappe, il ne soigne pas.
     expect(roleDe("Moine")).toBe("frappeur");
   });
@@ -126,6 +130,102 @@ describe("combat", () => {
     const u = p.equipe.find((x) => x.role !== "soigneur") || p.equipe[0];
     resoudre(p, C, u, "galva", null, tirage(4));
     expect(u.cd).toBeGreaterThan(0);
+  });
+});
+
+describe("rôles et états", () => {
+  const partieDe = () => creerPartie({ equipe: POOLS.allies.slice(0, 4), artefact: null, graine: 3, jour: "x", pools: POOLS });
+  test("le rempart arme toute l'équipe, et l'armure retient les coups", () => {
+    const p = partieDe();
+    const C = demarrerCombat(p, "combat", tirage(1), POOLS);
+    const artisan = POOLS.allies.find((c) => roleDe(c.rep1) === "artificier");
+    const u = allie(p, artisan); p.equipe[0] = u;
+    resoudre(p, C, u, "rempart", null, tirage(2));
+    expect(p.equipe.every((a) => a.rempart === 2)).toBe(true);
+    const cible = p.equipe[1], avant = cible.pv;
+    const m = C.ennemis[0];
+    m.atq = 3;
+    resoudre(p, C, m, "attaque", cible, tirage(3));
+    expect(avant - cible.pv).toBe(1); // 3 ± 15 % − 3 d'armure : le coup minimal
+  });
+  test("le ravitaillement soigne toute l'équipe, sans dépasser le maximum", () => {
+    const p = partieDe();
+    const C = demarrerCombat(p, "combat", tirage(1), POOLS);
+    const u = allie(p, POOLS.allies.find((c) => roleDe(c.rep1) === "intendant")); p.equipe[0] = u;
+    for (const a of p.equipe) a.pv = Math.max(1, a.pvMax - 2);
+    resoudre(p, C, u, "ravit", null, tirage(2));
+    expect(p.equipe.every((a) => a.pv === a.pvMax)).toBe(true);
+  });
+  test("le meneur galvanise de +3 ATQ", () => {
+    const p = partieDe();
+    const C = demarrerCombat(p, "combat", tirage(1), POOLS);
+    const a = p.equipe[1], base = atqDe(p, a);
+    resoudre(p, C, p.equipe[0], "galva", null, tirage(2));
+    expect(atqDe(p, a)).toBe(base + 3);
+  });
+  test("passé le tour de la brume, les coups portent plus fort", () => {
+    expect(brume({ round: BRUME_TOUR })).toBe(1);
+    expect(brume({ round: BRUME_TOUR + 2 })).toBeCloseTo(1.4);
+  });
+  test("un soigneur resté seul ne fait plus durer le combat toujours", () => {
+    const p = creerPartie({ equipe: POOLS.allies.filter((c) => roleDe(c.rep1) === "soigneur" && c.tier === "commun").slice(0, 4),
+      artefact: null, graine: 5, jour: "x", pools: POOLS });
+    const r = tirage(9);
+    const C = demarrerCombat(p, "combat", r, POOLS);
+    for (const u of p.equipe.slice(1)) { u.pv = 0; u.ko = true; }
+    C.ennemis = [monstre(p, POOLS.monstres.find((c) => c.rep1 === "Créature"), 1)];
+    let fin = null, t = 0;
+    for (; t < 600 && !fin; t++) {
+      const u = prochain(p, C);
+      const { geste, cible } = u.camp === "e" ? choixIA(p, C, u, r) : choixAuto(p, C, u, "prudence");
+      resoudre(p, C, u, geste, cible, r);
+      fin = issue(p, C);
+    }
+    expect(fin).not.toBeNull();
+  });
+  test("un même combat, une même graine : mêmes adversaires, même issue", () => {
+    const jouer = () => {
+      const p = partieDe(); const r = tirage(1234);
+      const C = demarrerCombat(p, "elite", r, POOLS);
+      let fin = null;
+      for (let t = 0; t < 600 && !fin; t++) {
+        const u = prochain(p, C);
+        const { geste, cible } = u.camp === "e" ? choixIA(p, C, u, r) : choixAuto(p, C, u, "concentrer");
+        resoudre(p, C, u, geste, cible, r);
+        fin = issue(p, C);
+      }
+      return [C.ennemis.map((e) => e.c.id).join(), fin, p.equipe.map((u) => u.pv).join()];
+    };
+    expect(jouer()).toEqual(jouer());
+  });
+  test("la recrue n'est jamais une carte déjà dans l'équipe", () => {
+    const blesse = RENCONTRES.find((x) => x.id === "blesse");
+    for (let g = 0; g < 60; g++) {
+      const p = partieDe();
+      blesse.choix(p, { r: tirage(g), pools: POOLS })[0].f();
+      const ids = p.equipe.map((u) => u.c.id);
+      expect(new Set(ids).size).toBe(ids.length);
+    }
+  });
+});
+
+describe("apprentissage", () => {
+  const cfg = { jusqua: 30, difficulte: 0.75, gain: 0.5 };
+  test("adouci au départ, normal au bout, en ligne droite", () => {
+    expect(apprentissage(0, cfg)).toMatchObject({ difficulte: 0.75, gain: 0.5, restant: 30 });
+    expect(apprentissage(15, cfg)).toMatchObject({ difficulte: 0.88, gain: 0.75, restant: 15 });
+    expect(apprentissage(30, cfg)).toMatchObject({ difficulte: 1, gain: 1, restant: 0 });
+    expect(apprentissage(500, cfg).difficulte).toBe(1);
+    expect(apprentissage(0, null).difficulte).toBe(1);
+  });
+  test("il affaiblit les adversaires et réduit le butin de la descente", () => {
+    const c = POOLS.monstres.find((x) => x.tier === "rare");
+    const normal = creerPartie({ equipe: POOLS.allies.slice(0, 4), artefact: null, graine: 3, jour: "x", pools: POOLS });
+    const doux = creerPartie({ equipe: POOLS.allies.slice(0, 4), artefact: null, graine: 3, jour: "x", pools: POOLS, apprenti: apprentissage(0, cfg) });
+    expect(monstre(doux, c, 2).pvMax).toBeLessThan(monstre(normal, c, 2).pvMax);
+    expect(monstre(doux, c, 2).atq).toBeLessThan(monstre(normal, c, 2).atq);
+    const r = tirage(4); const r2 = tirage(4);
+    expect(tresor(doux, r, []).po).toBeLessThan(tresor(normal, r2, []).po);
   });
 });
 

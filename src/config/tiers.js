@@ -117,4 +117,8 @@ export const MINE = {
 export const DONJON = {
   multiplicateur: 0.6,   // PO créditées par pièce de butin rapportée
   tentativesParJour: 2,
+  // Les débuts adoucis : adversaires affaiblis et butin réduit, qui remontent
+  // en ligne droite jusqu'au jeu normal au `jusqua`-ième booster ouvert.
+  // Mesuré par scripts/audit-donjon.mjs.
+  apprentissage: { jusqua: 30, difficulte: 0.75, gain: 0.4 },
 };

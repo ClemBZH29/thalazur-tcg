@@ -22,9 +22,13 @@ automatique.
   lourde font un garde ; Archère, Éclaireur, Rôdeur un tireur ; Médecin,
   Clerc, Shaman un soigneur ; Sorcier, Magicien un mage ; Souverain, Prince,
   Barde un meneur ; Guerrier, Assassin, Barbare, Moine un frappeur — les
-  classes de D&D gardent leur emploi, le moine frappe et ne soigne pas. Tout le reste —
-  artisans, fonctionnaires, marins — devient **débrouillard**, qui augmente le
-  butin : aucune carte n'est inutile.
+  classes de D&D gardent leur emploi, le moine frappe et ne soigne pas.
+  Ceux qui bâtissent (Forgeronne, Ingénieur, Artisan, Charpentier,
+  Architecte…) font un **artificier**, qui dresse un rempart devant l'équipe ;
+  ceux qui nourrissent (Cuisinier, Aubergiste, Intendant, Brasseur, Porteur)
+  un **intendant**, qui ravitaille tout le monde et rend les repos meilleurs.
+  Le reste — gueux, marins, voyageurs, scribes — devient **débrouillard**, qui
+  augmente le butin : aucune carte n'est inutile.
 - **Le palier fixe les PV et l'ATQ**, et ajoute à l'initiative.
 - **Les adversaires** sont les Créatures, Animaux et Criminels du roster, et,
   pour deux sur cinq, des **PNJ rivaux** : ceux des factions qui ne sont pas du
@@ -62,8 +66,13 @@ même étage, et peuvent en parler.
   donne l'ordre du tour ; à égalité, l'équipe passe devant.
 - **À son tour**, un compagnon attaque ou emploie la capacité de son rôle —
   provocation, frappe lourde, tir visé, soin, vague de brume, galvaniser,
-  coup bas — qui se recharge ensuite quelques tours. Le joueur choisit le
-  geste, puis la cible.
+  coup bas, rempart, ravitaillement — qui se recharge ensuite quelques tours.
+  Le joueur choisit le geste, puis la cible.
+- **La brume qui monte** : passé le dixième tour, chaque tour ajoute 20 % aux
+  dégâts des deux camps (`brume`, `BRUME_TOUR`). Un soigneur resté seul se
+  soignait plus vite qu'on ne le frappait ; comme on ne fuit pas seul, le
+  combat ne finissait jamais. Aucun combat ne dure plus longtemps que la
+  brume ne le permet ; une pastille violette l'annonce dans la frise.
 - **Adversaires** : le fourbe achève le plus faible, le rapide agit tôt, le
   coriace encaisse. Le gardien balaie toute l'équipe tous les trois tours.
 - **Combat automatique** : trois stratégies (concentrer, abattre la menace,
@@ -80,6 +89,44 @@ même étage, et peuvent en parler.
   frise et le journal.
 - **Hauteurs fixes** : consigne, journal et gestes gardent la même place d'un
   tour à l'autre, l'arène ne bouge plus.
+
+### Les rôles, rééquilibrés
+
+L'audit du 28/09/2026 (`scripts/audit-donjon.mjs`, section « Ce que vaut un
+rôle ») mesurait de 13 % (meneur) à 30 % (soigneur) de descentes complètes
+pour trois peu communes et une carte du rôle ; le débrouillard ramassait
+40 % des alliés sans identité. Après retouche, l'écart tient entre 20 et
+29 % :
+
+| Rôle | Avant | Après | Ce qui a changé |
+|---|---:|---:|---|
+| Meneur | 13 % | 20 % | Galvaniser : +3 ATQ (au lieu de +2), trois tours, recharge 2 |
+| Mage | 14 % | 21 % | Vague de brume : ×1 (au lieu de ×0,75), recharge 1 |
+| Débrouillard | 17 % | 21 % | Coup bas ×1,4 ; les artisans et les intendants en sortent |
+| Soigneur | 30 % | 29 % | Soin : ATQ + 2 (au lieu de + 3) |
+| Artificier | — | 21 % | Nouveau : Rempart, armure +3 à toute l'équipe, deux tours |
+| Intendant | — | 29 % | Nouveau : Ravitaillement, rend ATQ PV à toute l'équipe ; repos +25 % |
+
+Les PNJ rivaux ont les mêmes rôles et s'en servent contre l'équipe.
+
+### L'apprentissage
+
+Une collection jeune n'a que des communes, et quatre communes tombaient une
+fois sur deux dès l'étage 1 : le pire accueil possible. Tant que le joueur a
+ouvert moins de `DONJON.apprentissage.jusqua` boosters (30), la descente est
+adoucie : adversaires à 75 % de leurs PV et de leur ATQ, butin à 40 %. Les
+deux remontent en ligne droite jusqu'au jeu normal (`apprentissage` dans
+`regles.js`). Le facteur est figé à la descente, et l'expérience des cartes
+n'est pas réduite : c'est le moment où une commune s'irise le plus vite.
+
+| Collection de 8 cartes | Trois gardiens | PO créditées | XP par carte |
+|---|---:|---:|---:|
+| 0 booster (apprentissage) | 66 % | 57 | 76 |
+| 30 boosters (normal) | 29 % | 73 | 42 |
+
+Le butin reste sous le jeu normal malgré des descentes deux fois plus souvent
+menées au bout : on apprend, on ne s'enrichit pas. L'écran de préparation
+le dit, avec le nombre de boosters restant ; l'en-tête de la descente aussi.
 
 ### Au téléphone
 
@@ -175,6 +222,12 @@ Le module rapporte des **pièces de butin** ; `src/jeu/donjon.js` les convertit
 Une tentative est prise à la descente et non à la remontée : abandonner ne la
 rend pas. Le mode test des outils MJ les rend illimitées.
 
+Les chiffres ci-dessous sont ceux de l'intégration ; les mesures à jour sont
+dans `claude/audit-donjon.md` (projet) et se refont avec
+`node scripts/audit-donjon.mjs`. Le Donjon est le **mode de jeu principal** :
+il rapporte environ une fois et demie le gain passif, plus que les Mines, et
+c'est voulu.
+
 Mesures sur 40 descentes par stratégie (collection de dix-huit alliés tirée
 comme au sortir des boosters, les quatre meilleurs emmenés, chemins au
 hasard, on descend toujours) :
@@ -196,10 +249,23 @@ jour où un troisième module arrive, l'enveloppe commune des modules devra
 
 `etat.donjon = { jour, tentatives, partie, dernier, convalescence }`. La partie est un objet
 simple, sauvé à chaque changement d'écran : un onglet fermé ne coûte pas la
-tentative. Le combat n'est pas sauvé en cours de route : rechargé au milieu,
-on revient à la carte et la salle se rejoue depuis le premier tour, équipe
-comprise. Entre deux appareils, `donjon` est une valeur : celle de l'appareil
+tentative. Entre deux appareils, `donjon` est une valeur : celle de l'appareil
 qui l'a changée l'emporte.
+
+**Recharger ne sert à rien.** Un combat est sauvé à son entrée, avant le
+premier coup, avec sa graine (`partie.combat = { genre, graine }`) ; tous
+ses tirages — adversaires, dégâts, choix adverses, relique — viennent de
+`tirage(graine)`. Rechargé au milieu, il reprend à son premier tour, mêmes
+adversaires, mêmes dés : au pilote automatique, même issue. Une rencontre
+de même (`partie.rencontre = { id, graine }`). Avant, la partie revenait à
+la carte *après* la salle, PV intacts : recharger effaçait une défaite, et
+chez le gardien — qui n'a pas de suite — bloquait le Donjon pour de bon.
+En filet, « Remonter » est aussi sur la carte dès la première salle, et se
+confirme d'un second appui partout où il côtoie un autre bouton.
+
+Les champs `difficulte`, `gain`, `combat` et `rencontre` de la partie ont une
+valeur par défaut à la lecture (`?? 1`, absents = rien en cours) : une partie
+sauvée avant eux se reprend telle quelle.
 
 Deux succès globaux s'y rattachent (`gardiens`, `remontees`), comptés à la
 remontée dans `etat.stats`.
