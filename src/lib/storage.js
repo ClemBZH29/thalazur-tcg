@@ -60,6 +60,10 @@ const vide = () => ({
   // Expérience des cartes au Donjon : "extension:carte" -> { xp, irisee, cent }
   // (voir src/donjon/experience.js).
   xp: {},
+  // Expéditions : { routes, orJour, seq } (voir src/expeditions/regles.js).
+  expeditions: null,
+  // Reliquaire : { vestiges, derniereForgeL } (voir src/reliquaire/regles.js).
+  reliquaire: null,
 });
 
 export const etatVide = vide;
