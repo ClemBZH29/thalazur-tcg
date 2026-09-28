@@ -95,4 +95,36 @@ main et corrections de palier.
 fusion (les doublons s'additionnent, l'état rainbow est conservé dès qu'il
 apparaît d'un côté) ou remplacement complet.
 
-Le bouton « Tout effacer » des réglages vide la clé et recharge la page.
+Les deux boutons sont au **profil**, dans les préférences (« Sauvegarde dans un
+fichier »). Ils étaient en tête de la bibliothèque, où ils prenaient une ligne
+d'écran au téléphone pour un geste qu'on fait une fois. Le résultat de l'import
+s'affiche sur place : l'avis général du jeu n'est montré que par la page des
+réglages, qui n'est plus publique, si bien qu'importer depuis la bibliothèque
+ne disait rien.
+
+Le bouton « Tout effacer » du profil vide la clé et recharge la page.
+
+## Au téléphone
+
+L'audit mobile du 28/09/2026 a mesuré la première carte à 770 px sur un écran
+de 844 : tout le premier écran était de la commande. Sous 720 px :
+
+- **Extensions et PJ sur une seule ligne qui défile** ; la bascule des
+  statistiques passe dessous, en pleine largeur. Sur grand écran le conteneur
+  de défilement s'efface (`display: contents`) et rien ne change.
+- **Une barre collée sous le bandeau** : la recherche, un bouton « Filtrer » qui
+  dit combien de filtres sont actifs, et la bascule de densité. La barre suit
+  la hauteur réelle du bandeau (`--tete-h`, mesurée par la coque) ; en paysage
+  bas, où le bandeau n'est plus collant, elle se colle au bord de l'écran.
+- **Les filtres dans une feuille** qui monte du bas : un `<dialog>` natif ouvert
+  par `showModal()`, qui apporte le piège à focus, Échap, l'arrière-plan inerte
+  et le retour du focus au bouton. Les filtres s'appliquent au toucher ; le
+  bouton du bas dit combien de cases resteront et referme.
+- **Trois colonnes au lieu de deux** sous 560 px, par défaut. On vient survoler
+  sa collection ; le nom devient petit, mais la loupe est à un toucher. La
+  bascule rend les grandes cartes, et l'appareil s'en souvient
+  (`brume-thalazur:biblio-densite`), comme du volet des statistiques.
+
+Les deux groupes de filtres sont rendus deux fois — en ligne sur grand écran,
+dans la feuille au téléphone — et un seul est affiché : l'autre est en
+`display: none`, donc absent de l'arbre d'accessibilité.

@@ -1,10 +1,9 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Carte from "./Carte.jsx";
 import DosCarte from "./DosCarte.jsx";
 import { TIERS, TIER_ORDER, TIER_INFO } from "../config/tiers.js";
 import { BOOSTERS, BOOSTER_PAR_ID } from "../extensions/index.js";
 import { nomComplet } from "../config/speciales.js";
-import { exporter, importer } from "../lib/storage.js";
 
 /** Une case manquante : le dos, grisé, sans interaction ni nom. */
 function Manquante() {
@@ -27,6 +26,16 @@ function Manquante() {
 const CLE_STATS = "brume-thalazur:biblio-stats";
 const lireStats = () => { try { return localStorage.getItem(CLE_STATS) === "1"; } catch { return false; } };
 const ecrireStats = (v) => { try { localStorage.setItem(CLE_STATS, v ? "1" : "0"); } catch { /* sans importance */ } };
+
+/**
+ * Densité de la grille au téléphone, même statut que le volet : une commodité
+ * de cet appareil. Compacte par défaut — trois colonnes au lieu de deux — parce
+ * qu'on vient ici survoler une collection, et que le détail est à un toucher,
+ * dans la loupe. Sans effet au-dessus de 560 px, où la grille se remplit seule.
+ */
+const CLE_DENSITE = "brume-thalazur:biblio-densite";
+const lireDensite = () => { try { return localStorage.getItem(CLE_DENSITE) !== "large"; } catch { return true; } };
+const ecrireDensite = (compacte) => { try { localStorage.setItem(CLE_DENSITE, compacte ? "compacte" : "large"); } catch { /* sans importance */ } };
 
 const pli = (t) => String(t || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
@@ -56,9 +65,8 @@ const pli = (t) => String(t || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLo
  * exemplaires s'additionnent d'une extension à l'autre.
  */
 export default function Bibliotheque({
-  etat, boosterId, jeuComplet, cfgImage, fichiers, onLoupe, onOuvrir, onSet, onEtat, onAvis,
+  etat, boosterId, jeuComplet, cfgImage, fichiers, onLoupe, onOuvrir, onSet,
 }) {
-  const fichierRef = useRef(null);
   /** L'onglet PJ est local : il ne change pas l'extension courante de l'app. */
   const [ongletPJ, setOngletPJ] = useState(false);
   const [filtre, setFiltre] = useState("toutes");
@@ -66,6 +74,23 @@ export default function Bibliotheque({
   const [recherche, setRecherche] = useState("");
   const [statsOuvertes, setStatsOuvertes] = useState(lireStats);
   const basculerStats = () => setStatsOuvertes((v) => { ecrireStats(!v); return !v; });
+  const [compacte, setCompacte] = useState(lireDensite);
+  const basculerDensite = () => setCompacte((v) => { ecrireDensite(!v); return !v; });
+
+  /**
+   * La feuille des filtres, au téléphone. Un `<dialog>` natif ouvert par
+   * `showModal()` : le navigateur fournit le piège à focus, la fermeture par
+   * Échap, l'arrière-plan inerte et le retour du focus au bouton — tout ce que
+   * la loupe et le négoce font à la main.
+   */
+  const feuille = useRef(null);
+  const [feuilleOuverte, setFeuilleOuverte] = useState(false);
+  useEffect(() => {
+    const d = feuille.current;
+    if (!d) return;
+    if (feuilleOuverte && !d.open) d.showModal();
+    if (!feuilleOuverte && d.open) d.close();
+  }, [feuilleOuverte]);
 
   const booster = BOOSTER_PAR_ID[boosterId];
   const cartesPJ = useMemo(() => jeuComplet.filter((c) => c.tier === "pj"), [jeuComplet]);
@@ -152,15 +177,6 @@ export default function Bibliotheque({
     );
   }, [cases, filtre, etatCarte, q, collection]);
 
-  const charger = async (f, mode) => {
-    try {
-      onEtat(await importer(f, etat, mode));
-      onAvis("Import réussi.");
-    } catch (err) {
-      onAvis(`Import impossible : ${err.message}`);
-    }
-  };
-
   const paliersPresents = TIERS.filter((t) => stats.paliers[t.id]?.total > 0);
   const part = (n, t) => (t ? Math.round((100 * n) / t) : 0);
   const nDoubles = cases.filter((x) => x.n >= 2).length;
@@ -172,31 +188,69 @@ export default function Bibliotheque({
     ["doubles", "En double", nDoubles],
     ["rainbow", "Rainbow", stats.rainbow],
   ];
+  const nFiltres = (etatCarte !== "tout" ? 1 : 0) + (filtre !== "toutes" ? 1 : 0);
+  const reinitialiser = () => { setFiltre("toutes"); setEtatCarte("tout"); };
+
+  /* Les deux groupes de filtres sont rendus deux fois : en ligne sur grand
+     écran, dans la feuille au téléphone. Un seul des deux est affiché à la
+     fois (l'autre est en `display: none`, donc hors de l'arbre d'accessibilité). */
+  const filtresEtat = (
+    <div className="segments" role="group" aria-label="Cartes affichées">
+      {etats.map(([id, libelle, n]) => (
+        <button
+          key={id}
+          className={etatCarte === id ? "on" : ""}
+          aria-pressed={etatCarte === id}
+          onClick={() => setEtatCarte(id)}
+        >
+          {libelle} <b>{n}</b>
+        </button>
+      ))}
+    </div>
+  );
+  const filtresRarete = paliersPresents.length < 2 ? null : (
+    <div className="filtres" role="group" aria-label="Filtre de rareté">
+      <button className={filtre === "toutes" ? "on" : ""} aria-pressed={filtre === "toutes"}
+        onClick={() => setFiltre("toutes")}>
+        Toutes raretés
+      </button>
+      {paliersPresents.map((t) => (
+        <button
+          key={t.id}
+          className={`f-${t.id}${filtre === t.id ? " on" : ""}`}
+          aria-pressed={filtre === t.id}
+          onClick={() => setFiltre(t.id)}
+        >
+          {t.nom} <b>{stats.paliers[t.id].obtenues}/{stats.paliers[t.id].total}</b>
+        </button>
+      ))}
+    </div>
+  );
+  const champRecherche = (
+    <input
+      type="search"
+      className="biblio-recherche"
+      value={recherche}
+      onChange={(e) => setRecherche(e.target.value)}
+      placeholder="Chercher un nom…"
+      aria-label="Chercher une carte par son nom"
+    />
+  );
 
   return (
     <main className="view" id="contenu">
+      {/* L'export et l'import de la partie sont au profil, avec le reste de ce
+          qui touche à la sauvegarde : ici ils prenaient une ligne d'écran au
+          téléphone, pour un geste qu'on fait une fois. */}
       <div className="section-titre">
         <h1>Bibliothèque</h1>
-        <div className="actions" style={{ marginTop: 0 }}>
-          <button className="btn quiet sm" onClick={() => exporter(etat)}>Exporter</button>
-          <button className="btn quiet sm" onClick={() => fichierRef.current?.click()}>Importer</button>
-          <input
-            ref={fichierRef} type="file" accept="application/json" className="cache"
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (!f) return;
-              const mode = window.confirm(
-                "Fusionner avec la bibliothèque actuelle ?\n\nOK = fusion\nAnnuler = remplacement complet"
-              ) ? "fusion" : "remplacement";
-              charger(f, mode);
-              e.target.value = "";
-            }}
-          />
-        </div>
       </div>
 
       {/* --- Choix du set, et l'onglet des PJ --- */}
       <div className="sets">
+        {/* Au téléphone, extensions et PJ défilent sur une seule ligne ; sur
+            grand écran ce conteneur s'efface (`display: contents`). */}
+        <div className="sets-defil">
         {BOOSTERS.map((b) => {
           const ouvert = b.statut === "ouvert";
           const coll = etat.collections[b.id] || {};
@@ -230,6 +284,7 @@ export default function Bibliotheque({
           <span className="set-nom">Cartes PJ</span>
           <span className="set-sous">{nPJ} sur {cartesPJ.length} · toutes extensions</span>
         </button>
+        </div>
         {/* L'avancement se consulte, il ne sert pas à chaque visite : replié
             par défaut, pour que la grille arrive tout de suite. */}
         <button
@@ -281,47 +336,68 @@ export default function Bibliotheque({
       </div>
 
       {/* --- Filtres : l'état d'abord, la rareté ensuite --- */}
-      <div className="barre-filtres">
-        <div className="segments" role="group" aria-label="Cartes affichées">
-          {etats.map(([id, libelle, n]) => (
-            <button
-              key={id}
-              className={etatCarte === id ? "on" : ""}
-              aria-pressed={etatCarte === id}
-              onClick={() => setEtatCarte(id)}
-            >
-              {libelle} <b>{n}</b>
-            </button>
-          ))}
+      <div className="filtres-large">
+        <div className="barre-filtres">
+          {filtresEtat}
+          {champRecherche}
         </div>
-
-        <input
-          type="search"
-          className="biblio-recherche"
-          value={recherche}
-          onChange={(e) => setRecherche(e.target.value)}
-          placeholder="Chercher un nom…"
-          aria-label="Chercher une carte par son nom"
-        />
+        {filtresRarete}
       </div>
 
-      <div className="filtres" role="group" aria-label="Filtre de rareté"
-           hidden={paliersPresents.length < 2}>
-        <button className={filtre === "toutes" ? "on" : ""} aria-pressed={filtre === "toutes"}
-          onClick={() => setFiltre("toutes")}>
-          Toutes raretés
+      {/* Au téléphone, les deux rangs de filtres occupaient tout le premier
+          écran : la première carte arrivait à 770 px sur 844. Il ne reste que
+          la recherche, collée sous le bandeau, et un bouton qui ouvre la
+          feuille des filtres en disant combien sont actifs. */}
+      <div className="filtres-mobile">
+        {champRecherche}
+        <button
+          type="button"
+          className={`btn quiet filtrer${nFiltres ? " actif" : ""}`}
+          aria-haspopup="dialog"
+          onClick={() => setFeuilleOuverte(true)}
+        >
+          Filtrer
+          {nFiltres > 0 && <span className="filtrer-nb">{nFiltres}<span className="sr"> actifs</span></span>}
         </button>
-        {paliersPresents.map((t) => (
-          <button
-            key={t.id}
-            className={`f-${t.id}${filtre === t.id ? " on" : ""}`}
-            aria-pressed={filtre === t.id}
-            onClick={() => setFiltre(t.id)}
-          >
-            {t.nom} <b>{stats.paliers[t.id].obtenues}/{stats.paliers[t.id].total}</b>
-          </button>
-        ))}
+        <button
+          type="button"
+          className="btn quiet densite"
+          aria-pressed={compacte}
+          onClick={basculerDensite}
+          title={compacte ? "Afficher de grandes cartes" : "Afficher plus de cartes par ligne"}
+        >
+          <svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true">
+            {[2, 8, 14].map((x) => [2, 11].map((y) => (
+              <rect key={`${x}-${y}`} x={x} y={y} width="4.5" height="7" rx="1" fill="currentColor" />
+            )))}
+          </svg>
+          <span className="sr">Vue compacte</span>
+        </button>
       </div>
+
+      <dialog
+        ref={feuille}
+        className="feuille"
+        aria-labelledby="feuille-titre"
+        onClose={() => setFeuilleOuverte(false)}
+        onClick={(e) => { if (e.target === e.currentTarget) setFeuilleOuverte(false); }}
+      >
+        <div className="feuille-corps">
+          <div className="feuille-tete">
+            <h2 id="feuille-titre">Filtrer</h2>
+            <button type="button" className="btn quiet sm" onClick={reinitialiser} disabled={nFiltres === 0}>
+              Réinitialiser
+            </button>
+          </div>
+          <h3 className="feuille-sous">Cases</h3>
+          {filtresEtat}
+          {filtresRarete && <h3 className="feuille-sous">Rareté</h3>}
+          {filtresRarete}
+          <button type="button" className="btn feuille-voir" onClick={() => setFeuilleOuverte(false)}>
+            Voir {visibles.length} case{visibles.length > 1 ? "s" : ""}
+          </button>
+        </div>
+      </dialog>
 
       {paliersPresents.length < 2 && <div className="filtres-filet" aria-hidden="true" />}
 
@@ -332,7 +408,7 @@ export default function Bibliotheque({
         {q && ` · « ${recherche.trim()} »`}
       </p>
 
-      <div className="grille">
+      <div className={`grille${compacte ? " compacte" : ""}`}>
         {visibles.map(({ c, version, n }) => {
           const cle = `${c.id}:${version}`;
           if (n === 0) return <Manquante key={cle} />;
