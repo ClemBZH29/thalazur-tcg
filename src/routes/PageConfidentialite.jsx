@@ -37,8 +37,8 @@ export default function PageConfidentialite() {
             enregistrée <b>dans votre navigateur uniquement</b>, dans son stockage
             local, sous des clés commençant par <code>brume-thalazur:</code>. Elle ne
             quitte pas votre appareil et personne d'autre n'y a accès. Vous pouvez
-            l'exporter depuis la bibliothèque et l'effacer depuis les réglages ou
-            en vidant les données du site dans votre navigateur.
+            l'exporter et l'effacer depuis votre profil, ou l'effacer en vidant
+            les données du site dans votre navigateur.
           </p>
           {PORTRAITS_A_PART ? (
             <p>

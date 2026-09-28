@@ -15,8 +15,6 @@ export default function PageBibliotheque() {
       fichiers={jeu.fichiers}
       onLoupe={jeu.setLoupe}
       onOuvrir={() => aller("/boutique")}
-      onEtat={jeu.setEtat}
-      onAvis={jeu.setAvis}
     />
   );
 }

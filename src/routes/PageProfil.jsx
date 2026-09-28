@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useCompte } from "../jeu/Compte.jsx";
 import { useJeu } from "../jeu/Jeu.jsx";
 import { Lien } from "../lib/routeur.jsx";
-import { effacer, exporter } from "../lib/storage.js";
+import { effacer, exporter, importer } from "../lib/storage.js";
 import { REVENTE } from "../config/tiers.js";
 import { mesureDisponible, rouvrirBandeau, useConsentement } from "../lib/mesure.js";
 import { LEGAL } from "../config/legal.js";
@@ -232,6 +232,59 @@ function Connecte() {
 }
 
 /**
+ * Sauvegarde dans un fichier : exporter la partie, ou en importer une.
+ *
+ * Elle vivait en tête de la bibliothèque, où elle prenait une ligne d'écran au
+ * téléphone pour un geste qu'on fait une fois ; elle rejoint ici le reste de ce
+ * qui touche à la partie. Le compte-rendu de l'import s'affiche sur place :
+ * l'avis général du jeu n'est montré que par la page des réglages, qui n'est
+ * plus publique — importer depuis la bibliothèque ne disait donc rien.
+ */
+function Sauvegarde() {
+  const { etat, setEtat } = useJeu();
+  const fichierRef = useRef(null);
+  const [message, setMessage] = useState(null);
+
+  const charger = async (f, mode) => {
+    try {
+      setEtat(await importer(f, etat, mode));
+      setMessage({ ok: true, texte: mode === "fusion" ? "Sauvegarde fusionnée avec la partie en cours." : "Sauvegarde importée." });
+    } catch (err) {
+      setMessage({ ok: false, texte: `Import impossible : ${err.message}` });
+    }
+  };
+
+  return (
+    <div className="bloc">
+      <h3>Sauvegarde dans un fichier</h3>
+      <p className="muted">
+        Un fichier contient toute la partie : collection, bourse, Mines. À l'import,
+        vous choisissez de le fusionner avec la partie en cours ou de la remplacer.
+      </p>
+      <div className="actions gauche">
+        <button className="btn quiet sm" onClick={() => exporter(etat)}>Exporter</button>
+        <button className="btn quiet sm" onClick={() => fichierRef.current?.click()}>Importer…</button>
+        <input
+          ref={fichierRef} type="file" accept="application/json" className="cache"
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (!f) return;
+            const mode = window.confirm(
+              "Fusionner avec la partie en cours ?\n\nOK = fusion\nAnnuler = remplacement complet"
+            ) ? "fusion" : "remplacement";
+            charger(f, mode);
+            e.target.value = "";
+          }}
+        />
+      </div>
+      {message && (
+        <p className={`avis${message.ok ? "" : " ko"}`} role="status">{message.texte}</p>
+      )}
+    </div>
+  );
+}
+
+/**
  * Préférences de joueur. Elles vivaient dans la page Réglages, au milieu des
  * outils de meneur (roster, taux, mode test) ; ceux-ci ne sont plus publics,
  * et ce qui concerne le joueur a rejoint son profil.
@@ -283,6 +336,8 @@ function Preferences() {
         </label>
       </div>
 
+      <Sauvegarde />
+
       <div className="bloc">
         <h3>Divers</h3>
         <div className="actions gauche" style={{ marginTop: 0 }}>
@@ -323,7 +378,7 @@ export default function PageProfil() {
             <p className="muted">
               Cette version du site n'est reliée à aucun service de connexion : la
               partie est conservée dans ce navigateur uniquement, et s'exporte
-              depuis la bibliothèque.
+              plus bas, dans les préférences.
             </p>
           </div>
         </section>

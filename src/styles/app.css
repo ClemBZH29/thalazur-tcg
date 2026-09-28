@@ -545,11 +545,93 @@
 @media (max-width: 640px) {
   .hero { padding: 40px 0 30px; }
   .avc-chiffre b { font-size: 44px; }
-  .stats-bascule { margin-left: 0; flex-basis: 100%; }
   .sets { gap: 6px; }
   .set { padding: 8px 13px; }
   .etagere { grid-template-columns: 1fr; }
 }
+
+/* --- Bibliothèque au téléphone ------------------------------------------
+   Voir docs/conception/bibliotheque.md, « Au téléphone ». Sur grand écran la
+   barre mobile et la feuille n'existent pas ; en dessous de 720 px, les deux
+   rangs de filtres laissent la place à une barre (recherche, Filtrer, densité)
+   collée sous le bandeau — et de même sur un téléphone en paysage, large mais
+   bas, où la grille arrivait sinon à 733 px sur 390. --tete-h est mesurée par
+   la coque (App.jsx). */
+.sets-defil { display: contents; }
+.filtres-mobile, .feuille { display: none; }
+
+@media (max-width: 720px), (max-width: 860px) and (max-height: 500px) {
+  .filtres-large { display: none; }
+  .filtres-mobile { display: flex; gap: 8px; align-items: center;
+    position: sticky; top: var(--tete-h, 0px); z-index: 12;
+    margin: 0 -18px; padding: 8px 18px;
+    background: rgba(13, 20, 23, .94); border-bottom: 1px solid var(--edge); }
+  .filtres-mobile .biblio-recherche { flex: 1 1 auto; height: 44px; }
+  .filtrer { position: relative; flex: 0 0 auto; padding: 0 16px; min-height: 44px; }
+  .filtrer.actif { border-color: var(--lamp); color: var(--ink); }
+  .filtrer-nb { display: inline-grid; place-items: center; min-width: 20px; height: 20px;
+    margin-left: 8px; padding: 0 5px; border-radius: 100px;
+    background: var(--lamp); color: #221604; font-size: 12px; font-weight: 700; }
+  .densite { flex: 0 0 auto; width: 44px; min-height: 44px; padding: 0;
+    display: grid; place-items: center; color: var(--ink3); }
+  .densite[aria-pressed="true"] { color: var(--lamp); }
+  .filtres-filet { display: none; }
+
+  /* Extensions et PJ sur une seule ligne qui défile ; la bascule des
+     statistiques passe dessous, en pleine largeur. */
+  .sets { flex-direction: column; flex-wrap: nowrap; gap: 8px; margin-bottom: 14px; }
+  .sets-defil { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none;
+    margin: 0 -18px; padding: 0 18px; scroll-snap-type: x proximity;
+    scroll-padding-inline: 18px; }
+  .sets-defil::-webkit-scrollbar { display: none; }
+  .sets-defil .set { flex: 0 0 auto; scroll-snap-align: start; white-space: nowrap; }
+  .stats-bascule { margin-left: 0; flex-basis: auto; }
+
+  /* La feuille des filtres, posée sur le bas de l'écran. */
+  .feuille[open] { display: block; }
+  .feuille { position: fixed; inset: auto 0 0; margin: 0; width: 100%; max-width: none;
+    max-height: 85dvh; overflow-y: auto; padding: 0; border: 0;
+    border-top: 1px solid var(--edge-hi); border-radius: var(--r-lg) var(--r-lg) 0 0;
+    background: var(--panel); color: var(--ink2);
+    animation: feuille-monte .22s cubic-bezier(.2, .8, .3, 1); }
+  .feuille::backdrop { background: rgba(6, 11, 13, .7); }
+  .feuille-corps { display: flex; flex-direction: column; gap: 12px;
+    padding: 18px 18px calc(18px + env(safe-area-inset-bottom)); }
+  .feuille-tete { display: flex; align-items: center; justify-content: space-between; }
+  .feuille-tete h2 { font-size: 22px; }
+  .feuille-sous { font-family: var(--font-ui); font-size: 12px; font-weight: 600;
+    letter-spacing: .06em; text-transform: uppercase; color: var(--ink4); margin-top: 6px; }
+  .feuille .segments { flex-wrap: wrap; }
+  .feuille .segments button { flex: 1 1 40%; }
+  .feuille .filtres { margin-top: 0; padding-bottom: 0; border-bottom: 0; }
+  .feuille-voir { margin-top: 8px; width: 100%; }
+}
+/* Téléphone en paysage : la place manque en hauteur, pas en largeur. La
+   bascule des statistiques revient au bout de la ligne des extensions, sans
+   sa seconde ligne, et le titre se resserre. */
+@media (min-width: 721px) and (max-width: 860px) and (max-height: 500px) {
+  .sets { flex-direction: row; align-items: stretch; }
+  .sets-defil { flex: 1 1 auto; min-width: 0; margin-right: 0; }
+  .stats-bascule { flex: 0 0 auto; }
+  .stats-bascule .set-sous { display: none; }
+  .shell .zone > .view > .section-titre:first-child { min-height: 0; margin-bottom: 10px; padding-bottom: 8px; }
+}
+@keyframes feuille-monte { from { transform: translateY(100%); } to { transform: none; } }
+[data-mouvement="reduit"] .feuille { animation: none; }
+
+/* Trois colonnes au lieu de deux : la case suit la colonne, la carte suit la
+   case (ses textes sont en cqw). Le nom devient petit — la loupe est à un
+   toucher. */
+@media (max-width: 560px) {
+  .grille.compacte { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px 8px; }
+  .grille.compacte .case-carte { width: 100%;
+    contain-intrinsic-size: auto 100px auto 162px; }
+  .grille.compacte .cb-petit { width: 100%; }
+  .grille.compacte .pastille-nb { transform: scale(.85); transform-origin: top right; }
+  .grille.compacte .legende-carte { font-size: 10.5px; }
+}
+/* Au-delà, la grille se remplit seule : la bascule n'aurait pas d'effet. */
+@media (min-width: 561px) { .densite { display: none !important; } }
 
 /* Écran bas. Le seuil était à 620 px, or un 360×640 très répandu passait juste
    au-dessus et débordait quand même. */

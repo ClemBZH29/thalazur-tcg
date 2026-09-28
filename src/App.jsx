@@ -116,6 +116,26 @@ function Coque() {
   const jeu = useJeu();
   const premier = useRef(true);
   const zone = useRef(null);
+  const tete = useRef(null);
+
+  /* Hauteur du bandeau collant, pour ce qui se colle dessous (la barre de
+     recherche de la bibliothèque). Elle change avec l'encoche, la connexion
+     (le bouton de compte s'élargit) et l'orientation ; en paysage bas le
+     bandeau n'est plus collant et la valeur retombe à zéro. */
+  useEffect(() => {
+    const el = tete.current;
+    if (!el) return;
+    const racineDoc = document.documentElement;
+    const poser = () => {
+      const collant = getComputedStyle(el).position === "sticky";
+      racineDoc.style.setProperty("--tete-h", `${collant ? el.offsetHeight : 0}px`);
+    };
+    poser();
+    const obs = typeof ResizeObserver === "function" ? new ResizeObserver(poser) : null;
+    obs?.observe(el);
+    window.addEventListener("resize", poser);
+    return () => { obs?.disconnect(); window.removeEventListener("resize", poser); };
+  }, []);
   const ici = racine(chemin);
 
   /**
@@ -199,7 +219,7 @@ function Coque() {
             barre d'onglets, fixée en bas de l'écran au doigt, se retrouvait
             collée en haut du bandeau. Deux étages règlent la question et se
             lisent mieux : identité et bourse au-dessus, sections en dessous. */}
-        <div className="tete">
+        <div className="tete" ref={tete}>
         <header className="masthead">
           <Lien vers="/" className="brand" actif={false}>
             <b>La Brume de Thalazur</b>
