@@ -509,7 +509,7 @@ export default function Donjon({ jeu }) {
               <h2>Vos compagnons <span className="muted petit">({n} / {TAILLE_EQUIPE})</span></h2>
               <button type="button" className="dj-lex-bouton" onClick={() => setLexique("")}><Icone nom="lexique" taille={16} /> Lexique</button>
             </div>
-            <p className="muted petit dj-aide">Le rôle vient de l'archétype de la carte ; l'initiative, du rôle et du palier. Le ? d'une carte ouvre son rôle au lexique.</p>
+            <p className="muted petit dj-aide">Le rôle vient de l'archétype de la carte ; l'initiative, du rôle et du palier. Le détail des rôles est au lexique.</p>
             <div className="dj-grille">
               {collection.allies.map((c) => {
                 const pris = choix.includes(c.id);
@@ -532,7 +532,6 @@ export default function Donjon({ jeu }) {
                     </button>
                     <div className="dj-choix-pied">
                       <span className={`dj-mot r-${u.role}`}>{R.nom}</span>
-                      <button type="button" className="dj-info" aria-label={`Lexique : ${R.nom}, ${R.cap.nom}`} onClick={() => setLexique(u.role)}>?</button>
                       <span className="dj-chiffres"><span>{u.pvMax} PV</span><span>{u.atq} ATQ</span><span>INI {u.ini}</span></span>
                     </div>
                   </div>
@@ -551,7 +550,6 @@ export default function Donjon({ jeu }) {
                     </button>
                     <div className="dj-choix-pied">
                       <span className="dj-mot r-artefact">Artéfact</span>
-                      <button type="button" className="dj-info" aria-label="Lexique : artéfacts" onClick={() => setLexique("artefact")}>?</button>
                       <span className="dj-chiffres"><span>{bonusTexte(a.tier).replace(" à l'équipe", "")}</span><span>à l'équipe</span></span>
                     </div>
                   </div>
@@ -802,8 +800,8 @@ export default function Donjon({ jeu }) {
 }
 
 /**
- * Le lexique : tout ce que les mots-clés des cartes veulent dire. Ouvert en
- * entier, ou sur le rôle d'une carte (son ?), qu'il met en avant.
+ * Le lexique : tout ce que les mots-clés des cartes veulent dire. `focus`
+ * met une entrée en avant ; le bouton Lexique l'ouvre en entier.
  */
 function Lexique({ focus, onFermer }) {
   const boite = useRef(null);
