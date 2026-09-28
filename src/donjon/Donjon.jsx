@@ -9,6 +9,7 @@ import {
   atqDe, cartesDonjon, choixAuto, choixIA, creerPartie, demarrerCombat, descendre, entrer, fuir,
   gestes, graineDuJour, issue, ouverts, parUid, prochain, rapporte, repos, resoudre,
   tresor, victoire, vivants, allie, ciblesPossibles, convalescences, fiche, peutFuir, gainsXP,
+  apprentissage, brume, tirage, BRUME_TOUR,
 } from "./regles.js";
 import { NIVEAU_MAX, PALIER_IRISEE, avancement, xpDe } from "./experience.js";
 import "../styles/donjon.css";
@@ -22,8 +23,10 @@ import "../styles/donjon.css";
  *
  * La partie vit dans une référence et non dans l'état React : le moteur la
  * modifie sur place, et un compteur de version redessine. Elle part dans la
- * sauvegarde du jeu à chaque changement d'écran, jamais au milieu d'un
- * combat.
+ * sauvegarde du jeu à chaque changement d'écran. Un combat ou une rencontre
+ * est sauvé à l'entrée, avec sa graine : rechargé, il reprend au début, avec
+ * les mêmes adversaires et les mêmes tirages. Recharger ne sert donc ni à
+ * sauter une salle, ni à effacer une défaite.
  */
 
 const POOLS = cartesDonjon(BOOSTERS);
@@ -34,6 +37,16 @@ const aujourdhui = () => new Date().toLocaleDateString("sv");
 const dateFr = (j) => j.split("-").reverse().join("/");
 const pieces = (n) => `${n} pièce${n > 1 ? "s" : ""}`;
 const initiales = (n) => String(n).split(/[\s,'’-]+/).filter(Boolean).slice(0, 2).map((m) => m[0].toUpperCase()).join("");
+const nouvelleGraine = () => Math.floor(Math.random() * 4294967296) >>> 0;
+const pourcent = (x) => `${Math.round(x * 100)} %`;
+/** La rencontre d'une salle, rebâtie de sa graine : même texte, mêmes choix, mêmes issues. */
+function monterRencontre(p) {
+  const { id, graine } = p.rencontre;
+  const e = RENCONTRES.find((x) => x.id === id);
+  const n = p.plan.noeuds[p.noeud];
+  if (!e || !n) return null;
+  return { e, texte: e.texte(n.lieu.nom), choix: e.choix(p, { r: tirage(graine), pools: POOLS }) };
+}
 const bonusTexte = (t) => {
   const b = BONUS_ARTEFACT[t] || BONUS_ARTEFACT.commun;
   return [b.atq && `+${b.atq} ATQ`, b.pv && `+${b.pv} PV`].filter(Boolean).join(", ") + " à l'équipe";
@@ -60,7 +73,8 @@ function CarteDJ({ c, u = null, partie = null, cfgImage, fichiers }) {
   const pct = u ? Math.max(0, (u.pv / u.pvMax) * 100) : 0;
   const statuts = [];
   if (u?.provoque) statuts.push("Provoque");
-  if (u?.galva > 0) statuts.push("+2 ATQ");
+  if (u?.galva > 0) statuts.push("+3 ATQ");
+  if (u?.rempart > 0) statuts.push("Rempart");
   if (u?.camp === "a" && u.cd > 0) statuts.push(`Recharge ${u.cd}`);
   return (
     <div className="dj-carte cardbox">
@@ -80,10 +94,28 @@ function CarteDJ({ c, u = null, partie = null, cfgImage, fichiers }) {
             <b className="atq">{atqDe(partie, u)}</b>
             <b className={`pv${pct < 35 ? " bas" : ""}`}>{u.ko ? "×" : u.pv}</b>
           </span>
-          {(u.provoque > 0 || u.galva > 0) && <span className="dj-etat-point" />}
+          {(u.provoque > 0 || u.galva > 0 || u.rempart > 0) && <span className="dj-etat-point" />}
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * Remonter termine la descente : on le demande deux fois. Le premier appui
+ * arme le bouton, le second remonte ; sans suite, il se désarme.
+ */
+function BoutonRemonter({ sac, onRemonter, className = "btn quiet" }) {
+  const [arme, setArme] = useState(false);
+  useEffect(() => {
+    if (!arme) return;
+    const id = setTimeout(() => setArme(false), 4000);
+    return () => clearTimeout(id);
+  }, [arme]);
+  return (
+    <button type="button" className={`${className}${arme ? " dj-arme" : ""}`} onClick={() => (arme ? onRemonter() : setArme(true))}>
+      {arme ? `Confirmer : remonter avec ${pieces(sac)}` : `Remonter avec ${pieces(sac)}`}
+    </button>
   );
 }
 
@@ -182,12 +214,19 @@ export default function Donjon({ jeu }) {
   const [, redessiner] = useReducer((x) => x + 1, 0);
   // Une partie reprise revient à la carte, ou au choix de la sortie si le
   // gardien venait de tomber : les autres écrans ne se sauvent pas.
-  const [ecran, setEcran] = useState(() => (!donjon.partie ? "preparation" : donjon.partie.ecran === "sortie" ? "sortie" : "carte"));
+  const [ecran, setEcran] = useState(() => {
+    const p = donjon.partie;
+    if (!p) return "preparation";
+    if (p.ecran === "sortie") return "sortie";
+    if (p.combat) return "combat";
+    if (p.rencontre) return "rencontre";
+    return "carte";
+  });
   const [choix, setChoix] = useState([]);
   const [artefact, setArtefact] = useState(null);
   const [survol, setSurvol] = useState(null);
   const [resultat, setResultat] = useState(null);
-  const [rencontre, setRencontre] = useState(null);
+  const [rencontre, setRencontre] = useState(() => (partieRef.current?.rencontre ? monterRencontre(partieRef.current) : null));
   const [fin, setFin] = useState(null);
   const [strategie, setStrategie] = useState("manuel");
   const [vitesse, setVitesse] = useState(1);
@@ -203,6 +242,9 @@ export default function Donjon({ jeu }) {
   const zone = useRef(null);
   const minuteurs = useRef([]);
   const rnd = useRef(Math.random);
+  // Le tirage du combat en cours, tiré de sa graine : c'est lui qui rend un
+  // rechargement inutile.
+  const rngCombat = useRef(Math.random);
   const vitesseRef = useRef(vitesse); vitesseRef.current = vitesse;
   const stratRef = useRef(strategie); stratRef.current = strategie;
 
@@ -226,12 +268,14 @@ export default function Donjon({ jeu }) {
   }, [etat.collections]);
 
   /* ── Déroulé ─────────────────────────────────────────────────────── */
+  const ouvertsTotal = Object.values(etat.boosters || {}).reduce((s, n) => s + (n || 0), 0);
+  const apprenti = apprentissage(ouvertsTotal, DONJON.apprentissage);
   const partir = () => {
     const equipe = choix.map((id) => collection.allies.find((c) => c.id === id)).filter(Boolean);
     if (equipe.length !== TAILLE_EQUIPE || tentativesRestantes <= 0) return;
     const jour = aujourdhui();
     const niveaux = Object.fromEntries(equipe.map((c) => [`${c.ext}:${c.id}`, niveauCarte(c)]));
-    const p = creerPartie({ equipe, artefact, graine: graineDuJour(jour), jour, pools: POOLS, niveaux });
+    const p = creerPartie({ equipe, artefact, graine: graineDuJour(jour), jour, pools: POOLS, niveaux, apprenti });
     partieRef.current = p;
     commencerDonjon(structuredClone(p));
     setEcran("carte");
@@ -247,18 +291,24 @@ export default function Donjon({ jeu }) {
     if (n.genre === "tresor") setResultat(tresor(p, r, POOLS.artefacts));
     else if (n.genre === "repos") setResultat(repos(p));
     else {
-      const e = RENCONTRES[Math.floor(r() * RENCONTRES.length)];
-      setRencontre({ e, texte: e.texte(n.lieu.nom), choix: e.choix(p, { r, pools: POOLS }) });
+      p.rencontre = { id: RENCONTRES[Math.floor(r() * RENCONTRES.length)].id, graine: nouvelleGraine() };
+      setRencontre(monterRencontre(p));
       return aller("rencontre");
     }
     aller("resultat");
   };
 
-  const lancerCombat = (genre) => {
+  /**
+   * Entre en combat, ou y revient après un rechargement : la partie est sauvée
+   * telle qu'avant le premier coup, avec la graine du combat.
+   */
+  const lancerCombat = (genre, reprise = null) => {
     const p = partieRef.current;
-    sauverPartie(structuredClone({ ...p, ecran: "carte" }));
-    combatRef.current = demarrerCombat(p, genre, rnd.current, POOLS);
-    setJournal([genre === "boss" ? "Le gardien de l'étage se dresse." : `${combatRef.current.ennemis.length} adversaires.`]);
+    p.combat = reprise || { genre, graine: nouvelleGraine() };
+    sauverPartie(structuredClone({ ...p, ecran: "combat" }));
+    rngCombat.current = tirage(p.combat.graine);
+    combatRef.current = demarrerCombat(p, p.combat.genre, rngCombat.current, POOLS);
+    setJournal([reprise ? "Le combat reprend à son premier tour." : p.combat.genre === "boss" ? "Le gardien de l'étage se dresse." : `${combatRef.current.ennemis.length} adversaires.`]);
     setGeste(null); setOccupe(true);
     setEcran("combat");
     window.scrollTo({ top: 0 });
@@ -270,6 +320,7 @@ export default function Donjon({ jeu }) {
     if (!ch || ch.ok === false) return;
     const texte = ch.f();
     const p = partieRef.current;
+    p.rencontre = null;
     if (!vivants(p.equipe).length) return terminer("defaite");
     setResultat({ titre: rencontre.e.titre, texte });
     aller("resultat");
@@ -406,6 +457,12 @@ export default function Donjon({ jeu }) {
       return;
     }
     if (g === "provoc") { anneau(a, "garde"); await pulser(u); return; }
+    if (g === "rempart" || g === "ravit") {
+      const siens = zone.current.querySelectorAll(u.camp === "a" ? ".dj-rang.equipe .dj-u:not(.ko)" : ".dj-rang.ennemis .dj-u:not(.ko)");
+      siens.forEach((x) => anneau(x, g === "rempart" ? "garde" : "soin"));
+      await pulser(u);
+      return;
+    }
     if (g === "galva") {
       const siens = zone.current.querySelectorAll(u.camp === "a" ? ".dj-rang.equipe .dj-u:not(.ko)" : ".dj-rang.ennemis .dj-u:not(.ko)");
       siens.forEach((x) => anneau(x, "galva"));
@@ -431,7 +488,7 @@ export default function Donjon({ jeu }) {
     if (!p || !CC || CC.fini) return;
     setOccupe(true); setGeste(null);
     await animerGeste(u, g, cible);
-    const res = resoudre(p, CC, u, g, cible, rnd.current);
+    const res = resoudre(p, CC, u, g, cible, rngCombat.current);
     setJournal((j) => [res.note, ...j].slice(0, 12));
     redessiner();
     requestAnimationFrame(() => montrer(res.effets));
@@ -440,7 +497,8 @@ export default function Donjon({ jeu }) {
     const fin = issue(p, CC);
     if (fin === "victoire") {
       CC.fini = "victoire";
-      const r = victoire(p, CC, rnd.current, POOLS.artefacts);
+      p.combat = null;
+      const r = victoire(p, CC, rngCombat.current, POOLS.artefacts);
       setResultat(r);
       setOccupe(false);
       differer(() => { combatRef.current = null; aller(CC.genre === "boss" ? "sortie" : "resultat"); }, 450 / vitesseRef.current);
@@ -461,7 +519,7 @@ export default function Donjon({ jeu }) {
     const u = parUid(p, CC, actifUid);
     if (!u) return;
     if (u.camp === "e") {
-      const id = setTimeout(() => { const { geste: g, cible } = choixIA(p, CC, u, rnd.current); executer(u, g, cible); }, 480 / vitesse);
+      const id = setTimeout(() => { const { geste: g, cible } = choixIA(p, CC, u, rngCombat.current); executer(u, g, cible); }, 480 / vitesse);
       return () => clearTimeout(id);
     }
     if (strategie !== "manuel") {
@@ -488,6 +546,7 @@ export default function Donjon({ jeu }) {
   const seReplier = () => {
     if (occupe || !peutFuir(partieRef.current, combatRef.current)) return;
     combatRef.current.fini = "fuite";
+    partieRef.current.combat = null;
     setResultat(fuir(partieRef.current));
     combatRef.current = null;
     if (!vivants(partieRef.current.equipe).length) return terminer("defaite");
@@ -497,9 +556,15 @@ export default function Donjon({ jeu }) {
   // Un tour qui passe referme la fiche ouverte d'un toucher.
   useEffect(() => { setInspecte(null); }, [actifUid]);
 
-  // Une partie reprise au milieu d'un combat : on revient à la carte, le
-  // combat se rejouera depuis son premier tour.
-  useEffect(() => { if (ecran === "combat" && !combatRef.current) setEcran("carte"); }, [ecran]);
+  // Une partie reprise au milieu d'un combat : il se rejoue depuis son premier
+  // tour, mêmes adversaires, mêmes tirages. Sans combat sauvé, retour à la carte.
+  useEffect(() => {
+    if (ecran !== "combat" || combatRef.current) return;
+    const p = partieRef.current;
+    if (p?.combat) lancerCombat(p.combat.genre, p.combat);
+    else setEcran("carte");
+  }, [ecran]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (ecran === "rencontre" && !rencontre) setEcran("carte"); }, [ecran, rencontre]);
   // Au téléphone, chaque écran s'ouvre sur ce qui compte : l'arène centrée au combat, la prochaine salle sur la carte.
   useEffect(() => {
     if (!doigt) return;
@@ -517,7 +582,12 @@ export default function Donjon({ jeu }) {
   const entete = partie && (
     <div className="dj-entete">
       <span className="pastille">Étage <b>{partie.etage}</b> / {ETAGES}</span>
-      <span className="pastille or">Sac <b>{pieces(partie.sac)}</b></span>
+      <span className="pastille or">Sac <b>{pieces(partie.sac)}</b> <span className="muted">≈ {Math.round(partie.sac * DONJON.multiplicateur)} PO</span></span>
+      {(partie.difficulte ?? 1) < 1 && (
+        <span className="pastille" title="Adversaires affaiblis et butin réduit, jusqu'au jeu normal au fil des boosters ouverts.">
+          Apprentissage · adversaires {pourcent(partie.difficulte)}
+        </span>
+      )}
     </div>
   );
 
@@ -530,13 +600,21 @@ export default function Donjon({ jeu }) {
           Choisissez quatre compagnons de votre collection et un artéfact. Chaque étage est une carte : vous tracez
           votre chemin, salle après salle, jusqu'au gardien. Vaincu, il vous laisse remonter avec le butin — ou
           descendre, là où il pèse plus lourd. Si l'équipe tombe, il ne reste qu'un quart du sac, et les
-          compagnons tombés restent au repos un jour par étage descendu.
+          compagnons restent au repos un jour par étage atteint.
         </p>
         <p className="muted petit">
-          Le donjon du {dateFr(aujourdhui())} est le même pour tous les joueurs.{" "}
+          La carte du donjon du {dateFr(aujourdhui())} est la même pour tous les joueurs.{" "}
           {illimite ? "Mode test : tentatives illimitées." : `Tentatives restantes aujourd'hui : ${tentativesRestantes} sur ${tentativesParJour}.`}
           {" "}Le butin rapporté est versé à la bourse ({String(DONJON.multiplicateur).replace(".", ",")} PO par pièce).
         </p>
+        {apprenti.avance < 1 && (
+          <p className="avis dj-apprenti">
+            <b>Donjon d'apprentissage.</b> Tant que votre collection est jeune, les adversaires sont affaiblis
+            ({pourcent(apprenti.difficulte)} de leur force) et le butin réduit ({pourcent(apprenti.gain)}). Tout revient
+            à la normale au fil des boosters ouverts : encore {apprenti.restant} booster{apprenti.restant > 1 ? "s" : ""}.
+            L'expérience des cartes, elle, est entière.
+          </p>
+        )}
         {donjon.dernier && donjon.dernier.jour === aujourdhui() && (
           <p className="avis">Dernière descente : {donjon.dernier.issue === "defaite" ? "l'équipe est tombée" : "remontée"} à l'étage {donjon.dernier.etage}, {donjon.dernier.po} PO versées à la bourse.</p>
         )}
@@ -683,11 +761,15 @@ export default function Donjon({ jeu }) {
           <div className="dj-planbox">
             <h2>Étage {partie.etage}</h2>
             <p className="muted petit">{partie.plan.pos ? "Choisissez la salle suivante" : "Choisissez par où entrer"} — les passages lumineux sont accessibles.</p>
-            {doigt && (
+            {(doigt || partie.plan.pos) && (
               <div className="dj-barre-carte">
-                <button type="button" className="dj-lex-bouton" onClick={() => setFeuille(true)}>
-                  Équipe {debout} / {partie.equipe.length}{partie.reliques.length + (partie.artefact ? 1 : 0) > 0 ? ` · ${partie.reliques.length + (partie.artefact ? 1 : 0)} relique${partie.reliques.length + (partie.artefact ? 1 : 0) > 1 ? "s" : ""}` : ""}
-                </button>
+                {doigt && (
+                  <button type="button" className="dj-lex-bouton" onClick={() => setFeuille(true)}>
+                    Équipe {debout} / {partie.equipe.length}{partie.reliques.length + (partie.artefact ? 1 : 0) > 0 ? ` · ${partie.reliques.length + (partie.artefact ? 1 : 0)} relique${partie.reliques.length + (partie.artefact ? 1 : 0) > 1 ? "s" : ""}` : ""}
+                  </button>
+                )}
+                {/* On peut toujours sortir : même revenu d'un rechargement, même chez un gardien. */}
+                {partie.plan.pos && <BoutonRemonter sac={partie.sac} onRemonter={() => terminer("sortie")} className="btn quiet sm" />}
               </div>
             )}
             <div className="dj-plan-zone" onClick={() => setBulle(null)}>
@@ -787,6 +869,7 @@ export default function Donjon({ jeu }) {
           <div className="dj-coeur">
           <div className="dj-frise" aria-label="Ordre d'initiative du tour">
             <span className="tour">Tour {C.round}</span>
+            {brume(C) > 1 && <span className="dj-brume" title={`Passé le tour ${BRUME_TOUR}, la brume se referme : +20 % de dégâts par tour, des deux côtés.`}>Brume +{Math.round((brume(C) - 1) * 100)} %</span>}
             {ordre.map(({ u, i }) => (
               <Jeton key={u.uid} u={u} cls={u.uid === C.actif ? "actif" : i < C.idx ? "passe" : ""} cfgImage={cfgImage} fichiers={fichiers} />
             ))}
@@ -881,7 +964,7 @@ export default function Donjon({ jeu }) {
               ) : (
                 <>
                   <button className="btn" type="button" onClick={() => aller("carte")}>Retour à la carte</button>
-                  <button className="btn quiet" type="button" onClick={() => terminer("sortie")}>Remonter avec {pieces(partie.sac)}</button>
+                  <BoutonRemonter sac={partie.sac} onRemonter={() => terminer("sortie")} />
                 </>
               )}
             </div>
@@ -955,7 +1038,9 @@ function Lexique({ focus, onFermer }) {
         <h3>États</h3>
         <dl>
           {entree("provoc", "Provoque", "Seule cible possible pour le camp d'en face, armure +2, jusqu'à son prochain tour.")}
-          {entree("galva", "+2 ATQ", "Galvanisé par un meneur, pour deux tours.")}
+          {entree("galva", "+3 ATQ", "Galvanisé par un meneur, pour trois tours.")}
+          {entree("rempart", "Rempart", "Armure +3, posée par un artificier sur toute l'équipe, pour deux tours.")}
+          {entree("brume", "Brume", `Passé le tour ${BRUME_TOUR}, la brume se referme : chaque tour ajoute 20 % aux dégâts des deux camps. Aucun combat ne dure toujours.`)}
           {entree("recharge", "Recharge", "Tours avant que la capacité serve à nouveau.")}
           {entree("repos", "Au repos", "Convalescence après une défaite (un jour par étage atteint) ou une fuite (un jour) : la carte ne peut pas redescendre avant.")}
           {entree("artefact", "Artéfact", "Emporté au départ ou trouvé en route (relique) : son bonus vaut pour toute l'équipe jusqu'à la sortie. Commun +2 PV, peu commun +1 ATQ, rare +1 ATQ et +3 PV, légendaire +2 ATQ et +5 PV.")}
@@ -976,7 +1061,7 @@ function Regles() {
         <li><b>Combat automatique</b> : une stratégie, et l'équipe joue seule. Repassez en Manuel à tout moment.</li>
         <li><b>Gardien</b> : vaincu, il donne une relique, et le choix de remonter avec tout ou de descendre. On peut aussi remonter après n'importe quelle salle.</li>
         <li><b>Fuir</b> : deux cinquièmes du sac tombent, chacun est blessé, et le compagnon le plus mal en point reste derrière pour couvrir la retraite — il quitte l'expédition et reste au repos jusqu'au lendemain. On ne fuit pas un gardien, ni seul.</li>
-        <li><b>Défaite</b> : il ne reste qu'un quart du sac, et les compagnons tombés restent au repos un jour par étage descendu.</li>
+        <li><b>Défaite</b> : il ne reste qu'un quart du sac, et les compagnons restent au repos un jour par étage atteint.</li>
         <li><b>Fiches</b> : survolez ou touchez une carte en combat pour lire son rôle, sa capacité et son état.</li>
       </ul>
     </details>

@@ -15,7 +15,7 @@ import { readFileSync } from "node:fs";
 import extension from "../src/extensions/troupe-valeran/extension.js";
 import {
   ETAGES, RENCONTRES, ROLES, cartesDonjon, choixAuto, choixIA, convalescences, creerPartie, demarrerCombat,
-  descendre, entrer, gainsXP, issue, ouverts, prochain, rapporte, repos, resoudre, roleDe, tirage, tresor, victoire,
+  apprentissage, descendre, entrer, gainsXP, issue, ouverts, prochain, rapporte, repos, resoudre, roleDe, tirage, tresor, victoire,
 } from "../src/donjon/regles.js";
 import { PALIER_IRISEE, xpPourNiveau } from "../src/donjon/experience.js";
 import { DONJON, ECONOMIE } from "../src/config/tiers.js";
@@ -58,12 +58,12 @@ const duRole = (r, role, tier) => {
  * `politique(partie)` décide à la sortie de chaque gardien : true pour
  * descendre. `niveau` : le niveau de toute l'équipe.
  */
-function descente(graine, { equipe, strategie = "concentrer", politique = () => true, niveau = 1, artefact = true }) {
+function descente(graine, { equipe, strategie = "concentrer", politique = () => true, niveau = 1, artefact = true, apprenti = null }) {
   const r = tirage(graine * 7919 + 17);
   const eq = typeof equipe === "function" ? equipe(r) : equipe;
   const art = artefact ? POOLS.artefacts[Math.floor(r() * POOLS.artefacts.length)] : null;
   const niveaux = Object.fromEntries(eq.map((c) => [`${c.ext}:${c.id}`, niveau]));
-  const partie = creerPartie({ equipe: eq, artefact: art, graine: graine % 365, jour: "2026-09-28", pools: POOLS, niveaux });
+  const partie = creerPartie({ equipe: eq, artefact: art, graine: graine % 365, jour: "2026-09-28", pools: POOLS, niveaux, apprenti });
   const trace = { tours: [], salles: {}, combatsPerdusGenre: null };
   const fin = (iss) => ({ iss, partie, trace, butin: rapporte(partie, iss), repos: convalescences(partie, iss), xp: gainsXP(partie, iss) });
   for (let pas = 0; pas < 300; pas++) {
@@ -147,6 +147,20 @@ console.log("\n## Niveau d'une équipe de communes (Concentrer)\n");
 console.log(entete);
 for (const n of [1, 20, 50, 100]) console.log(ligne(`communes niv. ${n}`, mesurer({ equipe: (r) => auPalier(r, "commun"), niveau: n })));
 console.log(ligne("peu communes niv. 1 (repère)", mesurer({ equipe: (r) => auPalier(r, "peucommun") })));
+
+/* 4 bis. Apprentissage : le Donjon adouci des débuts */
+const cfgA = DONJON.apprentissage;
+console.log(`\n## Apprentissage (jeu normal à ${cfgA.jusqua} boosters ouverts)\n`);
+console.log(entete);
+for (const b of [0, Math.round(cfgA.jusqua / 3), Math.round((2 * cfgA.jusqua) / 3), cfgA.jusqua]) {
+  const ap = apprentissage(b, cfgA);
+  console.log(ligne(`communes, ${b} boosters (adversaires ×${ap.difficulte.toFixed(2).replace(".", ",")}, butin ×${ap.gain.toFixed(2).replace(".", ",")})`, mesurer({ equipe: (r) => auPalier(r, "commun"), apprenti: ap })));
+}
+for (const b of [0, cfgA.jusqua]) {
+  const ap = apprentissage(b, cfgA);
+  // Une collection de débutant : huit cartes tirées, les quatre meilleures.
+  console.log(ligne(`collection de 8, ${b} boosters`, mesurer({ equipe: (r) => collectionTiree(r, 8).slice(0, 4), apprenti: ap })));
+}
 
 /* 5. Rôles : trois peu communes au hasard + une du rôle */
 console.log("\n## Ce que vaut un rôle (trois peu communes au hasard + une carte du rôle, peu commune)\n");
