@@ -73,6 +73,8 @@ sur `images.thalazur.io` (`VITE_PORTRAITS_BASE`), par `npm run portraits:publier
 | `#/comptoir` | Le Comptoir | Marché de l'occasion : vendre ses doublons, acheter au rayon du jour |
 | `#/mines` | Les Mines de Kazim | Module idle : frapper le filon, embaucher, vendre l'étoile |
 | `#/donjon` | Le Donjon | Donjon du jour : carte à la Slay the Spire, combats à l'initiative avec ses propres cartes, butin versé à la bourse |
+| `#/expeditions` | Expéditions | Envoyer le banc sur les routes de ses Lieux, en temps réel : peu d'or par carte, de l'XP pour tous, des vestiges ; chaque Lieu progresse jusqu'à son rainbow. Le retour s'annonce dans une fenêtre, jamais pendant un combat ni une ouverture |
+| `#/reliquaire` | Reliquaire | Dissoudre ses exemplaires en trop en vestiges, forger une carte qui manque |
 | `#/succes` | Succès | Paliers Global et Collection à réclamer contre des PO et des sachets offerts ; titres |
 | `#/succes/classement` | Classement | Progression des joueurs connectés qui ont choisi d'y figurer, générale et par extension |
 | `#/profil` | Profil | Connexion Google, pseudo, classement et titre, synchronisation, export et suppression du compte, préférences (animations, doublons, son, cookies) |
@@ -96,6 +98,10 @@ src/
     colporteur.js      passage de Mirko
     mine.js            crédit des PO de la mine
     Compte.jsx         compte Google et synchronisation
+  expeditions/
+    regles.js          Les Expéditions : départ, estimation, retour — formules pures, testées
+  reliquaire/
+    regles.js          Le Reliquaire : dissolution et forge — formules pures, testées
   donjon/
     regles.js          Le Donjon : carte, combat, rencontres — formules pures, testées
     Donjon.jsx         l'interface et les animations
@@ -153,10 +159,10 @@ Ajouter un dossier suffit : aucune autre ligne de code.
 ## Documentation
 
 - [Conception](docs/conception/) : boutique et tirage, bibliothèque, Comptoir
-  et colporteur, Mines, Donjon, succès et classement, comptes, accessibilité, roster
+  et colporteur, Mines, Donjon, Expéditions et Reliquaire, succès et classement, comptes, accessibilité, roster
   et portraits, notes.
 - [Charte graphique](docs/charte-graphique.md)
-- Audits : [économie](docs/audit-economie.md), [sécurité](docs/audit-securite.md),
+- Audits : [économie](docs/audit-economie.md), [expéditions et reliquaire](docs/audit-expeditions-reliquaire.md), [sécurité](docs/audit-securite.md),
   [structure](docs/audit-structure.md)
 
 ## Aperçu en ligne avant `main`
