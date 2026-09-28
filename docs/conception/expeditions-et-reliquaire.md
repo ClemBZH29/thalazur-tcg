@@ -65,6 +65,19 @@ l'annonce ; « Renvoyer la même équipe » relance la route d'un clic.
 
 ## Reliquaire
 
+**Scellé jusqu'à 60 %.** Le Reliquaire n'apparaît ni dans la navigation ni à
+l'écran tant qu'aucune extension n'est complétée à 60 % (`RELIQUAIRE.ouverture`) :
+avant, les boosters complètent mieux que lui. Le seuil franchi, une fenêtre
+l'annonce (`src/components/AnnonceReliquaire.jsx`), avec les mêmes égards que le
+retour d'expédition : jamais pendant une ouverture ni un combat, jamais par-dessus
+une autre fenêtre. L'annonce note `reliquaire.ouvert` : il ne se referme plus.
+
+**Trouver la carte à forger.** Une barre collée sous le bandeau sert aux deux
+colonnes : recherche (nom, archétype, faction, sans accents), rareté avec le
+nombre de manquantes, type de carte ; côté forge, « Seulement ce que je peux
+forger », et ce qui se forge passe en tête. Sur grand écran, chaque liste défile
+dans son volet : barre, titres et bouton groupé restent en vue.
+
 - **Dissoudre** : un exemplaire en trop contre des vestiges (5, 10, 25, 100 selon
   le palier). Le dernier exemplaire n'est jamais proposé. Le geste groupé ne
   touche que les communes et peu communes ; une légendaire se dissout une par
@@ -98,7 +111,15 @@ Limite connue : une même route accueillie sur deux appareils avant qu'ils se
 synchronisent est payée deux fois (XP et PO s'additionnent). Les montants sont
 faibles et le cas demande de jouer hors ligne sur deux appareils à la fois.
 
-## Illustrations
+## Illustrations et préchargement
+
+Les illustrations des pages chargées à la demande sont préchargées au repos, par
+vagues (`src/lib/prechargement.js`) : cadres et sachets, puis bandeaux et
+portraits, puis Comptoir, Mines, et les planches d'effet en dernier. Rien ne
+part en données restreintes ou en 2G. La liste est tenue à la main ;
+`tests/prechargement.test.js` vérifie qu'elle suit les dossiers de `public/`.
+
+
 
 `public/expeditions/` (bandeau, camp vide, maîtresse de route, marqueur de piste),
 `public/reliquaire/` (bandeau, gardien, reliquaire, vestige, planches d'effet),
