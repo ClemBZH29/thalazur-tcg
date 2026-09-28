@@ -32,6 +32,10 @@
   background: none; color: var(--ink3); font: inherit; font-size: 11px; line-height: 1;
 }
 .comptoir .aide-bouton:hover { color: var(--ink); border-color: var(--ink3); }
+/* Le rond reste à 18 px, la zone qu'on touche en fait 44 : le bouton se
+   trouve à côté de la date, qu'on ne veut pas grossir. */
+.comptoir .aide-bouton { position: relative; }
+.comptoir .aide-bouton::after { content: ""; position: absolute; inset: -13px; }
 .comptoir-bulle {
   position: absolute; z-index: 20; left: 0; top: 100%; margin-top: 10px;
   width: min(430px, 92vw); padding: 15px 34px 15px 17px;
@@ -95,6 +99,8 @@
 .acheteur.exceptionnel { border-color: var(--m-noyer); }
 .acheteur.inerte { cursor: default; opacity: .78; }
 .acheteur.inerte:hover { transform: none; border-color: var(--edge); box-shadow: none; }
+/* Même survol collant qu'à la boutique : au doigt, pas de soulèvement. */
+@media (hover: none) { .acheteur:hover { transform: none; box-shadow: none; } }
 
 /* ── La scène du portrait ─────────────────────────────────────────────────
    Les portraits sont des découpes : la planche d'origine est en RVBA et les
