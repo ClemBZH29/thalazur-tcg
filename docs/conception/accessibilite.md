@@ -59,3 +59,25 @@ Ajouté avec les pages et les deux modules :
 
 Ce qui reste imparfait : le geste de déchirure n'est pas reproductible au
 clavier, mais deux boutons offrent le même résultat juste en dessous.
+
+Passe mobile (audit du 28/09/2026, lots 1 et 2) :
+
+- **Plus de page qui s'élargit à la révélation.** La lueur et les éclats
+  dépassaient de l'écran ; au téléphone, `overflow-x: hidden` sur le seul
+  `body` n'empêche pas la zone de mise en page de s'agrandir (473 px pour un
+  écran de 390). La page glissait de côté et la loupe s'ouvrait décentrée.
+  `overflow-x: clip` sur `html` et `body` règle les deux, et la fiche de la
+  loupe prend la largeur disponible au lieu de celle de sa citation.
+- **Champs à 16 px au doigt.** En dessous, Safari iOS zoome à la saisie et ne
+  dézoome pas.
+- **Survol collant neutralisé.** Au doigt, `:hover` reste posé après un
+  toucher : les sachets et les acheteurs restaient soulevés. Le soulèvement
+  est réservé aux appareils qui survolent vraiment (`hover: hover`).
+- **Cibles de 44 px** pour le bouton de compte, le son, les boutons pleins et
+  l'aide du Comptoir (le rond garde 18 px, la zone sensible est agrandie).
+- **Paysage téléphone** (hauteur ≤ 500 px) : le bandeau n'est plus collant et
+  la barre basse ne garde que ses icônes. Ensemble ils prenaient un tiers de
+  l'écran. La carte à retourner est dimensionnée sur la hauteur libre.
+- **Ouverture recadrée à chaque étape** : la carte à retourner est ramenée à
+  l'écran si elle n'y est pas entière, et le bilan repart du haut. Les actions
+  du bilan restent collées au-dessus de la barre basse.

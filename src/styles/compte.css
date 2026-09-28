@@ -14,6 +14,7 @@
 }
 .compte-bouton:hover { color: var(--ink); background: var(--panel); }
 .compte-bouton.on { color: var(--lamp); border-color: var(--lamp); }
+@media (pointer: coarse) { .compte-bouton { height: 44px; min-width: 44px; } }
 .compte-bouton.invite { padding: 0 12px; }
 .compte-ico { font-size: 14px; }
 .compte-avatar {

@@ -18,6 +18,14 @@ body {
   overflow-x: hidden;
 }
 
+/* Au téléphone, `overflow-x: hidden` sur le seul `body` ne retient rien : un
+   élément qui dépasse — la lueur de révélation, 1,8 fois la carte en fin
+   d'animation — élargit la zone de mise en page (473 px mesurés pour un écran
+   de 390). La page glisse alors de côté, la barre basse s'étire et la loupe
+   s'ouvre décentrée. `clip` coupe sans créer de conteneur défilant, sur les
+   deux niveaux ; `hidden` reste en repli pour les navigateurs anciens. */
+html, body { overflow-x: clip; }
+
 h1, h2, h3 {
   font-family: var(--font-display);
   font-variation-settings: var(--wonk);
@@ -92,6 +100,17 @@ main[tabindex="-1"]:focus, main[tabindex="-1"]:focus-visible { outline: none; }
 .btn.quiet { background: transparent; color: var(--ink2); border: 1px solid var(--edge-hi); }
 .btn.quiet:hover { background: var(--panel); color: var(--ink); }
 .btn.sm { padding: 8px 15px; font-size: 12.5px; }
+
+/* Safari iOS zoome la page à la saisie dans un champ de moins de 16 px, et ne
+   la dézoome pas ensuite. Au doigt, tous les champs passent donc à 16 px ;
+   à la souris, chaque feuille garde sa taille. Le `!important` passe devant
+   les sélecteurs de classe (`.biblio-recherche`, `.pas input`…) sans avoir à
+   les énumérer. */
+@media (pointer: coarse) {
+  input:not([type=checkbox]):not([type=radio]):not([type=range]), select, textarea {
+    font-size: max(16px, 1em) !important; }
+  .btn { min-height: 44px; }
+}
 .btn[disabled] { opacity: .4; cursor: not-allowed; }
 
 .view { flex: 1; width: 100%; max-width: var(--page-max); margin: 0 auto;

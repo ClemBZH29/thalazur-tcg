@@ -61,6 +61,41 @@ export default function Ouverture({
   const purger = () => { minuteurs.current.forEach(clearTimeout); minuteurs.current = []; };
   useEffect(() => () => purger(), []);
 
+  /**
+   * Recadrage à chaque étape. Au téléphone, « Ouvrir sans glisser » est au bas
+   * de l'écran : on l'y touche, la page reste défilée, et la carte à retourner
+   * arrive à moitié hors champ — en paysage, sous le bord haut. Le bilan, lui,
+   * s'ouvrait au milieu de l'éventail. On ne bouge que si la cible n'est pas
+   * déjà entière à l'écran, pour ne pas secouer un écran d'ordinateur.
+   */
+  const cadre = useRef(null);
+  useEffect(() => {
+    const vue = cadre.current;
+    if (!vue || (phase !== "revelation" && phase !== "bilan")) return;
+    const comportement = mouvementReduit ? "auto" : "smooth";
+    if (phase === "bilan") {
+      if (window.scrollY > 0) window.scrollTo({ top: 0, behavior: comportement });
+      return;
+    }
+    const scene = vue.querySelector(".scene");
+    const pile = vue.querySelector(".pile");
+    if (!scene || !pile) return;
+    // Rien à faire si la carte est déjà entière entre le bandeau (collant en
+    // portrait) et la barre basse : le titre et « Tout ouvrir » restent visibles.
+    const marge = parseFloat(getComputedStyle(scene).scrollMarginBottom) || 0;
+    const haut = Math.max(0, document.querySelector(".tete")?.getBoundingClientRect().bottom ?? 0);
+    const libre = window.innerHeight - marge;
+    const p = pile.getBoundingClientRect();
+    if (p.top >= haut && p.bottom <= libre) return;
+    // Sinon la scène entière (carte, jauge, aide) si elle tient, la carte seule
+    // au centre à défaut.
+    if (scene.getBoundingClientRect().height <= libre - haut) {
+      scene.scrollIntoView({ block: "end", behavior: comportement });
+    } else {
+      pile.scrollIntoView({ block: "center", behavior: comportement });
+    }
+  }, [phase, mouvementReduit]);
+
   const ouvrir = useCallback((direct = false) => {
     if (videPool) return;
     const t = ouvrirBooster(pool, taux, {
@@ -205,7 +240,7 @@ export default function Ouverture({
   const commun = { cfgImage, fichiers };
 
   return (
-    <main className="view" id="contenu" style={{ "--sachet-r": booster.ratio }}>
+    <main ref={cadre} className="view" id="contenu" style={{ "--sachet-r": booster.ratio }}>
       <div className="section-titre">
         <h2>{booster.titre}</h2>
         {/* Pendant la révélation, ce bouton sert à l'écourter — c'est ce qu'on
@@ -412,7 +447,7 @@ export default function Ouverture({
               onAffaire={onAffaire} onBotte={prendreBotte} onLoupe={onLoupe}
             />
           )}
-          <div className="actions">
+          <div className="actions actions-bilan">
             <button className="btn" onClick={relancer}>
               {gratuit ? "Ouvrir un autre booster"
                 : sachet ? "Ouvrir un sachet offert"

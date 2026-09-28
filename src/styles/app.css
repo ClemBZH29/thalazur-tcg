@@ -43,6 +43,12 @@
    arrive sans le confondre avec ce qui est jouable. */
 .booster-carte.verrou .vignette-booster img { filter: grayscale(1) brightness(.62) contrast(.95); }
 .booster-carte.verrou:hover { transform: none; border-color: var(--edge); background: var(--panel); }
+/* Au doigt, `:hover` reste posé après le toucher : la carte restait soulevée
+   en revenant d'une ouverture. Pas de soulèvement sans vrai survol. */
+@media (hover: none) {
+  .booster-carte:hover { transform: none; }
+  .booster-carte:hover .vignette-booster img { transform: none; }
+}
 
 .vignette-booster { position: relative; height: 152px; border-radius: var(--r-md); overflow: hidden;
   background: radial-gradient(ellipse at 50% 30%, #223642, #101c22);
@@ -228,6 +234,23 @@
 @keyframes pose { from { opacity: 0; transform: translateY(22px) scale(.93); } to { opacity: 1; transform: none; } }
 .ev.premier { transform: translateY(-10px); }
 .actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 14px; }
+/* Au téléphone, cinq cartes sur deux colonnes repoussaient « Ouvrir un autre
+   booster » sous le pli, derrière la barre basse : on défilait pour relancer.
+   Les deux actions du bilan restent posées juste au-dessus de la barre. */
+@media (max-width: 860px) {
+  .actions-bilan { position: sticky; z-index: 20; align-self: stretch;
+    bottom: calc(72px + env(safe-area-inset-bottom));
+    margin: 14px -16px 0; padding: 14px 16px 12px;
+    background: linear-gradient(to bottom, transparent, var(--ground) 38%); }
+}
+@media (max-width: 860px) and (max-height: 500px) {
+  .actions-bilan { bottom: calc(46px + env(safe-area-inset-bottom)); }
+}
+/* Marge de recadrage (voir Ouverture.jsx) : la barre basse ne doit pas
+   recouvrir la jauge et l'aide sous la carte. */
+@media (max-width: 860px) { .scene { scroll-margin-bottom: calc(80px + env(safe-area-inset-bottom)); } }
+@media (max-width: 860px) and (max-height: 500px) {
+  .scene { scroll-margin-bottom: calc(52px + env(safe-area-inset-bottom)); } }
 
 /* --- Bibliothèque --- */
 .compteurs { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -506,7 +529,9 @@
 .compteur.c-pj { background: #0b0f13; border-color: var(--edge-hi); color: #e3ecf4; }
 .compteur.c-pj b { color: #fff; }
 .loupe-fiche { display: flex; flex-direction: column; align-items: center; gap: 10px;
-  max-width: 48ch; }
+  width: 100%; max-width: 48ch; }
+/* Sans `width`, la fiche prend la largeur de sa citation, plafonnée à 48ch,
+   soit plus que l'écran d'un téléphone : le texte sortait à droite. */
 .loupe-reperes { font-size: 15px; font-weight: 600; color: var(--ink); text-align: center; }
 .loupe-secondaire { font-size: 13px; color: var(--ink3); text-align: center; margin-top: -4px; }
 .loupe-anecdote { text-align: center; font-style: italic; font-size: 16px;
@@ -544,7 +569,12 @@
   .scene { padding: 8px 0 22px; gap: 8px; }
   .hero { padding: 22px 0 16px; }
   .section-titre { margin: 14px 0 10px; }
-  :root { --carte-plein: clamp(150px, 62vh, 240px); --sachet: clamp(132px, 54vh, 200px); }
+  /* La largeur suit la hauteur réellement libre : 62vh donnait 240 px de large,
+     donc 360 de haut sur un écran de 390 — la carte ne tenait pas entière et
+     passait sous le bandeau. On retire la barre basse, la jauge et l'aide
+     (~170 px) et on divise par le rapport 2/3 de la carte. */
+  :root { --carte-plein: clamp(140px, calc((100dvh - 170px) / 1.5), 240px);
+    --sachet: clamp(132px, 54vh, 200px); }
 }
 
 /* Pointeur grossier : les cibles passent à 44 px, l'inclinaison au survol
