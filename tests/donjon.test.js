@@ -75,6 +75,8 @@ describe("cartes", () => {
     expect(roleDe("Médecin")).toBe("soigneur");
     expect(roleDe("Souverain")).toBe("meneur");
     expect(roleDe("Artisan")).toBe("debrouillard");
+    // Le moine de D&D frappe, il ne soigne pas.
+    expect(roleDe("Moine")).toBe("frappeur");
   });
 });
 

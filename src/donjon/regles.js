@@ -112,13 +112,17 @@ export const TRAITS = {
   brute: { nom: "Coriace", aide: "PV augmentés de 20 %" },
 };
 
-/** Le rôle d'un allié vient de son premier repère (l'archétype du roster). */
+/**
+ * Le rôle d'un allié vient de son premier repère (l'archétype du roster).
+ * Les classes de D&D gardent leur emploi : le moine se bat à mains nues, il
+ * frappe ; il ne soigne pas.
+ */
 export function roleDe(rep1) {
   const s = String(rep1 || "").toLowerCase();
   if (/infantrie|infanterie|paladin|lancier|chef de clan/.test(s)) return "garde";
-  if (/guerrier|combattant|barbare|champion|cavalerie|assassin|roublard|sportif|mineur/.test(s)) return "frappeur";
+  if (/guerrier|combattant|barbare|champion|cavalerie|assassin|roublard|sportif|mineur|moine/.test(s)) return "frappeur";
   if (/archer|archère|éclaireur|rodeur|rôdeur|explorateur|coursi/.test(s)) return "tireur";
-  if (/médecin|clerc|infirm|herbor|shaman|chaman|druide|moine/.test(s)) return "soigneur";
+  if (/médecin|clerc|infirm|herbor|shaman|chaman|druide/.test(s)) return "soigneur";
   if (/sorcier|magicien|scorceleur|enchanteresse/.test(s)) return "mage";
   if (/souverain|prince|noble|conseiller|ambassadeur|barde/.test(s)) return "meneur";
   return "debrouillard";

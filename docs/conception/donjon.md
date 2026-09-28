@@ -21,7 +21,8 @@ automatique.
 - **Le rôle vient de l'archétype** (`roleDe`) : Paladin, Lancier, Infantrie
   lourde font un garde ; Archère, Éclaireur, Rôdeur un tireur ; Médecin,
   Clerc, Shaman un soigneur ; Sorcier, Magicien un mage ; Souverain, Prince,
-  Barde un meneur ; Guerrier, Assassin, Barbare un frappeur. Tout le reste —
+  Barde un meneur ; Guerrier, Assassin, Barbare, Moine un frappeur — les
+  classes de D&D gardent leur emploi, le moine frappe et ne soigne pas. Tout le reste —
   artisans, fonctionnaires, marins — devient **débrouillard**, qui augmente le
   butin : aucune carte n'est inutile.
 - **Le palier fixe les PV et l'ATQ**, et ajoute à l'initiative.
