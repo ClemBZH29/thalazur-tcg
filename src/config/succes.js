@@ -5,7 +5,8 @@
  * Deux catégories, comme les joueurs les lisent :
  *
  * - **Global** : ce que l'on fait sur tout le site, toutes extensions et
- *   tous modules confondus (boosters ouverts, Mines, Comptoir, colporteur).
+ *   tous modules confondus (boosters ouverts, Mines, Comptoir, colporteur,
+ *   Donjon, Expéditions, Reliquaire, expérience des cartes).
  * - **Collection** : ce que l'on possède dans une extension. Ces familles
  *   sont construites à partir du roster de chaque extension ouverte (voir
  *   `src/succes/regles.js`) : une extension qui ouvre apporte les siennes
@@ -116,6 +117,86 @@ export const GLOBAL = [
     paliers: [
       { seuil: 1, recompense: { sachets: 2 }, titre: "Revenu du Donjon" },
       { seuil: 10, recompense: { sachets: 5 } },
+    ],
+  },
+  {
+    id: "expeditions",
+    nom: "Sur les routes",
+    quoi: "Accueillir {n} expédition{s}",
+    mesure: "expeditions",
+    paliers: [
+      { seuil: 1, recompense: { po: 60 } },
+      { seuil: 10, recompense: { po: 180 } },
+      { seuil: 50, recompense: { sachets: 2 }, titre: "Maître des routes" },
+      { seuil: 200, recompense: { sachets: 5 } },
+    ],
+  },
+  {
+    id: "lieux-rainbow",
+    nom: "Des lieux qui brillent",
+    quoi: "Faire passer en rainbow {n} carte{s} Lieu par les expéditions",
+    mesure: "lieuxRainbow",
+    paliers: [
+      { seuil: 1, recompense: { sachets: 1 } },
+      { seuil: 5, recompense: { sachets: 3 }, titre: "Arpenteur de Thalazur" },
+      { seuil: 15, recompense: { sachets: 6 } },
+    ],
+  },
+  {
+    id: "dissous",
+    nom: "Cendres et vestiges",
+    quoi: "Dissoudre {n} exemplaire{s} au Reliquaire",
+    mesure: "dissous",
+    paliers: [
+      { seuil: 25, recompense: { po: 60 } },
+      { seuil: 100, recompense: { po: 180 } },
+      { seuil: 500, recompense: { sachets: 3 }, titre: "Gardien des cendres" },
+    ],
+  },
+  {
+    id: "forges",
+    nom: "La forge du Reliquaire",
+    quoi: "Forger {n} carte{s} au Reliquaire",
+    mesure: "forges",
+    paliers: [
+      { seuil: 1, recompense: { po: 60 } },
+      { seuil: 10, recompense: { po: 240 } },
+      { seuil: 30, recompense: { sachets: 3 }, titre: "Artisan du Reliquaire" },
+      { seuil: 60, recompense: { sachets: 5 } },
+    ],
+  },
+  {
+    id: "niveau",
+    nom: "Aguerri",
+    quoi: "Mener une carte au niveau {n}",
+    mesure: "niveauMax",
+    paliers: [
+      { seuil: 10, recompense: { po: 60 } },
+      { seuil: 25, recompense: { po: 180 } },
+      { seuil: 50, recompense: { sachets: 2 }, titre: "Vétéran" },
+      { seuil: 100, recompense: { sachets: 5 }, titre: "Légende vivante" },
+    ],
+  },
+  {
+    id: "rainbow-xp",
+    nom: "Trempé dans l'épreuve",
+    quoi: "Atteindre le palier rainbow de {n} carte{s} par l'expérience",
+    mesure: "rainbowXP",
+    paliers: [
+      { seuil: 1, recompense: { po: 120 } },
+      { seuil: 5, recompense: { sachets: 1 } },
+      { seuil: 15, recompense: { sachets: 3 }, titre: "Forgé par l'épreuve" },
+      { seuil: 40, recompense: { sachets: 6 } },
+    ],
+  },
+  {
+    id: "centenaires",
+    nom: "Centenaires",
+    quoi: "Mener {n} carte{s} au niveau 100",
+    mesure: "centenaires",
+    paliers: [
+      { seuil: 1, recompense: { sachets: 2 }, titre: "Mentor" },
+      { seuil: 5, recompense: { sachets: 5 } },
     ],
   },
   {

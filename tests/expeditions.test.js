@@ -7,6 +7,7 @@ import * as X from "../src/expeditions/regles.js";
 import * as R from "../src/reliquaire/regles.js";
 import { fusionner3, fusionnerReliquaire } from "../src/lib/nuage/fusion.js";
 import { etatVide } from "../src/lib/storage.js";
+import { mesuresGlobales } from "../src/succes/regles.js";
 
 const H = 3600e3;
 const T0 = new Date(2026, 8, 28, 9, 0).getTime();
@@ -81,6 +82,7 @@ describe("expéditions", () => {
     const { etat: e, bilan } = X.crediterRoute(etat, 1, INDEX, T0 + 4 * H);
     expect(bilan.lieuRainbow).toBe(true);
     expect(e.collections.x.l1.rainbow).toBe(1);
+    expect(e.stats.lieuxRainbow).toBe(1);
   });
 
   test("peu par carte : une équipe complète de communes rapporte moins d'un booster par jour", () => {
@@ -136,6 +138,30 @@ describe("reliquaire", () => {
   test("rainbow et cartes de personnage restent hors du Reliquaire", () => {
     expect(R.eligible({ id: "pj-1", tier: "legendaire" })).toBe(false);
     expect(R.eligible({ id: "f1", tier: "fullart" })).toBe(false);
+  });
+});
+
+describe("ouverture du Reliquaire", () => {
+  const roster = Array.from({ length: 10 }, (_, i) => pnj(`o${i}`));
+  const avec = (n) => ({ ...etatVide(), collections: { x: Object.fromEntries(roster.slice(0, n).map((c) => [c.id, { normale: 1 }])) } });
+  test("scellé sous 60 %, ouvert à 60 %", () => {
+    expect(R.seuilAtteint(avec(5), { x: roster })).toBe(false);
+    expect(R.seuilAtteint(avec(6), { x: roster })).toBe(true);
+  });
+  test("une fois ouvert, il le reste", () => {
+    const e = R.ouvrir(avec(6), T0);
+    expect(R.estOuvert(e)).toBe(true);
+    expect(R.ouvrir(e, T0 + H).reliquaire.ouvert).toBe(T0);
+    expect(fusionnerReliquaire({}, { vestiges: 0 }, e.reliquaire).ouvert).toBe(T0);
+  });
+});
+
+describe("succès", () => {
+  test("expéditions, Reliquaire et expérience se mesurent", () => {
+    const e = { ...etatVide(), stats: { expeditions: 3, lieuxRainbow: 1, dissous: 12, forges: 2 },
+      xp: { "x:a": { xp: xpPourNiveau(30), irisee: true }, "x:b": { xp: xpPourNiveau(100), irisee: true, cent: true } } };
+    const m = mesuresGlobales(e, null);
+    expect(m).toMatchObject({ expeditions: 3, lieuxRainbow: 1, dissous: 12, forges: 2, niveauMax: 100, rainbowXP: 2, centenaires: 1 });
   });
 });
 

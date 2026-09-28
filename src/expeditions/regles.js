@@ -160,7 +160,11 @@ export function crediterRoute(etat, id, index, maintenant = Date.now()) {
     collections,
     bourse,
     reliquaire: { ...reliquaire, vestiges: reliquaire.vestiges + route.est.vestiges },
-    stats: { ...(e1.stats || {}), expeditions: ((e1.stats || {}).expeditions || 0) + 1 },
+    stats: {
+      ...(e1.stats || {}),
+      expeditions: ((e1.stats || {}).expeditions || 0) + 1,
+      lieuxRainbow: ((e1.stats || {}).lieuxRainbow || 0) + (ligneLieu?.irisee ? 1 : 0),
+    },
     expeditions: {
       ...ex,
       orJour: { jour, credite: dejaJour + or },
