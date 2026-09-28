@@ -1,5 +1,6 @@
 import { Lien, useRoute } from "../lib/routeur.jsx";
 import { useCompte } from "../jeu/Compte.jsx";
+import Icone from "./Icone.jsx";
 
 const LIBELLE_SYNC = {
   "a-jour": "Partie à jour sur votre compte",
@@ -21,7 +22,7 @@ export default function BoutonCompte() {
   if (!disponible) {
     return (
       <Lien vers="/profil" className="compte-bouton invite" actif={ici} title="Profil et préférences">
-        <span className="compte-ico" aria-hidden="true">◌</span>
+        <Icone nom="profil" taille={18} className="compte-ico" />
         <span className="compte-mot">Profil</span>
       </Lien>
     );
@@ -31,7 +32,9 @@ export default function BoutonCompte() {
     return (
       <Lien vers="/profil" className="compte-bouton invite" actif={ici}
         title={statut === "ouverture" ? "Ouverture de la session…" : "Se connecter pour garder sa collection sur tous ses appareils"}>
-        <span className="compte-ico" aria-hidden="true">◌</span>
+        {/* Une silhouette et non « ◌ » : au téléphone le mot disparaît, et un
+            cercle pointillé ne disait pas « compte ». */}
+        <Icone nom="profil" taille={18} className="compte-ico" />
         <span className="compte-mot">{statut === "ouverture" ? "…" : "Connexion"}</span>
       </Lien>
     );

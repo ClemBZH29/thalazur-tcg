@@ -147,6 +147,36 @@ une dimension de carte ou de scène en dur.
 Rayons : `--r-sm` 3px, `--r-md` 6px, `--r-lg` 10px.
 Ombres : `--shadow-lift` pour les cartes, `--shadow-flat` pour les panneaux.
 
+### Paliers d'écran
+
+Les feuilles en comptaient onze (400, 560, 620, 640, 720, 760, 860, 900, 1024,
+1100, 1180), chacune posée au moment où un écran débordait. Ils sont ramenés à
+cinq, plus une condition de hauteur. Une requête média ne lit pas les variables
+CSS : les valeurs s'écrivent en clair, mais **uniquement celles-ci**.
+
+| Palier | Requête | Ce qu'il désigne |
+|--------|---------|------------------|
+| Petit téléphone | `(max-width: 400px)` | 320–400 px : on resserre encore le bandeau |
+| Téléphone | `(max-width: 720px)` | tous les téléphones en portrait (jusqu'à 430 px) et les fenêtres étroites |
+| Paysage bas | `(max-width: 860px) and (max-height: 500px)` | téléphone couché : large, mais 390 px de haut |
+| Tablette | `(max-width: 900px)` | une colonne pour les pages à deux panneaux (Mines, négoce) |
+| Large | `(max-width: 1180px)` | grilles de trois qui passent à deux (rayon, surplus) |
+| Bureau | `(min-width: 1024px) and (min-height: 680px)` | les pages tenues sur un écran |
+
+Entre 430 et 744 px il n'existe aucun appareil courant — ni téléphone en
+portrait, ni tablette — : les anciens seuils de 560, 620, 640 et 760 visaient
+tous le téléphone et y sont confondus.
+
+La **barre basse** vaut pour « téléphone ou paysage bas » :
+`(max-width: 720px), (max-width: 860px) and (max-height: 500px)`, et son
+contraire `(min-width: 721px) and (min-height: 501px), (min-width: 861px)`.
+Une tablette en portrait (768, 820 px) garde donc la navigation en haut.
+
+Pour un composant qui vit dans des colonnes de largeurs différentes — fiche
+d'acheteur, ligne de compagnon —, préférer une **requête de conteneur**
+(`container: nom / inline-size` puis `@container nom (max-width: …)`) : la
+fiche suit sa colonne, pas l'écran.
+
 ### Géométrie de la scène d'ouverture
 
 Tout s'exprime en fraction de `--sachet`, avec `--sachet-r` le rapport du visuel,
@@ -284,11 +314,16 @@ du bandeau. Les deux étages sont frères sous une coquille collante sans filtre
 Deux étages se lisent d'ailleurs mieux à six entrées qu'un rang unique, et le
 passage au mobile devient direct : le second étage descend sous le pouce.
 
-### La navigation descend sous 860 px
+### La navigation descend au téléphone
 
-Six entrées à quarante-quatre pixels ne tiennent pas sur un rang en haut. En
+Au téléphone et en paysage bas (voir les paliers d'écran). Elle descendait sous
+860 px, tablettes en portrait comprises, où six entrées tiennent pourtant très
+bien en haut. Au téléphone, six entrées à quarante-quatre pixels ne tiennent pas sur un rang en haut. En
 barre fixe basse, chaque entrée prend une icône, une étiquette courte et une
-zone de quarante-quatre pixels au moins. Le nom complet reste dans le flux, hors
+zone de quarante-quatre pixels au moins. Les icônes sont des tracés SVG dans la
+page (`src/components/Icone.jsx`), jamais des caractères : ⚖ et ⛏ ont une
+présentation emoji et sortaient en couleur sur iOS et Android. Étiquettes à
+11 px. Le nom complet reste dans le flux, hors
 écran, pour le nom accessible du lien : seul l'affichage prend la version
 courte. La vue réserve la hauteur de la barre en bas de page.
 

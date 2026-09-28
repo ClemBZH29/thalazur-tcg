@@ -15,6 +15,28 @@ même ligne — et enfin le tri du surplus, carte par carte, qui demande de la
 lecture. Le Registre a disparu : vingt lignes d'historique qu'on ne relit pas.
 La Régie, elle, est passée derrière le point d'interrogation du titre.
 
+### Au téléphone
+
+Pleine largeur, chaque fiche d'acheteur prenait un écran entier, portrait
+compris, et le rayon n'arrivait qu'après trois écrans (à 2 400 px sur un écran
+de 844). Deux changements, mesurés à l'audit mobile du 28/09/2026 :
+
+- **La fiche passe en rangée quand sa colonne est étroite** : vignette de
+  96 px cadrée sur le visage, nom, métier, spécialité, et ce que l'acheteur veut
+  de vous en pied. La réplique se retire : toucher la fiche ouvre le négoce, où
+  elle a toute sa place. La règle est une requête de conteneur sur la colonne
+  des acheteurs, pas sur l'écran ; en paysage bas, une requête média applique
+  la même fiche, trois de front. Le rayon arrive à 865 px en portrait, 486 en
+  paysage.
+- **Ceux qui veulent quelque chose passent devant.** Un acheteur sans intérêt
+  pour vos surplus n'a rien à faire en tête d'une pile. Le tri est stable :
+  l'ordre du jour tient à l'intérieur de chaque groupe.
+
+Des onglets « Vendre / Acheter » avaient été envisagés. Ils ne sont pas venus :
+une fois les fiches compactes, le rayon est à un défilement, et des onglets
+auraient séparé ce que la page montre ensemble — qui achète quoi aujourd'hui,
+et ce que l'échoppe vend.
+
 ### Le jour est la date réelle
 
 Les acheteurs tournent avec le calendrier, pas avec un bouton. On revient

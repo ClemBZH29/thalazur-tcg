@@ -119,7 +119,7 @@ main[tabindex="-1"]:focus, main[tabindex="-1"]:focus-visible { outline: none; }
 .lede { font-size: 16px; line-height: 1.75; color: var(--ink2); max-width: 58ch; }
 .muted { color: var(--ink4); font-size: 13px; }
 
-@media (max-width: 640px) {
+@media (max-width: 720px) {
   .masthead { gap: 10px;
     padding: 12px max(18px, env(safe-area-inset-right)) 12px max(18px, env(safe-area-inset-left)); }
   .view { padding: 24px max(18px, env(safe-area-inset-right))

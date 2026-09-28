@@ -1,4 +1,5 @@
 import { Suspense, lazy, useEffect, useRef } from "react";
+import Icone from "./components/Icone.jsx";
 import Brume from "./components/Brume.jsx";
 import Loupe from "./components/Loupe.jsx";
 import { Jeu, useJeu } from "./jeu/Jeu.jsx";
@@ -36,17 +37,17 @@ const PageReglages = import.meta.env.DEV ? lazy(() => import("./routes/PageRegla
 
 /** Les entrées de navigation, dans l'ordre où elles se lisent. */
 const PAGES = [
-  { vers: "/", nom: "Accueil", court: "Accueil", ico: "◈" },
-  { vers: "/boutique", nom: "Boutique", court: "Boutique", ico: "◫" },
+  { vers: "/", nom: "Accueil", court: "Accueil", ico: "accueil" },
+  { vers: "/boutique", nom: "Boutique", court: "Boutique", ico: "boutique" },
   // « Bibliothèque » tronqué en « Bibliothè… » dans une barre à six entrées
   // sur trois cent quatre-vingt-dix pixels : le mot court existe pour ça.
-  { vers: "/bibliotheque", nom: "Bibliothèque", court: "Cartes", ico: "▣" },
-  { vers: "/comptoir", nom: "Comptoir", court: "Comptoir", ico: "⚖" },
-  { vers: "/mines", nom: "Mines", court: "Mines", ico: "⛏" },
+  { vers: "/bibliotheque", nom: "Bibliothèque", court: "Cartes", ico: "cartes" },
+  { vers: "/comptoir", nom: "Comptoir", court: "Comptoir", ico: "comptoir" },
+  { vers: "/mines", nom: "Mines", court: "Mines", ico: "mines" },
   // Succès et classement partagent une entrée : la barre en compte déjà six
   // en développement, et le classement n'a de sens qu'à côté des titres.
-  { vers: "/succes", nom: "Succès", court: "Succès", ico: "✦" },
-  ...(import.meta.env.DEV ? [{ vers: "/reglages", nom: "Réglages MJ", court: "MJ", ico: "⚙" }] : []),
+  { vers: "/succes", nom: "Succès", court: "Succès", ico: "succes" },
+  ...(import.meta.env.DEV ? [{ vers: "/reglages", nom: "Réglages MJ", court: "MJ", ico: "reglages" }] : []),
 ];
 
 /** Pages dessinées pour tenir sur un écran, sans défilement ni pied. */
@@ -221,8 +222,14 @@ function Coque() {
             lisent mieux : identité et bourse au-dessus, sections en dessous. */}
         <div className="tete" ref={tete}>
         <header className="masthead">
+          {/* Sous 420 px, le titre entier était coupé en « La Brume de
+              Thala… ». Il reste le nom accessible du lien ; l'écran n'en
+              montre que le dernier mot. */}
           <Lien vers="/" className="brand" actif={false}>
-            <b>La Brume de Thalazur</b>
+            <b>
+              <span className="brand-long">La Brume de Thalazur</span>
+              <span className="brand-court" aria-hidden="true">Thalazur</span>
+            </b>
           </Lien>
 
           <div className="masthead-droite">
@@ -259,7 +266,7 @@ function Coque() {
           <nav className="nav" aria-label="Pages du site">
             {PAGES.map((p) => (
               <Lien key={p.vers} vers={p.vers} actif={ici === p.vers}>
-                <span className="nav-ico" aria-hidden="true">{p.ico}</span>
+                <Icone nom={p.ico} className="nav-ico" />
                 <span className="nav-nom">{p.nom}</span>
                 <span className="nav-court" aria-hidden="true">{p.court}</span>
                 {p.vers === "/bibliotheque" && collecte > 0 && (

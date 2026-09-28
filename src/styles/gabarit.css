@@ -33,7 +33,7 @@
   line-height: 1.1;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 720px) {
   :root { --page-haut: 18px; }
   .zone > .view > .section-titre:first-child { min-height: 0; margin-bottom: 14px; }
 }

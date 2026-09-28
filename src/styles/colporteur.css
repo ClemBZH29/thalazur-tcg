@@ -238,7 +238,7 @@
 }
 
 /* ── Étroit ───────────────────────────────────────────────────────────── */
-@media (max-width: 760px) {
+@media (max-width: 720px) {
   .colp { width: 100%; }
   /* Le portrait passe en bandeau. Deux cent huit pixels et non cent soixante :
      sous cette hauteur le cadrage large ne garde plus que le chapeau et les

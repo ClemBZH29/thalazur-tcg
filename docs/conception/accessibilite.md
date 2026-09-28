@@ -81,3 +81,16 @@ Passe mobile (audit du 28/09/2026, lots 1 et 2) :
 - **Ouverture recadrée à chaque étape** : la carte à retourner est ramenée à
   l'écran si elle n'y est pas entière, et le bilan repart du haut. Les actions
   du bilan restent collées au-dessus de la barre basse.
+
+Passe mobile, lots 4 et 5 :
+
+- **Icônes de navigation en SVG** (`src/components/Icone.jsx`) au lieu de
+  caractères Unicode : ⚖ et ⛏ ont une présentation emoji et sortaient en
+  couleur sur iOS et Android. Les tracés sont `aria-hidden` ; le nom du lien
+  reste son texte. L'entrée du profil hors connexion prend une silhouette au
+  lieu d'un « ◌ » qui ne disait pas « compte ».
+- **Étiquettes de la barre basse à 11 px** (10 auparavant).
+- **Titre du bandeau** : sous 380 px, seul « Thalazur » s'affiche ; le titre
+  entier reste le nom accessible du lien.
+- **Tablette en portrait** : la navigation reste en haut, avec les noms entiers.
+  La barre basse est réservée au téléphone et au paysage bas.
