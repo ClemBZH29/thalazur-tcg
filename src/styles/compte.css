@@ -16,7 +16,7 @@
 .compte-bouton.on { color: var(--lamp); border-color: var(--lamp); }
 @media (pointer: coarse) { .compte-bouton { height: 44px; min-width: 44px; } }
 .compte-bouton.invite { padding: 0 12px; }
-.compte-ico { font-size: 14px; }
+.compte-ico { display: block; flex: 0 0 auto; }
 .compte-avatar {
   width: 26px; height: 26px; border-radius: 50%; overflow: hidden;
   display: grid; place-items: center; background: var(--panel2);
@@ -35,7 +35,7 @@
 .compte-sync.erreur { background: var(--ember); }
 [data-mouvement="reduit"] .compte-sync.envoi { animation: none; }
 
-@media (max-width: 640px) {
+@media (max-width: 720px) {
   .compte-bouton.invite { padding: 0; width: 34px; }
   .compte-bouton.invite .compte-mot { position: absolute; width: 1px; height: 1px;
     overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
@@ -110,7 +110,7 @@
 .mentions dd { color: var(--ink2); margin: 0; }
 .a-completer { color: var(--ember); font-weight: 600; }
 
-@media (max-width: 640px) {
+@media (max-width: 720px) {
   .table-legal thead { display: none; }
   .table-legal tr { display: block; padding: 10px 0; border-bottom: 1px solid var(--edge); }
   .table-legal td { display: block; border: 0; padding: 2px 0; }
@@ -125,14 +125,14 @@
 /* La vue réserve déjà la hauteur de la barre d'onglets du mobile : quand le
    pied la suit, c'est lui qui la réserve, sinon il passerait dessous. */
 .zone:has(> .pied-legal) > .view { padding-bottom: 36px; }
-@media (max-width: 860px) {
+@media (max-width: 720px), (max-width: 860px) and (max-height: 500px) {
   .pied-legal { padding-bottom: calc(84px + env(safe-area-inset-bottom)); }
 }
 
 /* Au doigt, l'entrée du compte fait une case de plus dans le bandeau : sans
    ce resserrement, la bourse et les boutons passaient sous le titre et le
    bandeau collant doublait de hauteur. */
-@media (max-width: 640px) {
+@media (max-width: 720px) {
   .masthead { flex-wrap: nowrap; }
   .brand { min-width: 0; flex: 0 1 auto; }
   .brand b { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -163,7 +163,7 @@
 /* Même forme, même couleur : aucun des deux choix n'est mis en avant. */
 .btn.choix { background: var(--ink); color: #1b1b1b; min-width: 112px; }
 .btn.choix:hover { background: #fff; }
-@media (max-width: 860px) {
+@media (max-width: 720px), (max-width: 860px) and (max-height: 500px) {
   /* Au-dessus de la barre d'onglets du bas. */
   .bandeau-cookies { bottom: calc(72px + env(safe-area-inset-bottom)); padding: 16px; }
   .bandeau-cookies-actions { width: 100%; }

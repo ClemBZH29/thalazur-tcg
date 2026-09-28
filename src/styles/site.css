@@ -72,7 +72,7 @@ a { color: inherit; text-decoration: none; }
 .nav a:hover { color: var(--ink); background: rgba(34, 49, 54, .5); }
 .nav a.on { color: var(--lamp); border-bottom-color: var(--lamp);
   background: rgba(232, 163, 61, .07); }
-.nav .nav-ico { font-size: 14px; opacity: .8; }
+.nav .nav-ico { width: 16px; height: 16px; flex: 0 0 auto; opacity: .8; }
 .nav a.on .nav-ico { opacity: 1; }
 .nav .count { color: var(--ink4); font-weight: 400; margin-left: 2px;
   font-variant-numeric: tabular-nums; }
@@ -87,7 +87,7 @@ a { color: inherit; text-decoration: none; }
 
 /* ── Navigation basse, au doigt ──────────────────────────────────────────── */
 
-@media (max-width: 860px) {
+@media (max-width: 720px), (max-width: 860px) and (max-height: 500px) {
   .masthead { padding-top: calc(12px + env(safe-area-inset-top)); padding-bottom: 12px;
     border-bottom: 1px solid var(--edge); }
   .tete { z-index: 30; }
@@ -104,11 +104,11 @@ a { color: inherit; text-decoration: none; }
     position: relative; flex: 1 1 0; min-width: 0; height: auto;
     flex-direction: column; gap: 3px; padding: 9px 2px 10px;
     border-bottom: 0; border-top: 2px solid transparent;
-    font-size: 10px; text-align: center;
+    font-size: 11px; text-align: center;
   }
   .nav a.on { border-top-color: var(--lamp); border-bottom-color: transparent; }
   .nav a:hover { background: none; }
-  .nav .nav-ico { font-size: 18px; }
+  .nav .nav-ico { width: 21px; height: 21px; }
   /* Le nom complet reste dans le flux pour le lecteur d'écran et le nom
      accessible du lien ; seul l'affichage prend la version courte. */
   .nav .nav-nom { position: absolute; width: 1px; height: 1px; overflow: hidden;
@@ -139,7 +139,7 @@ a { color: inherit; text-decoration: none; }
   .view { padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
 }
 
-@media (min-width: 861px) {
+@media (min-width: 721px) and (min-height: 501px), (min-width: 861px) {
   .nav .nav-ico, .nav .nav-court { display: none; }
 }
 
@@ -227,6 +227,10 @@ a { color: inherit; text-decoration: none; }
    seul. Sur sa page il fait doublon avec le h1 : on le retire ici plutôt que
    dans le module, qui reste ainsi autonome. */
 .mines .kz-titre { display: none; }
+/* Le module pose ses propres gouttières, utiles seul ; dans la page elles
+   s'ajoutaient à celles de `.view` et la mine commençait à 34 px du bord
+   au lieu de 18 au téléphone. La page fournit déjà marges et encoches. */
+.mines .kz-wrap { padding-left: 0; padding-right: 0; }
 
 /* ── Avis de mouvement réduit ────────────────────────────────────────────── */
 
@@ -321,4 +325,17 @@ a { color: inherit; text-decoration: none; }
   .caisse { grid-template-columns: 1fr 1fr; order: -1; margin: 0 0 18px; }
   .caisse-passif { grid-column: 1 / -1; border-left: 0 !important; border-top: 1px solid var(--edge); }
   .caisse-bloc { padding: 12px 16px; }
+}
+
+/* ── Titre du bandeau ─────────────────────────────────────────────────────
+   Sous 380 px, « La Brume de Thalazur » était coupé en « La Brume de
+   Thala… ». On n'affiche que « Thalazur » ; le titre entier reste dans le
+   lien pour le lecteur d'écran. Deux classes par sélecteur : base.css masque
+   `.brand span` au téléphone (ancien sous-titre du bandeau). */
+.brand .brand-long { display: inline; }
+.brand .brand-court { display: none; }
+@media (max-width: 380px) {
+  .brand .brand-long { position: absolute; width: 1px; height: 1px; overflow: hidden;
+    clip: rect(0 0 0 0); white-space: nowrap; }
+  .brand .brand-court { display: inline; }
 }

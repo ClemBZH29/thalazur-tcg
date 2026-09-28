@@ -233,9 +233,16 @@ export default function PageComptoir() {
           <span className="jeton">{acheteurs.length} présents</span>
         </div>
         <div className="acheteurs">
-          {acheteurs.map((b) => {
-            const interesse = articles.filter((a) => surplus(a) > 0 && M.affinite(a, b) > 0)
-              .sort((x, y) => M.offreUnitaire(y, b) - M.offreUnitaire(x, b));
+          {/* Ceux qui veulent quelque chose d'abord : au téléphone les fiches
+              s'empilent, et un acheteur sans intérêt pour vos surplus n'a
+              rien à faire en tête de liste. L'ordre du jour est gardé entre
+              acheteurs du même groupe (tri stable). */}
+          {acheteurs.map((b) => ({
+            b,
+            interesse: articles.filter((a) => surplus(a) > 0 && M.affinite(a, b) > 0)
+              .sort((x, y) => M.offreUnitaire(y, b) - M.offreUnitaire(x, b)),
+          })).sort((x, y) => Number(y.interesse.length > 0) - Number(x.interesse.length > 0))
+            .map(({ b, interesse }) => {
             const actif = interesse.length > 0;
             return (
               <button

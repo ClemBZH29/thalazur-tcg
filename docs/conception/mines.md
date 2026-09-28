@@ -52,6 +52,23 @@ Ce qui a changé à l'intégration :
   signifier. La lumière chaude reste là où elle est produite — le fanal du
   filon, la lueur des ventes.)
 
+### Au téléphone
+
+L'audit mobile du 28/09/2026 trouvait la roche sous le pli à 360 × 780 : le
+module ajoutait ses gouttières à celles de la page (le panneau à 34 px du bord
+au lieu de 18), les deux plaques, la phrase d'équipe et le Lexique prenaient
+chacun leur ligne, et « Descendre » touchait le bord droit du panneau.
+
+- Sur sa page, le module n'a plus de gouttières propres (`.mines .kz-wrap`) : la
+  page fournit marges et encoches. Seul, il garde les siennes.
+- Sous 720 px, plaques et Lexique tiennent sur une ligne, l'équipe passe
+  dessous. La roche commence à 376 px.
+- Le libellé de profondeur peut rétrécir (`min-width: 0`) : c'est lui qui
+  poussait « Descendre » hors du panneau.
+- Les lignes de compagnons, d'équipement et de talents suivent la largeur de
+  leur panneau (requête de conteneur) : sous 440 px, bouton et prix passent
+  sous la description, qui était sinon comprimée en colonne d'un ou deux mots.
+
 ### Ce qui s'ouvre, et quand
 
 Les cinq onglets étaient là dès la première seconde, et quatre d'entre eux ne

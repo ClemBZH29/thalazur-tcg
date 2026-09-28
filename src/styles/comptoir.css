@@ -86,7 +86,10 @@
 
 /* ── Acheteurs du jour ───────────────────────────────────────────────────── */
 
-.acheteurs { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 268px), 1fr)); gap: 14px; }
+/* 220 px et non 268 : sur une tablette en portrait, trois fiches de front au
+   lieu de deux et une orpheline sur un second rang. */
+.acheteurs { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 14px;
+  container: acheteurs / inline-size; }
 .acheteur {
   position: relative; display: flex; flex-direction: column;
   text-align: left; cursor: pointer; overflow: hidden;
@@ -174,6 +177,43 @@
 .acheteur-corps > .acheteur-pied { margin-top: 14px; }
 .acheteur-pied b { color: var(--ink); font-weight: 600; }
 .acheteur-pied b.or { color: var(--or); }
+
+/* Fiche compacte, quand la colonne des acheteurs est étroite — au téléphone,
+   mais la règle suit la colonne et non l'écran (requête de conteneur).
+   Pleine largeur, chaque fiche prenait un écran entier, portrait compris, et
+   le rayon n'arrivait qu'après trois écrans. En rangée, la vignette garde le
+   visage (cadrage en haut, rogné : à 96 px le personnage entier serait une
+   silhouette), la réplique se retire — elle ouvre la fenêtre de négoce, où
+   elle a toute sa place — et ce que l'acheteur veut de vous reste en pied. */
+@container acheteurs (max-width: 560px) {
+  .acheteur { flex-direction: row; align-items: stretch; }
+  .acheteur-vignette { flex: 0 0 96px; aspect-ratio: auto; min-height: 118px; }
+  .acheteur-portrait { object-fit: cover; object-position: 50% 8%;
+    -webkit-mask-image: none; mask-image: none; }
+  .acheteur-vignette::after { height: 70%; }
+  .acheteur-sceau { left: 6px; top: 6px; font-size: 9.5px; padding: 2px 7px; }
+  .acheteur-corps { padding: 12px 14px 12px 12px; }
+  .acheteur-nom { font-size: 17px; }
+  .acheteur-spec { margin-top: 6px; }
+  .acheteur-quote { display: none; }
+  .acheteur-corps > .acheteur-pied { margin-top: 10px; padding-top: 9px; }
+}
+/* Téléphone couché : la colonne est large (deux fiches de front) mais l'écran
+   n'a que 390 px de haut, et une fiche pleine en faisait 514. Mêmes fiches
+   compactes, deux par rang. */
+@media (max-width: 860px) and (max-height: 500px) {
+  .acheteur { flex-direction: row; align-items: stretch; }
+  .acheteur-vignette { flex: 0 0 96px; aspect-ratio: auto; min-height: 118px; }
+  .acheteur-portrait { object-fit: cover; object-position: 50% 8%;
+    -webkit-mask-image: none; mask-image: none; }
+  .acheteur-vignette::after { height: 70%; }
+  .acheteur-sceau { left: 6px; top: 6px; font-size: 9.5px; padding: 2px 7px; }
+  .acheteur-corps { padding: 12px 14px 12px 12px; }
+  .acheteur-nom { font-size: 17px; }
+  .acheteur-spec { margin-top: 6px; }
+  .acheteur-quote { display: none; }
+  .acheteur-corps > .acheteur-pied { margin-top: 10px; padding-top: 9px; }
+}
 
 /* ── Colonnes vendre / vente rapide ─────────────────────────────────────── */
 
@@ -269,11 +309,11 @@
 .attendre { font-size: 13px; justify-self: end; }
 .lignes li > .btn { justify-self: end; }
 
-@media (max-width: 1100px) {
+@media (max-width: 1180px) {
   .lignes li { grid-template-columns: minmax(0, 1fr) 108px; }
   .ligne-chiffres { grid-column: 1 / -1; grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
-@media (max-width: 640px) {
+@media (max-width: 720px) {
   .ligne-chiffres { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
@@ -301,7 +341,7 @@
 .rayon { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 11px; padding: 0 20px 22px; }
 @media (max-width: 1180px) { .rayon { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (max-width: 560px)  { .rayon { grid-template-columns: 1fr; } }
+@media (max-width: 720px) { .rayon { grid-template-columns: 1fr; } }
 .comptoir .piece {
   display: grid; grid-template-columns: 32px minmax(0, 1fr); gap: 12px; align-items: start;
   padding: 13px 14px; border: 1px solid var(--edge); border-radius: var(--r-md);
