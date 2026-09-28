@@ -103,3 +103,18 @@ export const MINE = {
   multiplicateur: 15, // PO créditées par PO annoncée par les kobolds
   plafondJour: 480,   // quatre boosters de plus par jour, au maximum
 };
+
+/**
+ * Les Profondeurs, vues de l'application. Même principe que la mine : le
+ * module annonce le butin rapporté du donjon, la conversion se fait ici.
+ *
+ * Deux tentatives par jour sur le donjon du jour, et c'est le nombre de
+ * tentatives qui borne le module plutôt qu'un plafond de PO : une descente
+ * réussie de bout en bout rapporte environ 370 pièces de butin, soit 220 PO
+ * ici ; une descente moyenne, défaites comprises, un peu plus de 120.
+ * Mesures : tests/donjon.test.js et docs/conception/donjon.md.
+ */
+export const DONJON = {
+  multiplicateur: 0.6,   // PO créditées par pièce de butin rapportée
+  tentativesParJour: 2,
+};

@@ -25,6 +25,8 @@ import { demarrerMesure, mesureDisponible, pageVue, rouvrirBandeau } from "./lib
    télécharger. */
 const chargerComptoir = () => import("./routes/PageComptoir.jsx");
 const chargerMines = () => import("./routes/PageMines.jsx");
+const chargerDonjon = () => import("./routes/PageDonjon.jsx");
+const PageDonjon = lazy(chargerDonjon);
 const PageComptoir = lazy(chargerComptoir);
 const PageMines = lazy(chargerMines);
 
@@ -46,6 +48,7 @@ const PAGES = [
   { vers: "/mines", nom: "Mines", court: "Mines", ico: "mines" },
   // Succès et classement partagent une entrée : la barre en compte déjà six
   // en développement, et le classement n'a de sens qu'à côté des titres.
+  { vers: "/donjon", nom: "Profondeurs", court: "Donjon", ico: "donjon" },
   { vers: "/succes", nom: "Succès", court: "Succès", ico: "succes" },
   ...(import.meta.env.DEV ? [{ vers: "/reglages", nom: "Réglages MJ", court: "MJ", ico: "reglages" }] : []),
 ];
@@ -81,6 +84,7 @@ function Route() {
     case "reglages": return PageReglages
       ? <Suspense fallback={<Attente />}><PageReglages /></Suspense>
       : <Attente />;
+    case "donjon": return <Suspense fallback={<Attente />}><PageDonjon /></Suspense>;
     case "succes": return <PageSucces onglet={segments[1]} />;
     case "profil": return <PageProfil />;
     case "confidentialite": return <PageConfidentialite />;
@@ -167,6 +171,7 @@ function Coque() {
       if (annule) return;
       chargerComptoir();
       chargerMines();
+      chargerDonjon();
     };
     const libre = typeof window.requestIdleCallback === "function";
     const id = libre

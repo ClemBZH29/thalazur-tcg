@@ -97,6 +97,28 @@ export const GLOBAL = [
     ],
   },
   {
+    id: "gardiens",
+    nom: "Les Profondeurs",
+    quoi: "Vaincre {n} gardien{s} des Profondeurs",
+    mesure: "gardiens",
+    paliers: [
+      { seuil: 1, recompense: { po: 120 } },
+      { seuil: 5, recompense: { po: 360 } },
+      { seuil: 15, recompense: { sachets: 3 }, titre: "Pourfendeur de gardiens" },
+      { seuil: 45, recompense: { sachets: 8 } },
+    ],
+  },
+  {
+    id: "remontees",
+    nom: "Revenir d'en bas",
+    quoi: "Remonter {n} fois du troisième étage des Profondeurs",
+    mesure: "remontees",
+    paliers: [
+      { seuil: 1, recompense: { sachets: 2 }, titre: "Revenu des Profondeurs" },
+      { seuil: 10, recompense: { sachets: 5 } },
+    ],
+  },
+  {
     id: "pj",
     nom: "Les héros eux-mêmes",
     quoi: "Obtenir {n} carte{s} PJ",

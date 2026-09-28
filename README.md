@@ -72,6 +72,7 @@ sur `images.thalazur.io` (`VITE_PORTRAITS_BASE`), par `npm run portraits:publier
 | `#/bibliotheque` | Bibliothèque | Le set entier, obtenu ou non, et les exemplaires en trop |
 | `#/comptoir` | Le Comptoir | Marché de l'occasion : vendre ses doublons, acheter au rayon du jour |
 | `#/mines` | Les Mines de Kazim | Module idle : frapper le filon, embaucher, vendre l'étoile |
+| `#/donjon` | Les Profondeurs | Donjon du jour : carte à la Slay the Spire, combats à l'initiative avec ses propres cartes, butin versé à la bourse |
 | `#/succes` | Succès | Paliers Global et Collection à réclamer contre des PO et des sachets offerts ; titres |
 | `#/succes/classement` | Classement | Progression des joueurs connectés qui ont choisi d'y figurer, générale et par extension |
 | `#/profil` | Profil | Connexion Google, pseudo, classement et titre, synchronisation, export et suppression du compte, préférences (animations, doublons, son, cookies) |
@@ -95,6 +96,9 @@ src/
     colporteur.js      passage de Mirko
     mine.js            crédit des PO de la mine
     Compte.jsx         compte Google et synchronisation
+  donjon/
+    regles.js          Les Profondeurs : carte, combat, rencontres — formules pures, testées
+    Donjon.jsx         l'interface et les animations
   mines/
     donnees.js         strates, compagnons, équipement, talents, lexique
     regles.js          économie de la mine : formules pures, testées
@@ -149,7 +153,7 @@ Ajouter un dossier suffit : aucune autre ligne de code.
 ## Documentation
 
 - [Conception](docs/conception/) : boutique et tirage, bibliothèque, Comptoir
-  et colporteur, Mines, succès et classement, comptes, accessibilité, roster
+  et colporteur, Mines, Profondeurs, succès et classement, comptes, accessibilité, roster
   et portraits, notes.
 - [Charte graphique](docs/charte-graphique.md)
 - Audits : [économie](docs/audit-economie.md), [sécurité](docs/audit-securite.md),

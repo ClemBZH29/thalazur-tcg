@@ -54,6 +54,9 @@ const vide = () => ({
   // affaires conclues avec le colporteur. Ils ne partent que de leur mise en
   // service ; les parties plus anciennes commencent à zéro.
   stats: {},
+  // Les Profondeurs : { jour, tentatives, partie, dernier }. La partie en
+  // cours y est sauvée entre deux salles (voir src/donjon/regles.js).
+  donjon: null,
 });
 
 export const etatVide = vide;
