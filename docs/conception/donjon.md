@@ -1,4 +1,4 @@
-# Les Profondeurs
+# Le Donjon
 
 Raisonnement de conception : ce que fait cette partie du site, et pourquoi elle le fait ainsi. Pour travailler sur le projet, voir le [README](../../README.md).
 
@@ -21,7 +21,8 @@ automatique.
 - **Le rôle vient de l'archétype** (`roleDe`) : Paladin, Lancier, Infantrie
   lourde font un garde ; Archère, Éclaireur, Rôdeur un tireur ; Médecin,
   Clerc, Shaman un soigneur ; Sorcier, Magicien un mage ; Souverain, Prince,
-  Barde un meneur ; Guerrier, Assassin, Barbare un frappeur. Tout le reste —
+  Barde un meneur ; Guerrier, Assassin, Barbare, Moine un frappeur — les
+  classes de D&D gardent leur emploi, le moine frappe et ne soigne pas. Tout le reste —
   artisans, fonctionnaires, marins — devient **débrouillard**, qui augmente le
   butin : aucune carte n'est inutile.
 - **Le palier fixe les PV et l'ATQ**, et ajoute à l'initiative.
@@ -97,6 +98,46 @@ repos ne peut pas redescendre avant la date affichée sur sa vignette
 (`etat.donjon.convalescence`, « extension:carte » → date de retour). La recrue
 ramassée en chemin n'est pas au joueur, elle n'est pas comptée. Le mode test
 affiche la convalescence sans l'appliquer.
+
+## L'expérience des cartes
+
+Pour ne pas toujours emmener ses légendaires : chaque carte qui descend
+gagne de l'expérience et monte de niveau (`src/donjon/experience.js`,
+`etat.xp`, « extension:carte » → `{ xp, irisee, cent }`).
+
+- **Gain** : à chaque combat remporté, toute l'équipe — tombés compris —
+  reçoit un point par adversaire et par étage, trois pour une élite, cinq par
+  étage pour le gardien. Une défaite n'en laisse que la moitié ; le compagnon
+  laissé derrière dans une fuite garde ce qu'il avait appris ; la recrue
+  ramassée en route n'est pas à nous.
+- **Courbe** : passer du niveau n à n + 1 coûte 5 + n points. Une descente
+  rapporte en moyenne 45 points à chaque compagnon, 104 si elle va au bout.
+
+  | Niveau | Points cumulés | Descentes moyennes |
+  |---:|---:|---:|
+  | 20 | 285 | ~6 |
+  | 30 | 580 | ~13 |
+  | 40 | 975 | ~22 |
+  | 50 | 1 470 | ~33 |
+  | 100 | 5 445 | ~120 |
+
+- **Palier d'irisation**, d'autant plus bas que la carte est modeste :
+  niveau 20 pour une commune, 30 une peu commune, 40 une rare, 50 une
+  légendaire. La carte gagne sa version irisée ; si on la possède déjà, des PO
+  (60, 120, 240, 480 selon le palier). Une commune s'irise en trois jours de
+  deux descentes, une légendaire en deux semaines : c'est l'incitation à
+  varier.
+- **Niveau 100** : un sachet offert de l'extension de la carte, environ deux
+  mois de jeu régulier avec elle.
+- **En combat**, un niveau ajoute un peu : +1 PV tous les 10 niveaux, +1 ATQ
+  tous les 25. Une commune au niveau 100 (+10 PV, +4 ATQ) rattrape une
+  légendaire neuve sans la dépasser de beaucoup.
+- **Deux appareils** : les points s'additionnent comme des compteurs, les
+  paliers payés restent acquis dès qu'un côté les a notés.
+
+Le niveau se lit sous chaque vignette de la préparation, avec une fine barre
+vers le niveau suivant ; le bilan de fin de descente détaille les points
+gagnés, les niveaux franchis et les récompenses.
 
 ## L'économie
 

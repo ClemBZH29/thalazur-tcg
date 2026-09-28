@@ -54,9 +54,12 @@ const vide = () => ({
   // affaires conclues avec le colporteur. Ils ne partent que de leur mise en
   // service ; les parties plus anciennes commencent à zéro.
   stats: {},
-  // Les Profondeurs : { jour, tentatives, partie, dernier, convalescence }. La partie en
+  // Le Donjon : { jour, tentatives, partie, dernier, convalescence }. La partie en
   // cours y est sauvée entre deux salles (voir src/donjon/regles.js).
   donjon: null,
+  // Expérience des cartes au Donjon : "extension:carte" -> { xp, irisee, cent }
+  // (voir src/donjon/experience.js).
+  xp: {},
 });
 
 export const etatVide = vide;
@@ -246,6 +249,11 @@ export function fusionner(actuel, net) {
   fusion.succes = { ...(net.succes || {}), ...(actuel.succes || {}) };
   fusion.sachets = { ...(actuel.sachets || {}) };
   fusion.stats = { ...(actuel.stats || {}) };
+  fusion.xp = { ...(net.xp || {}) };
+  for (const k of cles(actuel.xp)) {
+    const a = actuel.xp[k], n = fusion.xp[k];
+    fusion.xp[k] = !n ? a : { xp: Math.max(a.xp || 0, n.xp || 0), irisee: a.irisee || n.irisee, cent: a.cent || n.cent };
+  }
   for (const k of cles(net.stats)) {
     fusion.stats[k] = Math.max(fusion.stats[k] || 0, net.stats[k] || 0);
   }

@@ -105,7 +105,7 @@ export const MINE = {
 };
 
 /**
- * Les Profondeurs, vues de l'application. Même principe que la mine : le
+ * Le Donjon, vues de l'application. Même principe que la mine : le
  * module annonce le butin rapporté du donjon, la conversion se fait ici.
  *
  * Deux tentatives par jour sur le donjon du jour, et c'est le nombre de

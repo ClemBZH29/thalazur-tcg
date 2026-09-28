@@ -165,8 +165,25 @@ export function fusionnerSucces(base = {}, ici = {}, la = {}) {
   return { succes, doublons };
 }
 
+/**
+ * Expérience des cartes : les points s'additionnent comme des compteurs, les
+ * paliers payés (`irisee`, `cent`) sont acquis dès qu'un côté les a notés.
+ */
+export function fusionnerXP(base = {}, ici = {}, la = {}) {
+  const sortie = {};
+  for (const k of cles(ici, la)) {
+    const b = base[k] || {}, i = ici[k] || {}, l = la[k] || {};
+    sortie[k] = {
+      xp: Math.max(0, (l.xp || 0) + (i.xp || 0) - (b.xp || 0)),
+      ...((i.irisee || l.irisee) ? { irisee: true } : {}),
+      ...((i.cent || l.cent) ? { cent: true } : {}),
+    };
+  }
+  return sortie;
+}
+
 const COMPTEURS = new Set([
-  "collections", "boosters", "bourse", "mine", "schema", "succes", "sachets", "stats",
+  "collections", "boosters", "bourse", "mine", "schema", "succes", "sachets", "stats", "xp",
 ]);
 
 /**
@@ -185,6 +202,7 @@ export function fusionner3(base, ici, la, vide) {
   sortie.mine = fusionnerJourMine(ici.mine, la.mine);
   sortie.sachets = fusionnerCompteurs(b.sachets, ici.sachets, la.sachets);
   sortie.stats = fusionnerCompteurs(b.stats, ici.stats, la.stats);
+  sortie.xp = fusionnerXP(b.xp, ici.xp, la.xp);
   const { succes, doublons } = fusionnerSucces(b.succes, ici.succes, la.succes);
   sortie.succes = succes;
   // Les sachets s'additionnent toujours, y compris à la première connexion :

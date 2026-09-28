@@ -1,5 +1,5 @@
 /**
- * Les Profondeurs : les règles du donjon, sans React ni navigateur.
+ * Le Donjon : les règles du donjon, sans React ni navigateur.
  *
  * Tout ce qui décide — la carte d'un étage, les unités, l'ordre
  * d'initiative, les dégâts, l'intelligence des adversaires, les stratégies
@@ -14,6 +14,7 @@
  * rechargé au milieu, il reprend à son premier tour, équipe comprise.
  */
 import { construirePool, deduireGrades } from "../lib/roster.js";
+import { bonusNiveau } from "./experience.js";
 
 /* ── Tirage reproductible ────────────────────────────────────────────── */
 
@@ -34,6 +35,8 @@ export const hacher = (s) => {
   return h >>> 0;
 };
 /** Le donjon du jour : même carte pour tous les joueurs, tirée de la date locale. */
+// Le préfixe garde l'ancien nom du module : le changer changerait le donjon
+// de tous les joueurs au milieu de la journée. Il n'apparaît nulle part.
 export const graineDuJour = (jour) => hacher(`profondeurs-${jour}`);
 
 const choisir = (r, l) => l[Math.floor(r() * l.length)];
@@ -112,13 +115,17 @@ export const TRAITS = {
   brute: { nom: "Coriace", aide: "PV augmentés de 20 %" },
 };
 
-/** Le rôle d'un allié vient de son premier repère (l'archétype du roster). */
+/**
+ * Le rôle d'un allié vient de son premier repère (l'archétype du roster).
+ * Les classes de D&D gardent leur emploi : le moine se bat à mains nues, il
+ * frappe ; il ne soigne pas.
+ */
 export function roleDe(rep1) {
   const s = String(rep1 || "").toLowerCase();
   if (/infantrie|infanterie|paladin|lancier|chef de clan/.test(s)) return "garde";
-  if (/guerrier|combattant|barbare|champion|cavalerie|assassin|roublard|sportif|mineur/.test(s)) return "frappeur";
+  if (/guerrier|combattant|barbare|champion|cavalerie|assassin|roublard|sportif|mineur|moine/.test(s)) return "frappeur";
   if (/archer|archère|éclaireur|rodeur|rôdeur|explorateur|coursi/.test(s)) return "tireur";
-  if (/médecin|clerc|infirm|herbor|shaman|chaman|druide|moine/.test(s)) return "soigneur";
+  if (/médecin|clerc|infirm|herbor|shaman|chaman|druide/.test(s)) return "soigneur";
   if (/sorcier|magicien|scorceleur|enchanteresse/.test(s)) return "mage";
   if (/souverain|prince|noble|conseiller|ambassadeur|barde/.test(s)) return "meneur";
   return "debrouillard";
@@ -127,13 +134,15 @@ export function roleDe(rep1) {
 /** Une carte, sans ce dont le donjon n'a pas besoin : c'est ce qui part dans la sauvegarde. */
 const legere = (c) => ({ id: c.id, num: c.num, nom: c.nom, type: c.type, tier: c.tier, rep1: c.rep1, race: c.race, rep3: c.rep3, citation: c.citation, ext: c.ext });
 
-export function allie(partie, c) {
+/** Un compagnon. `niveau` vient de son expérience (voir experience.js). */
+export function allie(partie, c, niveau = 1) {
   const b = BASE[c.tier] || BASE.commun, role = roleDe(c.rep1);
-  let pv = b.pv, atq = b.atq;
+  const bn = bonusNiveau(niveau);
+  let pv = b.pv + bn.pv, atq = b.atq + bn.atq;
   if (role === "garde") pv = Math.round(pv * 1.3);
   if (role === "frappeur") atq += 1;
   if (role === "soigneur" || role === "debrouillard" || role === "mage") pv = Math.round(pv * 0.9);
-  return { uid: partie.uid++, c: legere(c), camp: "a", role, pvMax: pv, pv, atq,
+  return { uid: partie.uid++, c: legere(c), camp: "a", role, pvMax: pv, pv, atq, niveau, xp: 0,
     ini: ROLES[role].ini + (INI_PALIER[c.tier] || 0), ko: false, cd: 0, provoque: 0, galva: 0 };
 }
 /**
@@ -232,11 +241,11 @@ export function ouverts(plan) {
 
 /* ── La partie ───────────────────────────────────────────────────────── */
 
-export function creerPartie({ equipe, artefact, graine, jour, pools }) {
-  const partie = { jour, graine, uid: 1, etage: 1, sac: 0, benediction: 0, reliques: [], perdus: [],
+export function creerPartie({ equipe, artefact, graine, jour, pools, niveaux = {} }) {
+  const partie = { jour, graine, uid: 1, etage: 1, sac: 0, benediction: 0, reliques: [], perdus: [], xpPerdus: {},
     artefact: artefact ? legere(artefact) : null, equipe: [], ecran: "carte", noeud: null,
     stats: { salles: 0, combats: 0, ennemis: 0, gardiens: 0 } };
-  partie.equipe = equipe.map((c) => allie(partie, c));
+  partie.equipe = equipe.map((c) => allie(partie, c, niveaux[`${c.ext}:${c.id}`] || 1));
   const b = bonusEquipe(partie);
   for (const u of partie.equipe) { u.pvMax += b.pv; u.pv = u.pvMax; }
   partie.plan = genererEtage(1, tirage(graine + 1), pools.lieux);
@@ -518,7 +527,11 @@ export function victoire(partie, C, r, artefacts) {
   const po = gagner(partie, Math.round(C.genre === "elite" ? base * 1.5 : base));
   partie.stats.ennemis += C.ennemis.length;
   if (C.genre === "boss") partie.stats.gardiens++;
-  for (const u of partie.equipe) { u.provoque = 0; u.galva = 0; u.cd = 0; }
+  // Expérience : un point par adversaire et par étage, trois pour une élite,
+  // cinq par étage pour le gardien. Toute l'équipe la reçoit, tombés compris :
+  // ils étaient de l'expédition.
+  const xp = C.ennemis.reduce((s, m) => s + (m.boss ? 5 : m.elite ? 3 : 1) * partie.etage, 0);
+  for (const u of partie.equipe) { u.provoque = 0; u.galva = 0; u.cd = 0; u.xp = (u.xp || 0) + xp; }
   let relique = null;
   if (C.genre === "elite" && r() < 0.55) relique = trouverRelique(partie, r, artefacts);
   if (C.genre === "boss") relique = trouverRelique(partie, r, artefacts);
@@ -542,6 +555,8 @@ export function fuir(partie) {
   const reste = [...vivants(partie.equipe)].sort((a, b) => a.pv / a.pvMax - b.pv / b.pvMax)[0];
   partie.equipe = partie.equipe.filter((u) => u !== reste);
   partie.perdus.push(reste.c);
+  // Le compagnon resté derrière garde ce qu'il a appris jusque-là.
+  partie.xpPerdus = { ...(partie.xpPerdus || {}), [`${reste.c.ext}:${reste.c.id}`]: reste.xp || 0 };
   partie.stats.fuites = (partie.stats.fuites || 0) + 1;
   return { titre: "Repli", texte: `Vous battez en retraite. ${perte} pièce${perte > 1 ? "s" : ""} glisse${perte > 1 ? "nt" : ""} du sac dans la débandade, chacun y laisse des plumes, et ${reste.c.nom} reste derrière pour couvrir les autres : retour au camp demain.` };
 }
@@ -560,6 +575,17 @@ export function convalescences(partie, iss) {
   return [...l.entries()].map(([cle, jours]) => ({ cle, jours }));
 }
 
+/**
+ * L'expérience que rapporte une descente, carte par carte. Remonter la garde
+ * entière ; tomber n'en laisse que la moitié. La recrue n'est pas à nous.
+ */
+export function gainsXP(partie, iss) {
+  const f = iss === "defaite" ? 0.5 : 1;
+  const l = partie.equipe.filter((u) => !u.recrue).map((u) => ({ c: u.c, xp: Math.round((u.xp || 0) * f) }));
+  for (const c of partie.perdus || []) l.push({ c, xp: (partie.xpPerdus || {})[`${c.ext}:${c.id}`] || 0 });
+  return l.filter((x) => x.xp > 0);
+}
+
 /** Ce qu'une fiche d'unité doit dire : rôle ou trait, capacité, et son état. */
 export function fiche(partie, u) {
   const R = ROLES[u.role];
@@ -573,7 +599,7 @@ export function fiche(partie, u) {
   } else if (TRAITS[u.role]) lignes.push({ t: TRAITS[u.role].nom, d: TRAITS[u.role].aide });
   if (u.provoque) lignes.push({ t: "Provocation", d: "Attire tous les coups, armure +2." });
   if (u.galva > 0) lignes.push({ t: "Galvanisé", d: "+2 ATQ." });
-  return { nom: u.nomAffiche || u.c.nom, stats: `${u.pv} / ${u.pvMax} PV · ATQ ${atqDe(partie, u)} · INI ${u.ini}`, lignes };
+  return { nom: u.nomAffiche || u.c.nom, stats: `${u.camp === "a" ? `Niveau ${u.niveau || 1} · ` : ""}${u.pv} / ${u.pvMax} PV · ATQ ${atqDe(partie, u)} · INI ${u.ini}`, lignes };
 }
 /** Ce que l'on rapporte : tout le sac en remontant, un quart si l'équipe tombe. */
 export const rapporte = (partie, iss) => (iss === "defaite" ? Math.round(partie.sac * 0.25) : partie.sac);

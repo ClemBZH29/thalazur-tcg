@@ -1,10 +1,10 @@
-/** Les Profondeurs : carte, combat, descente complète au pilote automatique. */
+/** Le Donjon : carte, combat, descente complète au pilote automatique. */
 import { describe, expect, test } from "vitest";
 import { readFileSync } from "node:fs";
 import extension from "../src/extensions/troupe-valeran/extension.js";
 import {
   RANGS, RENCONTRES, cartesDonjon, choixAuto, choixIA, ciblesPossibles, convalescences, creerPartie, demarrerCombat,
-  descendre, entrer, fuir, genererEtage, monstre, peutFuir,
+  descendre, entrer, fuir, gainsXP, genererEtage, monstre, peutFuir,
   graineDuJour, issue, ouverts, parUid, prochain, rapporte, repos, resoudre, roleDe, tirage, tresor, victoire,
 } from "../src/donjon/regles.js";
 
@@ -75,6 +75,8 @@ describe("cartes", () => {
     expect(roleDe("Médecin")).toBe("soigneur");
     expect(roleDe("Souverain")).toBe("meneur");
     expect(roleDe("Artisan")).toBe("debrouillard");
+    // Le moine de D&D frappe, il ne soigne pas.
+    expect(roleDe("Moine")).toBe("frappeur");
   });
 });
 
@@ -180,6 +182,26 @@ describe("retraite et convalescence", () => {
     expect(l).toHaveLength(5);
     expect(l.filter((x) => x.jours === 2)).toHaveLength(4);
     expect(convalescences(p, "sortie")).toEqual([{ cle: `${POOLS.allies[10].ext}:${POOLS.allies[10].id}`, jours: 1 }]);
+  });
+});
+
+describe("expérience d'une descente", () => {
+  test("toute l'équipe apprend ; tomber n'en laisse que la moitié", () => {
+    const res = Array.from({ length: 40 }, (_, i) => descente(300 + i, "concentrer"));
+    for (const { issue: iss, partie } of res) {
+      const g = gainsXP(partie, iss);
+      expect(g.length).toBeGreaterThan(0);
+      for (const x of g) expect(x.xp).toBeGreaterThan(0);
+    }
+    const moy = res.reduce((s, x) => s + gainsXP(x.partie, x.issue)[0].xp, 0) / res.length;
+    const completes = res.filter((x) => x.issue === "sortie");
+    const moyC = completes.reduce((s, x) => s + gainsXP(x.partie, x.issue)[0].xp, 0) / Math.max(1, completes.length);
+    // Ordres de grandeur annoncés dans experience.js : une quarantaine en
+    // moyenne, une centaine pour une descente complète.
+    expect(moy).toBeGreaterThan(20);
+    expect(moy).toBeLessThan(80);
+    expect(moyC).toBeGreaterThan(70);
+    expect(moyC).toBeLessThan(160);
   });
 });
 

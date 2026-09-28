@@ -52,7 +52,7 @@ const TRACES = {
   succes: (
     <path d="M10 2.5c.5 4.2 1.8 5.9 5.5 7.5-3.7 1.6-5 3.3-5.5 7.5-.5-4.2-1.8-5.9-5.5-7.5 3.7-1.6 5-3.3 5.5-7.5z" />
   ),
-  // Une arche sur un escalier qui descend : les Profondeurs.
+  // Une arche sur un escalier qui descend : le Donjon.
   donjon: (
     <>
       <path d="M4 17.5V9a6 6 0 0 1 12 0v8.5" />
@@ -60,7 +60,7 @@ const TRACES = {
       <path d="M7.5 17.5v-2.4h2.6v-2.4h2.6" />
     </>
   ),
-  // Les salles des Profondeurs, sur la carte d'un étage.
+  // Les salles du Donjon, sur la carte d'un étage.
   combat: (
     <>
       <path d="M4 4l9.5 9.5M16 4l-9.5 9.5" />

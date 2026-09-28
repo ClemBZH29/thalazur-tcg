@@ -48,7 +48,7 @@ const PAGES = [
   { vers: "/mines", nom: "Mines", court: "Mines", ico: "mines" },
   // Succès et classement partagent une entrée : la barre en compte déjà six
   // en développement, et le classement n'a de sens qu'à côté des titres.
-  { vers: "/donjon", nom: "Profondeurs", court: "Donjon", ico: "donjon" },
+  { vers: "/donjon", nom: "Donjon", court: "Donjon", ico: "donjon" },
   { vers: "/succes", nom: "Succès", court: "Succès", ico: "succes" },
   ...(import.meta.env.DEV ? [{ vers: "/reglages", nom: "Réglages MJ", court: "MJ", ico: "reglages" }] : []),
 ];
