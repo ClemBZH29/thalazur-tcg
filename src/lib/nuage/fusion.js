@@ -194,6 +194,7 @@ export function fusionnerReliquaire(base, ici, la) {
     ...la, ...ici,
     vestiges: Math.max(0, (la.vestiges || 0) + (ici.vestiges || 0) - (b.vestiges || 0)),
     derniereForgeL: Math.max(la.derniereForgeL || 0, ici.derniereForgeL || 0) || null,
+    ouvert: ici.ouvert || la.ouvert || null,
   };
 }
 

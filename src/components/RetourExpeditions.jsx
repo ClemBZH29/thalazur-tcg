@@ -38,7 +38,8 @@ export default function RetourExpeditions({ occupe }) {
 
   const dues = rentrees(etat).length;
   useEffect(() => {
-    if (occupe || bilans || !dues) return;
+    // Pas par-dessus une autre fenêtre (l'ouverture du Reliquaire) : le guetteur repassera.
+    if (occupe || bilans || !dues || document.querySelector("dialog[open]")) return;
     const b = accueillirExpeditions();
     if (b.length) { setRelances({}); setBilans(b); }
   }, [occupe, bilans, dues, tic, accueillirExpeditions]);

@@ -16,6 +16,8 @@ import * as R from "../reliquaire/regles.js";
 const POOLS = cartesDonjon(BOOSTERS);
 const INDEX = Object.fromEntries(POOLS.toutes.map((c) => [cleXP(c), c]));
 const TROUVAILLES = POOLS.toutes.filter((c) => c.tier !== "legendaire");
+/** Les cartes de chaque extension ouverte, pour le seuil d'ouverture du Reliquaire. */
+const PAR_EXTENSION = POOLS.toutes.reduce((m, c) => ({ ...m, [c.ext]: [...(m[c.ext] || []), c] }), {});
 
 const possede = (collections, c) => (collections?.[c.ext]?.[c.id]?.normale || 0) > 0;
 
@@ -61,6 +63,9 @@ export function useExpeditions(etat, setEtat) {
   /* ── Reliquaire ─────────────────────────────────────────────────── */
   const dissoudreCarte = useCallback((ext, c, n = 1) => setEtat((e) => R.dissoudre(e, ext, c, n)), [setEtat]);
   const dissoudreSurplus = useCallback((ext, cartes) => setEtat((e) => R.dissoudreSurplus(e, ext, cartes)), [setEtat]);
+  const reliquaireOuvert = R.estOuvert(etat);
+  const seuilReliquaire = useMemo(() => R.seuilAtteint({ collections }, PAR_EXTENSION), [collections]);
+  const ouvrirReliquaire = useCallback(() => setEtat((e) => R.ouvrir(e)), [setEtat]);
   const forgerCarte = useCallback((ext, c, cartes) => {
     const ok = R.peutForger(etat, ext, c, cartes);
     if (ok) setEtat((e) => R.forger(e, ext, c, cartes));
@@ -76,5 +81,6 @@ export function useExpeditions(etat, setEtat) {
     enExpedition: (c) => X.enRoute(etat).has(cleXP(c)),
     vestiges: R.vestiges(etat),
     dissoudreCarte, dissoudreSurplus, forgerCarte,
+    reliquaireOuvert, seuilReliquaire, ouvrirReliquaire,
   };
 }

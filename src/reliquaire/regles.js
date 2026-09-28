@@ -16,7 +16,7 @@ import { RELIQUAIRE } from "../config/reliquaire.js";
 const J = 24 * 3600e3;
 export const PALIERS = ["commun", "peucommun", "rare", "legendaire"];
 
-export const etatReliquaire = (etat) => ({ vestiges: 0, derniereForgeL: null, ...(etat.reliquaire || {}) });
+export const etatReliquaire = (etat) => ({ vestiges: 0, derniereForgeL: null, ouvert: null, ...(etat.reliquaire || {}) });
 export const vestiges = (etat) => etatReliquaire(etat).vestiges;
 
 /** Une carte que le Reliquaire accepte de traiter. */
@@ -30,6 +30,19 @@ export function completion(etat, ext, cartes) {
   if (!r.length) return 0;
   return r.filter((c) => exemplaires(etat, ext, c) > 0).length / r.length;
 }
+
+/**
+ * Le seuil d'ouverture est-il atteint ? `extensions` : { id: cartes }. La
+ * meilleure extension suffit.
+ */
+export const seuilAtteint = (etat, extensions) =>
+  Object.entries(extensions).some(([ext, cartes]) => completion(etat, ext, cartes) >= RELIQUAIRE.ouverture);
+
+/** Ouvert pour de bon : noté à l'annonce, il ne se referme plus. */
+export const estOuvert = (etat) => !!etatReliquaire(etat).ouvert;
+
+export const ouvrir = (etat, maintenant = Date.now()) =>
+  estOuvert(etat) ? etat : { ...etat, reliquaire: { ...etatReliquaire(etat), ouvert: maintenant } };
 
 /** Dissout `n` exemplaires en trop. L'état est rendu tel quel si c'est impossible. */
 export function dissoudre(etat, ext, c, n = 1) {

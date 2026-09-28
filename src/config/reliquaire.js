@@ -13,6 +13,11 @@
 export const RELIQUAIRE = {
   dissolution: { commun: 5, peucommun: 10, rare: 25, legendaire: 100 },
   forge: { commun: 20, peucommun: 40, rare: 100, legendaire: 400 },
-  // Une légendaire ne se forge qu'avec la collection bien entamée, et pas plus d'une par semaine.
+  // Le Reliquaire n'apparaît qu'une fois une extension complétée à 60 % : avant,
+  // les boosters complètent mieux que lui, et la page ne ferait que promettre.
+  // Une fois ouvert, il le reste.
+  ouverture: 0.6,
+  // Une légendaire ne se forge qu'avec la collection de son extension bien
+  // entamée, et pas plus d'une par semaine.
   legendaire: { completionMin: 0.6, delaiJours: 7 },
 };
