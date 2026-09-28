@@ -4,6 +4,12 @@ import { crediterGain } from "../lib/economie.js";
 
 const aujourdhui = () => new Date().toLocaleDateString("sv"); // AAAA-MM-JJ, local
 
+/** Le jour, `n` jours plus tard (AAAA-MM-JJ, local). */
+export function plusJours(jour, n) {
+  const [a, m, j] = jour.split("-").map(Number);
+  return new Date(a, m - 1, j + n).toLocaleDateString("sv");
+}
+
 /**
  * Ce que l'application sait des Profondeurs : les tentatives du jour, la
  * partie en cours, et le crédit du butin.
@@ -38,25 +44,39 @@ export function useDonjon(etat, setEtat, test) {
    * Fin de descente : le butin rapporté part à la bourse, converti, et la
    * partie se referme. Rend les PO créditées.
    */
-  const terminerDonjon = useCallback((butin, resume) => {
+  const terminerDonjon = useCallback((butin, resume, repos = []) => {
     const po = Math.round(butin * DONJON.multiplicateur);
     setEtat((e) => {
       const d = e.donjon || { jour: aujourdhui(), tentatives: 0 };
       const stats = { ...(e.stats || {}) };
       stats.gardiens = (stats.gardiens || 0) + (resume.gardiens || 0);
       if (resume.complete) stats.remontees = (stats.remontees || 0) + 1;
+      // Convalescences : la carte revient le jour indiqué. Les échéances
+      // passées sont retirées au passage, pour que la liste ne grossisse pas.
+      const j = aujourdhui();
+      const convalescence = Object.fromEntries(Object.entries(d.convalescence || {}).filter(([, fin]) => fin > j));
+      for (const { cle, jours } of repos) {
+        const fin = plusJours(j, jours);
+        if (!convalescence[cle] || convalescence[cle] < fin) convalescence[cle] = fin;
+      }
       return {
         ...e,
         bourse: crediterGain(e.bourse, po),
         stats,
-        donjon: { ...d, partie: null, dernier: { ...resume, jour: aujourdhui(), butin, po } },
+        donjon: { ...d, partie: null, convalescence, dernier: { ...resume, jour: j, butin, po, repos: repos.length } },
       };
     });
     return po;
   }, [setEtat]);
 
+  /** Jusqu'à quand une carte est au repos, ou null si elle est disponible. */
+  const convalescence = (c) => {
+    const fin = (etat.donjon?.convalescence || {})[`${c.ext}:${c.id}`];
+    return fin && fin > aujourdhui() ? fin : null;
+  };
+
   return {
-    donjon: brut, tentativesRestantes: restantes, tentativesParJour: DONJON.tentativesParJour, illimite,
+    donjon: brut, convalescence, tentativesRestantes: restantes, tentativesParJour: DONJON.tentativesParJour, illimite,
     commencerDonjon, sauverPartie, terminerDonjon,
   };
 }

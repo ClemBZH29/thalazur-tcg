@@ -3,7 +3,8 @@ import { describe, expect, test } from "vitest";
 import { readFileSync } from "node:fs";
 import extension from "../src/extensions/troupe-valeran/extension.js";
 import {
-  RANGS, RENCONTRES, cartesDonjon, choixAuto, choixIA, creerPartie, demarrerCombat, descendre, entrer, genererEtage,
+  RANGS, RENCONTRES, cartesDonjon, choixAuto, choixIA, ciblesPossibles, convalescences, creerPartie, demarrerCombat,
+  descendre, entrer, fuir, genererEtage, monstre, peutFuir,
   graineDuJour, issue, ouverts, parUid, prochain, rapporte, repos, resoudre, roleDe, tirage, tresor, victoire,
 } from "../src/donjon/regles.js";
 
@@ -123,6 +124,62 @@ describe("combat", () => {
     const u = p.equipe.find((x) => x.role !== "soigneur") || p.equipe[0];
     resoudre(p, C, u, "galva", null, tirage(4));
     expect(u.cd).toBeGreaterThan(0);
+  });
+});
+
+describe("adversaires", () => {
+  test("des PNJ rivaux se mêlent au bestiaire, jamais un compagnon ni une faction amie", () => {
+    expect(POOLS.rivaux.length).toBeGreaterThan(10);
+    expect(POOLS.rivaux.some((c) => c.rep3 === "Troupe")).toBe(false);
+    const p = creerPartie({ equipe: POOLS.allies.slice(0, 4), artefact: null, graine: 3, jour: "x", pools: POOLS });
+    const r = tirage(8);
+    const vus = Array.from({ length: 40 }, () => demarrerCombat(p, "combat", r, POOLS).ennemis).flat();
+    expect(vus.some((u) => u.role === "brute" || u.role === "rapide" || u.role === "fourbe")).toBe(true);
+    expect(vus.some((u) => ["garde", "frappeur", "tireur", "soigneur", "mage", "meneur", "debrouillard"].includes(u.role))).toBe(true);
+    const ids = new Set(p.equipe.map((u) => u.c.id));
+    expect(vus.some((u) => ids.has(u.c.id))).toBe(false);
+  });
+  test("un soigneur rival soigne les siens", () => {
+    const p = creerPartie({ equipe: POOLS.allies.slice(0, 4), artefact: null, graine: 3, jour: "x", pools: POOLS });
+    const C = demarrerCombat(p, "combat", tirage(1), POOLS);
+    const medecin = POOLS.rivaux.find((c) => /médecin|clerc|shaman|druide/i.test(c.rep1));
+    const m = monstre(p, medecin, 1);
+    C.ennemis.push(m);
+    C.ennemis[0].pv = 1;
+    const { geste, cible } = choixIA(p, C, m, tirage(2));
+    expect(geste).toBe("soin");
+    expect(cible.camp).toBe("e");
+  });
+  test("un provocateur adverse est la seule cible possible", () => {
+    const p = creerPartie({ equipe: POOLS.allies.slice(0, 4), artefact: null, graine: 3, jour: "x", pools: POOLS });
+    const C = demarrerCombat(p, "combat", tirage(1), POOLS);
+    C.ennemis[1].provoque = 1;
+    expect(ciblesPossibles(p, C, "a")).toEqual([C.ennemis[1]]);
+  });
+});
+
+describe("retraite et convalescence", () => {
+  test("fuir coûte deux cinquièmes du sac et un compagnon, jamais le dernier", () => {
+    const p = creerPartie({ equipe: POOLS.allies.slice(0, 4), artefact: null, graine: 3, jour: "x", pools: POOLS });
+    const C = demarrerCombat(p, "combat", tirage(1), POOLS);
+    p.sac = 100;
+    p.equipe[1].pv = 2;
+    const laisse = p.equipe[1].c;
+    fuir(p);
+    expect(p.sac).toBe(60);
+    expect(p.equipe).toHaveLength(3);
+    expect(p.perdus).toEqual([laisse]);
+    p.equipe.slice(1).forEach((u) => { u.ko = true; });
+    expect(peutFuir(p, C)).toBe(false);
+  });
+  test("une défaite immobilise l'équipe un jour par étage, la recrue exceptée", () => {
+    const p = creerPartie({ equipe: POOLS.allies.slice(0, 4), artefact: null, graine: 3, jour: "x", pools: POOLS });
+    p.etage = 2;
+    p.perdus.push(POOLS.allies[10]);
+    const l = convalescences(p, "defaite");
+    expect(l).toHaveLength(5);
+    expect(l.filter((x) => x.jours === 2)).toHaveLength(4);
+    expect(convalescences(p, "sortie")).toEqual([{ cle: `${POOLS.allies[10].ext}:${POOLS.allies[10].id}`, jours: 1 }]);
   });
 });
 

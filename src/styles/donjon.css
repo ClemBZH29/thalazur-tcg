@@ -4,7 +4,7 @@
    la braise ce qui frappe, le chêne ce qui soigne et ce qui est acquis.
    ------------------------------------------------------------------ */
 
-.dj { --dj-soin: #7fd1b9; }
+.dj { --dj-soin: #7fd1b9; --dj-vert: #5fa894; }
 .dj-intro { max-width: 760px; color: var(--ink2); margin: 0 0 6px; }
 .dj .petit { font-size: 12px; }
 .dj .sous-titre { margin-top: 26px; }
@@ -67,14 +67,16 @@
 .dj-planbox > p { text-align: center; margin: 2px 0 6px; }
 .dj-plan { display: block; width: 100%; height: auto; max-width: 560px; margin: 0 auto; }
 .dj-arete { fill: none; stroke: var(--edge-hi); stroke-width: 2; stroke-dasharray: 3 6; stroke-linecap: round; }
-.dj-arete.prise { stroke: var(--lamp); stroke-width: 3; stroke-dasharray: none; opacity: .9; }
+.dj-arete.prise { stroke: var(--dj-vert); stroke-width: 3; stroke-dasharray: none; }
 .dj-arete.ouverte { stroke: #8a7a55; stroke-dasharray: 4 5; }
 .dj-noeud .fond { fill: var(--panel); stroke: var(--edge-hi); stroke-width: 2; }
 .dj-noeud .dj-ico { color: var(--ink2); pointer-events: none; }
-.dj-noeud.fait .fond { fill: #223b35; stroke: var(--m-chene); }
-.dj-noeud.fait .dj-ico { color: #cfe8df; }
-.dj-noeud.ici .fond { fill: #2c2616; stroke: var(--lamp); stroke-width: 3; }
-.dj-noeud.ici .dj-ico { color: var(--lamp); }
+/* Ce qui est fait se lit en vert : les salles traversées et le chemin pris.
+   La salle où l'on se tient garde l'anneau de la lampe. */
+.dj-noeud.fait .fond { fill: #1d4034; stroke: var(--dj-vert); stroke-width: 2.5; }
+.dj-noeud.fait .dj-ico { color: #b9ecd9; }
+.dj-noeud.ici .fond { fill: #1d4034; stroke: var(--lamp); stroke-width: 3; }
+.dj-noeud.ici .dj-ico { color: #b9ecd9; }
 .dj-noeud.ouvert { cursor: pointer; }
 .dj-noeud.ouvert .fond { fill: #262215; stroke: var(--lamp); }
 .dj-noeud.ouvert .dj-ico { color: var(--lamp); }
@@ -121,7 +123,7 @@
 .dj-arene { position: relative; border: 1px solid var(--edge); border-radius: 16px; padding: 14px 14px 12px;
   background: radial-gradient(ellipse at 50% 18%, rgba(179,48,73,.08), transparent 55%),
               radial-gradient(ellipse at 50% 100%, rgba(232,163,61,.07), transparent 55%), #0f181b; }
-.dj-frise { display: flex; align-items: center; gap: 6px; overflow-x: auto; padding: 4px 2px 10px; scrollbar-width: thin; }
+.dj-frise { display: flex; align-items: center; gap: 6px; overflow-x: auto; padding: 4px 2px 10px; scrollbar-width: thin; min-height: 58px; }
 .dj-frise .tour { font-size: 11px; color: var(--ink3); text-transform: uppercase; letter-spacing: .07em; margin-right: 4px; white-space: nowrap; }
 .dj-jeton { position: relative; flex: 0 0 auto; width: 34px; height: 34px; border-radius: 50%; overflow: hidden;
   display: grid; place-items: center; background: #14304c; border: 2px solid var(--m-chene);
@@ -168,12 +170,16 @@
   100% { opacity: 0; transform: translate(-50%, -38px) scale(1); } }
 [data-mouvement="reduit"] .dj-flottant { animation-duration: 1.4s; }
 
-.dj-milieu { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center; margin: 14px 0 18px; min-height: 64px; }
-.dj-consigne { font-size: 14px; }
+/* Hauteurs fixes : la consigne, le journal et les gestes changent à chaque
+   tour, et sans cela toute l'arène sautait d'une ligne à l'autre. */
+.dj-milieu { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: start; margin: 14px 0 18px; height: 112px; }
+.dj-consigne { font-size: 14px; line-height: 1.45; min-width: 0; }
+.dj-consigne > :first-child { min-height: 2.9em; }
 .dj-consigne b { color: var(--lamp); font-weight: 600; }
-.dj-journal { margin-top: 8px; font-size: 12px; color: var(--ink3); display: flex; flex-direction: column; gap: 2px; }
+.dj-journal { margin-top: 6px; font-size: 12px; line-height: 17px; height: 51px; overflow: hidden; color: var(--ink3); }
+.dj-journal div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .dj-journal div:first-child { color: var(--ink2); }
-.dj-gestes { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.dj-gestes { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; align-content: flex-start; }
 .dj-geste { min-width: 150px; text-align: left; padding: 8px 12px; border-radius: 8px; color: var(--ink);
   background: var(--panel); border: 1px solid var(--edge-hi); cursor: pointer; }
 .dj-geste b { display: block; font-size: 13px; font-weight: 600; }
@@ -202,7 +208,9 @@
 @media (max-width: 860px) {
   .dj-etage { grid-template-columns: 1fr; }
   .dj-cote { position: static; }
-  .dj-milieu { grid-template-columns: 1fr; }
+  .dj-milieu { grid-template-columns: 1fr; height: auto; }
+  .dj-consigne { height: 104px; }
+  .dj-gestes { min-height: 58px; }
   .dj-gestes { justify-content: flex-start; }
   .dj-scene { grid-template-columns: 1fr; }
   .dj-scene-carte { max-width: 120px; }
@@ -214,3 +222,37 @@
   .dj-grille { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
   .dj-apercu { grid-template-columns: 84px 1fr; }
 }
+
+/* ── Fiches d'unité ──────────────────────────────────────────────────── */
+.dj-fiche { position: absolute; left: 50%; z-index: 30; width: max(200px, 150%); max-width: 260px; transform: translateX(-50%);
+  display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border-radius: 10px; pointer-events: none;
+  background: rgba(13, 20, 23, .96); border: 1px solid var(--edge-hi); box-shadow: 0 12px 30px rgba(0,0,0,.6);
+  font-size: 12px; line-height: 1.4; color: var(--ink2); text-align: left; }
+.dj-fiche.bas { top: calc(100% + 4px); }
+.dj-fiche.haut { bottom: calc(100% + 16px); }
+.dj-fiche .t { font-family: var(--font-display); font-variation-settings: var(--wonk); font-size: 14px; color: var(--ink); }
+.dj-fiche .s { color: var(--ink3); font-variant-numeric: tabular-nums; }
+.dj-fiche .l b { color: var(--lamp); font-weight: 600; }
+.dj-u:focus-visible { outline: 2px solid var(--lamp); outline-offset: 4px; border-radius: 6px; }
+
+/* ── Effets des capacités ────────────────────────────────────────────── */
+.dj-arene { isolation: isolate; }
+.dj-proj { position: absolute; z-index: 25; pointer-events: none; }
+.dj-proj.fleche { width: 46px; height: 3px; border-radius: 2px;
+  background: linear-gradient(90deg, transparent, #e8d9b8 30%, #fff 92%, var(--lamp)); box-shadow: 0 0 10px rgba(232,163,61,.7); }
+.dj-proj.orbe { width: 20px; height: 20px; border-radius: 50%;
+  background: radial-gradient(circle, #eafff7, var(--dj-soin) 45%, rgba(127,209,185,0) 72%); box-shadow: 0 0 22px rgba(127,209,185,.9); }
+.dj-vague { position: absolute; z-index: 24; pointer-events: none; border-radius: 14px; background-size: 60% 100%; background-repeat: no-repeat; }
+.dj-vague.brume { background-image: linear-gradient(90deg, transparent, rgba(190,215,235,.55), rgba(157,124,240,.35), transparent); }
+.dj-vague.sang { background-image: linear-gradient(90deg, transparent, rgba(229,119,75,.5), rgba(179,48,73,.6), transparent); }
+.dj-anneau { position: absolute; z-index: 24; width: 120px; height: 120px; border-radius: 50%; pointer-events: none; }
+.dj-anneau.garde { border: 4px solid var(--lamp); box-shadow: 0 0 24px rgba(232,163,61,.6); }
+.dj-anneau.galva { border: 3px solid #f6c979; box-shadow: 0 0 30px rgba(246,201,121,.6), inset 0 0 20px rgba(246,201,121,.4); }
+.dj-anneau.soin { border: 3px solid var(--dj-soin); box-shadow: 0 0 30px rgba(127,209,185,.7); }
+.dj-eclat.lourd { inset: -10% -10% 10%; background: radial-gradient(circle, rgba(255,236,200,.95), rgba(229,119,75,.45) 40%, transparent 72%); }
+
+/* ── Convalescence ───────────────────────────────────────────────────── */
+.dj-choix.repos .plaque { filter: grayscale(.8) brightness(.6); }
+.dj-repos { position: absolute; z-index: 9; left: 6%; right: 6%; top: 34%; padding: 5px 6px; border-radius: 6px; text-align: center;
+  font-size: 11.5px; font-weight: 600; line-height: 1.3; color: var(--ink); background: rgba(13, 20, 23, .88); border: 1px solid var(--edge-hi); }
+.dj-convalescence { color: var(--ember) !important; font-size: 13px; }

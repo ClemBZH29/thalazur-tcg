@@ -52,6 +52,15 @@ const parmiPalier = (r, l, tier) => { const f = l.filter((c) => c.tier === tier)
 export const HOSTILES = new Set(["Créature", "Animal", "Criminel"]);
 
 /**
+ * Factions qui ne se battent jamais contre l'équipe : celles de la
+ * campagne, du côté des joueurs. Les PNJ des autres factions peuvent se
+ * dresser en travers du chemin, avec le rôle et la capacité de leur
+ * archétype — un médecin ennemi soigne les siens, un sorcier balaie
+ * l'équipe. À ajuster ici si une faction change de camp.
+ */
+export const FACTIONS_AMIES = new Set(["Troupe", "Caravane", "Aventurier"]);
+
+/**
  * Les cartes des extensions ouvertes, rangées pour le donjon : les alliés
  * possibles, les adversaires, les lieux (les salles) et les artéfacts
  * (les reliques). Chaque carte garde son extension : c'est elle qui dit où
@@ -70,6 +79,7 @@ export function cartesDonjon(extensions) {
     toutes,
     allies: toutes.filter((c) => c.type === "pnj" && !HOSTILES.has(c.rep1)),
     monstres: toutes.filter((c) => c.type === "pnj" && HOSTILES.has(c.rep1)),
+    rivaux: toutes.filter((c) => c.type === "pnj" && !HOSTILES.has(c.rep1) && !FACTIONS_AMIES.has(c.rep3)),
     lieux: toutes.filter((c) => c.type === "lieu"),
     artefacts: toutes.filter((c) => c.type === "artefact"),
   };
@@ -96,7 +106,11 @@ export const ROLES = {
   debrouillard: { nom: "Débrouillard", ini: 5, passif: "+10 % de butin",
     cap: { id: "coupbas", nom: "Coup bas", cd: 2, cible: "e", aide: "Dégâts ×1,2, et chaparde quelques PO" } },
 };
-export const TRAITS = { rapide: "Rapide", fourbe: "Fourbe", brute: "Coriace" };
+export const TRAITS = {
+  rapide: { nom: "Rapide", aide: "Agit tôt dans le tour" },
+  fourbe: { nom: "Fourbe", aide: "25 % de coup critique, achève le plus faible" },
+  brute: { nom: "Coriace", aide: "PV augmentés de 20 %" },
+};
 
 /** Le rôle d'un allié vient de son premier repère (l'archétype du roster). */
 export function roleDe(rep1) {
@@ -122,13 +136,20 @@ export function allie(partie, c) {
   return { uid: partie.uid++, c: legere(c), camp: "a", role, pvMax: pv, pv, atq,
     ini: ROLES[role].ini + (INI_PALIER[c.tier] || 0), ko: false, cd: 0, provoque: 0, galva: 0 };
 }
+/**
+ * Un adversaire. Le bestiaire et la pègre portent un trait (rapide, fourbe,
+ * coriace) ; un PNJ d'une faction rivale porte le rôle de son archétype, et
+ * sa capacité, comme un compagnon.
+ */
 export function monstre(partie, c, etage, mult = 1) {
   const b = BASE[c.tier] || BASE.commun;
-  const genre = c.rep1 === "Animal" ? "rapide" : c.rep1 === "Criminel" ? "fourbe" : "brute";
-  const pvMax = Math.round(b.pv * (0.9 + 0.4 * etage) * (genre === "brute" ? 1.2 : 1) * mult);
-  const atq = Math.round(b.atq * 0.85) + Math.round((etage - 1) * 1.4) + (mult > 1.5 ? 2 : mult > 1 ? 1 : 0);
-  const ini = { rapide: 7, fourbe: 5, brute: 3 }[genre] + (INI_PALIER[c.tier] || 0);
-  return { uid: partie.uid++, c: legere(c), camp: "e", role: genre, pvMax, pv: pvMax, atq, ini, ko: false, cd: 0, provoque: 0, galva: 0 };
+  const hostile = HOSTILES.has(c.rep1);
+  const role = hostile ? (c.rep1 === "Animal" ? "rapide" : c.rep1 === "Criminel" ? "fourbe" : "brute") : roleDe(c.rep1);
+  let pvMax = Math.round(b.pv * (0.9 + 0.4 * etage) * (role === "brute" || role === "garde" ? 1.2 : 1) * mult);
+  if (!hostile && ["soigneur", "mage", "debrouillard"].includes(role)) pvMax = Math.round(pvMax * 0.9);
+  const atq = Math.round(b.atq * 0.85) + Math.round((etage - 1) * 1.4) + (mult > 1.5 ? 2 : mult > 1 ? 1 : 0) + (role === "frappeur" ? 1 : 0);
+  const ini = (hostile ? { rapide: 7, fourbe: 5, brute: 3 }[role] : ROLES[role].ini) + (INI_PALIER[c.tier] || 0);
+  return { uid: partie.uid++, c: legere(c), camp: "e", role, pvMax, pv: pvMax, atq, ini, ko: false, cd: 0, provoque: 0, galva: 0 };
 }
 
 export const vivants = (l) => l.filter((u) => !u.ko);
@@ -144,7 +165,7 @@ export function bonusEquipe(partie) {
   return { atq, pv };
 }
 export const atqDe = (partie, u) =>
-  u.camp === "a" ? u.atq + bonusEquipe(partie).atq + (u.galva > 0 ? 2 : 0) : u.atq;
+  u.atq + (u.camp === "a" ? bonusEquipe(partie).atq : 0) + (u.galva > 0 ? 2 : 0);
 const multButin = (partie) => 1 + 0.1 * partie.equipe.filter((u) => u.role === "debrouillard").length;
 export function gagner(partie, po) {
   const n = Math.round(po * multButin(partie));
@@ -212,7 +233,7 @@ export function ouverts(plan) {
 /* ── La partie ───────────────────────────────────────────────────────── */
 
 export function creerPartie({ equipe, artefact, graine, jour, pools }) {
-  const partie = { jour, graine, uid: 1, etage: 1, sac: 0, benediction: 0, reliques: [],
+  const partie = { jour, graine, uid: 1, etage: 1, sac: 0, benediction: 0, reliques: [], perdus: [],
     artefact: artefact ? legere(artefact) : null, equipe: [], ecran: "carte", noeud: null,
     stats: { salles: 0, combats: 0, ennemis: 0, gardiens: 0 } };
   partie.equipe = equipe.map((c) => allie(partie, c));
@@ -304,7 +325,7 @@ export const RENCONTRES = [
       const recrue = parmiPalier(r, pools.allies, tirer(r, { commun: 70, peucommun: 25, rare: 5 }));
       return [
         { lib: p.equipe.length < 5 ? `L'emmener (${recrue.nom} rejoint l'équipe)` : "L'équipe est au complet", ok: p.equipe.length < 5, f: () => {
-          const u = allie(p, recrue); u.pvMax += bonusEquipe(p).pv; u.pv = Math.ceil(u.pvMax * 0.5); p.equipe.push(u);
+          const u = allie(p, recrue); u.recrue = true; u.pvMax += bonusEquipe(p).pv; u.pv = Math.ceil(u.pvMax * 0.5); p.equipe.push(u);
           return `${recrue.nom} vous suit, clopin-clopant, et se battra à vos côtés.`; } },
         { lib: "Lui laisser des vivres", f: () => `Il vous remercie et vous glisse quelques pièces. +${gagner(p, 2 * p.etage)} PO.` }];
     } },
@@ -325,12 +346,16 @@ export const RENCONTRES = [
 
 /* ── Combat ──────────────────────────────────────────────────────────── */
 
-function composer(partie, genre, r, monstres) {
+function composer(partie, genre, r, pools) {
   const e = partie.etage;
   const poids = { commun: 72 - e * 13, peucommun: 24 + e * 7, rare: 4 + e * 6 };
-  const m = (tier, mult) => monstre(partie, parmiPalier(r, monstres, tier), e, mult);
+  // Deux adversaires sur cinq sont des PNJ rivaux, jamais un compagnon de l'équipe.
+  const pris = new Set(partie.equipe.map((u) => `${u.c.ext}:${u.c.id}`));
+  const rivaux = (pools.rivaux || []).filter((c) => !pris.has(`${c.ext}:${c.id}`));
+  const source = () => (rivaux.length && r() < 0.4 ? rivaux : pools.monstres);
+  const m = (tier, mult) => monstre(partie, parmiPalier(r, source(), tier), e, mult);
   if (genre === "boss") {
-    const b = m("rare", 2.6);
+    const b = monstre(partie, parmiPalier(r, pools.monstres, "rare"), e, 2.6);
     b.boss = true; b.ini = 4;
     b.nomAffiche = `${b.c.nom}, alpha`;
     return [m(tirer(r, poids)), b, ...(e >= 2 ? [m(tirer(r, poids))] : [])];
@@ -343,7 +368,7 @@ function composer(partie, genre, r, monstres) {
 export function demarrerCombat(partie, genre, r, pools) {
   for (const u of partie.equipe) { u.cd = 0; u.provoque = 0; u.galva = 0; }
   partie.stats.combats++;
-  return { genre, ennemis: composer(partie, genre, r, pools.monstres), round: 0, ordre: [], idx: -1, actif: null, compteBoss: 0, fini: null };
+  return { genre, ennemis: composer(partie, genre, r, pools), round: 0, ordre: [], idx: -1, actif: null, compteBoss: 0, fini: null };
 }
 export const unites = (partie, C) => [...partie.equipe, ...C.ennemis];
 export const parUid = (partie, C, uid) => unites(partie, C).find((u) => u.uid === uid);
@@ -366,7 +391,7 @@ export function prochain(partie, C) {
     C.round++;
     C.ordre = vivants(unites(partie, C)).sort((a, b) => (b.ini - a.ini) || (a.camp === "a" ? -1 : 1)).map((u) => u.uid);
     C.idx = -1;
-    for (const u of partie.equipe) if (u.galva > 0) u.galva--;
+    for (const u of unites(partie, C)) if (u.galva > 0) u.galva--;
   }
   return null;
 }
@@ -407,7 +432,7 @@ export function resoudre(partie, C, u, geste, cible, r) {
     note = geste === "attaque"
       ? `${nom(u)} frappe ${nom(cible)} : −${reel}${crit ? " (critique)" : ""}`
       : `${nom(u)} — ${ROLES[u.role].cap.nom} sur ${nom(cible)} : −${reel}`;
-    if (geste === "coupbas") { const po = gagner(partie, entre(r, 1, 3) * partie.etage); effets.push({ uid: u.uid, txt: `+${po} PO`, cls: "info" }); note += `, +${po} PO`; }
+    if (geste === "coupbas" && u.camp === "a") { const po = gagner(partie, entre(r, 1, 3) * partie.etage); effets.push({ uid: u.uid, txt: `+${po} PO`, cls: "info" }); note += `, +${po} PO`; }
     if (cible.ko) note += " — à terre";
   } else if (geste === "soin") {
     const s = Math.min(cible.pvMax - cible.pv, atqDe(partie, u) + 3);
@@ -415,21 +440,21 @@ export function resoudre(partie, C, u, geste, cible, r) {
     effets.push({ uid: cible.uid, txt: `+${s}`, cls: "soin", anim: "soigne" });
     note = `${nom(u)} soigne ${nom(cible)} : +${s}`;
   } else if (geste === "vague") {
-    for (const e of vivants(C.ennemis)) { const { reel } = frapper(partie, u, e, 0.75, r); effets.push({ uid: e.uid, txt: `−${reel}`, anim: "touche" }); }
-    note = `${nom(u)} déchaîne la brume sur tous les adversaires.`;
+    for (const e of vivants(u.camp === "a" ? C.ennemis : partie.equipe)) { const { reel } = frapper(partie, u, e, 0.75, r); effets.push({ uid: e.uid, txt: `−${reel}`, anim: "touche" }); }
+    note = `${nom(u)} déchaîne la brume sur ${u.camp === "a" ? "tous les adversaires" : "toute l'équipe"}.`;
   } else if (geste === "provoc") {
     u.provoque = 1;
     effets.push({ uid: u.uid, txt: "Provocation", cls: "info" });
     note = `${nom(u)} attire les coups sur lui.`;
   } else if (geste === "galva") {
-    for (const a of vivants(partie.equipe)) { a.galva = 2; effets.push({ uid: a.uid, txt: "+2 ATQ", cls: "info" }); }
-    note = `${nom(u)} galvanise l'équipe.`;
+    for (const a of vivants(u.camp === "a" ? partie.equipe : C.ennemis)) { a.galva = 2; effets.push({ uid: a.uid, txt: "+2 ATQ", cls: "info" }); }
+    note = `${nom(u)} galvanise ${u.camp === "a" ? "l'équipe" : "les siens"}.`;
   } else if (geste === "balayage") {
     for (const a of vivants(partie.equipe)) { const { reel } = frapper(partie, u, a, 0.6, r); effets.push({ uid: a.uid, txt: `−${reel}`, anim: "touche" }); }
     note = `${nom(u)} balaie toute l'équipe.`;
   }
   // Recharge : comptée en tours de l'unité, le sien compris, d'où le +1.
-  if (u.camp === "a" && geste !== "attaque") { const cd = ROLES[u.role].cap.cd; u.cd = cd ? cd + 1 : 0; }
+  if (ROLES[u.role] && geste !== "attaque" && geste !== "balayage") { const cd = ROLES[u.role].cap.cd; u.cd = cd ? cd + 1 : 0; }
   return { anim, cible: cible?.uid ?? null, effets, note };
 }
 
@@ -439,12 +464,26 @@ export function issue(partie, C) {
   return null;
 }
 
-/** Les adversaires : le fourbe achève, les autres frappent au hasard, le gardien balaie tous les trois tours. */
+/**
+ * Les cibles qu'un camp peut frapper : s'il y a un provocateur en face, lui
+ * seul. Vaut pour l'équipe comme pour les adversaires.
+ */
+export function ciblesPossibles(partie, C, camp) {
+  const en_face = vivants(camp === "a" ? C.ennemis : partie.equipe);
+  const provoc = en_face.filter((x) => x.provoque);
+  return provoc.length ? provoc : en_face;
+}
+
+/**
+ * Les adversaires. Un PNJ rival joue comme le pilote automatique joue pour
+ * l'équipe, capacités comprises. Le bestiaire frappe : le fourbe achève, les
+ * autres au hasard. Le gardien balaie toute l'équipe tous les trois tours.
+ */
 export function choixIA(partie, C, m, r) {
   if (m.boss) { C.compteBoss++; if (C.compteBoss % 3 === 0) return { geste: "balayage", cible: null }; }
-  const cibles = vivants(partie.equipe);
-  const provoc = cibles.find((a) => a.provoque);
-  if (provoc) return { geste: "attaque", cible: provoc };
+  if (ROLES[m.role]) return choixAuto(partie, C, m, "menace");
+  const cibles = ciblesPossibles(partie, C, "e");
+  if (cibles.some((a) => a.provoque)) return { geste: "attaque", cible: cibles[0] };
   if (m.role === "fourbe") return { geste: "attaque", cible: [...cibles].sort((a, b) => a.pv - b.pv)[0] };
   const garde = cibles.find((a) => a.role === "garde");
   return { geste: "attaque", cible: garde && r() < 0.3 ? garde : choisir(r, cibles) };
@@ -457,7 +496,8 @@ export const STRATEGIES = {
   prudence: { nom: "Prudence", aide: "Soigner et protéger d'abord, frapper ensuite la menace." },
 };
 export function choixAuto(partie, C, u, strategie) {
-  const ennemis = vivants(C.ennemis), allies = vivants(partie.equipe);
+  const ennemis = ciblesPossibles(partie, C, u.camp);
+  const allies = vivants(u.camp === "a" ? partie.equipe : C.ennemis);
   const faible = [...ennemis].sort((a, b) => a.pv - b.pv)[0];
   const menace = [...ennemis].sort((a, b) => atqDe(partie, b) / b.pv - atqDe(partie, a) / a.pv)[0];
   const cible = strategie === "concentrer" ? faible : menace;
@@ -486,11 +526,54 @@ export function victoire(partie, C, r, artefacts) {
     ? { titre: `Étage ${partie.etage} nettoyé`, texte: "Le gardien tombe. Plus bas, la brume est plus épaisse — et les bourses plus lourdes.", po, relique }
     : { titre: "Victoire", texte: `${C.ennemis.length} adversaires à terre.`, po, relique };
 }
+/** On ne fuit pas seul : il faut quelqu'un pour couvrir la retraite. */
+export const peutFuir = (partie, C) => C.genre !== "boss" && vivants(partie.equipe).length >= 2;
+
+/**
+ * La retraite coûte cher. Deux cinquièmes du sac tombent dans la débandade,
+ * chacun y laisse un sixième de ses PV, et le compagnon le plus mal en point
+ * reste derrière pour couvrir les autres : il quitte l'expédition, et sa
+ * carte part en convalescence un jour (voir `convalescences`).
+ */
 export function fuir(partie) {
-  const perte = Math.round(partie.sac * 0.2);
+  const perte = Math.round(partie.sac * 0.4);
   partie.sac -= perte;
-  for (const u of vivants(partie.equipe)) blesser(u, 2);
-  return { titre: "Repli", texte: `Vous battez en retraite. Dans la débandade, ${perte} PO glissent du sac, et chacun récolte une égratignure.` };
+  for (const u of vivants(partie.equipe)) u.pv = Math.max(1, u.pv - Math.ceil(u.pvMax / 6));
+  const reste = [...vivants(partie.equipe)].sort((a, b) => a.pv / a.pvMax - b.pv / b.pvMax)[0];
+  partie.equipe = partie.equipe.filter((u) => u !== reste);
+  partie.perdus.push(reste.c);
+  partie.stats.fuites = (partie.stats.fuites || 0) + 1;
+  return { titre: "Repli", texte: `Vous battez en retraite. ${perte} pièce${perte > 1 ? "s" : ""} glisse${perte > 1 ? "nt" : ""} du sac dans la débandade, chacun y laisse des plumes, et ${reste.c.nom} reste derrière pour couvrir les autres : retour au camp demain.` };
+}
+
+/**
+ * Les cartes que l'expédition met au repos, et pour combien de jours, à la
+ * manière de Darkest Dungeon. Une défaite immobilise toute l'équipe un jour
+ * par étage atteint ; un compagnon laissé derrière dans une fuite, un jour.
+ * Le recrue ramassée en route n'est pas à nous : elle n'est pas comptée.
+ */
+export function convalescences(partie, iss) {
+  const l = new Map();
+  const mettre = (c, j) => { const k = `${c.ext}:${c.id}`; l.set(k, Math.max(l.get(k) || 0, j)); };
+  for (const c of partie.perdus || []) mettre(c, 1);
+  if (iss === "defaite") for (const u of partie.equipe) if (!u.recrue) mettre(u.c, partie.etage);
+  return [...l.entries()].map(([cle, jours]) => ({ cle, jours }));
+}
+
+/** Ce qu'une fiche d'unité doit dire : rôle ou trait, capacité, et son état. */
+export function fiche(partie, u) {
+  const R = ROLES[u.role];
+  const lignes = [];
+  if (u.boss) lignes.push({ t: "Gardien", d: "Balaie toute l'équipe tous les trois tours (×0,6)." });
+  if (u.elite) lignes.push({ t: "Élite", d: "PV et ATQ renforcés." });
+  if (R) {
+    if (R.passif) lignes.push({ t: R.nom, d: R.passif });
+    else lignes.push({ t: R.nom, d: "" });
+    lignes.push({ t: R.cap.nom, d: `${u.camp === "e" ? R.cap.aide.replace("un allié", "un des siens").replace("toute l'équipe", "tous les siens").replace("tous les adversaires", "toute votre équipe") : R.cap.aide}${u.cd > 0 ? ` — prêt dans ${u.cd} tour${u.cd > 1 ? "s" : ""}` : " — prêt"}` });
+  } else if (TRAITS[u.role]) lignes.push({ t: TRAITS[u.role].nom, d: TRAITS[u.role].aide });
+  if (u.provoque) lignes.push({ t: "Provocation", d: "Attire tous les coups, armure +2." });
+  if (u.galva > 0) lignes.push({ t: "Galvanisé", d: "+2 ATQ." });
+  return { nom: u.nomAffiche || u.c.nom, stats: `${u.pv} / ${u.pvMax} PV · ATQ ${atqDe(partie, u)} · INI ${u.ini}`, lignes };
 }
 /** Ce que l'on rapporte : tout le sac en remontant, un quart si l'équipe tombe. */
 export const rapporte = (partie, iss) => (iss === "defaite" ? Math.round(partie.sac * 0.25) : partie.sac);
