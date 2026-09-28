@@ -184,3 +184,41 @@
   @keyframes exp-arrive { from { opacity: 0; transform: translateY(10px); } }
 }
 @media (prefers-reduced-motion: reduce) { .exp-piste-fait, .exp-piste-ici { transition: none; } }
+
+/* ── Reliquaire : recherche, filtres, volets ─────────────────────────── */
+.rel-outils {
+  position: sticky; top: var(--tete-h, 0px); z-index: 6;
+  display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center;
+  margin: 22px 0 0; padding: 10px 0; background: rgba(13, 20, 23, .95); border-bottom: 1px solid var(--edge);
+}
+.rel-recherche { flex: 1 1 260px; min-width: 0; }
+.rel-recherche input {
+  width: 100%; min-height: 40px; padding: 8px 12px; border-radius: var(--r-md);
+  background: var(--panel); color: var(--ink); border: 1px solid var(--edge-ui); font: inherit; font-size: 14px;
+}
+.rel-recherche input:focus-visible { outline: 2px solid var(--lamp); outline-offset: 1px; }
+.rel-outils .rel-filtres { margin: 0; }
+.rel-compte { margin-left: 6px; color: var(--ink4); font-variant-numeric: tabular-nums; }
+.exp-choix[aria-pressed="true"] .rel-compte { color: var(--lamp); }
+.rel-forgeables { display: flex; gap: 7px; align-items: center; font-size: 13px; color: var(--ink3); cursor: pointer; min-height: 32px; }
+.rel-nombre { margin: 0 0 8px; }
+.rel-hors-portee .rel-nom strong { color: var(--ink2); }
+
+/* Sur grand écran, chaque liste défile dans son volet : la barre de recherche,
+   les titres et le bouton groupé restent en vue, et l'on ne fait plus défiler
+   toute la page pour atteindre la cinquantième carte manquante. */
+@media (min-width: 1024px) {
+  .rel-volet .rel-liste {
+    max-height: max(340px, calc(100vh - var(--tete-h, 110px) - 300px));
+    overflow-y: auto; overscroll-behavior: contain; padding-right: 8px;
+    scrollbar-width: thin; scrollbar-color: var(--edge-hi) transparent;
+  }
+}
+
+/* ── Annonce d'ouverture du Reliquaire ───────────────────────────────── */
+.rel-annonce { text-align: center; }
+.rel-annonce-coffre { width: min(200px, 60%); display: block; margin: 0 auto 6px;
+  filter: drop-shadow(0 0 26px rgba(232, 163, 61, .35)); }
+.rel-annonce h2 { font-size: 24px; margin-bottom: 8px; }
+.rel-annonce p { margin: 0 auto; max-width: 42ch; color: var(--ink2); }
+.rel-annonce-pied { gap: 8px; }
