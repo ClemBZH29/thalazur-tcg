@@ -1,4 +1,4 @@
-# Audit économique — la mine, le gain passif, le Comptoir et le colporteur
+# Audit économique — la mine, le gain passif, le Comptoir, le colporteur et les succès
 
 Ce document répond à une question posée avant l'intégration : combien de
 boosters par jour, une fois les Mines de Kazim branchées sur la bourse ? Les
@@ -218,6 +218,7 @@ Après chaque retouche, relancer les scripts :
 node scripts/audit-economie.mjs     # boosters par jour, par profil de jeu
 node scripts/audit-marche.mjs       # prix par palier et garde-fous du Comptoir
 node scripts/audit-colporteur.mjs   # fréquence et injection du colporteur
+node scripts/audit-succes.mjs       # ce que rend le barème des succès
 ```
 
 **Le plafond quotidien de la mine ne s'affiche plus.** Il avait sa jauge et son
@@ -300,7 +301,41 @@ d'être.
 
 ---
 
-## 9. Réserves
+## 9. Les succès rendent un huitième des boosters d'une complétion
+
+Les succès paient en PO et en sachets offerts, une fois par palier. C'est un
+stock et non un flux : le barème entier rend environ 72 boosters par
+extension et 105 en Global. Chiffres de `scripts/audit-succes.mjs`, sur le
+roster de La Troupe, en ouvrant aussi les sachets offerts et sans rien
+acheter au Comptoir :
+
+```bash
+node scripts/audit-succes.mjs
+```
+
+| Complétion | Boosters ouverts | dont offerts | Part remboursée |
+| ---: | ---: | ---: | ---: |
+| 25 % | 13,6 | 7,2 | 53 % |
+| 50 % | 33,0 | 14,9 | 45 % |
+| 75 % | 70,0 | 25,7 | 37 % |
+| 90 % | 132,8 | 39,0 | 29 % |
+| 100 % | 575,5 | 74,1 | 13 % |
+
+La boucle — un sachet offert compte vers le palier suivant — reste sous
+contrôle parce que la part remboursée décroît à chaque jalon. Le début est
+généreux : sept sachets dans les quatorze premiers, l'équivalent de deux
+jours de gain passif, parce que les premiers paliers de toutes les familles
+tombent ensemble.
+
+**Le pic de mise en service.** Les succès sont rétroactifs, à réclamer : un
+joueur déjà à 90 % de La Troupe avec cent trente boosters ouverts trouvera
+d'un coup une quarantaine de sachets et quelques centaines de PO en attente.
+C'est ponctuel et assumé ; pour l'adoucir, il suffirait de baisser les
+premiers paliers de `COLLECTION.completion` dans `src/config/succes.js`.
+
+---
+
+## 10. Réserves
 
 Ces chiffres sont un ordre de grandeur, pas une promesse.
 

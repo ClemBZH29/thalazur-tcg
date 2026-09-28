@@ -6,6 +6,7 @@ import { effacer, exporter } from "../lib/storage.js";
 import { REVENTE } from "../config/tiers.js";
 import { mesureDisponible, rouvrirBandeau, useConsentement } from "../lib/mesure.js";
 import { LEGAL } from "../config/legal.js";
+import { PSEUDO_MAX, nettoyerPseudo, pseudoValide } from "../succes/classement.js";
 
 const ETAT_SYNC = {
   "a-jour": ["Partie à jour sur votre compte", "ok"],
@@ -55,8 +56,9 @@ function Invite() {
         <p className="muted petit">
           En vous connectant, votre identifiant Google, votre nom, votre adresse
           e-mail et votre photo de profil sont transmis au site, et votre partie
-          est enregistrée sur un serveur de Google (Firebase). Rien n'est publié,
-          rien n'est revendu, aucun traceur publicitaire n'est déposé.{" "}
+          est enregistrée sur un serveur de Google (Firebase). Rien n'est montré
+          aux autres joueurs sans votre accord, rien n'est revendu, aucun
+          traceur publicitaire n'est déposé.{" "}
           <Lien vers="/confidentialite" actif={false} className="lien">Le détail</Lien>.
         </p>
       </div>
@@ -67,7 +69,9 @@ function Invite() {
 function Connecte() {
   const compte = useCompte();
   const { utilisateur, sync, derniere } = compte;
-  const { etat, setEtat, bourse } = useJeu();
+  const { etat, setEtat, bourse, succes } = useJeu();
+  const profil = etat.profil || {};
+  const majProfil = (champs) => setEtat((s) => ({ ...s, profil: { ...(s.profil || {}), ...champs } }));
   const [pseudo, setPseudo] = useState(etat.profil?.pseudo || "");
   const [suppression, setSuppression] = useState(false);
 
@@ -75,8 +79,11 @@ function Connecte() {
 
   const enregistrerPseudo = (e) => {
     e.preventDefault();
-    const net = pseudo.trim().slice(0, 32);
-    setEtat((s) => ({ ...s, profil: { ...(s.profil || {}), pseudo: net || undefined } }));
+    const net = nettoyerPseudo(pseudo);
+    // Vide ou trop court, il ne s'enregistre pas : un pseudo d'une lettre
+    // n'identifie personne au classement.
+    if (net && !pseudoValide(net)) return;
+    majProfil({ pseudo: net || undefined, pseudoReporte: true });
   };
 
   const boosters = Object.values(etat.boosters || {}).reduce((n, v) => n + v, 0);
@@ -105,17 +112,53 @@ function Connecte() {
         <div className="bloc">
           <h3>Pseudo</h3>
           <p className="muted">
-            Le nom sous lequel le site vous salue. Il reste privé pour l'instant ;
-            laissé vide, c'est votre nom Google qui s'affiche.
+            Le nom sous lequel le site vous salue, et sous lequel vous apparaissez
+            au classement si vous le choisissez. Il n'a pas à être votre vrai nom.
+            Laissé vide, c'est votre nom Google qui s'affiche ici — et nulle part
+            ailleurs.
           </p>
           <form className="profil-pseudo" onSubmit={enregistrerPseudo}>
             <label className="sr" htmlFor="pseudo">Pseudo</label>
-            <input id="pseudo" type="text" value={pseudo} maxLength={32}
-              placeholder={utilisateur.nom || "Votre pseudo"}
+            <input id="pseudo" type="text" value={pseudo} maxLength={PSEUDO_MAX}
+              placeholder="Votre pseudo" autoComplete="nickname" spellCheck={false}
               onChange={(e) => setPseudo(e.target.value)} />
             <button className="btn quiet sm" type="submit"
-              disabled={pseudo.trim() === (etat.profil?.pseudo || "")}>Enregistrer</button>
+              disabled={nettoyerPseudo(pseudo) === (profil.pseudo || "")
+                || (nettoyerPseudo(pseudo) !== "" && !pseudoValide(pseudo))}>Enregistrer</button>
           </form>
+        </div>
+
+        <div className="bloc">
+          <h3>Classement</h3>
+          <p className="muted">
+            Au <Lien vers="/succes/classement" actif={false} className="lien">classement</Lien>,
+            les autres joueurs connectés voient votre pseudo, le titre choisi
+            ci-dessous et votre progression : complétion des extensions, boosters
+            ouverts, strate des Mines, succès. Ni votre nom Google, ni votre
+            photo, ni votre adresse.
+          </p>
+          <label className="bascule" style={{ marginTop: 14 }}>
+            <input type="checkbox" checked={profil.classement === true}
+              disabled={!pseudoValide(profil.pseudo)}
+              onChange={(e) => majProfil({ classement: e.target.checked })} />
+            <span>Apparaître au classement des joueurs</span>
+          </label>
+          {!pseudoValide(profil.pseudo) && (
+            <p className="muted petit">Choisissez d'abord un pseudo : c'est lui qui apparaît au classement.</p>
+          )}
+          <div className="champ" style={{ marginTop: 16 }}>
+            <label htmlFor="titre" className="champ-titre">Titre affiché</label>
+            <select id="titre" value={profil.titre || ""}
+              onChange={(e) => majProfil({ titre: e.target.value || undefined })}>
+              <option value="">Aucun</option>
+              {succes.titres.map((t) => <option key={t.id} value={t.id}>{t.titre}</option>)}
+            </select>
+            {succes.titres.length === 0 && (
+              <p className="muted petit">
+                Les titres se gagnent avec certains <Lien vers="/succes" actif={false} className="lien">succès</Lien>.
+              </p>
+            )}
+          </div>
         </div>
 
         <div className="bloc">

@@ -141,7 +141,33 @@ export function fusionnerMine(ici, la) {
   return comparerMines(lire(ici), lire(la)) >= 0 ? ici : la;
 }
 
-const COMPTEURS = new Set(["collections", "boosters", "bourse", "mine", "schema"]);
+/**
+ * Succès réclamés : l'union des deux côtés, en gardant la date la plus
+ * ancienne — c'est elle que départage la primauté du classement.
+ *
+ * Un palier réclamé sur les deux appareils depuis la base a été payé deux
+ * fois : chaque réclamation a crédité la bourse et les sachets, et ces
+ * compteurs s'additionnent. `doublons` rend ce qu'il faut reprendre, lu dans
+ * la réclamation elle-même.
+ */
+export function fusionnerSucces(base = {}, ici = {}, la = {}) {
+  const succes = { ...la };
+  const doublons = { po: 0, sachets: {} };
+  for (const id of cles(ici)) {
+    const i = ici[id], l = la[id];
+    if (!l) { succes[id] = i; continue; }
+    if ((i?.t || 0) < (l?.t || 0)) succes[id] = i;
+    if (!base[id]) {
+      doublons.po += i?.po || 0;
+      if (i?.n) doublons.sachets[i.cle] = (doublons.sachets[i.cle] || 0) + i.n;
+    }
+  }
+  return { succes, doublons };
+}
+
+const COMPTEURS = new Set([
+  "collections", "boosters", "bourse", "mine", "schema", "succes", "sachets", "stats",
+]);
 
 /**
  * Fusion à trois voies. `base` peut manquer : c'est le cas d'un joueur qui
@@ -157,6 +183,21 @@ export function fusionner3(base, ici, la, vide) {
     // Première connexion : on garde le plus garni, comme à l'import.
     : ((ici.bourse?.po || 0) > (la.bourse?.po || 0) ? ici.bourse : la.bourse);
   sortie.mine = fusionnerJourMine(ici.mine, la.mine);
+  sortie.sachets = fusionnerCompteurs(b.sachets, ici.sachets, la.sachets);
+  sortie.stats = fusionnerCompteurs(b.stats, ici.stats, la.stats);
+  const { succes, doublons } = fusionnerSucces(b.succes, ici.succes, la.succes);
+  sortie.succes = succes;
+  // Les sachets s'additionnent toujours, y compris à la première connexion :
+  // un doublon s'y reprend toujours. La bourse, elle, n'est additionnée
+  // qu'avec une base ; sans base on garde la plus garnie, il n'y a rien à
+  // reprendre.
+  for (const [cle, n] of Object.entries(doublons.sachets)) {
+    sortie.sachets[cle] = Math.max(0, (sortie.sachets[cle] || 0) - n);
+  }
+  if (base && doublons.po > 0 && sortie.bourse) {
+    sortie.bourse = { ...sortie.bourse, po: Math.max(0, sortie.bourse.po - doublons.po),
+      gagne: Math.max(0, (sortie.bourse.gagne || 0) - doublons.po) };
+  }
   for (const k of cles(ici, la)) {
     if (COMPTEURS.has(k)) continue;
     // Valeur : l'appareil l'a changée depuis la base → la sienne.

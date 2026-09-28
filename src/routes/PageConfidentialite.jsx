@@ -71,7 +71,7 @@ export default function PageConfidentialite() {
                 <td>Firebase Authentication</td>
               </tr>
               <tr>
-                <td>Votre partie : collection, bourse, réglages, Mines de Kazim, pseudo</td>
+                <td>Votre partie : collection, bourse, réglages, Mines de Kazim, succès, pseudo</td>
                 <td>La sauvegarder et la synchroniser entre vos appareils</td>
                 <td>Cloud Firestore, un document à votre seul nom</td>
               </tr>
@@ -80,14 +80,28 @@ export default function PageConfidentialite() {
                 <td>Réconcilier deux appareils qui ont joué chacun de leur côté ; supprimer les comptes inutilisés</td>
                 <td>Cloud Firestore</td>
               </tr>
+              <tr>
+                <td>
+                  Seulement si vous choisissez d'apparaître au classement : pseudo,
+                  titre affiché, progression (complétion, boosters ouverts, strate
+                  des Mines, succès et dates de complétion)
+                </td>
+                <td>Vous faire figurer au classement des joueurs</td>
+                <td>Cloud Firestore, lisible par les autres joueurs connectés</td>
+              </tr>
             </tbody>
           </table>
           <p>
             <b>Base légale :</b> l'exécution du service que vous demandez en créant
             un compte (article 6.1.b du RGPD). <b>Destinataires :</b> l'éditeur du
             site, pour l'administration technique uniquement, et Google en tant que
-            sous-traitant. Rien n'est publié, vendu ni utilisé à des fins
-            publicitaires. <b>Durée :</b> tant que vous utilisez le compte. Un compte
+            sous-traitant. Rien n'est vendu ni utilisé à des fins publicitaires,
+            et rien n'est montré aux autres joueurs sans votre accord.
+            <b>Classement :</b> il repose sur votre consentement (article 6.1.a),
+            donné en cochant « apparaître au classement » et retiré en décochant
+            la case au profil, ce qui efface aussitôt votre ligne. Votre nom
+            Google, votre photo et votre adresse n'y figurent jamais : le pseudo
+            est saisi à la main, et n'a pas à être votre vrai nom. <b>Durée :</b> tant que vous utilisez le compte. Un compte
             resté {LEGAL.conservationAns} ans sans aucune connexion ni partie jouée est
             supprimé, avec la partie qui l’accompagne. La
             suppression demandée depuis le profil efface tout sans délai.

@@ -45,7 +45,7 @@ Les règles communes aux conversations Claude sont dans
 | `npm test` | Tests (Vitest), dossier `tests/` |
 | `npm run lint` | ESLint, avec les règles des hooks React |
 | `npm run format -- <fichiers>` | Prettier sur les fichiers indiqués |
-| `npm run audit` | Audits d'économie, du Comptoir et du colporteur |
+| `npm run audit` | Audits d'économie, du Comptoir, du colporteur et des succès |
 | `npm run roster -- <fichier.xlsx> <id>` | Roster d'une extension, voir [roster et portraits](docs/conception/roster-et-portraits.md) |
 | `npm run portraits` | Convertit `../Base Image/<extension>/` en WebP dans `public/portraits/` |
 | `npm run portraits:publier` | Idem, puis publie sur le site Firebase des portraits (voir [roster et portraits](docs/conception/roster-et-portraits.md#publier-des-portraits)) |
@@ -72,7 +72,9 @@ sur `images.thalazur.io` (`VITE_PORTRAITS_BASE`), par `npm run portraits:publier
 | `#/bibliotheque` | Bibliothèque | Le set entier, obtenu ou non, et les exemplaires en trop |
 | `#/comptoir` | Le Comptoir | Marché de l'occasion : vendre ses doublons, acheter au rayon du jour |
 | `#/mines` | Les Mines de Kazim | Module idle : frapper le filon, embaucher, vendre l'étoile |
-| `#/profil` | Profil | Connexion Google, pseudo, synchronisation, export et suppression du compte, préférences (animations, doublons, son, cookies) |
+| `#/succes` | Succès | Paliers Global et Collection à réclamer contre des PO et des sachets offerts ; titres |
+| `#/succes/classement` | Classement | Progression des joueurs connectés qui ont choisi d'y figurer, générale et par extension |
+| `#/profil` | Profil | Connexion Google, pseudo, classement et titre, synchronisation, export et suppression du compte, préférences (animations, doublons, son, cookies) |
 | `#/reglages` | Réglages MJ | **Développement seulement** (`npm run dev`) : roster, portraits, taux, mode test. Absente du site publié ; l'ancienne adresse renvoie au profil |
 | `#/confidentialite` | Confidentialité | Données, stockages, droits, mentions légales |
 
@@ -100,6 +102,7 @@ src/
     format.js          nombres et durées à la française
     MinesDeKazim.jsx   l'interface
   comptoir/            marché, acheteurs, négoce
+  succes/              succès et classement : catalogue, règles pures, ligne publique
   routes/              une page par adresse
   components/          cartes, sachet, ouverture, bibliothèque, bandeau cookies…
   config/              paliers, économie, colporteur, cadre, PJ, mentions légales
@@ -146,7 +149,8 @@ Ajouter un dossier suffit : aucune autre ligne de code.
 ## Documentation
 
 - [Conception](docs/conception/) : boutique et tirage, bibliothèque, Comptoir
-  et colporteur, Mines, comptes, accessibilité, roster et portraits, notes.
+  et colporteur, Mines, succès et classement, comptes, accessibilité, roster
+  et portraits, notes.
 - [Charte graphique](docs/charte-graphique.md)
 - Audits : [économie](docs/audit-economie.md), [sécurité](docs/audit-securite.md),
   [structure](docs/audit-structure.md)

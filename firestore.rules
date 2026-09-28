@@ -36,6 +36,44 @@ service cloud.firestore {
         && request.resource.data.revision == resource.data.revision + 1;
     }
 
+    // La ligne publique du classement : seulement pour qui a choisi d'y
+    // figurer (voir src/succes/classement.js). Lisible par tout joueur
+    // connecté, écrite par son seul propriétaire. Les bornes empêchent les
+    // valeurs absurdes ; elles ne prétendent pas empêcher la triche, la
+    // partie vivant dans le navigateur.
+    function echeanceValide(d) {
+      return d.expire is timestamp
+        && d.expire > request.time + duration.value(1810, 'd')
+        && d.expire < request.time + duration.value(1840, 'd');
+    }
+
+    function entierBorne(v, max) {
+      return v is int && v >= 0 && v <= max;
+    }
+
+    function ligneValide() {
+      let d = request.resource.data;
+      let champs = ['pseudo', 'titre', 'score', 'extensions', 'boosters', 'strate',
+                    'succes', 'premiers', 'maj', 'expire'];
+      return d.keys().hasOnly(champs) && d.keys().hasAll(champs)
+        && d.pseudo is string && d.pseudo.size() >= 2 && d.pseudo.size() <= 24
+        && d.titre is string && d.titre.size() <= 80
+        && entierBorne(d.score, 10000)
+        && d.extensions is map && d.extensions.size() <= 40
+        && d.premiers is map && d.premiers.size() <= 40
+        && entierBorne(d.boosters, 1000000)
+        && entierBorne(d.strate, 100000)
+        && entierBorne(d.succes, 10000)
+        && d.maj == request.time
+        && echeanceValide(d);
+    }
+
+    match /classement/{uid} {
+      allow read: if request.auth != null;
+      allow create, update: if proprietaire(uid) && ligneValide();
+      allow delete: if proprietaire(uid);
+    }
+
     // Tout le reste est fermé.
     match /{document=**} {
       allow read, write: if false;

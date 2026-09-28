@@ -1,0 +1,86 @@
+/* ------------------------------------------------------------------
+   Succès, classement, choix du pseudo.
+   Aucune couleur nouvelle : l'ambre de la lampe signale ce qui attend
+   d'être réclamé, le chêne ce qui est acquis.
+   ------------------------------------------------------------------ */
+
+.succes .section-titre { flex-wrap: wrap; gap: 12px; }
+.succes .sous-titre { margin-top: 34px; }
+.succes-resume { margin-bottom: 4px; }
+.succes-intro { margin: -6px 0 16px; font-size: 13px; }
+.succes-note { margin-top: 26px; max-width: 760px; font-size: 12px; line-height: 1.6; }
+
+.succes-grille {
+  display: grid; gap: 14px;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 330px), 1fr));
+}
+.succes-famille {
+  background: var(--panel); border: 1px solid var(--edge); border-radius: var(--r-lg);
+  padding: 16px 18px 14px;
+}
+.succes-famille header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.succes-famille h3 { font-size: 15.5px; font-weight: 600; }
+.succes-valeur { font-size: 13px; font-variant-numeric: tabular-nums; color: var(--ink); white-space: nowrap; }
+
+.succes-jauge { height: 5px; margin: 10px 0 12px; border-radius: 100px; background: var(--ground2); overflow: hidden; }
+.succes-jauge span { display: block; height: 100%; background: var(--lamp); border-radius: inherit;
+  transition: width .4s ease-out; }
+[data-mouvement="reduit"] .succes-jauge span { transition: none; }
+
+.succes-paliers { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.succes-paliers li {
+  display: grid; grid-template-columns: 1fr auto; grid-template-areas: "quoi etat" "gain etat";
+  column-gap: 12px; align-items: center;
+  padding: 7px 10px; border-radius: var(--r-sm); background: var(--ground2);
+  font-size: 12.5px; line-height: 1.45;
+}
+.succes-quoi { grid-area: quoi; color: var(--ink2); }
+.succes-gain { grid-area: gain; color: var(--ink4); font-size: 12px; }
+.succes-titre { display: block; color: var(--lamp-lo); font-style: italic; }
+.succes-paliers li > .btn, .succes-etat { grid-area: etat; }
+.succes-etat { font-size: 15px; width: 24px; text-align: center; }
+.succes-paliers li.fait .succes-etat { color: var(--m-chene); }
+.succes-paliers li.fait .succes-quoi { color: var(--ink3); }
+.succes-paliers li.pret { background: rgba(232, 163, 61, .09); outline: 1px solid rgba(232, 163, 61, .3); }
+.succes-paliers li.pret .succes-quoi { color: var(--ink); }
+.succes-paliers li.pret .succes-gain { color: var(--lamp); }
+.succes-paliers li.verrou .succes-quoi { color: var(--ink3); }
+
+/* ── Classement ──────────────────────────────────────────────────────── */
+.barre-classement { display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; flex-wrap: wrap; margin: 6px 0 16px; }
+.barre-classement .segments { flex-wrap: wrap; }
+
+.table-classement { width: 100%; max-width: 860px; border-collapse: collapse; font-size: 13.5px; }
+.table-classement th { text-align: left; font-weight: 600; font-size: 12px; color: var(--ink4);
+  padding: 8px 12px 8px 0; border-bottom: 1px solid var(--edge-hi); }
+.table-classement td { padding: 10px 12px 10px 0; border-bottom: 1px solid var(--edge); vertical-align: top; }
+.table-classement .nb, .table-classement th:nth-child(n+3) { text-align: right; font-variant-numeric: tabular-nums; }
+.table-classement .rang { width: 44px; color: var(--ink4); font-variant-numeric: tabular-nums; }
+.table-classement tr.moi td { background: rgba(232, 163, 61, .07); }
+.table-classement tr.moi .rang { color: var(--lamp); }
+.table-classement tr:first-child .rang { color: var(--lamp); font-weight: 700; }
+.joueur { color: var(--ink); font-weight: 600; }
+.joueur-titre { display: block; font-size: 12px; font-style: italic; color: var(--lamp-lo); }
+.joueur-primaute { display: block; font-size: 11.5px; color: var(--lamp); }
+
+@media (max-width: 560px) {
+  .table-classement .secondaire { display: none; }
+}
+
+/* ── Choix du pseudo ─────────────────────────────────────────────────── */
+.voile {
+  position: fixed; inset: 0; z-index: 60; display: grid; place-items: center;
+  padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
+  background: rgba(6, 11, 13, .78); backdrop-filter: blur(9px); -webkit-backdrop-filter: blur(9px);
+  animation: fondu .22s ease-out; overflow-y: auto;
+}
+[data-mouvement="reduit"] .voile { animation: none; }
+.dialogue { width: min(100%, 520px); margin: 0; box-shadow: var(--shadow-lift); }
+.dialogue h2 { font-family: var(--font-display); font-variation-settings: var(--wonk);
+  font-size: 24px; font-weight: 700; margin-bottom: 10px; }
+.dialogue .champ { margin: 18px 0 6px; min-width: 0; }
+.dialogue .petit { font-size: 12px; line-height: 1.6; }
+.dialogue .champ input:focus { outline: 2px solid var(--lamp); outline-offset: 1px; border-color: var(--lamp); }
+
+.champ > .champ-titre { font-size: 12px; color: var(--ink4); }

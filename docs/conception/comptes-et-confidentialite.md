@@ -8,6 +8,10 @@ Raisonnement de conception : ce que fait cette partie du site, et pourquoi elle 
 - **Firebase Authentication** (Google) pour l'identité, **Cloud Firestore** pour
   la copie de la partie : un document `joueurs/{uid}` par joueur, lisible par
   lui seul (`firestore.rules`).
+- **Classement**, sur demande seulement : une ligne `classement/{uid}` (pseudo,
+  titre, progression), lisible par les joueurs connectés. Le pseudo est
+  demandé à la première connexion, en précisant qu'il n'a pas à être le vrai
+  nom. Voir [succès et classement](succes-et-classement.md).
 - **Local d'abord.** Le navigateur garde la partie ; le compte en reçoit une
   copie trente secondes après le dernier changement et dès que l'onglet passe
   en arrière-plan. Hors ligne, on joue, l'envoi attend.

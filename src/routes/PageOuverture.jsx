@@ -56,6 +56,8 @@ export default function PageOuverture({ id }) {
       onLoupe={jeu.setLoupe}
       onColporteur={jeu.tirerVisiteColporteur}
       onAffaire={(deal, extra) => jeu.appliquerMarche(extra.effet)}
+      onBotte={() => jeu.compter("affaires")}
+      sachet={jeu.sachetOffert}
       onRetour={() => aller("/boutique")}
       onBibliotheque={() => aller("/bibliotheque")}
     />

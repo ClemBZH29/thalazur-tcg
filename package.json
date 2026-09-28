@@ -12,7 +12,7 @@
     "test:watch": "vitest",
     "lint": "eslint .",
     "format": "prettier --write",
-    "audit": "node scripts/audit-economie.mjs && node scripts/audit-eclats.mjs && node scripts/audit-marche.mjs && node scripts/audit-colporteur.mjs",
+    "audit": "node scripts/audit-economie.mjs && node scripts/audit-eclats.mjs && node scripts/audit-marche.mjs && node scripts/audit-colporteur.mjs && node scripts/audit-succes.mjs",
     "verifier": "npm run lint && npm test && npm run build",
     "apercu": "npm run verifier && npx firebase-tools hosting:channel:deploy recette --only site --expires 7d",
     "roster": "node scripts/xlsx-to-json.mjs",
