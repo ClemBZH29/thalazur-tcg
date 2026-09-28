@@ -43,14 +43,6 @@ a { color: inherit; text-decoration: none; }
 .bourse.libre .bourse-veille { background: var(--ink4); box-shadow: none; animation: none; }
 @keyframes veille { 0%, 100% { opacity: .5; } 50% { opacity: 1; } }
 
-.son {
-  width: 34px; height: 34px; display: grid; place-items: center; cursor: pointer;
-  background: transparent; border: 1px solid var(--edge-ui); border-radius: var(--r-sm);
-  color: var(--ink3); font-size: 14px; transition: color .15s, background .15s;
-}
-.son:hover { color: var(--ink); background: var(--panel); }
-.son[aria-pressed="true"] { color: var(--lamp); }
-@media (pointer: coarse) { .son { width: 44px; height: 44px; } }
 
 /* L'étage des sections : un ruban d'onglets, gravé plutôt que boutonné. */
 .nav {
@@ -217,7 +209,6 @@ a { color: inherit; text-decoration: none; }
    ailleurs pour qui a demandé moins de mouvement. */
 [data-mouvement="reduit"] .bourse-veille { animation: none; opacity: 1; }
 [data-mouvement="reduit"] .nav a,
-[data-mouvement="reduit"] .son { transition: none; }
 
 /* ── En-tête des pages ───────────────────────────────────────────────────── */
 

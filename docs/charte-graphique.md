@@ -16,6 +16,12 @@ Ce n'est pas un parti pris décoratif. Les irisations de l'effet Rainbow reposen
 sur `mix-blend-mode: color-dodge` et `screen`, qui ne produisent rien sur un fond
 clair. Un fond sombre est une contrainte technique autant qu'une intention.
 
+**Vocabulaire à l'écran.** On dit **booster**, jamais « sachet », et **rainbow**,
+jamais « irisé » ou « irisée » — y compris dans les succès, les titres et les
+répliques. Le code garde ses noms (`Sachet.jsx`, la clé de sauvegarde
+`sachets` des boosters offerts) : les renommer casserait des parties
+enregistrées sans rien changer pour le joueur.
+
 **Ce qu'il faut éviter.** La première version du projet employait un fond crème
 proche de `#F4F1EA`, un accent turquoise, des micro-libellés en monospace et des
 capitales espacées au-dessus de chaque bloc. Cet assemblage est une signature par

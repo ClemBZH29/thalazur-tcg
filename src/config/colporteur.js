@@ -151,7 +151,7 @@ function dealBotte({ bourse }) {
   return {
     id: "botte",
     titre: "La botte",
-    phrase: "« J'ai un sachet au fond du ballot. Personne ne l'a compté. »",
+    phrase: "« J'ai un booster au fond du ballot. Personne ne l'a compté. »",
     detail: `Un booster complet à ${TARIFS.botte} PO au lieu de ${ECONOMIE.prix}, ouvert tout de suite.`,
     cout: TARIFS.botte,
     effet: { botte: TARIFS.botte },

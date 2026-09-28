@@ -37,7 +37,7 @@ function Booster({ b, ouverts, achetable, gratuit, reste, offerts }) {
         ) : pret ? (
           <span className="prix">
             {gratuit ? "Disponible"
-              : offerts > 0 ? `${offerts} sachet${offerts > 1 ? "s" : ""} offert${offerts > 1 ? "s" : ""}`
+              : offerts > 0 ? `${offerts} booster${offerts > 1 ? "s" : ""} offert${offerts > 1 ? "s" : ""}`
                 : `${ECONOMIE.prix} PO`}
           </span>
         ) : (
@@ -106,7 +106,7 @@ export default function Etagere() {
         </p>
       )}
 
-      <AvisMouvement quoi="la déchirure du sachet et la révélation des cartes" />
+      <AvisMouvement quoi="la déchirure du booster et la révélation des cartes" />
 
       {/* Sur téléphone, la caisse passe au-dessus : sous quatre vignettes
           empilées, on ne la verrait jamais. */}

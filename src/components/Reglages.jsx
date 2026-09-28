@@ -260,7 +260,7 @@ export default function Reglages({
         <div className="bloc">
           <h3>Animations</h3>
           <p className="muted">
-            Le sachet qui se déchire, la lueur qui annonce le palier avant que le
+            Le booster qui se déchire, la lueur qui annonce le palier avant que le
             nom soit lisible, la carte qui se retourne, les éclats du filon : ici
             l'animation porte l'information, elle ne décore pas. Le site est animé
             par défaut ; « Suivre le système » applique la préférence de votre

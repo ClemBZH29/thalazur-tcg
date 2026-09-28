@@ -308,7 +308,7 @@ function Preferences() {
       <div className="bloc">
         <h3 id="pref-titre">Animations</h3>
         <p className="muted">
-          Ici l'animation porte l'information : le sachet qui se déchire, la lueur
+          Ici l'animation porte l'information : le booster qui se déchire, la lueur
           qui annonce le palier, la carte qui se retourne. Le site est animé par
           défaut ; vous pouvez suivre la préférence de votre système
           {sobreSysteme ? ", qui demande actuellement moins d'animations," : ""} ou tout couper.
@@ -338,12 +338,20 @@ function Preferences() {
 
       <Sauvegarde />
 
+      {/* Le son avait un bouton dans le bandeau de toutes les pages ; il vit
+          ici, avec les autres préférences, en bascule qui dit son état. */}
+      <div className="bloc">
+        <h3>Son</h3>
+        <label className="bascule" style={{ marginTop: 6 }}>
+          <input type="checkbox" checked={son !== false}
+            onChange={(e) => majReglages({ son: e.target.checked })} />
+          <span>Activer les sons du jeu</span>
+        </label>
+      </div>
+
       <div className="bloc">
         <h3>Divers</h3>
         <div className="actions gauche" style={{ marginTop: 0 }}>
-          <button className="btn quiet sm" onClick={() => majReglages({ son: !son })}>
-            {son ? "Couper le son" : "Rétablir le son"}
-          </button>
           {mesureDisponible && (
             <button className="btn quiet sm" onClick={rouvrirBandeau}>
               Cookies : {consentement.choix ? (consentement.choix.mesure ? "acceptés" : "refusés") : "à choisir"} — modifier
