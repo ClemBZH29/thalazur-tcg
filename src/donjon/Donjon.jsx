@@ -207,7 +207,7 @@ function Plan({ partie, onEntrer, onSurvol, doigt, bulle, onBulle }) {
 
 export default function Donjon({ jeu }) {
   const { etat, cfgImage, fichiers, mouvementReduit, donjon, tentativesRestantes, tentativesParJour, illimite,
-    commencerDonjon, sauverPartie, terminerDonjon, convalescence, niveauCarte } = jeu;
+    commencerDonjon, sauverPartie, terminerDonjon, convalescence, niveauCarte, enExpedition } = jeu;
 
   const partieRef = useRef(donjon.partie ? structuredClone(donjon.partie) : null);
   const combatRef = useRef(null);
@@ -271,7 +271,7 @@ export default function Donjon({ jeu }) {
   const ouvertsTotal = Object.values(etat.boosters || {}).reduce((s, n) => s + (n || 0), 0);
   const apprenti = apprentissage(ouvertsTotal, DONJON.apprentissage);
   const partir = () => {
-    const equipe = choix.map((id) => collection.allies.find((c) => c.id === id)).filter(Boolean);
+    const equipe = choix.map((id) => collection.allies.find((c) => c.id === id)).filter((c) => c && !enExpedition?.(c));
     if (equipe.length !== TAILLE_EQUIPE || tentativesRestantes <= 0) return;
     const jour = aujourdhui();
     const niveaux = Object.fromEntries(equipe.map((c) => [`${c.ext}:${c.id}`, niveauCarte(c)]));
@@ -637,18 +637,21 @@ export default function Donjon({ jeu }) {
                 const palier = PALIER_IRISEE[c.tier] || 20;
                 // Mode test : la convalescence s'affiche mais n'empêche rien.
                 const repos = convalescence(c);
-                const bloque = repos && !illimite;
+                // Partie en expédition : elle ne descend pas avant son retour, mode test compris.
+                const partie = enExpedition?.(c);
+                const bloque = partie || (repos && !illimite);
                 // Sous la carte, deux lignes de hauteur fixe : le mot-clé du rôle
                 // et les chiffres. Le détail est au lexique : le texte complet
                 // des capacités, variable d'une carte à l'autre, désalignait la grille.
                 return (
                   <div key={`${c.ext}:${c.id}`}
-                    className={`dj-choix${pris ? " pris" : ""}${(n >= TAILLE_EQUIPE && !pris) || bloque ? " grise" : ""}${repos ? " repos" : ""}`}>
+                    className={`dj-choix${pris ? " pris" : ""}${(n >= TAILLE_EQUIPE && !pris) || bloque ? " grise" : ""}${repos || partie ? " repos" : ""}`}>
                     <button type="button" className="dj-choix-carte" aria-pressed={pris} disabled={bloque && !pris}
-                      aria-label={`${c.nom}, ${R.nom}${repos ? `, au repos jusqu'au ${dateFr(repos)}` : ""}`}
+                      aria-label={`${c.nom}, ${R.nom}${partie ? ", en expédition" : repos ? `, au repos jusqu'au ${dateFr(repos)}` : ""}`}
                       onClick={() => setChoix((l) => (l.includes(c.id) ? l.filter((x) => x !== c.id) : l.length < TAILLE_EQUIPE ? [...l, c.id] : l))}>
                       {pris && <span className="dj-coche" aria-hidden="true">✓</span>}
-                      {repos && <span className="dj-repos">Au repos jusqu'au {dateFr(repos).slice(0, 5)}</span>}
+                      {partie ? <span className="dj-repos">En expédition</span>
+                        : repos && <span className="dj-repos">Au repos jusqu'au {dateFr(repos).slice(0, 5)}</span>}
                       <CarteDJ c={c} cfgImage={cfgImage} fichiers={fichiers} />
                     </button>
                     <div className="dj-choix-pied">

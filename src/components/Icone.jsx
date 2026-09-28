@@ -60,6 +60,22 @@ const TRACES = {
       <path d="M7.5 17.5v-2.4h2.6v-2.4h2.6" />
     </>
   ),
+  // Un bâton de marche, sa lanterne au crochet : les Expéditions.
+  expeditions: (
+    <>
+      <path d="M6 18 11.5 4.5a2.6 2.6 0 0 1 4.3 1.7" />
+      <path d="M14.2 8.8h3.2l-.4 4.6h-2.4z" />
+      <path d="M15.8 6.6v2.2" />
+    </>
+  ),
+  // Un coffret à couvercle en pointe : le Reliquaire.
+  reliquaire: (
+    <>
+      <path d="M3.5 9.5h13v7h-13z" />
+      <path d="M3.5 9.5 5.5 5h9l2 4.5" />
+      <path d="M10 5V3M10 12v2" />
+    </>
+  ),
   // Les salles du Donjon, sur la carte d'un étage.
   combat: (
     <>
