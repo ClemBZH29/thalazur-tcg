@@ -304,3 +304,65 @@
 .dj-bilan-xp ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--ink2); }
 .dj-bilan-xp .monte { color: var(--ink); }
 .dj-bilan-xp .gain { color: var(--m-rainbow); font-weight: 600; }
+
+/* ── Au doigt (téléphone) ────────────────────────────────────────────────
+   Même requête que useDoigt() dans Donjon.jsx : la carte est l'écran de base,
+   un toucher sur une salle ouvre sa bulle ; au combat, deux chiffres par carte,
+   le reste dans la fiche au toucher ; l'arène tient dans l'écran. */
+.dj-nums, .dj-etat-point { display: none; }
+.dj-plan-zone { position: relative; }
+.dj-noeud .vise { fill: none; stroke: var(--lamp); stroke-width: 2.5; stroke-dasharray: 5 4; pointer-events: none; }
+.dj-bulle { position: absolute; z-index: 20; width: 208px; max-width: calc(100% - 12px); transform: translate(-50%, calc(-100% - 30px));
+  display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 10px 12px; border-radius: 12px;
+  background: rgba(13, 20, 23, .97); border: 1px solid var(--lamp); box-shadow: 0 14px 30px rgba(0,0,0,.65);
+  font-size: 12.5px; line-height: 1.4; color: var(--ink2); }
+.dj-bulle.dessous { transform: translate(-50%, 30px); }
+.dj-bulle .genre { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: var(--lamp);
+  text-transform: uppercase; letter-spacing: .06em; }
+.dj-bulle .lieu { font-family: var(--font-display); font-variation-settings: var(--wonk); font-size: 15px; color: var(--ink); }
+.dj-bulle .btn { margin-top: 4px; align-self: stretch; justify-content: center; }
+.dj-barre-carte { display: flex; justify-content: center; margin: 2px 0 4px; }
+.dj-feuille { max-height: 80vh; }
+.dj-feuille h3 { font-size: 15px; margin: 14px 0 8px; }
+
+@media (max-width: 720px), (max-width: 860px) and (max-height: 500px) {
+  .dj-cote { display: none; }
+  .dj-planbox { padding: 10px 2px 10px; }
+  .dj-planbox h2 { font-size: 19px; }
+  .dj-noeud { -webkit-tap-highlight-color: transparent; }
+
+  /* Combat : sur la carte, l'attaque en ambre et les PV en vert, rien d'autre. */
+  .dj-badges, .dj-statuts, .dj-pvtxt, .dj-u .dj-etiquette { display: none; }
+  .dj-nums { display: flex; justify-content: space-between; position: absolute; left: 3%; right: 3%; bottom: 13%;
+    font-family: var(--font-display); font-weight: 900; font-size: max(13px, 15cqw); line-height: 1;
+    text-shadow: 0 2px 0 rgba(0,0,0,.85), 0 0 8px rgba(0,0,0,.9); font-variant-numeric: tabular-nums; }
+  .dj-nums .atq { color: #ffc267; }
+  .dj-nums .pv { color: #8fe3c6; }
+  .dj-nums .pv.bas { color: #ff8f7a; }
+  .dj-etat-point { display: block; position: absolute; right: 4%; top: 4%; width: 9px; height: 9px; border-radius: 50%;
+    background: var(--lamp); box-shadow: 0 0 0 2px rgba(0,0,0,.6), 0 0 8px rgba(232,163,61,.8); }
+  .dj-fiche { pointer-events: auto; width: min(240px, 70vw); }
+  .dj-rang .dj-u:first-child:not(:last-child) .dj-fiche { left: 0; transform: none; }
+  .dj-rang .dj-u:last-child:not(:first-child) .dj-fiche { left: auto; right: 0; transform: none; }
+
+  /* L'arène d'abord : le cœur du combat remplit l'écran sous l'en-tête,
+     le pilote automatique se trouve en faisant défiler. */
+  .dj-arene { padding: 8px 6px 10px; border-radius: 12px; }
+  .dj-coeur { min-height: calc(100dvh - var(--tete-h, 56px) - 12px); display: flex; flex-direction: column; justify-content: center;
+    gap: 4px; scroll-margin-top: calc(var(--tete-h, 56px) + 6px); }
+  .dj-frise { min-height: 44px; padding: 2px 2px 6px; }
+  .dj-jeton { width: 28px; height: 28px; }
+  .dj-jeton.actif { width: 34px; height: 34px; }
+  .dj-rang { gap: 6px; }
+  .dj-u { flex-basis: 110px; }
+  .dj-u.boss { flex-basis: 130px; }
+  .dj-u.actif { transform: translateY(-6px); }
+  .dj-milieu { margin: 8px 0 10px; gap: 6px; }
+  .dj-consigne { height: auto; min-height: 76px; font-size: 13px; }
+  .dj-consigne > :first-child { min-height: 0; }
+  .dj-journal { height: 34px; }
+  .dj-journal div:nth-child(3) { display: none; }
+  .dj-gestes { min-height: 50px; }
+  .dj-geste { padding: 6px 9px; }
+  .dj-pilote { margin-top: 10px; }
+}

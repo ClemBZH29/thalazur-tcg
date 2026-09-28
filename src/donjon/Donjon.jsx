@@ -39,6 +39,20 @@ const bonusTexte = (t) => {
   return [b.atq && `+${b.atq} ATQ`, b.pv && `+${b.pv} PV`].filter(Boolean).join(", ") + " à l'équipe";
 };
 
+/** Au doigt : la même requête que la navigation du site (site.css). */
+const REQUETE_DOIGT = "(max-width: 720px), (max-width: 860px) and (max-height: 500px)";
+function useDoigt() {
+  const [oui, setOui] = useState(() => typeof matchMedia === "function" && matchMedia(REQUETE_DOIGT).matches);
+  useEffect(() => {
+    if (typeof matchMedia !== "function") return;
+    const m = matchMedia(REQUETE_DOIGT);
+    const maj = () => setOui(m.matches);
+    m.addEventListener?.("change", maj);
+    return () => m.removeEventListener?.("change", maj);
+  }, []);
+  return oui;
+}
+
 /* ── Une carte, au cadre du site, avec ce que le combat y ajoute ─────── */
 
 function CarteDJ({ c, u = null, partie = null, cfgImage, fichiers }) {
@@ -60,6 +74,13 @@ function CarteDJ({ c, u = null, partie = null, cfgImage, fichiers }) {
           {statuts.length > 0 && <span className="dj-statuts">{statuts.map((s) => <i key={s}>{s}</i>)}</span>}
           <span className={`dj-pv${pct < 35 ? " bas" : ""}`}><span style={{ width: `${pct}%` }} /></span>
           <span className="dj-pvtxt">{u.ko ? "à terre" : `${u.pv} / ${u.pvMax}`}</span>
+          {/* Au doigt, les pastilles cèdent la place à deux chiffres en couleur :
+              l'attaque et les PV. Le reste est dans la fiche, d'un toucher. */}
+          <span className="dj-nums">
+            <b className="atq">{atqDe(partie, u)}</b>
+            <b className={`pv${pct < 35 ? " bas" : ""}`}>{u.ko ? "×" : u.pv}</b>
+          </span>
+          {(u.provoque > 0 || u.galva > 0) && <span className="dj-etat-point" />}
         </div>
       )}
     </div>
@@ -107,7 +128,7 @@ function Reliques({ partie }) {
 
 /* ── La carte d'un étage ─────────────────────────────────────────────── */
 
-function Plan({ partie, onEntrer, onSurvol }) {
+function Plan({ partie, onEntrer, onSurvol, doigt, bulle, onBulle }) {
   const P = partie.plan;
   const dispo = new Set(ouverts(P));
   const pris = new Set(P.pris);
@@ -130,9 +151,12 @@ function Plan({ partie, onEntrer, onSurvol }) {
           <g key={n.id} className={`dj-noeud ${etat}${n.genre === "boss" ? " boss" : ""}`} transform={`translate(${n.x},${n.y})`}
             data-noeud={n.id}
             {...(ouvert ? { tabIndex: 0, role: "button", "aria-label": `${GENRES[n.genre].nom}, ${n.lieu.nom}` } : {})}
-            onClick={() => (ouvert ? onEntrer(n.id) : onSurvol(n.id))}
-            onMouseEnter={() => onSurvol(n.id)} onFocus={() => onSurvol(n.id)}
+            // Au doigt, un toucher ouvre la bulle de la salle ; on y va depuis la
+            // bulle. À la souris, le survol renseigne et le clic entre.
+            onClick={(e) => { e.stopPropagation(); if (doigt) onBulle(bulle === n.id ? null : n.id); else if (ouvert) onEntrer(n.id); else onSurvol(n.id); }}
+            onMouseEnter={() => !doigt && onSurvol(n.id)} onFocus={() => onSurvol(n.id)}
             onKeyDown={(e) => { if (ouvert && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); onEntrer(n.id); } }}>
+            {bulle === n.id && <circle className="vise" r={r + 7} />}
             {ouvert && <circle className="halo" r={r} />}
             <circle className="fond" r={r} />
             <svg x={-ico / 2} y={-ico / 2} width={ico} height={ico} viewBox="0 0 20 20" className="dj-ico" aria-hidden="true">
@@ -173,6 +197,9 @@ export default function Donjon({ jeu }) {
   const [inspecte, setInspecte] = useState(null);
   // null : fermé ; "" : ouvert en entier ; un rôle : ouvert sur ce rôle.
   const [lexique, setLexique] = useState(null);
+  const doigt = useDoigt();
+  const [bulle, setBulle] = useState(null);
+  const [feuille, setFeuille] = useState(false);
   const zone = useRef(null);
   const minuteurs = useRef([]);
   const rnd = useRef(Math.random);
@@ -473,6 +500,18 @@ export default function Donjon({ jeu }) {
   // Une partie reprise au milieu d'un combat : on revient à la carte, le
   // combat se rejouera depuis son premier tour.
   useEffect(() => { if (ecran === "combat" && !combatRef.current) setEcran("carte"); }, [ecran]);
+  // Au téléphone, chaque écran s'ouvre sur ce qui compte : l'arène centrée au combat, la prochaine salle sur la carte.
+  useEffect(() => {
+    if (!doigt) return;
+    const id = requestAnimationFrame(() => {
+      const racine = document.querySelector(".dj");
+      const cible = ecran === "combat" ? racine?.querySelector(".dj-coeur")
+        : ecran === "carte" ? racine?.querySelector(".dj-noeud.ouvert") : null;
+      cible?.scrollIntoView({ block: ecran === "combat" ? "start" : "center", behavior: "auto" });
+    });
+    return () => cancelAnimationFrame(id);
+  }, [ecran, doigt, partie?.etage]);
+  useEffect(() => { setBulle(null); setFeuille(false); }, [ecran]);
 
   /* ── Rendu ───────────────────────────────────────────────────────── */
   const entete = partie && (
@@ -634,6 +673,9 @@ export default function Donjon({ jeu }) {
   if (ecran === "carte") {
     const dispo = ouverts(partie.plan);
     const vu = partie.plan.noeuds[survol] ? partie.plan.noeuds[survol] : partie.plan.noeuds[dispo[0]];
+    const H = 60 + RANGS * 84 + 70;
+    const nb = bulle ? partie.plan.noeuds[bulle] : null;
+    const debout = vivants(partie.equipe).length;
     return (
       <div className="dj">
         {entete}
@@ -641,7 +683,28 @@ export default function Donjon({ jeu }) {
           <div className="dj-planbox">
             <h2>Étage {partie.etage}</h2>
             <p className="muted petit">{partie.plan.pos ? "Choisissez la salle suivante" : "Choisissez par où entrer"} — les passages lumineux sont accessibles.</p>
-            <Plan partie={partie} onEntrer={entrerSalle} onSurvol={setSurvol} />
+            {doigt && (
+              <div className="dj-barre-carte">
+                <button type="button" className="dj-lex-bouton" onClick={() => setFeuille(true)}>
+                  Équipe {debout} / {partie.equipe.length}{partie.reliques.length + (partie.artefact ? 1 : 0) > 0 ? ` · ${partie.reliques.length + (partie.artefact ? 1 : 0)} relique${partie.reliques.length + (partie.artefact ? 1 : 0) > 1 ? "s" : ""}` : ""}
+                </button>
+              </div>
+            )}
+            <div className="dj-plan-zone" onClick={() => setBulle(null)}>
+              <Plan partie={partie} onEntrer={entrerSalle} onSurvol={setSurvol} doigt={doigt} bulle={bulle} onBulle={setBulle} />
+              {doigt && nb && (
+                <div className={`dj-bulle${nb.y / H < 0.28 ? " dessous" : ""}`} role="dialog" aria-label={nb.lieu.nom}
+                  style={{ left: `clamp(112px, ${(nb.x / 400) * 100}%, calc(100% - 112px))`, top: `${(nb.y / H) * 100}%` }}
+                  onClick={(e) => e.stopPropagation()}>
+                  <span className="genre"><Icone nom={ICONE_GENRE[nb.genre]} taille={14} /> {GENRES[nb.genre].nom}</span>
+                  <b className="lieu">{nb.lieu.nom}</b>
+                  <span className="aide">{GENRES[nb.genre].aide}</span>
+                  {dispo.includes(nb.id)
+                    ? <button className="btn sm" type="button" onClick={() => { setBulle(null); entrerSalle(nb.id); }}>Y aller</button>
+                    : <span className="muted petit">{partie.plan.pos === nb.id || nb.r <= (partie.plan.noeuds[partie.plan.pos]?.r ?? -1) ? "Déjà derrière vous." : "Pas encore accessible d'ici."}</span>}
+                </div>
+              )}
+            </div>
             <div className="dj-legende">
               {["combat", "elite", "tresor", "evenement", "repos"].map((g) => (
                 <span key={g}><Icone nom={ICONE_GENRE[g]} taille={15} /> {GENRES[g].nom}</span>
@@ -664,6 +727,16 @@ export default function Donjon({ jeu }) {
             <div className="bloc"><h3>Reliques</h3><Reliques partie={partie} /></div>
           </aside>
         </div>
+        {doigt && feuille && (
+          <div className="dj-voile" onClick={() => setFeuille(false)}>
+            <section className="dj-lexique dj-feuille" role="dialog" aria-modal="true" aria-label="L'équipe" onClick={(e) => e.stopPropagation()}>
+              <header><h2>L'équipe</h2><button type="button" className="btn quiet sm" onClick={() => setFeuille(false)}>Fermer</button></header>
+              <MiniEquipe partie={partie} />
+              <h3>Reliques</h3>
+              <Reliques partie={partie} />
+            </section>
+          </div>
+        )}
       </div>
     );
   }
@@ -683,11 +756,11 @@ export default function Donjon({ jeu }) {
       return (
         <div key={u.uid} data-uid={u.uid}
           className={`dj-u${u.uid === C.actif ? " actif" : ""}${u.ko ? " ko" : ""}${ciblable ? ` ciblable${u.camp === "a" ? " allie" : ""}` : ""}${u.boss ? " boss" : ""}`}
-          onMouseEnter={() => setInspecte(u.uid)} onMouseLeave={() => setInspecte((x) => (x === u.uid ? null : x))}
+          {...(doigt ? {} : { onMouseEnter: () => setInspecte(u.uid), onMouseLeave: () => setInspecte((x) => (x === u.uid ? null : x)) })}
           {...(ciblable ? { role: "button", tabIndex: 0, "aria-label": `Cibler ${u.nomAffiche || u.c.nom}`,
             onClick: () => cibler(u), onKeyDown: (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); cibler(u); } } }
-            : { tabIndex: 0, "aria-label": `${u.nomAffiche || u.c.nom} — voir la fiche`, onClick: () => setInspecte(u.uid),
-              onFocus: () => setInspecte(u.uid), onBlur: () => setInspecte((x) => (x === u.uid ? null : x)) })}>
+            : { tabIndex: 0, "aria-label": `${u.nomAffiche || u.c.nom} — voir la fiche`, onClick: () => setInspecte((x) => (doigt && x === u.uid ? null : u.uid)),
+              ...(doigt ? {} : { onFocus: () => setInspecte(u.uid), onBlur: () => setInspecte((x) => (x === u.uid ? null : x)) }) })}>
           <CarteDJ c={u.c} u={u} partie={partie} cfgImage={cfgImage} fichiers={fichiers} />
           <span className="dj-etiquette">{etiquette}</span>
           {f && (
@@ -711,6 +784,7 @@ export default function Donjon({ jeu }) {
       <div className="dj" ref={zone}>
         {entete}
         <div className="dj-arene">
+          <div className="dj-coeur">
           <div className="dj-frise" aria-label="Ordre d'initiative du tour">
             <span className="tour">Tour {C.round}</span>
             {ordre.map(({ u, i }) => (
@@ -731,6 +805,7 @@ export default function Donjon({ jeu }) {
             </div>
           </div>
           <div className="dj-rang equipe">{partie.equipe.map(unite)}</div>
+          </div>
           <div className="dj-pilote">
             <div className="groupe"><span className="lib">Combat automatique</span>
               <span className="segments" role="group" aria-label="Stratégie">

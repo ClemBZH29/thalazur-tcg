@@ -81,6 +81,29 @@ même étage, et peuvent en parler.
 - **Hauteurs fixes** : consigne, journal et gestes gardent la même place d'un
   tour à l'autre, l'arène ne bouge plus.
 
+### Au téléphone
+
+Même seuil que le menu burger (720 px et moins, ou téléphone en paysage),
+repris par `useDoigt()` dans `Donjon.jsx` et par la requête média de
+`donjon.css`.
+
+- **La carte est l'écran de base.** Le panneau latéral (aperçu, équipe,
+  reliques) disparaît ; un bouton « Équipe x / y · n reliques » au-dessus de
+  la carte ouvre une feuille avec l'équipe et les reliques. L'écran défile
+  jusqu'à la prochaine salle accessible.
+- **Un toucher sur une salle ouvre sa bulle** (genre, lieu, aide) avec un
+  bouton « Y aller ». Un second toucher sur la même salle, ou sur le fond de
+  la carte, la referme. Rien ne se lance sans le bouton : plus de salle
+  prise par erreur.
+- **Au combat, deux chiffres par carte** : l'attaque en ambre, les PV en vert
+  (rouge sous un tiers). Badges, statuts et étiquettes sont masqués ; un point
+  ambre signale un état en cours (provocation, galvanisation). Toucher une
+  carte ouvre sa fiche complète, la toucher encore la ferme.
+- **L'arène d'abord** : la frise, les adversaires, la consigne et l'équipe
+  remplissent l'écran sous l'en-tête et y sont centrés ; l'écran s'y place à
+  l'entrée du combat. Le combat automatique, la vitesse, le lexique et la
+  fuite sont en dessous, en faisant défiler.
+
 ### Remonter ou descendre
 
 Après chaque gardien, on remonte avec tout le sac, ou l'on descend. On peut
