@@ -94,3 +94,11 @@ Passe mobile, lots 4 et 5 :
   entier reste le nom accessible du lien.
 - **Tablette en portrait** : la navigation reste en haut, avec les noms entiers.
   La barre basse est réservée au téléphone et au paysage bas.
+
+Retours de test (28/09/2026) :
+
+- **Le bouton du son quitte le bandeau** : il est au profil, en case à cocher
+  qui dit son état (« Activer les sons du jeu »), au lieu d'un ♪ / × à
+  deviner.
+- **Déchirure amorcée** : 24 px de glissement suffisent, « Ouvrir sans
+  glisser » reste l'équivalent sans geste.

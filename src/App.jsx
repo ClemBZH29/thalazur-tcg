@@ -202,7 +202,7 @@ function Coque() {
     return () => cancelAnimationFrame(image);
   }, [chemin]);
 
-  const { bourse, gratuit, collecte, surplusTotal, stockageKo, son, majReglages, loupe,
+  const { bourse, gratuit, collecte, surplusTotal, stockageKo, loupe,
     setLoupe, cfgImage, fichiers, succes } = jeu;
 
   return (
@@ -249,17 +249,10 @@ function Coque() {
               <span className="bourse-veille" aria-hidden="true" />
               {gratuit ? "PO désactivées" : `${Math.floor(bourse.po)} PO`}
             </span>
+            {/* Le son se règle au profil, avec les autres préférences : il
+                prenait un bouton du bandeau, sur chaque page, pour un réglage
+                qu'on touche une fois. */}
             <BoutonCompte />
-            <button
-              type="button"
-              className="son"
-              onClick={() => majReglages({ son: !son })}
-              aria-pressed={son}
-              title={son ? "Couper le son" : "Rétablir le son"}
-            >
-              <span aria-hidden="true">{son ? "♪" : "×"}</span>
-              <span className="sr">{son ? "Son actif" : "Son coupé"}</span>
-            </button>
           </div>
         </header>
 

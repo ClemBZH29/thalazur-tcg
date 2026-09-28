@@ -37,7 +37,7 @@ export const SACHET_LIBRE = "*";
 export const GLOBAL = [
   {
     id: "boosters",
-    nom: "Déchireur de sachets",
+    nom: "Déchireur de boosters",
     quoi: "Ouvrir {n} boosters, toutes extensions confondues",
     mesure: "boosters",
     paliers: [
@@ -45,7 +45,7 @@ export const GLOBAL = [
       { seuil: 30, recompense: { sachets: 2 } },
       { seuil: 100, recompense: { sachets: 5 }, titre: "Habitué de la boutique" },
       { seuil: 300, recompense: { sachets: 10 } },
-      { seuil: 1000, recompense: { sachets: 25 }, titre: "Déchireur de sachets" },
+      { seuil: 1000, recompense: { sachets: 25 }, titre: "Déchireur de boosters" },
     ],
   },
   {
@@ -146,13 +146,13 @@ export const COLLECTION = {
     titre: "Chasseur de légendes de {ext}",
   },
   irisees: {
-    nom: "Irisées",
-    quoi: "Posséder {n} carte{s} irisée{s} de {ext}",
+    nom: "Rainbow",
+    quoi: "Posséder {n} carte{s} rainbow de {ext}",
     paliers: [
       { seuil: 1, recompense: { po: 60 } },
       { seuil: 5, recompense: { po: 180 } },
       { seuil: 10, recompense: { sachets: 2 } },
-      { seuil: 25, recompense: { sachets: 5 }, titre: "Irisé de {ext}" },
+      { seuil: 25, recompense: { sachets: 5 }, titre: "Chasseur de rainbow de {ext}" },
     ],
   },
   fullart: {

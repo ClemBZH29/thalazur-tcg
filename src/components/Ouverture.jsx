@@ -270,12 +270,12 @@ export default function Ouverture({
             <>
               {botte && (
                 <p className="colp-bandeau" role="status">
-                  Le sachet du colporteur — {botte} PO au lieu de {ECONOMIE.prix}.
+                  Le booster du colporteur — {botte} PO au lieu de {ECONOMIE.prix}.
                 </p>
               )}
               {offert && (
                 <p className="colp-bandeau" role="status">
-                  Sachet offert par vos succès{offert.cle === "*" ? " (au choix)" : ""} —
+                  Booster offert par vos succès{offert.cle === "*" ? " (au choix)" : ""} —
                   {offert.n > 1 ? ` il vous en reste ${offert.n}.` : " c'est le dernier."}
                 </p>
               )}
@@ -315,7 +315,7 @@ export default function Ouverture({
             />
           </div>
           <p className="scene-aide">
-            {tirage && tirage.appel ? "Le sachet porte la marque de Valéran." : "Les cartes glissent hors du sachet."}
+            {tirage && tirage.appel ? "Le booster porte la marque de Valéran." : "Les cartes glissent hors du booster."}
           </p>
         </div>
       )}
@@ -450,7 +450,7 @@ export default function Ouverture({
           <div className="actions actions-bilan">
             <button className="btn" onClick={relancer}>
               {gratuit ? "Ouvrir un autre booster"
-                : sachet ? "Ouvrir un sachet offert"
+                : sachet ? "Ouvrir un booster offert"
                   : `Ouvrir un autre booster · ${ECONOMIE.prix} PO`}
             </button>
             <button className="btn quiet" onClick={onBibliotheque}>Voir la bibliothèque</button>

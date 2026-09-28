@@ -13,7 +13,7 @@ function libelleRecompense(r = {}, famille) {
   const parts = [];
   if (r.sachets) {
     const ou = famille.extension ? "" : " au choix";
-    parts.push(`${r.sachets} sachet${r.sachets > 1 ? "s" : ""}${ou}`);
+    parts.push(`${r.sachets} booster${r.sachets > 1 ? "s" : ""}${ou}`);
   }
   if (r.po) parts.push(`${nombre(r.po)} PO`);
   return parts.join(" · ");
@@ -80,7 +80,7 @@ function OngletSucces() {
         {attente > 0 && <span className="compteur c-total">À réclamer <b>{attente}</b></span>}
         {sachets.map(([cle, n]) => (
           <span key={cle} className="compteur">
-            Sachets offerts {cle === "*" ? "au choix" : `· ${BOOSTER_PAR_ID[cle]?.titre || cle}`} <b>{n}</b>
+            Boosters offerts {cle === "*" ? "au choix" : `· ${BOOSTER_PAR_ID[cle]?.titre || cle}`} <b>{n}</b>
           </span>
         ))}
       </div>
@@ -91,7 +91,7 @@ function OngletSucces() {
           </button>
         )}
         {sachets.length > 0 && (
-          <Lien vers="/boutique" className="btn quiet" actif={false}>Ouvrir mes sachets offerts</Lien>
+          <Lien vers="/boutique" className="btn quiet" actif={false}>Ouvrir mes boosters offerts</Lien>
         )}
       </div>
 
@@ -114,7 +114,7 @@ function OngletSucces() {
       ))}
 
       <p className="muted petit succes-note">
-        Un sachet offert s'ouvre sans payer, depuis la boutique : ceux d'une
+        Un booster offert s'ouvre sans payer, depuis la boutique : ceux d'une
         collection dans leur extension, ceux « au choix » dans n'importe
         laquelle. Les ventes au Comptoir et les affaires du colporteur se
         comptent depuis la mise en service des succès.
@@ -226,7 +226,7 @@ function OngletClassement() {
               ) : (
                 <>
                   <th scope="col">Complétion</th>
-                  <th scope="col" className="secondaire">Irisées</th>
+                  <th scope="col" className="secondaire">Rainbow</th>
                 </>
               )}
             </tr>

@@ -77,6 +77,12 @@
   font-weight: 600; font-size: 17px; color: var(--ink);
 }
 .annonce-rare { margin-top: 8px; font-size: 12.5px; color: var(--lamp); }
+/* Au téléphone, l'en-tête s'empile et le bouton se range à gauche : la bulle,
+   calée sur son bord droit et plus large que lui, sortait de l'écran par la
+   gauche. Elle s'aligne à gauche et tient dans la largeur. */
+@media (max-width: 720px) {
+  .annonce-bulle { left: 0; right: auto; width: min(262px, calc(100vw - 36px)); }
+}
 
 .comptoir-avis {
   margin: 0 0 20px; padding: 12px 16px; border-radius: var(--r-md);
@@ -309,12 +315,24 @@
 .attendre { font-size: 13px; justify-self: end; }
 .lignes li > .btn { justify-self: end; }
 
+/* Préfixées par « .comptoir » comme les règles de base : sans cela, `.comptoir
+   .lignes li` et `.comptoir .ligne-chiffres` l'emportaient par spécificité, ces
+   deux requêtes ne s'appliquaient jamais, et la ligne gardait ses quatre
+   colonnes fixes — elle sortait de l'écran d'un téléphone par la droite. */
 @media (max-width: 1180px) {
-  .lignes li { grid-template-columns: minmax(0, 1fr) 108px; }
-  .ligne-chiffres { grid-column: 1 / -1; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .comptoir .lignes li { grid-template-columns: minmax(0, 1fr) 108px; }
+  .comptoir .ligne-chiffres { grid-column: 1 / -1; grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 @media (max-width: 720px) {
-  .ligne-chiffres { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  /* La carte et son action sur la première ligne, les chiffres dessous : le
+     bouton « Négocier » tombait seul au milieu d'une troisième ligne. */
+  .comptoir .lignes li { grid-template-columns: minmax(0, 1fr) auto; padding: 12px 14px; gap: 10px 12px; }
+  .comptoir .lignes li > .ligne-carte { grid-column: 1; grid-row: 1; }
+  .comptoir .ligne-carte > div { min-width: 0; }
+  .comptoir .ligne-nom { overflow-wrap: break-word; hyphens: auto; }
+  .comptoir .lignes li > .btn, .comptoir .lignes li > .attendre { grid-column: 2; grid-row: 1; }
+  .comptoir .ligne-chiffres { grid-column: 1 / -1; grid-row: 2;
+    grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 12px; }
 }
 
 .rapide { padding: 20px; background: linear-gradient(180deg, var(--panel), var(--ground2)) !important;

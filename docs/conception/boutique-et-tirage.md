@@ -5,8 +5,8 @@ Raisonnement de conception : ce que fait cette partie du site, et pourquoi elle 
 ## Les animations
 
 
-Ici l'animation porte l'information : le sachet se déchire proportionnellement
-au geste, une lueur du palier monte sous la carte avant qu'on puisse lire quoi
+Ici l'animation porte l'information : le booster se déchire dès qu'on amorce
+le geste, une lueur du palier monte sous la carte avant qu'on puisse lire quoi
 que ce soit, la carte se retourne d'autant plus lentement qu'elle est rare, le
 filon vole en éclats, une lanterne s'annonce sur la route avant que le
 colporteur n'arrive.
@@ -168,10 +168,17 @@ Ces valeurs sont dans `src/config/tiers.js`.
 
 ## Gestes
 
+La déchirure suivait le doigt jusqu'au bout — 230 px de trajet cumulé. Au
+téléphone, il fallait deux ou trois allers-retours, et un geste arrêté à 90 %
+laissait le booster à moitié ouvert : l'animation paraissait accrocher. Il
+suffit maintenant de l'amorcer. En dessous de 24 px le papier frémit sous le
+doigt et se remet à plat si on le lâche ; au-delà, la déchirure part seule, au
+rythme de « Ouvrir sans glisser ». Un glissement vertical reste un défilement.
+
 
 | Geste | Effet |
 |-------|-------|
-| Glisser en travers du sachet | déchire le papier, proportionnellement à la distance |
+| Glisser en travers du booster | amorce la déchirure : dès 24 px, le papier cède seul |
 | Bouton « Tout ouvrir d'un coup » | saute la révélation et affiche les cinq cartes |
 | Toucher une carte face cachée | déclenche la lueur puis le retournement |
 | Glisser une carte face visible | le dégage, avec inertie |

@@ -28,7 +28,7 @@ export default function PageOuverture({ id }) {
   if (!ouvrable || jeu.boosterId !== id) {
     return (
       <main className="view" id="contenu">
-        <p className="muted" role="status">Ouverture du sachet…</p>
+        <p className="muted" role="status">Ouverture du booster…</p>
       </main>
     );
   }

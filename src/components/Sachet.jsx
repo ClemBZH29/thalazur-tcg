@@ -9,13 +9,23 @@ const ECLATS = Array.from({ length: 16 }, (_, i) => ({
   dl: (i % 6) * 22,
 }));
 
-const SEUIL = 230;
+/**
+ * Amorce du geste, en pixels de trajet horizontal.
+ *
+ * La déchirure suivait le doigt jusqu'au bout : 230 px de trajet cumulé. Au
+ * téléphone, cela voulait dire deux ou trois allers-retours saccadés, et un
+ * geste qui s'arrêtait à 90 % laissait le booster à moitié ouvert. Il suffit
+ * maintenant d'amorcer : dès 24 px de glissement, la déchirure part seule,
+ * au même rythme que « Ouvrir sans glisser ». Assez pour ne pas se déclencher
+ * sur un simple toucher ; un glissement vertical, lui, reste un défilement
+ * (`touch-action: pan-y` rend la main au navigateur, qui annule le geste).
+ */
+const AMORCE = 24;
 
 /**
- * Ouverture du sachet — l'emballage physique, par opposition au booster qui
- * est le produit. La déchirure suit le doigt : la cire d'un sceau se
- * brise, un sachet se déchire — et la coupe est alignée sur le premier quart
- * de sa hauteur, juste sous le titre.
+ * Ouverture du booster — le composant garde le nom de l'emballage (« sachet »)
+ * dans le code ; à l'écran, on ne parle que de booster. La coupe est alignée
+ * sur le premier quart de sa hauteur, juste sous le titre.
  */
 export default function Sachet({ booster, sfx, ouverts, prix, onRupture, onToutOuvrir }) {
   const [dechire, setDechire] = useState(0);
@@ -64,19 +74,23 @@ export default function Sachet({ booster, sfx, ouverts, prix, onRupture, onToutO
         onPointerDown={(e) => {
           if (ouvert) return;
           e.currentTarget.setPointerCapture(e.pointerId);
-          geste.current = { x: e.clientX, acc: ref.current * SEUIL };
+          geste.current = { x: e.clientX, acc: 0 };
         }}
         onPointerMove={(e) => {
           if (!geste.current || ouvert) return;
           geste.current.acc += Math.abs(e.clientX - geste.current.x);
           geste.current.x = e.clientX;
-          pousser(Math.min(1, geste.current.acc / SEUIL));
+          // Avant l'amorce, le papier frémit sous le doigt ; au-delà, il cède
+          // de lui-même.
+          if (geste.current.acc >= AMORCE) { geste.current = null; forcer(); return; }
+          if (ref.current === 0) setDechire(Math.min(0.06, geste.current.acc / AMORCE * 0.06));
         }}
-        onPointerUp={() => { geste.current = null; }}
-        onPointerCancel={() => { geste.current = null; }}
+        // Relâché avant l'amorce : le papier se remet à plat.
+        onPointerUp={() => { if (geste.current) setDechire(ref.current); geste.current = null; }}
+        onPointerCancel={() => { if (geste.current) setDechire(ref.current); geste.current = null; }}
       >
         <div className="sachet-bas">
-          <img src={src} alt={`Sachet ${booster.titre}`} draggable="false"
+          <img src={src} alt={`Booster ${booster.titre}`} draggable="false"
                style={{ clipPath: CLIP_BAS, WebkitClipPath: CLIP_BAS }} />
           <span className="interieur" aria-hidden="true" />
         </div>
@@ -98,9 +112,9 @@ export default function Sachet({ booster, sfx, ouverts, prix, onRupture, onToutO
         )}
       </div>
 
-      <h2 className="scene-titre">Déchirer le sachet</h2>
+      <h2 className="scene-titre">Déchirer le booster</h2>
       <p className="scene-aide">
-        Glisse le doigt en travers du haut, jusqu'à ce que le papier cède.
+        Glisse le doigt en travers du haut pour le déchirer.
         {prix != null && ` ${prix} PO seront débitées.`}
         {ouverts > 0 && ` ${ouverts} booster${ouverts > 1 ? "s" : ""} ouvert${ouverts > 1 ? "s" : ""} jusqu'ici.`}
       </p>
