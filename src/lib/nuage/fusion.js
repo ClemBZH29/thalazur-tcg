@@ -182,8 +182,24 @@ export function fusionnerXP(base = {}, ici = {}, la = {}) {
   return sortie;
 }
 
+/**
+ * Reliquaire : les vestiges sont un compteur (dissous ici et là s'additionnent),
+ * la date de la dernière légendaire forgée garde la plus récente.
+ */
+export function fusionnerReliquaire(base, ici, la) {
+  if (!ici) return la || null;
+  if (!la) return ici;
+  const b = base || {};
+  return {
+    ...la, ...ici,
+    vestiges: Math.max(0, (la.vestiges || 0) + (ici.vestiges || 0) - (b.vestiges || 0)),
+    derniereForgeL: Math.max(la.derniereForgeL || 0, ici.derniereForgeL || 0) || null,
+    ouvert: ici.ouvert || la.ouvert || null,
+  };
+}
+
 const COMPTEURS = new Set([
-  "collections", "boosters", "bourse", "mine", "schema", "succes", "sachets", "stats", "xp",
+  "collections", "boosters", "bourse", "mine", "schema", "succes", "sachets", "stats", "xp", "reliquaire",
 ]);
 
 /**
@@ -203,6 +219,7 @@ export function fusionner3(base, ici, la, vide) {
   sortie.sachets = fusionnerCompteurs(b.sachets, ici.sachets, la.sachets);
   sortie.stats = fusionnerCompteurs(b.stats, ici.stats, la.stats);
   sortie.xp = fusionnerXP(b.xp, ici.xp, la.xp);
+  sortie.reliquaire = fusionnerReliquaire(b.reliquaire, ici.reliquaire, la.reliquaire);
   const { succes, doublons } = fusionnerSucces(b.succes, ici.succes, la.succes);
   sortie.succes = succes;
   // Les sachets s'additionnent toujours, y compris à la première connexion :

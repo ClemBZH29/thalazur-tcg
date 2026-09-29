@@ -1,0 +1,178 @@
+/** Expéditions et Reliquaire : règles pures, et fusion des vestiges entre appareils. */
+import { describe, expect, test } from "vitest";
+import { EXPEDITION } from "../src/config/expeditions.js";
+import { RELIQUAIRE } from "../src/config/reliquaire.js";
+import { PALIER_IRISEE, xpPourNiveau } from "../src/donjon/experience.js";
+import * as X from "../src/expeditions/regles.js";
+import * as R from "../src/reliquaire/regles.js";
+import { fusionner3, fusionnerReliquaire } from "../src/lib/nuage/fusion.js";
+import { etatVide } from "../src/lib/storage.js";
+import { mesuresGlobales } from "../src/succes/regles.js";
+
+const H = 3600e3;
+const T0 = new Date(2026, 8, 28, 9, 0).getTime();
+const lieu = { id: "l1", ext: "x", tier: "commun", nom: "Marais", type: "lieu", rep1: "Plan Extérieur", rep3: "Biome" };
+const pnj = (id, tier = "commun", rep3 = "Nakova") => ({ id, ext: "x", tier, nom: `PNJ ${id}`, type: "pnj", rep1: "Garde", rep3 });
+const equipe = Array.from({ length: 6 }, (_, i) => pnj(`p${i}`));
+const INDEX = Object.fromEntries([lieu, ...equipe].map((c) => [`${c.ext}:${c.id}`, c]));
+
+describe("expéditions", () => {
+  test("affinité : faction et province, au singulier comme au pluriel", () => {
+    expect(X.affine(pnj("a", "commun", "Plans extérieurs"), lieu)).toBe(true);
+    expect(X.affine(pnj("b", "commun", "Nakova"), lieu)).toBe(false);
+  });
+
+  test("capacité : le palier, puis une place tous les 20 niveaux", () => {
+    const e = etatVide();
+    expect(X.capacite(e, lieu)).toBe(EXPEDITION.capacite.commun);
+    const e40 = { ...e, xp: { "x:l1": { xp: xpPourNiveau(40) } } };
+    expect(X.capacite(e40, lieu)).toBe(EXPEDITION.capacite.commun + 2);
+  });
+
+  test("départ : une route, les cartes occupées ne repartent pas", () => {
+    const { etat, route, erreur } = X.partir(etatVide(), { lieu, cartes: equipe, heures: 12, maintenant: T0 });
+    expect(erreur).toBeUndefined();
+    expect(route.fin).toBe(T0 + 12 * H);
+    expect(X.empechement(etat, equipe[0], T0)).toBe("expedition");
+    expect(X.partir(etat, { lieu, cartes: [pnj("z")], heures: 4, maintenant: T0 }).erreur).toBe("lieu");
+    const autre = { ...lieu, id: "l2" };
+    expect(X.partir(etat, { lieu: autre, cartes: [equipe[0]], heures: 4, maintenant: T0 }).erreur).toBe("occupee");
+  });
+
+  test("trop de monde ou trop d'expéditions : refusé", () => {
+    const trop = Array.from({ length: EXPEDITION.capacite.commun + 1 }, (_, i) => pnj(`t${i}`));
+    expect(X.partir(etatVide(), { lieu, cartes: trop, heures: 4, maintenant: T0 }).erreur).toBe("capacite");
+    let e = etatVide();
+    for (let i = 0; i < EXPEDITION.simultanees; i++) {
+      e = X.partir(e, { lieu: { ...lieu, id: `L${i}` }, cartes: [pnj(`q${i}`)], heures: 4, maintenant: T0 }).etat;
+    }
+    expect(X.partir(e, { lieu: { ...lieu, id: "L9" }, cartes: [pnj("q9")], heures: 4, maintenant: T0 }).erreur).toBe("pleines");
+  });
+
+  test("une carte au repos du Donjon ne part pas", () => {
+    const e = { ...etatVide(), donjon: { convalescence: { "x:p0": "2026-09-30" } } };
+    expect(X.empechement(e, equipe[0], T0)).toBe("repos");
+  });
+
+  test("retour : or, vestiges, XP pour tous et pour le Lieu, route retirée", () => {
+    const { etat } = X.partir(etatVide(), { lieu, cartes: equipe, heures: 12, maintenant: T0 });
+    expect(X.crediterRoute(etat, 1, INDEX, T0 + H).bilan).toBeNull();
+    const po0 = etat.bourse.po;
+    const { etat: e, bilan } = X.crediterRoute(etat, 1, INDEX, T0 + 12 * H);
+    expect(e.expeditions.routes).toHaveLength(0);
+    expect(e.bourse.po).toBe(po0 + bilan.or);
+    expect(e.reliquaire.vestiges).toBe(bilan.vestiges);
+    expect(e.xp["x:p0"].xp).toBe(bilan.xpCarte);
+    expect(e.xp["x:l1"].xp).toBe(bilan.xpLieu);
+    // Rejouer le même crédit ne paie pas deux fois.
+    expect(X.crediterRoute(e, 1, INDEX, T0 + 12 * H).bilan).toBeNull();
+  });
+
+  test("le plafond d'or du jour vaut pour toutes les expéditions", () => {
+    const riche = { ...etatVide(), expeditions: { routes: [], seq: 1, orJour: { jour: X.jourDe(T0 + 12 * H), credite: EXPEDITION.or.plafondJour - 3 } } };
+    const { etat } = X.partir(riche, { lieu, cartes: equipe, heures: 12, maintenant: T0 });
+    const { bilan } = X.crediterRoute(etat, 1, INDEX, T0 + 12 * H);
+    expect(bilan.or).toBe(3);
+    expect(bilan.orPlafonne).toBe(true);
+  });
+
+  test("le Lieu passe en rainbow à son palier, comme une carte du Donjon", () => {
+    const presque = { ...etatVide(), xp: { "x:l1": { xp: xpPourNiveau(PALIER_IRISEE.commun) - 1 } } };
+    const { etat } = X.partir(presque, { lieu, cartes: equipe, heures: 4, maintenant: T0 });
+    const { etat: e, bilan } = X.crediterRoute(etat, 1, INDEX, T0 + 4 * H);
+    expect(bilan.lieuRainbow).toBe(true);
+    expect(e.collections.x.l1.rainbow).toBe(1);
+    expect(e.stats.lieuxRainbow).toBe(1);
+  });
+
+  test("peu par carte : une équipe complète de communes rapporte moins d'un booster par jour", () => {
+    const est = X.estimer(etatVide(), lieu, equipe, 24);
+    expect(est.or * EXPEDITION.simultanees).toBeLessThan(120);
+  });
+
+  test("les trouvailles sont tirées au départ et ne sont jamais légendaires", () => {
+    const pool = [pnj("c1"), pnj("l9", "legendaire")];
+    const { route } = X.partir(etatVide(), { lieu, cartes: equipe, heures: 24, pool, maintenant: T0 });
+    expect(route.trouvees).toEqual(["x:c1", "x:c1"]);
+  });
+});
+
+describe("reliquaire", () => {
+  const roster = [pnj("a"), pnj("b", "rare"), pnj("c", "legendaire"), pnj("d", "legendaire")];
+  const avec = (coll, vestiges = 0, derniere = null) => ({ ...etatVide(), collections: { x: coll }, reliquaire: { vestiges, derniereForgeL: derniere } });
+
+  test("le dernier exemplaire ne se dissout jamais", () => {
+    const e = avec({ a: { normale: 2 } });
+    const e1 = R.dissoudre(e, "x", roster[0]);
+    expect(e1.collections.x.a.normale).toBe(1);
+    expect(e1.reliquaire.vestiges).toBe(RELIQUAIRE.dissolution.commun);
+    expect(R.dissoudre(e1, "x", roster[0])).toBe(e1);
+  });
+
+  test("dissolution groupée : communes et peu communes seulement", () => {
+    const e = R.dissoudreSurplus(avec({ a: { normale: 4 }, b: { normale: 3 } }), "x", roster);
+    expect(e.collections.x.a.normale).toBe(1);
+    expect(e.collections.x.b.normale).toBe(3);
+    expect(e.reliquaire.vestiges).toBe(3 * RELIQUAIRE.dissolution.commun);
+  });
+
+  test("on ne forge que ce qui manque", () => {
+    const e = avec({ a: { normale: 1 } }, 1000);
+    expect(R.forger(e, "x", roster[0], roster)).toBe(e);
+    const e1 = R.forger(e, "x", roster[1], roster);
+    expect(e1.collections.x.b.normale).toBe(1);
+    expect(e1.reliquaire.vestiges).toBe(1000 - RELIQUAIRE.forge.rare);
+  });
+
+  test("légendaire : collection à 60 % et une par semaine", () => {
+    const peu = avec({ a: { normale: 1 } }, 1000);
+    expect(R.peutForger(peu, "x", roster[2], roster, T0)).toBe(false);
+    const assez = avec({ a: { normale: 1 }, b: { normale: 1 }, d: { normale: 1 } }, 1000);
+    const e1 = R.forger(assez, "x", roster[2], roster, T0);
+    expect(e1.collections.x.c.normale).toBe(1);
+    const sans = { ...e1, collections: { x: { ...e1.collections.x, d: { normale: 0 } } } };
+    expect(R.peutForger(sans, "x", roster[3], roster, T0 + 6 * 24 * H)).toBe(false);
+    expect(R.peutForger(sans, "x", roster[3], roster, T0 + 7 * 24 * H)).toBe(true);
+  });
+
+  test("rainbow et cartes de personnage restent hors du Reliquaire", () => {
+    expect(R.eligible({ id: "pj-1", tier: "legendaire" })).toBe(false);
+    expect(R.eligible({ id: "f1", tier: "fullart" })).toBe(false);
+  });
+});
+
+describe("ouverture du Reliquaire", () => {
+  const roster = Array.from({ length: 10 }, (_, i) => pnj(`o${i}`));
+  const avec = (n) => ({ ...etatVide(), collections: { x: Object.fromEntries(roster.slice(0, n).map((c) => [c.id, { normale: 1 }])) } });
+  test("scellé sous 60 %, ouvert à 60 %", () => {
+    expect(R.seuilAtteint(avec(5), { x: roster })).toBe(false);
+    expect(R.seuilAtteint(avec(6), { x: roster })).toBe(true);
+  });
+  test("une fois ouvert, il le reste", () => {
+    const e = R.ouvrir(avec(6), T0);
+    expect(R.estOuvert(e)).toBe(true);
+    expect(R.ouvrir(e, T0 + H).reliquaire.ouvert).toBe(T0);
+    expect(fusionnerReliquaire({}, { vestiges: 0 }, e.reliquaire).ouvert).toBe(T0);
+  });
+});
+
+describe("succès", () => {
+  test("expéditions, Reliquaire et expérience se mesurent", () => {
+    const e = { ...etatVide(), stats: { expeditions: 3, lieuxRainbow: 1, dissous: 12, forges: 2 },
+      xp: { "x:a": { xp: xpPourNiveau(30), irisee: true }, "x:b": { xp: xpPourNiveau(100), irisee: true, cent: true } } };
+    const m = mesuresGlobales(e, null);
+    expect(m).toMatchObject({ expeditions: 3, lieuxRainbow: 1, dissous: 12, forges: 2, niveauMax: 100, rainbowXP: 2, centenaires: 1 });
+  });
+});
+
+describe("fusion entre appareils", () => {
+  test("les vestiges s'additionnent", () => {
+    const f = fusionnerReliquaire({ vestiges: 100 }, { vestiges: 130 }, { vestiges: 150 });
+    expect(f.vestiges).toBe(180);
+  });
+  test("fusion complète : le reliquaire passe par sa propre règle", () => {
+    const base = { ...etatVide(), reliquaire: { vestiges: 10 } };
+    const f = fusionner3(base, { ...base, reliquaire: { vestiges: 30 } }, { ...base, reliquaire: { vestiges: 25 } }, etatVide());
+    expect(f.reliquaire.vestiges).toBe(45);
+  });
+});

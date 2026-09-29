@@ -18,6 +18,7 @@ import { construirePool, deduireGrades } from "../lib/roster.js";
 import { specialesPour } from "../config/speciales.js";
 import { crediterGain } from "../lib/economie.js";
 import { COLLECTION, GLOBAL, POIDS_SCORE, SACHET_LIBRE } from "../config/succes.js";
+import { niveauDe } from "../donjon/experience.js";
 
 const PALIERS = ["commun", "peucommun", "rare", "legendaire"];
 
@@ -116,6 +117,8 @@ export function mesuresGlobales(etat, mine) {
       if (id.startsWith("pj-") && ((e?.normale || 0) > 0 || (e?.rainbow || 0) > 0)) pj.add(id);
     }
   }
+  // L'expérience des cartes, Donjon et expéditions confondus : la même réserve.
+  const xp = Object.values(etat.xp || {});
   return {
     boosters: somme(etat.boosters),
     strate: mine?.profondeurMax || 0,
@@ -125,6 +128,13 @@ export function mesuresGlobales(etat, mine) {
     gardiens: etat.stats?.gardiens || 0,
     remontees: etat.stats?.remontees || 0,
     pj: pj.size,
+    expeditions: etat.stats?.expeditions || 0,
+    lieuxRainbow: etat.stats?.lieuxRainbow || 0,
+    dissous: etat.stats?.dissous || 0,
+    forges: etat.stats?.forges || 0,
+    niveauMax: xp.reduce((m, e) => Math.max(m, niveauDe(e?.xp || 0)), 0),
+    rainbowXP: xp.filter((e) => e?.irisee).length,
+    centenaires: xp.filter((e) => e?.cent).length,
   };
 }
 

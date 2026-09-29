@@ -17,7 +17,11 @@ import { Compte } from "./jeu/Compte.jsx";
 import BandeauCookies from "./components/BandeauCookies.jsx";
 import ChoixPseudo from "./components/ChoixPseudo.jsx";
 import PageSucces from "./routes/PageSucces.jsx";
+import RetourExpeditions from "./components/RetourExpeditions.jsx";
+import AnnonceReliquaire from "./components/AnnonceReliquaire.jsx";
 import { demarrerMesure, mesureDisponible, pageVue, rouvrirBandeau } from "./lib/mesure.js";
+import { precharger as prechargerImages } from "./lib/prechargement.js";
+import { BOOSTERS } from "./extensions/index.js";
 
 /* Les deux modules pèsent chacun plus que tout le reste de l'application :
    le Comptoir porte son moteur de marché, la mine son gréement d'animation.
@@ -26,7 +30,11 @@ import { demarrerMesure, mesureDisponible, pageVue, rouvrirBandeau } from "./lib
 const chargerComptoir = () => import("./routes/PageComptoir.jsx");
 const chargerMines = () => import("./routes/PageMines.jsx");
 const chargerDonjon = () => import("./routes/PageDonjon.jsx");
+const chargerExpeditions = () => import("./routes/PageExpeditions.jsx");
+const chargerReliquaire = () => import("./routes/PageReliquaire.jsx");
 const PageDonjon = lazy(chargerDonjon);
+const PageExpeditions = lazy(chargerExpeditions);
+const PageReliquaire = lazy(chargerReliquaire);
 const PageComptoir = lazy(chargerComptoir);
 const PageMines = lazy(chargerMines);
 
@@ -49,6 +57,8 @@ const PAGES = [
   // Succès et classement partagent une entrée : la barre en compte déjà six
   // en développement, et le classement n'a de sens qu'à côté des titres.
   { vers: "/donjon", nom: "Donjon", court: "Donjon", ico: "donjon" },
+  { vers: "/expeditions", nom: "Expéditions", court: "Routes", ico: "expeditions" },
+  { vers: "/reliquaire", nom: "Reliquaire", court: "Reliques", ico: "reliquaire" },
   { vers: "/succes", nom: "Succès", court: "Succès", ico: "succes" },
   ...(import.meta.env.DEV ? [{ vers: "/reglages", nom: "Réglages MJ", court: "MJ", ico: "reglages" }] : []),
 ];
@@ -85,6 +95,8 @@ function Route() {
       ? <Suspense fallback={<Attente />}><PageReglages /></Suspense>
       : <Attente />;
     case "donjon": return <Suspense fallback={<Attente />}><PageDonjon /></Suspense>;
+    case "expeditions": return <Suspense fallback={<Attente />}><PageExpeditions /></Suspense>;
+    case "reliquaire": return <Suspense fallback={<Attente />}><PageReliquaire /></Suspense>;
     case "succes": return <PageSucces onglet={segments[1]} />;
     case "profil": return <PageProfil />;
     case "confidentialite": return <PageConfidentialite />;
@@ -186,6 +198,10 @@ function Coque() {
       chargerComptoir();
       chargerMines();
       chargerDonjon();
+      chargerExpeditions();
+      chargerReliquaire();
+      // Puis les illustrations des pages, par vagues (voir src/lib/prechargement.js).
+      prechargerImages(import.meta.env.BASE_URL, BOOSTERS.map((b) => b.sachet).filter(Boolean), { annule: () => annule });
     };
     const libre = typeof window.requestIdleCallback === "function";
     const id = libre
@@ -222,7 +238,16 @@ function Coque() {
   }, [chemin]);
 
   const { bourse, gratuit, collecte, surplusTotal, stockageKo, loupe,
-    setLoupe, cfgImage, fichiers, succes } = jeu;
+    setLoupe, cfgImage, fichiers, succes, etat, reliquaireOuvert } = jeu;
+  // Le Reliquaire n'entre dans la navigation qu'une fois ouvert (voir AnnonceReliquaire).
+  const pages = PAGES.filter((p) => p.vers !== "/reliquaire" || reliquaireOuvert);
+
+  /* Le retour d'une expédition attend : jamais par-dessus une ouverture de
+     booster (cérémonie et bilan, où passe le colporteur), ni par-dessus une
+     descente du Donjon en cours tant qu'on est sur sa page. */
+  const segments = chemin.split("/").filter(Boolean);
+  const occupe = !!etat.enCours || (segments[0] === "boutique" && !!segments[1])
+    || (segments[0] === "donjon" && !!etat.donjon?.partie);
 
   return (
     <>
@@ -276,7 +301,7 @@ function Coque() {
         </header>
 
           <nav className={`nav${menu ? " ouverte" : ""}`} id="nav-site" aria-label="Pages du site" ref={nav}>
-            {PAGES.map((p) => (
+            {pages.map((p) => (
               <Lien key={p.vers} vers={p.vers} actif={ici === p.vers}>
                 <Icone nom={p.ico} className="nav-ico" />
                 <span className="nav-nom">{p.nom}</span>
@@ -324,6 +349,8 @@ function Coque() {
         </div>
       </div>
 
+      <RetourExpeditions occupe={occupe} />
+      <AnnonceReliquaire occupe={occupe} />
       <BandeauCookies />
       <ChoixPseudo />
 

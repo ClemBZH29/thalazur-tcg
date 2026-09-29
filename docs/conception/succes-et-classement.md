@@ -12,7 +12,13 @@ d'être réclamés.
 
 - **Global** : ce que l'on fait sur tout le site. Boosters ouverts (toutes
   extensions), strate atteinte et effondrements aux Mines, exemplaires vendus
-  au Comptoir, affaires conclues avec Mirko, carte PJ.
+  au Comptoir, affaires conclues avec Mirko, gardiens et remontées du Donjon,
+  expéditions accueillies et Lieux passés en rainbow par les routes,
+  exemplaires dissous et cartes forgées au Reliquaire, expérience des cartes
+  (niveau le plus haut, paliers rainbow atteints par l'XP, cartes au niveau
+  100 — Donjon et expéditions confondus), carte PJ. Ces familles ajoutent
+  environ 80 boosters d'équivalent au barème Global (188 en tout), à gagner
+  sur des mois.
 - **Collection**, par extension : complétion (25, 50, 75, 90, 100 %),
   cartes par type (PNJ, artéfacts, lieux : 5, 10, 25… puis « tous »),
   légendaires (une, la moitié, toutes), irisées, pleine illustration.

@@ -1,0 +1,224 @@
+/* ------------------------------------------------------------------
+   Expéditions et Reliquaire.
+   ------------------------------------------------------------------
+
+   Les deux pages ouvrent sur un bandeau peint, sombre en haut : le titre s'y
+   pose sans cadre. Le reste suit la charte (tokens.css) : panneaux froids,
+   la lampe pour ce qui est choisi ou actif, les matériaux pour la rareté.
+   La fenêtre de retour vit aussi ici, parce qu'elle s'affiche partout.
+   ------------------------------------------------------------------ */
+
+.exp-page { --rar: var(--m-fresne); }
+.xr-commun { --rar: var(--m-fresne); }
+.xr-peucommun { --rar: var(--m-chene); }
+.xr-rare { --rar: var(--m-noyer); }
+.xr-legendaire { --rar: var(--m-ebene); }
+
+/* ── Bandeau ─────────────────────────────────────────────────────────── */
+.exp-bandeau {
+  position: relative; margin: 0 0 8px; min-height: clamp(220px, 34vw, 340px);
+  border-radius: var(--r-lg); overflow: hidden; border: 1px solid var(--edge);
+  background-size: cover; background-position: center 62%;
+  display: flex; align-items: flex-start;
+}
+.exp-bandeau::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(180deg, rgba(13, 20, 23, .72) 0%, rgba(13, 20, 23, .2) 55%, rgba(13, 20, 23, .6) 100%);
+}
+.exp-bandeau-texte { position: relative; z-index: 1; padding: clamp(18px, 3vw, 30px); max-width: 64ch; }
+.exp-bandeau h1 { font-size: clamp(32px, 5vw, 48px); font-weight: 600; margin-bottom: 10px; }
+.exp-bandeau .lede { color: var(--ink); text-shadow: 0 1px 8px rgba(0, 0, 0, .7); }
+
+.exp-page .section-titre { margin-top: 40px; }
+.exp-aide { margin: 0 0 14px; max-width: 70ch; }
+.exp-note { border-left: 3px solid var(--ember); background: rgba(229, 119, 75, .1);
+  color: var(--ink); padding: 8px 12px; margin: 0 0 16px; font-size: 14px; }
+.exp-etape { font-size: 18px; margin: 26px 0 10px; }
+.exp-etape .muted { font-family: var(--font-ui); font-size: 13.5px; font-weight: 400; margin-left: 6px; font-variant-numeric: tabular-nums; }
+.exp-etape-tete { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: baseline; justify-content: space-between; }
+.exp-outils { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 13px; }
+.exp-danger { background: var(--ember); color: #221604; }
+.exp-danger:hover { background: var(--ember); filter: brightness(1.08); }
+
+/* ── Routes en cours ─────────────────────────────────────────────────── */
+.exp-routes { display: grid; gap: 12px; }
+.exp-route { background: linear-gradient(180deg, var(--panel), var(--ground2)); border: 1px solid var(--edge);
+  border-radius: var(--r-lg); padding: 16px 18px; }
+.exp-route.rentree { border-color: var(--lamp-lo); }
+.exp-route-tete { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; align-items: baseline; }
+.exp-route-tete h3 { font-size: 19px; }
+.exp-route-reste { color: var(--ink3); font-size: 13.5px; font-variant-numeric: tabular-nums; }
+.exp-route.rentree .exp-route-reste { color: var(--lamp); }
+.exp-piste { position: relative; height: 26px; margin: 12px 13px 2px; }
+.exp-piste::before { content: ""; position: absolute; left: 0; right: 0; top: 12px; border-top: 2px dotted var(--edge-hi); }
+.exp-piste-fait { position: absolute; left: 0; top: 12px; border-top: 2px solid var(--lamp-lo); transition: width .8s linear; }
+.exp-piste-ici { position: absolute; top: 0; width: 26px; height: 26px; margin-left: -13px;
+  filter: drop-shadow(0 0 8px rgba(232, 163, 61, .55)); transition: left .8s linear; }
+.exp-bornes { display: flex; justify-content: space-between; font-size: 12px; color: var(--ink4); font-variant-numeric: tabular-nums; }
+.exp-equipe { margin: 10px 0 12px; font-size: 13.5px; color: var(--ink3); }
+.exp-vide { display: grid; grid-template-columns: minmax(0, 320px) minmax(0, 1fr); gap: 18px; align-items: center;
+  border: 1px dashed var(--edge-hi); border-radius: var(--r-lg); padding: 14px; }
+.exp-vide img { width: 100%; border-radius: var(--r-md); display: block; }
+.exp-vide p { color: var(--ink3); margin: 0; }
+@media (max-width: 620px) { .exp-vide { grid-template-columns: 1fr; } }
+
+/* ── Choix : Lieux, compagnons, durée ────────────────────────────────── */
+.exp-lieux { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
+.exp-cartes { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 8px; }
+.exp-segments { display: flex; flex-wrap: wrap; gap: 8px; }
+.exp-segments .exp-choix { width: auto; min-width: 150px; }
+.exp-choix {
+  display: block; width: 100%; text-align: left; cursor: pointer; min-height: 44px;
+  background: var(--panel); color: var(--ink2); border: 1px solid var(--edge-ui);
+  border-radius: var(--r-md); padding: 11px 13px; transition: border-color .15s, background .15s;
+}
+.exp-choix:hover { border-color: var(--ink3); background: var(--panel2); }
+.exp-choix[aria-pressed="true"] { border-color: var(--lamp); box-shadow: inset 0 0 0 1px var(--lamp); background: rgba(232, 163, 61, .08); }
+.exp-choix:disabled { cursor: not-allowed; opacity: .45; }
+.exp-choix strong { display: block; font: 600 16px/1.25 var(--font-display); font-variation-settings: var(--wonk); color: var(--ink); }
+.exp-meta { display: block; font-size: 12.5px; color: var(--ink4); margin-top: 2px; }
+.exp-compagnon { display: flex; gap: 10px; align-items: center; padding: 8px 12px; }
+.exp-compagnon strong { font-size: 15px; }
+.exp-rar { flex: none; width: 5px; align-self: stretch; border-radius: 3px; background: var(--rar); }
+.exp-pastille { display: inline-block; font-size: 11.5px; line-height: 1.6; padding: 0 7px; margin-right: 4px;
+  border: 1px solid currentColor; border-radius: 100px; font-weight: 500; white-space: nowrap; }
+.exp-prog-meta .exp-pastille { margin: 0 0 0 6px; }
+.p-aff { color: var(--m-chene); }
+.p-exp { color: var(--lamp); }
+.p-repos { color: var(--ember); }
+.p-arc { color: var(--m-rainbow); }
+.exp-prog { display: block; margin-top: 9px; }
+.exp-prog-barre { display: block; height: 5px; border-radius: 3px; background: var(--ground); overflow: hidden; }
+.exp-prog-barre i { display: block; height: 100%; background: var(--lamp); }
+.exp-prog.arc .exp-prog-barre i { background: linear-gradient(90deg, #c2575f, #d19a3c, #5f9b5d, #3f86a6, var(--m-rainbow)); }
+.exp-prog-meta { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--ink4); margin-top: 3px; }
+
+.exp-estimation { margin-top: 22px; background: var(--ground2); border: 1px solid var(--edge); border-radius: var(--r-lg);
+  padding: 14px 16px; font-size: 14.5px; }
+.exp-estimation strong { color: var(--ink); }
+.exp-estimation dl { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 16px; margin: 8px 0 0; }
+.exp-estimation dt { color: var(--ink4); }
+.exp-estimation dd { margin: 0; font-variant-numeric: tabular-nums; }
+
+.exp-barre {
+  position: sticky; bottom: 0; z-index: 5; margin: 22px 0 0;
+  display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap;
+  padding: 12px 0 calc(12px + env(safe-area-inset-bottom));
+  background: rgba(13, 20, 23, .94); border-top: 1px solid var(--edge);
+}
+.exp-barre p { margin: 0; font-size: 13.5px; color: var(--ink3); font-variant-numeric: tabular-nums; }
+/* Au doigt, le bouton rond du menu est en bas à droite : on lui laisse sa place. */
+@media (max-width: 720px) { .exp-barre { padding-right: 72px; } }
+
+/* ── Reliquaire ──────────────────────────────────────────────────────── */
+.rel-comptoir {
+  display: grid; grid-template-columns: minmax(0, 200px) minmax(0, 1fr) minmax(0, 200px); gap: 18px; align-items: end;
+  margin: 18px 0 4px; padding: 0 14px; border-bottom: 1px solid var(--edge);
+}
+.rel-gardien, .rel-coffre { width: 100%; display: block; }
+.rel-coffre { filter: drop-shadow(0 0 22px rgba(232, 163, 61, .25)); margin-bottom: 10px; }
+.rel-reserve { text-align: center; padding-bottom: 18px; }
+.rel-reserve p { margin: 0; }
+.rel-reserve b { font: 600 clamp(30px, 4vw, 40px)/1 var(--font-display); font-variation-settings: var(--wonk); color: var(--lamp); }
+.rel-vestige { width: 44px; height: 44px; display: block; margin: 0 auto 6px; filter: drop-shadow(0 0 10px rgba(232, 163, 61, .5)); }
+@media (max-width: 620px) {
+  .rel-comptoir { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .rel-coffre { display: none; }
+}
+.rel-hors { margin: 10px 0 0; }
+.rel-colonnes { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 28px; }
+@media (max-width: 860px) { .rel-colonnes { grid-template-columns: minmax(0, 1fr); } }
+.rel-vrac { margin: 0 0 12px; }
+.rel-liste { list-style: none; padding: 0; margin: 0; border-top: 1px solid var(--edge); }
+.rel-liste li { display: flex; gap: 10px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--edge); }
+.rel-nom { flex: 1; min-width: 0; }
+.rel-nom strong { display: block; font: 600 16px/1.25 var(--font-display); font-variation-settings: var(--wonk); color: var(--ink); }
+.rel-nom small { color: var(--ink4); font-size: 12.5px; }
+.rel-cout { font-size: 12.5px; color: var(--ink4); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.rel-cout b { color: var(--ink); font-weight: 600; }
+.rel-legendaire { background: var(--panel); border: 1px solid var(--m-ebene); border-radius: var(--r-lg); padding: 12px 14px;
+  font-size: 14px; margin-bottom: 14px; }
+.rel-legendaire h3 { font-size: 16px; margin-bottom: 6px; }
+.rel-legendaire ul { margin: 0; padding-left: 18px; }
+.rel-legendaire .ok { color: var(--m-chene); }
+.rel-legendaire .ko { color: var(--ember); }
+.rel-filtres { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 10px; }
+.rel-filtres .exp-choix { width: auto; min-height: 36px; padding: 6px 13px; font-size: 13px; border-radius: 100px; }
+
+/* Planche de neuf images, lue d'un trait. Le noir d'origine est devenu transparent. */
+.rel-effet {
+  position: fixed; z-index: 50; left: 50%; top: 50%; width: min(60vw, 360px); aspect-ratio: 1;
+  transform: translate(-50%, -50%); pointer-events: none;
+  background-size: 900% 100%; background-repeat: no-repeat;
+  animation: rel-planche 1.1s steps(8) forwards, rel-fondu 1.3s ease-in forwards;
+}
+.rel-effet-forge-legendaire { animation-duration: 1.3s, 1.3s; }
+@keyframes rel-planche { from { background-position: 0 0; } to { background-position: 100% 0; } }
+@keyframes rel-fondu { 0%, 75% { opacity: 1; } 100% { opacity: 0; } }
+
+/* ── Fenêtre de retour ───────────────────────────────────────────────── */
+.exp-retour {
+  border: 1px solid var(--edge-hi); border-radius: 14px; padding: 20px 22px 18px;
+  width: min(540px, calc(100% - 32px)); max-height: calc(100% - 48px);
+  background: var(--ground2); color: var(--ink2); box-shadow: 0 18px 50px rgba(0, 0, 0, .6);
+}
+.exp-retour::backdrop { background: rgba(6, 11, 13, .6); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); }
+.exp-retour-tete { display: flex; gap: 14px; align-items: center; margin-bottom: 4px; }
+.exp-retour-tete h2 { font-size: 22px; margin-bottom: 4px; }
+.exp-retour-tete p { margin: 0; }
+.exp-retour-portrait { flex: none; width: 86px; height: 86px; object-fit: cover; object-position: center 20%;
+  border-radius: 50%; border: 1px solid var(--lamp-lo); background: var(--panel); }
+.exp-retour-bloc { border-top: 1px solid var(--edge); margin-top: 14px; padding-top: 12px; }
+.exp-retour-bloc h3 { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; font-size: 17px; }
+.exp-retour-bloc h3 small { font: 400 12.5px var(--font-ui); color: var(--ink4); }
+.exp-retour-bloc ul { list-style: none; padding: 0; margin: 8px 0 12px; }
+.exp-retour-bloc li { display: flex; justify-content: space-between; gap: 12px; padding: 5px 0; border-bottom: 1px solid var(--edge); font-size: 14.5px; }
+.exp-retour-bloc li b { color: var(--ink); font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; }
+.exp-retour-bloc li.arc b { background: linear-gradient(90deg, #d17a7f, #d19a3c, #7fbf7c, #6fb2cf, var(--m-rainbow));
+  -webkit-background-clip: text; background-clip: text; color: transparent; }
+.exp-ico { width: 18px; height: 18px; vertical-align: -4px; margin-right: 6px; }
+.exp-retour-pied { display: flex; margin-top: 16px; }
+.exp-retour-pied .btn { flex: 1; }
+@media (prefers-reduced-motion: no-preference) {
+  .exp-retour[open] { animation: exp-arrive .28s ease-out; }
+  @keyframes exp-arrive { from { opacity: 0; transform: translateY(10px); } }
+}
+@media (prefers-reduced-motion: reduce) { .exp-piste-fait, .exp-piste-ici { transition: none; } }
+
+/* ── Reliquaire : recherche, filtres, volets ─────────────────────────── */
+.rel-outils {
+  position: sticky; top: var(--tete-h, 0px); z-index: 6;
+  display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center;
+  margin: 22px 0 0; padding: 10px 0; background: rgba(13, 20, 23, .95); border-bottom: 1px solid var(--edge);
+}
+.rel-recherche { flex: 1 1 260px; min-width: 0; }
+.rel-recherche input {
+  width: 100%; min-height: 40px; padding: 8px 12px; border-radius: var(--r-md);
+  background: var(--panel); color: var(--ink); border: 1px solid var(--edge-ui); font: inherit; font-size: 14px;
+}
+.rel-recherche input:focus-visible { outline: 2px solid var(--lamp); outline-offset: 1px; }
+.rel-outils .rel-filtres { margin: 0; }
+.rel-compte { margin-left: 6px; color: var(--ink4); font-variant-numeric: tabular-nums; }
+.exp-choix[aria-pressed="true"] .rel-compte { color: var(--lamp); }
+.rel-forgeables { display: flex; gap: 7px; align-items: center; font-size: 13px; color: var(--ink3); cursor: pointer; min-height: 32px; }
+.rel-nombre { margin: 0 0 8px; }
+.rel-hors-portee .rel-nom strong { color: var(--ink2); }
+
+/* Sur grand écran, chaque liste défile dans son volet : la barre de recherche,
+   les titres et le bouton groupé restent en vue, et l'on ne fait plus défiler
+   toute la page pour atteindre la cinquantième carte manquante. */
+@media (min-width: 1024px) {
+  .rel-volet .rel-liste {
+    max-height: max(340px, calc(100vh - var(--tete-h, 110px) - 300px));
+    overflow-y: auto; overscroll-behavior: contain; padding-right: 8px;
+    scrollbar-width: thin; scrollbar-color: var(--edge-hi) transparent;
+  }
+}
+
+/* ── Annonce d'ouverture du Reliquaire ───────────────────────────────── */
+.rel-annonce { text-align: center; }
+.rel-annonce-coffre { width: min(200px, 60%); display: block; margin: 0 auto 6px;
+  filter: drop-shadow(0 0 26px rgba(232, 163, 61, .35)); }
+.rel-annonce h2 { font-size: 24px; margin-bottom: 8px; }
+.rel-annonce p { margin: 0 auto; max-width: 42ch; color: var(--ink2); }
+.rel-annonce-pied { gap: 8px; }
