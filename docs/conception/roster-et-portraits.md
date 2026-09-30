@@ -85,6 +85,22 @@ deux lignes — environ 90 caractères. Elle n'apparaît qu'au-dessus de 250 px 
 largeur de carte : sur une vignette de bibliothèque, deux lignes d'italique
 seraient illisibles. Le plein écran l'affiche en entier.
 
+## Numérotation
+
+Le numéro d'une carte suit **son palier, puis son type** : dans La Troupe,
+communes 001-110, peu communes 111-176, rares 177-209, légendaires 210-220, et
+dans chaque palier les artéfacts, puis les lieux, puis les PNJ. Le classeur
+garde un onglet par type ; c'est le numéro, pas l'onglet, qui porte l'ordre du
+set, et la bibliothèque l'affiche à rebours.
+
+Le numéro entre dans l'identifiant d'une carte (`219-hida`), clé de toutes les
+sauvegardes. La Troupe a été numérotée d'abord par onglet, puis renumérotée
+ainsi le 30/09/2026 : la migration du schéma 7
+(`src/lib/sauvegarde/renumerotation-troupe.json`) remplace chaque ancien
+identifiant dans les parties existantes. Une nouvelle extension se numérote
+dans cet ordre dès le départ ; renuméroter une extension publiée demande la
+même migration.
+
 ## Portraits
 
 

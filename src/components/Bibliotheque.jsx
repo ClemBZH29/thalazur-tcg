@@ -40,8 +40,16 @@ const ecrireDensite = (compacte) => { try { localStorage.setItem(CLE_DENSITE, co
 /** La vue d'ouverture, et celle que rétablit « Réinitialiser ». */
 const VUE_DEFAUT = "obtenues";
 
-/** Numéro de carte pour le tri ; les PJ (« pj-hida ») n'en ont pas. */
-const numero = (c) => (/^\d+$/.test(String(c.num)) ? Number(c.num) : -1);
+/**
+ * Rang de la carte dans l'ordre du set, pour le tri. Le numéro suit le palier
+ * puis le type (artéfacts, lieux, PNJ) ; les full art viennent après tous les
+ * numéros, dans leur ordre de déclaration ; les PJ n'en ont pas.
+ */
+const numero = (c) => {
+  if (/^\d+$/.test(String(c.num))) return Number(c.num);
+  if (c.tier === "fullart") return 10000 + (c.rang || 0);
+  return -1;
+};
 
 const pli = (t) => String(t || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
@@ -175,9 +183,9 @@ export default function Bibliotheque({
       if (q && !pli(nomComplet(c)).includes(q)) return false;
       return true;
     };
-    // Par numéro décroissant, comme on range un classeur : les dernières
-    // cartes du set en tête. La rainbow suit sa normale. Les PJ, sans
-    // numéro, se rangent par nom.
+    // Par numéro décroissant : full art, puis légendaires, rares, peu
+    // communes et communes, chaque palier des PNJ aux artéfacts. La rainbow
+    // suit sa normale. Les PJ, sans numéro, se rangent par nom.
     return cases.filter(garde).sort(
       (x, y) =>
         numero(y.c) - numero(x.c) ||

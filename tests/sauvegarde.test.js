@@ -1,6 +1,9 @@
 /** Le format des sauvegardes : lecture, rejet des formats inconnus, relecture de la mine. */
 import { describe, expect, test } from "vitest";
-import { SCHEMA, SCHEMA_MIN, migrer } from "../src/lib/sauvegarde/schema.js";
+import { SCHEMA, SCHEMA_MIN, migrer, renumeroter } from "../src/lib/sauvegarde/schema.js";
+import ROSTER from "../src/extensions/troupe-valeran/roster.json";
+import TABLE from "../src/lib/sauvegarde/renumerotation-troupe.json";
+import { slug } from "../src/lib/roster.js";
 import { etatVide, fusionner, relireJeu } from "../src/lib/storage.js";
 import { etatNeuf, relireMine } from "../src/mines/sauvegarde.js";
 
@@ -15,6 +18,40 @@ describe("schéma", () => {
     expect(migrer("jeu", { version: 5 })).toBeNull();
     expect(migrer("jeu", null)).toBeNull();
     expect(migrer("jeu", "texte")).toBeNull();
+  });
+});
+
+describe("schéma 7 : renumérotation de La Troupe", () => {
+  const ancienne = {
+    schema: 6,
+    collections: {
+      "troupe-valeran": {
+        "164-hida": { normale: 2, rainbow: 1, carte: { id: "164-hida", num: "164", nom: "Hida" } },
+        "203-sacoche-de-bille": { normale: 1 },
+        "pj-hida": { normale: 1 },
+      },
+    },
+    expeditions: [{ equipe: ["164-hida", "001-pluie-sur-la-mousse"] }],
+  };
+
+  test("chaque ancien identifiant est remplacé, en clé comme en valeur, numéro compris", () => {
+    const d = migrer("jeu", ancienne);
+    const coll = d.collections["troupe-valeran"];
+    expect(Object.keys(coll).sort()).toEqual(["001-sacoche-de-bille", "219-hida", "pj-hida"]);
+    expect(coll["219-hida"]).toEqual({ normale: 2, rainbow: 1, carte: { id: "219-hida", num: "219", nom: "Hida" } });
+    expect(d.expeditions[0].equipe).toEqual(["219-hida", "027-pluie-sur-la-mousse"]);
+    expect(d.schema).toBe(7);
+  });
+
+  test("ce qui n'est pas un identifiant de carte ne bouge pas", () => {
+    expect(renumeroter({ a: "164", b: 164, c: ["x"] }, { "164-hida": "219-hida" })).toEqual({ a: "164", b: 164, c: ["x"] });
+  });
+
+  test("la table mène exactement aux cartes du roster", () => {
+    const actuels = new Set(ROSTER.lignes.map((l) => `${l[0]}-${slug(l[1])}`));
+    const nouveaux = Object.values(TABLE.ids);
+    expect(nouveaux.filter((id) => !actuels.has(id))).toEqual([]);
+    expect(new Set(nouveaux).size).toBe(nouveaux.length);
   });
 });
 

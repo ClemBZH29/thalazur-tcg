@@ -40,7 +40,9 @@ function normaliser(def, tier, prefixe) {
 /** Les cartes hors roster d'une extension : ses full art, et les PJ communs. */
 export function specialesPour(extension) {
   return {
-    fullart: (extension?.fullart || []).map((d) => normaliser(d, "fullart", "fa")),
+    // `rang` : place du full art après les légendaires dans l'ordre du set,
+    // dans l'ordre de déclaration. L'identifiant, lui, reste « fa-<nom> ».
+    fullart: (extension?.fullart || []).map((d, i) => ({ ...normaliser(d, "fullart", "fa"), rang: i + 1 })),
     pj: PJ.map((d) => normaliser(d, "pj", "pj")),
   };
 }
