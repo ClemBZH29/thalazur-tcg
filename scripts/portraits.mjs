@@ -27,19 +27,20 @@
  *   <dossier>/<num>.webp     720 × 1080, carte en grand
  *   <dossier>/<num>-v.webp   360 × 540, vignette de bibliothèque
  *   inventaire.json          ce qui existe, avec une empreinte par image,
- *                            et le point focal vertical de chaque carte
+ *                            et les points focaux forcés
  *
  * ── Le cadrage ────────────────────────────────────────────────────────────
  * La fenêtre d'art du cadre standard est presque carrée : elle ne garde
  * qu'environ 72 % de la hauteur d'une image 2:3. Le point focal (0 = le haut
- * de l'image, 100 = le bas) dit quelle bande est gardée. Il est calculé pour
- * chaque image par la détection de zone saillante de sharp, et peut être
- * forcé carte par carte dans `<extension>/cadrages.json`, à côté des images :
+ * de l'image, 100 = le bas) dit quelle bande est gardée : 30 % pour toutes
+ * les cartes, sauf celles forcées dans `<extension>/cadrages.json`, à côté
+ * des images :
  *
  *   { "164": 5 }                 la carte 164 montre le haut de son image
  *
- * La valeur forcée l'emporte toujours ; retirer la ligne rend la main au
- * calcul. Voir docs/conception/roster-et-portraits.md.
+ * Un calcul automatique par zone saillante a été essayé et retiré : il
+ * poussait la plupart des images aux extrêmes (0 ou 100) et cadrait moins
+ * bien que la valeur fixe. Voir docs/conception/roster-et-portraits.md.
  *
  * Le dossier est reconstruit à l'identique de la source : une image retirée
  * de la source disparaît aussi de la publication. Une image inchangée n'est
@@ -49,7 +50,6 @@ import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { dirname, extname, join, relative, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { CADRE } from "../src/config/cadre.js";
 
 const RACINE = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const SORTIE = join(RACINE, "public", "portraits");
@@ -60,38 +60,6 @@ export const TAILLES = [
   { suffixe: "", largeur: 720, hauteur: 1080, qualite: 80 },
   { suffixe: "-v", largeur: 360, hauteur: 540, qualite: 75 },
 ];
-
-/** Hauteur de la fenêtre d'art, rapportée à la largeur de l'image (≈ 1,077). */
-export const HAUTEUR_FENETRE = CADRE.art.h / CADRE.art.w / CADRE.ratio;
-
-/**
- * Où placer, dans la fenêtre, le point que la détection juge le plus
- * important : un peu au-dessus du milieu. Une tête y reste entière, avec le
- * buste en dessous, là où un centrage strict la ferait souvent remonter
- * contre le bord.
- */
-export const ANCRE_SAILLANCE = 0.4;
-
-/**
- * Point focal (0 à 100) qui amène le point saillant `y` (en pixels, sur une
- * image de `hauteur`) à ANCRE_SAILLANCE de la fenêtre, borné aux bords.
- */
-export function focalPour(y, hauteur, fenetre) {
-  const jeu = hauteur - fenetre;
-  if (jeu <= 0) return 50;
-  const haut = Math.min(jeu, Math.max(0, y - ANCRE_SAILLANCE * fenetre));
-  return Math.round((haut / jeu) * 100);
-}
-
-/** Point focal calculé sur l'image déjà mise au format de la carte en grand. */
-async function focalAuto(sharp, cheminGrand) {
-  const { largeur, hauteur } = TAILLES[0];
-  const fenetre = Math.round(largeur * HAUTEUR_FENETRE);
-  const { info } = await sharp(cheminGrand)
-    .resize(largeur, fenetre, { fit: "cover", position: sharp.strategy.attention })
-    .toBuffer({ resolveWithObject: true });
-  return focalPour(info.attentionY ?? hauteur / 2, hauteur, fenetre);
-}
 
 /**
  * Les cadrages forcés d'un dossier : `{ "164": 5 }`, clés au numéro de carte
@@ -261,19 +229,14 @@ async function principal(source) {
       }
       inventaire.portraits[dossier] ??= {};
       inventaire.portraits[dossier][num] = empreinte(readFileSync(sorties[0]));
-      // Le point focal ne concerne que le cadre standard : les full art et
-      // les PJ ont une fenêtre au format de l'image, rien n'y est rogné.
-      if (!id.special) {
-        const ancien = precedent()?.focalAuto?.[dossier]?.[num];
-        const auto = aJour && typeof ancien === "number" ? ancien : await focalAuto(sharp, sorties[0]);
-        inventaire.focalAuto ??= {};
-        inventaire.focalAuto[dossier] ??= {};
-        inventaire.focalAuto[dossier][num] = auto;
-        const force = cadrages.get(Number(num));
-        if (force !== undefined) cadragesUtilises.add(Number(num));
+      // Seuls les cadrages forcés sont publiés ; les autres cartes gardent
+      // le réglage général. Full art et PJ : fenêtre au format de l'image.
+      const force = id.special ? undefined : cadrages.get(Number(num));
+      if (force !== undefined) {
+        cadragesUtilises.add(Number(num));
         inventaire.focal ??= {};
         inventaire.focal[dossier] ??= {};
-        inventaire.focal[dossier][num] = force ?? auto;
+        inventaire.focal[dossier][num] = force;
       }
       inventaire.sources ??= {};
       inventaire.sources[dossier] ??= {};
