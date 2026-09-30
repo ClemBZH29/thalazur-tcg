@@ -27,19 +27,20 @@ export default function PageMines() {
 
   return (
     <main className="view large mines" id="contenu">
-      <div className="section-titre">
-        <h1>Les Mines de Kazim</h1>
-      </div>
-
       {/* La seule phrase que la page se réserve, et seulement le jour où les
           kobolds ont soldé leurs comptes : sans elle, la mine cesserait de
-          payer sans un mot, ce qui serait déloyal. */}
-      {plafondAtteint && (
-        <p className="mine-plafond" role="status">
-          Les kobolds ont soldé leurs comptes pour aujourd'hui. La mine tourne
-          toujours, ils paieront demain.
-        </p>
-      )}
+          payer sans un mot, ce qui serait déloyal. Elle loge dans l'en-tête,
+          à droite du titre : placée dessous, elle poussait toute la mine vers
+          le bas au moment même où l'on vendait. */}
+      <div className="section-titre">
+        <h1>Les Mines de Kazim</h1>
+        {plafondAtteint && (
+          <p className="mine-plafond" role="status">
+            Les kobolds ont soldé leurs comptes pour aujourd'hui. La mine tourne
+            toujours, ils paieront demain.
+          </p>
+        )}
+      </div>
 
       <AvisMouvement quoi="les éclats et les secousses du filon" />
 
