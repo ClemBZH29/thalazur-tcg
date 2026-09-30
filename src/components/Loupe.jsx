@@ -3,6 +3,7 @@ import Carte from "./Carte.jsx";
 import { TIER_INFO } from "../config/tiers.js";
 import { nomComplet } from "../config/speciales.js";
 import { reperesDe, nomType } from "../config/cartes.js";
+import Volets from "./VoletsCarte.jsx";
 
 export default function Loupe({ c, cfgImage, fichiers, onFermer }) {
   const boite = useRef(null);
@@ -42,6 +43,8 @@ export default function Loupe({ c, cfgImage, fichiers, onFermer }) {
     >
       <div className="loupe-boite" onClick={(e) => e.stopPropagation()}>
         <Carte c={c} taille="zoom" cfgImage={cfgImage} fichiers={fichiers} />
+        {/* Hors du flux sur grand écran : la carte garde sa place au centre. */}
+        {c.volets && !c.rainbow && <Volets c={c} />}
       </div>
       <div className="loupe-fiche">
         <p className="loupe-titre">

@@ -116,23 +116,39 @@ describe("reliquaire", () => {
     expect(e.reliquaire.vestiges).toBe(3 * RELIQUAIRE.dissolution.commun);
   });
 
-  test("on ne forge que ce qui manque", () => {
-    const e = avec({ a: { normale: 1 } }, 1000);
-    expect(R.forger(e, "x", roster[0], roster)).toBe(e);
-    const e1 = R.forger(e, "x", roster[1], roster);
-    expect(e1.collections.x.b.normale).toBe(1);
-    expect(e1.reliquaire.vestiges).toBe(1000 - RELIQUAIRE.forge.rare);
+  const SL = [{ commun: 1 }, { commun: 1 }, { commun: 1 }, { peucommun: 0.955, rare: 0.038, legendaire: 0.007 }, { peucommun: 0.755, rare: 0.2, legendaire: 0.045 }];
+  const offre = (jour = "2026-09-30", tauxRainbow = 0) => R.offreDuJour("x", roster, jour, { slots: SL, tauxRainbow });
+
+  test("carte du jour : la même pour tous, qui change avec le jour", () => {
+    expect(offre().c.id).toBe(offre().c.id);
+    const ids = new Set(Array.from({ length: 30 }, (_, i) => offre(`2026-10-${String(i + 1).padStart(2, "0")}`).c.id));
+    expect(ids.size).toBeGreaterThan(1);
   });
 
-  test("légendaire : collection à 60 % et une par semaine", () => {
-    const peu = avec({ a: { normale: 1 } }, 1000);
-    expect(R.peutForger(peu, "x", roster[2], roster, T0)).toBe(false);
-    const assez = avec({ a: { normale: 1 }, b: { normale: 1 }, d: { normale: 1 } }, 1000);
-    const e1 = R.forger(assez, "x", roster[2], roster, T0);
-    expect(e1.collections.x.c.normale).toBe(1);
-    const sans = { ...e1, collections: { x: { ...e1.collections.x, d: { normale: 0 } } } };
-    expect(R.peutForger(sans, "x", roster[3], roster, T0 + 6 * 24 * H)).toBe(false);
-    expect(R.peutForger(sans, "x", roster[3], roster, T0 + 7 * 24 * H)).toBe(true);
+  test("carte du jour : tirée comme dans un booster", () => {
+    // Une commune (a) contre une rare (b) et deux légendaires : la commune sort
+    // bien plus souvent, les légendaires rarement.
+    const n = { commun: 0, rare: 0, legendaire: 0 };
+    for (let i = 0; i < 2000; i++) n[R.offreDuJour("x", roster, `j${i}`, { slots: SL, tauxRainbow: 0 }).c.tier]++;
+    expect(n.commun).toBeGreaterThan(n.rare * 5);
+    expect(n.rare).toBeGreaterThan(n.legendaire);
+    const arc = Array.from({ length: 4000 }, (_, i) => R.offreDuJour("x", roster, `r${i}`, { slots: SL, tauxRainbow: 0.03 }).rainbow).filter(Boolean).length;
+    expect(arc / 4000).toBeGreaterThan(0.015);
+    expect(arc / 4000).toBeLessThan(0.05);
+  });
+
+  test("carte du jour : une forge par jour, au prix du palier, irisée cinq fois plus chère", () => {
+    const o = offre();
+    const e = avec({ [o.c.id]: { normale: 1 } }, 5000);
+    const e1 = R.forgerOffre(e, o);
+    expect(e1.collections.x[o.c.id].normale).toBe(2);
+    expect(e1.reliquaire.vestiges).toBe(5000 - RELIQUAIRE.forge[o.c.tier]);
+    expect(R.forgerOffre(e1, o)).toBe(e1);
+    const irisee = { ...o, rainbow: true, prix: R.prixOffre(o.c, true), jour: "2026-10-01" };
+    expect(irisee.prix).toBe(RELIQUAIRE.forge[o.c.tier] * RELIQUAIRE.multRainbow);
+    const e2 = R.forgerOffre(e1, irisee);
+    expect(e2.collections.x[o.c.id].rainbow).toBe(1);
+    expect(R.forgerOffre(avec({}, 1), o).reliquaire.vestiges).toBe(1);
   });
 
   test("rainbow et cartes de personnage restent hors du Reliquaire", () => {
@@ -167,6 +183,8 @@ describe("succès", () => {
 
 describe("fusion entre appareils", () => {
   test("les vestiges s'additionnent", () => {
+    const g = fusionnerReliquaire({}, { vestiges: 0, achats: { x: "2026-09-29" } }, { vestiges: 0, achats: { x: "2026-09-30", y: "2026-09-01" } });
+    expect(g.achats).toEqual({ x: "2026-09-30", y: "2026-09-01" });
     const f = fusionnerReliquaire({ vestiges: 100 }, { vestiges: 130 }, { vestiges: 150 });
     expect(f.vestiges).toBe(180);
   });

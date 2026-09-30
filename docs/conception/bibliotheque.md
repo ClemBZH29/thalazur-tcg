@@ -49,6 +49,28 @@ qu'au delà du premier exemplaire et disait « +2 » pour trois. Elle porte un
 `z-index` de 8 : à 3 elle passait sous `.cardbox`, qui est à 6, et restait
 invisible sans qu'aucune règle n'échoue.
 
+**Le niveau de la carte, en miroir, en haut à gauche** (« Niv. 11 »), en vert de
+l'expérience pour ne pas se lire comme un nombre d'exemplaires. Il n'apparaît
+qu'à partir du niveau 2, sur la case normale seulement : une grille couverte de
+« Niv. 1 » ne dirait rien.
+
+**Les doublons se décident sur la carte agrandie.** Ouverte depuis la
+bibliothèque, la loupe porte deux volets à droite de la carte, hors du flux
+(la carte reste exactement au centre) ; sous la carte quand la largeur manque
+(moins de 1 000 px) :
+
+- **Entraîner** : un doublon devient de l'expérience pour sa carte — 15, 30,
+  75, 250 points selon le palier (`ENTRAINEMENT`, `src/config/reliquaire.js`),
+  la même expérience qu'au Donjon et en Expédition (`entrainer`,
+  `src/donjon/experience.js`). Un doublon commun vaut le tiers d'une descente.
+  Les paliers paient comme au Donjon : irisation, PO si déjà irisée, sachet au
+  niveau 100. Boutons : un doublon, juste assez pour le niveau suivant, tous.
+- **Reliquaire** : un doublon devient des vestiges, pour la carte du jour.
+  N'apparaît qu'une fois le Reliquaire ouvert (une extension à 60 %).
+
+Le dernier exemplaire n'est jamais proposé ; une légendaire se dissout avec
+confirmation. Pas de volets sur une version irisée ni sur l'onglet PJ.
+
 **Les cartes PJ ont leur propre onglet**, à côté des extensions. Elles ne sont
 d'aucune d'entre elles — elles tombent dans toutes — et les compter dans le set
 de la Troupe donnait un dénominateur faux et une complétion impossible à

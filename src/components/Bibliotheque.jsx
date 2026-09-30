@@ -4,6 +4,7 @@ import DosCarte from "./DosCarte.jsx";
 import { TIERS, TIER_ORDER, TIER_INFO } from "../config/tiers.js";
 import { BOOSTERS, BOOSTER_PAR_ID } from "../extensions/index.js";
 import { nomComplet } from "../config/speciales.js";
+import { niveauDe, xpDe } from "../donjon/experience.js";
 
 /** Une case manquante : le dos, grisé, sans interaction ni nom. */
 function Manquante() {
@@ -430,11 +431,14 @@ export default function Bibliotheque({
           const cle = `${c.id}:${version}`;
           if (n === 0) return <Manquante key={cle} />;
           const carte = { ...c, rainbow: version === "rainbow" };
+          // Les cartes PJ n'ont pas d'extension à elles : ni niveau, ni volets.
+          const ext = ongletPJ ? null : boosterId;
+          const niv = ext && version === "normale" ? niveauDe(xpDe(etat, { ext, id: c.id })) : 0;
           return (
             <div className="case-carte" key={cle}>
               <Carte
                 c={carte} taille="petit" cfgImage={cfgImage} fichiers={fichiers}
-                onToucher={() => onLoupe(carte)}
+                onToucher={() => onLoupe(ext ? { ...carte, ext, volets: true } : carte)}
                 etiquette={`Agrandir ${c.nom}, ${TIER_INFO[c.tier].nom}${carte.rainbow ? ", rainbow" : ""}, ${n} exemplaire${n > 1 ? "s" : ""}`}
               />
               {/* Le nombre d'exemplaires de *cette* version : une case pleine
@@ -447,6 +451,12 @@ export default function Bibliotheque({
               >
                 ×{n}
               </span>
+              {/* Le niveau, en miroir des exemplaires : il ne s'affiche qu'une
+                  fois la carte entraînée, pour ne pas couvrir la grille de
+                  « Niv. 1 ». */}
+              {niv > 1 && (
+                <span className="pastille-niv" title={`Niveau ${niv}`}>Niv. {niv}</span>
+              )}
               {TIER_INFO[c.tier]?.pleine && (
                 <span className="legende-carte">{nomComplet(c)}</span>
               )}
