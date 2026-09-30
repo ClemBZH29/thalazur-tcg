@@ -23,9 +23,12 @@ rainbow n'apparaît que si on la détient.** Les deux cases d'une même carte so
 voisines dans la grille — le tri les garde collées.
 
 **Ordre et vue d'ouverture.** La grille est rangée par **numéro de carte
-décroissant**, comme un classeur qu'on remplit par la fin : les dernières
-cartes du set en tête, la rainbow juste après sa normale ; les PJ, sans numéro,
-par nom ; il remplace l'ancien tri par palier puis par possession. La vue
+décroissant**. Les numéros suivent le palier puis le type — communes 001-110,
+peu communes 111-176, rares 177-209, légendaires 210-220, et dans chaque palier
+les artéfacts, les lieux puis les PNJ — : la grille montre donc les full art
+(rangés après tous les numéros), puis les légendaires, et ainsi de suite, chaque
+palier des PNJ aux artéfacts. La rainbow suit sa normale ; les PJ, sans numéro,
+se rangent par nom ; il remplace l'ancien tri par palier puis par possession. La vue
 s'ouvre sur les **cartes obtenues** — on vient d'abord voir ce qu'on a ; la
 grille complète, dos gris compris, est à un bouton, et « Réinitialiser »
 ramène aux obtenues. Un set de cinquante cartes

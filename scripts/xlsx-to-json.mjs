@@ -97,7 +97,9 @@ function lireOnglet({ feuille, type, rep1, race, rep3 }) {
     ]);
 }
 
-const lignes = ONGLETS.flatMap(lireOnglet);
+// Rangées par numéro : il suit le palier puis le type, pas l'onglet d'origine
+// (voir docs/conception/roster-et-portraits.md, « Numérotation »).
+const lignes = ONGLETS.flatMap(lireOnglet).sort((a, b) => Number(a[0]) - Number(b[0]));
 if (!lignes.length) {
   console.error("Aucune carte lue : vérifiez les noms d'onglets.");
   process.exit(1);
