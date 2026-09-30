@@ -2,8 +2,8 @@
  *  reconnus par le script de publication (scripts/portraits.mjs). */
 import { test } from "vitest";
 import assert from "node:assert/strict";
-import { INVENTAIRE_EN_COURS, resoudreImage } from "../src/lib/images.js";
-import { identifier } from "../scripts/portraits.mjs";
+import { INVENTAIRE_EN_COURS, focalDe, resoudreImage } from "../src/lib/images.js";
+import { HAUTEUR_FENETRE, carteNommee, focalPour, identifier, lireCadrages } from "../scripts/portraits.mjs";
 import { originePortraits } from "../vite.config.js";
 
 const carte = { num: "073", nom: "Scarabée des ruines", slug: "scarabee-des-ruines", urlLigne: null };
@@ -56,4 +56,36 @@ test("la CSP n'ajoute que l'origine d'une base absolue", () => {
   assert.equal(originePortraits("https://images.thalazur.io/sous/dossier"), " https://images.thalazur.io");
   assert.equal(originePortraits("./portraits"), "");
   assert.equal(originePortraits(undefined), "");
+});
+
+test("le point focal publié l'emporte sur le réglage général", () => {
+  const avecFocal = { ...inv, focal: { "troupe-valeran": { "073": 5 } } };
+  assert.equal(focalDe(carte, { ...cfg(avecFocal), focal: 30 }), 5);
+  assert.equal(focalDe({ ...carte, num: "074" }, { ...cfg(avecFocal), focal: 45 }), 45);
+  assert.equal(focalDe(carte, cfg(INVENTAIRE_EN_COURS)), 30);
+  assert.equal(focalDe(carte, cfg(null)), 30);
+});
+
+test("la fenêtre d'art garde environ 72 % de la hauteur d'une image 2:3", () => {
+  assert.ok(Math.abs(HAUTEUR_FENETRE / 1.5 - 0.718) < 0.01);
+});
+
+test("le point saillant est amené un peu au-dessus du milieu de la fenêtre, borné aux bords", () => {
+  // Image 720 × 1080, fenêtre de 775 px : 305 px de jeu.
+  assert.equal(focalPour(0, 1080, 775), 0);
+  assert.equal(focalPour(1080, 1080, 775), 100);
+  assert.equal(focalPour(100 + 0.4 * 775, 1080, 775), 33);
+  assert.equal(focalPour(152.5 + 0.4 * 775, 1080, 775), 50);
+});
+
+test("cadrages forcés : clés au numéro, valeurs de 0 à 100", () => {
+  const { cadrages, rejets } = lireCadrages('{ "164": 5, "073": 42.4, "12": 140, "x": 3 }');
+  assert.deepEqual([...cadrages], [[164, 5], [73, 42]]);
+  assert.equal(rejets.length, 2);
+});
+
+test("un texte libre après le numéro ne désigne une autre carte que s'il en porte le nom", () => {
+  const roster = new Map([[73, { num: "073", nom: "Scarabée des ruines" }], [164, { num: "164", nom: "Hida" }]]);
+  assert.equal(carteNommee(roster, "hida").num, "164");
+  assert.equal(carteNommee(roster, "samourai-dans-la-brume-au-crepuscule"), null);
 });

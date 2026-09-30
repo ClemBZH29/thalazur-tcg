@@ -3,7 +3,7 @@ import { TIER_INFO } from "../config/tiers.js";
 import { CADRE, CADRE_PLEIN, ASSET } from "../config/cadre.js";
 import { nomComplet } from "../config/speciales.js";
 import { reperesDe } from "../config/cartes.js";
-import { resoudreImage } from "../lib/images.js";
+import { focalDe, resoudreImage } from "../lib/images.js";
 import { useAjuste } from "../lib/ajuste.js";
 
 const boite = (z) => ({ left: `${z.x}%`, top: `${z.y}%`, width: `${z.w}%`, height: `${z.h}%` });
@@ -30,6 +30,7 @@ function Monogramme({ nom }) {
 export default function FaceCarte({ c, cfgImage, fichiers, vignette = false }) {
   const t = TIER_INFO[c.tier];
   const voulue = resoudreImage(c, cfgImage, fichiers, { vignette });
+  const focal = focalDe(c, cfgImage);
   // On retient l'adresse qui a échoué, pas un simple drapeau : quand
   // l'inventaire arrive ou qu'une image est publiée, l'adresse change et la
   // carte retente sa chance au lieu de rester sur le monogramme.
@@ -54,7 +55,7 @@ export default function FaceCarte({ c, cfgImage, fichiers, vignette = false }) {
           {src ? (
             <img
               src={src} alt="" draggable="false" loading="lazy"
-              style={{ objectPosition: `50% ${cfgImage.focal ?? 30}%` }}
+              style={{ objectPosition: `50% ${focal}%` }}
               onError={() => setRatee(voulue)}
             />
           ) : (
@@ -85,7 +86,7 @@ export default function FaceCarte({ c, cfgImage, fichiers, vignette = false }) {
         {src ? (
           <img
             src={src} alt="" draggable="false" loading="lazy"
-            style={{ objectPosition: `50% ${cfgImage.focal ?? 30}%` }}
+            style={{ objectPosition: `50% ${focal}%` }}
             onError={() => setRatee(voulue)}
           />
         ) : (

@@ -76,3 +76,17 @@ export function resoudreImage(c, cfg, fichiers, { vignette = false } = {}) {
   // an sans jamais montrer une illustration retouchée en retard.
   return version ? `${url}?v=${version}` : url;
 }
+
+/**
+ * Point focal vertical d'une carte, de 0 (haut de l'image) à 100 (bas).
+ * L'inventaire en porte un par image, calculé ou forcé par `npm run portraits`
+ * (voir scripts/portraits.mjs) ; à défaut, le réglage général (30 %).
+ */
+export function focalDe(c, cfg) {
+  const inv = cfg?.inventaire;
+  if (inv && typeof inv === "object") {
+    const v = inv.focal?.[dossierDe(c, cfg.extension || "")]?.[String(c.num)];
+    if (typeof v === "number") return v;
+  }
+  return cfg?.focal ?? CFG_IMAGE_DEFAUT.focal;
+}
