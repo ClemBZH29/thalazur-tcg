@@ -37,6 +37,12 @@ const CLE_DENSITE = "brume-thalazur:biblio-densite";
 const lireDensite = () => { try { return localStorage.getItem(CLE_DENSITE) !== "large"; } catch { return true; } };
 const ecrireDensite = (compacte) => { try { localStorage.setItem(CLE_DENSITE, compacte ? "compacte" : "large"); } catch { /* sans importance */ } };
 
+/** La vue d'ouverture, et celle que rétablit « Réinitialiser ». */
+const VUE_DEFAUT = "obtenues";
+
+/** Numéro de carte pour le tri ; les PJ (« pj-hida ») n'en ont pas. */
+const numero = (c) => (/^\d+$/.test(String(c.num)) ? Number(c.num) : -1);
+
 const pli = (t) => String(t || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
 /**
@@ -70,7 +76,9 @@ export default function Bibliotheque({
   /** L'onglet PJ est local : il ne change pas l'extension courante de l'app. */
   const [ongletPJ, setOngletPJ] = useState(false);
   const [filtre, setFiltre] = useState("toutes");
-  const [etatCarte, setEtatCarte] = useState("tout");
+  // On vient surtout voir ce qu'on possède : la vue s'ouvre sur les cartes
+  // obtenues, la grille complète est à un bouton.
+  const [etatCarte, setEtatCarte] = useState(VUE_DEFAUT);
   const [recherche, setRecherche] = useState("");
   const [statsOuvertes, setStatsOuvertes] = useState(lireStats);
   const basculerStats = () => setStatsOuvertes((v) => { ecrireStats(!v); return !v; });
@@ -147,9 +155,8 @@ export default function Bibliotheque({
 
   /**
    * Les cases à afficher : la normale de chaque carte, et la rainbow quand
-   * elle est là. Les deux cases d'une même carte restent voisines — le tri se
-   * fait sur la possession de la *normale*, pour qu'une rainbow orpheline ne
-   * se retrouve pas à l'autre bout de la grille que son dos gris.
+   * elle est là. Les deux cases d'une même carte restent voisines : le tri se
+   * fait sur le numéro de la carte, qu'elles partagent.
    */
   const cases = useMemo(() => cartes.flatMap((c) => {
     const liste = [{ c, version: "normale", n: nb(c, "normale") }];
@@ -168,10 +175,12 @@ export default function Bibliotheque({
       if (q && !pli(nomComplet(c)).includes(q)) return false;
       return true;
     };
+    // Par numéro décroissant, comme on range un classeur : les dernières
+    // cartes du set en tête. La rainbow suit sa normale. Les PJ, sans
+    // numéro, se rangent par nom.
     return cases.filter(garde).sort(
       (x, y) =>
-        TIER_ORDER.indexOf(y.c.tier) - TIER_ORDER.indexOf(x.c.tier) ||
-        Number(acquise(y.c)) - Number(acquise(x.c)) ||
+        numero(y.c) - numero(x.c) ||
         x.c.nom.localeCompare(y.c.nom, "fr") ||
         (x.version === "rainbow" ? 1 : 0) - (y.version === "rainbow" ? 1 : 0)
     );
@@ -188,8 +197,8 @@ export default function Bibliotheque({
     ["doubles", "En double", nDoubles],
     ["rainbow", "Rainbow", stats.rainbow],
   ];
-  const nFiltres = (etatCarte !== "tout" ? 1 : 0) + (filtre !== "toutes" ? 1 : 0);
-  const reinitialiser = () => { setFiltre("toutes"); setEtatCarte("tout"); };
+  const nFiltres = (etatCarte !== VUE_DEFAUT ? 1 : 0) + (filtre !== "toutes" ? 1 : 0);
+  const reinitialiser = () => { setFiltre("toutes"); setEtatCarte(VUE_DEFAUT); };
 
   /* Les deux groupes de filtres sont rendus deux fois : en ligne sur grand
      écran, dans la feuille au téléphone. Un seul des deux est affiché à la

@@ -7,6 +7,7 @@
  */
 export default {
   id: "rendez-vous-odiana",
+  code: "ODI",
   titre: "Rendez-vous à Odiana",
   statut: "bientot",
   // Rapport largeur / hauteur du visuel du sachet : chaque visuel a le sien,

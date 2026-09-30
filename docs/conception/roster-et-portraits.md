@@ -108,11 +108,25 @@ une illustration 2:3 n'y montre qu'environ 72 % de sa hauteur. Le **point focal
 vertical** choisit la bande retenue — 0 garde le haut de l'image, 100 le bas.
 
 Le point focal vaut **30 % pour toutes les cartes**. Il se **force** carte
-par carte quand une image est mal cadrée, dans
-`Base Image/<extension>/cadrages.json`, à côté des images et donc hors du
-dépôt : `{ "164": 5 }`. Le script le publie dans `inventaire.json` ; retirer la
-ligne rend la carte au réglage général. Une ligne dont la carte n'a pas
-d'image, ou hors de 0 à 100, est signalée.
+par carte quand une image est mal cadrée, dans **un seul fichier pour toutes
+les extensions**, `Base Image/cadrages.json`, hors du dépôt, avec pour clé le
+**code de la carte** affiché à son pied :
+
+```json
+{
+  "_notice": "…",
+  "TRO-164": 5,
+  "NAK-012": 60
+}
+```
+
+Le code tient ensemble l'extension et le numéro : un seul fichier suffit, et
+une nouvelle extension n'y demande rien d'autre que son `code` dans
+`extension.js`. Le script crée le fichier, vide, s'il manque ; il publie les
+valeurs dans `inventaire.json` et signale une clé mal formée, un code
+d'extension inconnu, une valeur hors de 0 à 100 ou une carte sans image.
+Retirer une ligne rend la carte au réglage général. L'ancien emplacement, un
+`cadrages.json` par dossier d'extension, n'est plus lu et le script le signale.
 
 Un calcul automatique par zone saillante (sharp, stratégie *attention*) a été
 essayé puis retiré : sur ces illustrations, il poussait la plupart des images
@@ -167,11 +181,11 @@ tentent leur image comme avant.
 
 ```
 Base Image/                    à côté de « Base App TCG », hors du dépôt
+  cadrages.json                  points focaux forcés, toutes extensions (TRO-164)
   troupe-valeran/
     073-Scarabée des ruines.png  numéro en tête, le texte qui suit est libre
     164 - Samurai at dusk.png    (nom de la carte ou description du prompt)
     fa-vyrin.png                 full art : fa-<nom>
-    cadrages.json                points focaux forcés, facultatif
   pj/
     pj-<nom>.png
 ```
@@ -210,13 +224,14 @@ Une extension est un dossier de `src/extensions/` :
 
 ```
 src/extensions/<id>/
-  extension.js   titre, statut, couleurs, résumé, full art
+  extension.js   code, titre, statut, couleurs, résumé, full art
   sachet.webp    le visuel du sachet
   roster.json    les cartes (seulement pour une extension ouverte)
 ```
 
 1. **Annoncer** une extension : créer le dossier avec `extension.js`
-   (`statut: "bientot"`) et `sachet.webp`. Elle apparaît sur l'étagère,
+   (`statut: "bientot"`, et un `code` de trois lettres majuscules, unique,
+   jamais changé après publication) et `sachet.webp`. Elle apparaît sur l'étagère,
    grisée et non cliquable.
 2. **L'ouvrir** : `npm run roster -- <fichier.xlsx> <id>` écrit
    `src/extensions/<id>/roster.json`, puis passer `statut` à `"ouvert"`.
