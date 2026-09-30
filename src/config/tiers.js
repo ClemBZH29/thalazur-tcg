@@ -108,15 +108,24 @@ export const MINE = {
  * Le Donjon, vues de l'application. Même principe que la mine : le
  * module annonce le butin rapporté du donjon, la conversion se fait ici.
  *
- * Deux tentatives par jour sur le donjon du jour, et c'est le nombre de
- * tentatives qui borne le module plutôt qu'un plafond de PO : une descente
- * réussie de bout en bout rapporte environ 370 pièces de butin, soit 220 PO
- * ici ; une descente moyenne, défaites comprises, un peu plus de 120.
- * Mesures : tests/donjon.test.js et docs/conception/donjon.md.
+ * Deux modes depuis le 30/09/2026 (`modes`) :
+ *
+ * - **le donjon du jour**, une descente par jour, la même carte pour tous :
+ *   son butin compte double. Avec les soins réduits, une descente moyenne
+ *   rapporte environ 76 pièces de base (défaites comprises), soit ~150 PO ;
+ * - **le donjon infini**, autant de descentes qu'on veut : butin et
+ *   expérience réduits, et les PO qu'il verse plafonnées chaque jour. Une
+ *   défaite n'y immobilise l'équipe qu'un jour, quel que soit l'étage : sans
+ *   cela, tomber à l'étage 9 coûtait neuf jours.
+ *
+ * Mesures : `node scripts/audit-donjon.mjs` et docs/conception/donjon.md.
  */
 export const DONJON = {
   multiplicateur: 0.6,   // PO créditées par pièce de butin rapportée
-  tentativesParJour: 2,
+  modes: {
+    jour: { tentatives: 1, gain: 2, xp: 1 },
+    infini: { tentatives: Infinity, gain: 0.4, xp: 0.5, plafondPOJour: 100 },
+  },
   // Les débuts adoucis : adversaires affaiblis et butin réduit, qui remontent
   // en ligne droite jusqu'au jeu normal au `jusqua`-ième booster ouvert.
   // Mesuré par scripts/audit-donjon.mjs.
