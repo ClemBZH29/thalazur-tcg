@@ -24,6 +24,15 @@
 .tilt { --rx: 0deg; --ry: 0deg; --mx: 50%; --my: 50%;
   transform: rotateX(var(--rx)) rotateY(var(--ry));
   transition: transform .12s ease-out; transform-style: preserve-3d; }
+/* Les cartes vues en grand ou isolées — loupe, ouverture, bilan d'un booster —
+   gardent leur calque en permanence. Sans cela, le navigateur redessine la
+   carte quand son inclinaison revient à plat, ou quand son animation d'entrée
+   s'achève : le cadre se repose tout de suite, le portrait un dixième de
+   seconde plus tard et un pixel plus loin, le temps de redécoder l'image. On
+   voyait deux objets distincts (mesuré image par image sur une capture de la
+   loupe : cadre immobile, portrait décalé de 1 px pendant 100 ms, puis saut).
+   Pas en bibliothèque : deux cents calques y coûteraient pour rien. */
+.cb-zoom .tilt, .cb-plein .tilt, .eventail .tilt, .eventail .ev { will-change: transform; }
 
 .flipper { position: relative; width: 100%; transform-style: preserve-3d;
   transform: rotateY(180deg); transition: transform var(--fd, 500ms) cubic-bezier(.34,.85,.36,1); }
