@@ -14,8 +14,9 @@
  *                      fa-vyrin.png                  (full art : fa-<nom>)
  *     pj/              pj-<nom>.png
  *
- * Le numéro suffit ; le nom qui suit est libre, il sert seulement à repérer
- * une illustration rangée sous le mauvais numéro. PNG, JPEG ou WebP, au
+ * Le numéro suffit ; le texte qui suit est libre (nom de la carte, description
+ * du prompt…). S'il est le nom d'une autre carte, le script prévient : c'est
+ * le signe d'une illustration rangée sous le mauvais numéro. PNG, JPEG ou WebP, au
  * format 2:3 de préférence : la carte recadre, mais une image trop large
  * perd ses bords.
  *
@@ -25,7 +26,20 @@
  *
  *   <dossier>/<num>.webp     720 × 1080, carte en grand
  *   <dossier>/<num>-v.webp   360 × 540, vignette de bibliothèque
- *   inventaire.json          ce qui existe, avec une empreinte par image
+ *   inventaire.json          ce qui existe, avec une empreinte par image,
+ *                            et le point focal vertical de chaque carte
+ *
+ * ── Le cadrage ────────────────────────────────────────────────────────────
+ * La fenêtre d'art du cadre standard est presque carrée : elle ne garde
+ * qu'environ 72 % de la hauteur d'une image 2:3. Le point focal (0 = le haut
+ * de l'image, 100 = le bas) dit quelle bande est gardée. Il est calculé pour
+ * chaque image par la détection de zone saillante de sharp, et peut être
+ * forcé carte par carte dans `<extension>/cadrages.json`, à côté des images :
+ *
+ *   { "164": 5 }                 la carte 164 montre le haut de son image
+ *
+ * La valeur forcée l'emporte toujours ; retirer la ligne rend la main au
+ * calcul. Voir docs/conception/roster-et-portraits.md.
  *
  * Le dossier est reconstruit à l'identique de la source : une image retirée
  * de la source disparaît aussi de la publication. Une image inchangée n'est
@@ -35,6 +49,7 @@ import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { dirname, extname, join, relative, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { CADRE } from "../src/config/cadre.js";
 
 const RACINE = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const SORTIE = join(RACINE, "public", "portraits");
@@ -45,6 +60,57 @@ export const TAILLES = [
   { suffixe: "", largeur: 720, hauteur: 1080, qualite: 80 },
   { suffixe: "-v", largeur: 360, hauteur: 540, qualite: 75 },
 ];
+
+/** Hauteur de la fenêtre d'art, rapportée à la largeur de l'image (≈ 1,077). */
+export const HAUTEUR_FENETRE = CADRE.art.h / CADRE.art.w / CADRE.ratio;
+
+/**
+ * Où placer, dans la fenêtre, le point que la détection juge le plus
+ * important : un peu au-dessus du milieu. Une tête y reste entière, avec le
+ * buste en dessous, là où un centrage strict la ferait souvent remonter
+ * contre le bord.
+ */
+export const ANCRE_SAILLANCE = 0.4;
+
+/**
+ * Point focal (0 à 100) qui amène le point saillant `y` (en pixels, sur une
+ * image de `hauteur`) à ANCRE_SAILLANCE de la fenêtre, borné aux bords.
+ */
+export function focalPour(y, hauteur, fenetre) {
+  const jeu = hauteur - fenetre;
+  if (jeu <= 0) return 50;
+  const haut = Math.min(jeu, Math.max(0, y - ANCRE_SAILLANCE * fenetre));
+  return Math.round((haut / jeu) * 100);
+}
+
+/** Point focal calculé sur l'image déjà mise au format de la carte en grand. */
+async function focalAuto(sharp, cheminGrand) {
+  const { largeur, hauteur } = TAILLES[0];
+  const fenetre = Math.round(largeur * HAUTEUR_FENETRE);
+  const { info } = await sharp(cheminGrand)
+    .resize(largeur, fenetre, { fit: "cover", position: sharp.strategy.attention })
+    .toBuffer({ resolveWithObject: true });
+  return focalPour(info.attentionY ?? hauteur / 2, hauteur, fenetre);
+}
+
+/**
+ * Les cadrages forcés d'un dossier : `{ "164": 5 }`, clés au numéro de carte
+ * (« 164 » ou « 0164 », peu importe), valeurs de 0 à 100.
+ */
+export function lireCadrages(texte) {
+  const brut = JSON.parse(texte);
+  const cadrages = new Map();
+  const rejets = [];
+  for (const [cle, valeur] of Object.entries(brut ?? {})) {
+    const num = Number(cle);
+    if (!Number.isInteger(num) || typeof valeur !== "number" || valeur < 0 || valeur > 100) {
+      rejets.push(`${cle}: ${JSON.stringify(valeur)}`);
+      continue;
+    }
+    cadrages.set(num, Math.round(valeur));
+  }
+  return { cadrages, rejets };
+}
 
 /** Même translittération que src/lib/roster.js, pour comparer les noms. */
 export const slug = (s) =>
@@ -78,6 +144,12 @@ function lireRoster(id) {
   const parNum = new Map();
   for (const l of lignes) parNum.set(Number(l[0]), { num: String(l[0]), nom: String(l[1] ?? "") });
   return parNum;
+}
+
+/** La carte du roster dont le nom translittéré est `nom`, s'il y en a une. */
+export function carteNommee(roster, nom) {
+  for (const carte of roster?.values() ?? []) if (slug(carte.nom) === nom) return carte;
+  return null;
 }
 
 const empreinte = (buf) => createHash("sha256").update(buf).digest("hex").slice(0, 10);
@@ -118,6 +190,18 @@ async function principal(source) {
     }
     const roster = dossier === "pj" ? null : lireRoster(dossier);
     const vus = new Map();
+    let cadrages = new Map();
+    const cheminCadrages = join(source, dossier, "cadrages.json");
+    if (existsSync(cheminCadrages)) {
+      try {
+        const lu = lireCadrages(readFileSync(cheminCadrages, "utf8"));
+        cadrages = lu.cadrages;
+        for (const r of lu.rejets) avertissements.push(`${dossier}/cadrages.json : « ${r} » ignoré, valeur attendue de 0 à 100`);
+      } catch (e) {
+        avertissements.push(`${dossier}/cadrages.json illisible, ignoré : ${e.message}`);
+      }
+    }
+    const cadragesUtilises = new Set();
 
     for (const f of readdirSync(join(source, dossier)).sort()) {
       if (!EXTENSIONS_IMAGE.has(extname(f).toLowerCase())) continue;
@@ -140,8 +224,12 @@ async function principal(source) {
           continue;
         }
         num = carte ? carte.num : String(id.num).padStart(3, "0");
-        if (carte && id.nom && id.nom !== slug(carte.nom)) {
-          avertissements.push(`${dossier}/${f} : la carte n° ${carte.num} s'appelle « ${carte.nom} » — publiée quand même, vérifier le numéro`);
+        // Le texte qui suit le numéro est libre (nom de la carte, description
+        // du prompt…) : on ne prévient que s'il désigne une AUTRE carte, signe
+        // d'un numéro décalé, plutôt que d'avertir à chaque fichier.
+        const autre = carte && id.nom && id.nom !== slug(carte.nom) ? carteNommee(roster, id.nom) : null;
+        if (autre) {
+          avertissements.push(`${dossier}/${f} : ce nom est celui de la carte n° ${autre.num} « ${autre.nom} », pas de la n° ${carte.num} — publiée quand même, vérifier le numéro`);
         }
       }
       if (vus.has(num)) {
@@ -173,9 +261,26 @@ async function principal(source) {
       }
       inventaire.portraits[dossier] ??= {};
       inventaire.portraits[dossier][num] = empreinte(readFileSync(sorties[0]));
+      // Le point focal ne concerne que le cadre standard : les full art et
+      // les PJ ont une fenêtre au format de l'image, rien n'y est rogné.
+      if (!id.special) {
+        const ancien = precedent()?.focalAuto?.[dossier]?.[num];
+        const auto = aJour && typeof ancien === "number" ? ancien : await focalAuto(sharp, sorties[0]);
+        inventaire.focalAuto ??= {};
+        inventaire.focalAuto[dossier] ??= {};
+        inventaire.focalAuto[dossier][num] = auto;
+        const force = cadrages.get(Number(num));
+        if (force !== undefined) cadragesUtilises.add(Number(num));
+        inventaire.focal ??= {};
+        inventaire.focal[dossier] ??= {};
+        inventaire.focal[dossier][num] = force ?? auto;
+      }
       inventaire.sources ??= {};
       inventaire.sources[dossier] ??= {};
       inventaire.sources[dossier][num] = signatureSource;
+    }
+    for (const num of cadrages.keys()) {
+      if (!cadragesUtilises.has(num)) avertissements.push(`${dossier}/cadrages.json : aucune image pour la carte n° ${num}, cadrage inutilisé`);
     }
   }
 

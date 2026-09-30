@@ -104,9 +104,28 @@ Trois sources en cascade, la première qui répond gagne :
    `./portraits`.
 
 Le portrait couvre la fenêtre d'art (environ 0,93 de large pour 1 de haut) :
-une illustration 2:3 perd un peu de hauteur. Le **point focal vertical** choisit
-la hauteur retenue ; 30 % garde la tête visible, pour un buste comme pour une
-illustration pleine.
+une illustration 2:3 n'y montre qu'environ 72 % de sa hauteur. Le **point focal
+vertical** choisit la bande retenue — 0 garde le haut de l'image, 100 le bas.
+
+Un réglage unique ne convient pas à toutes les images : 30 % coupait la tête
+d'un personnage peint près du bord supérieur. Le point focal est donc **propre
+à chaque image** et publié dans `inventaire.json` :
+
+- **calculé** par `npm run portraits`, avec la détection de zone saillante de
+  sharp (visages, peau, contrastes). Le point le plus saillant est amené à 40 %
+  de la hauteur de la fenêtre, un peu au-dessus du milieu : une tête y reste
+  entière avec le buste dessous, là où un centrage strict la ferait remonter
+  contre le bord. Il n'est recalculé que quand l'image change ;
+- **forcé** carte par carte quand la détection se trompe — plus souvent sur un
+  lieu ou une scène de groupe que sur un portrait —, dans
+  `Base Image/<extension>/cadrages.json`, à côté des images et donc hors du
+  dépôt : `{ "164": 5 }`. La valeur forcée l'emporte ; retirer la ligne rend
+  la main au calcul. Une ligne dont la carte n'a pas d'image est signalée.
+
+Dix points de focal déplacent le cadre d'environ 3 % de la hauteur de l'image.
+Les full art et les PJ n'en ont pas : leur fenêtre est au format de l'image.
+Le réglage des Réglages MJ ne vaut plus que pour les images sans point focal
+publié (fichiers montés, URL du roster), avec 30 % par défaut.
 
 Sans portrait, la carte affiche un monogramme gravé plutôt qu'une image cassée.
 
@@ -153,8 +172,10 @@ tentent leur image comme avant.
 ```
 Base Image/                    à côté de « Base App TCG », hors du dépôt
   troupe-valeran/
-    073-Scarabée des ruines.png  numéro en tête, le nom qui suit est libre
+    073-Scarabée des ruines.png  numéro en tête, le texte qui suit est libre
+    164 - Samurai at dusk.png    (nom de la carte ou description du prompt)
     fa-vyrin.png                 full art : fa-<nom>
+    cadrages.json                points focaux forcés, facultatif
   pj/
     pj-<nom>.png
 ```
@@ -167,8 +188,14 @@ npm run portraits:publier   # idem, puis envoie sur images.thalazur.io
 Le script convertit en WebP (720 × 1080 et vignette 360 × 540), ne réencode que
 ce qui a changé, retire de la sortie ce qui n'est plus dans la source — la
 publication remplace tout le site des portraits, elle doit donc tout contenir —
-et signale : fichiers sans numéro, numéro absent du roster, nom qui ne
-correspond pas à la carte (souvent un numéro décalé).
+calcule le point focal de chaque image, et signale : fichiers sans numéro,
+numéro absent du roster, texte qui est le nom d'une **autre** carte (signe
+d'un numéro décalé ; un texte libre, comme une description de prompt, ne
+déclenche rien), cadrage forcé sans image ou hors de 0 à 100.
+
+On peut publier par lots, les cartes sans image gardent leur monogramme. La
+seule règle : ne jamais retirer de `Base Image` une image déjà publiée avant de
+lancer la publication, elle disparaîtrait du site.
 
 **Mise en place, une seule fois :**
 
