@@ -33,10 +33,13 @@
  * La fenêtre d'art du cadre standard est presque carrée : elle ne garde
  * qu'environ 72 % de la hauteur d'une image 2:3. Le point focal (0 = le haut
  * de l'image, 100 = le bas) dit quelle bande est gardée : 30 % pour toutes
- * les cartes, sauf celles forcées dans `<extension>/cadrages.json`, à côté
- * des images :
+ * les cartes, sauf celles forcées dans UN fichier pour toutes les
+ * extensions, `Base Image/cadrages.json`, clé au code de la carte :
  *
- *   { "164": 5 }                 la carte 164 montre le haut de son image
+ *   { "TRO-164": 5 }             la carte 164 de la Troupe montre le haut
+ *
+ * Le script crée ce fichier s'il manque. Une nouvelle extension n'y demande
+ * rien : son code (extension.js) suffit à y écrire ses cartes.
  *
  * Un calcul automatique par zone saillante a été essayé et retiré : il
  * poussait la plupart des images aux extrêmes (0 ou 100) et cadrait moins
@@ -50,6 +53,7 @@ import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { dirname, extname, join, relative, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { codeCarte, lireCodeCarte } from "../src/lib/code-carte.js";
 
 const RACINE = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const SORTIE = join(RACINE, "public", "portraits");
@@ -61,23 +65,53 @@ export const TAILLES = [
   { suffixe: "-v", largeur: 360, hauteur: 540, qualite: 75 },
 ];
 
+/** Le fichier des cadrages forcés, à la racine de la source des images. */
+export const FICHIER_CADRAGES = "cadrages.json";
+
+/** Contenu du fichier quand le script le crée : la notice, puis rien. */
+export const CADRAGES_VIDE = {
+  _notice:
+    "Point focal vertical forcé, carte par carte : 0 montre le haut de l'image, 100 le bas, " +
+    "30 pour toutes les autres cartes. Clé = code de la carte, affiché au pied de celle-ci " +
+    "(TRO-164). Exemple : \"TRO-164\": 5. Les clés qui commencent par _ sont ignorées.",
+};
+
 /**
- * Les cadrages forcés d'un dossier : `{ "164": 5 }`, clés au numéro de carte
- * (« 164 » ou « 0164 », peu importe), valeurs de 0 à 100.
+ * Lit `cadrages.json` : `{ "TRO-164": 5 }`.
+ *   codes : Map code d'extension → identifiant de dossier (« TRO » → « troupe-valeran »)
+ * Rend, par dossier, les points focaux forcés indexés par numéro, et les
+ * lignes rejetées avec leur raison. Casse et zéros de tête indifférents.
  */
-export function lireCadrages(texte) {
+export function lireCadrages(texte, codes) {
   const brut = JSON.parse(texte);
-  const cadrages = new Map();
+  const parDossier = new Map();
   const rejets = [];
   for (const [cle, valeur] of Object.entries(brut ?? {})) {
-    const num = Number(cle);
-    if (!Number.isInteger(num) || typeof valeur !== "number" || valeur < 0 || valeur > 100) {
-      rejets.push(`${cle}: ${JSON.stringify(valeur)}`);
+    if (cle.startsWith("_")) continue;
+    const lu = lireCodeCarte(cle);
+    if (!lu) { rejets.push(`« ${cle} » : clé attendue au format TRO-164`); continue; }
+    const dossier = codes.get(lu.code);
+    if (!dossier) { rejets.push(`« ${cle} » : aucune extension de code ${lu.code}`); continue; }
+    if (typeof valeur !== "number" || valeur < 0 || valeur > 100) {
+      rejets.push(`« ${cle} » : ${JSON.stringify(valeur)}, valeur attendue de 0 à 100`);
       continue;
     }
-    cadrages.set(num, Math.round(valeur));
+    if (!parDossier.has(dossier)) parDossier.set(dossier, new Map());
+    parDossier.get(dossier).set(lu.num, Math.round(valeur));
   }
-  return { cadrages, rejets };
+  return { parDossier, rejets };
+}
+
+/** Code d'extension → dossier, lu dans chaque src/extensions/<id>/extension.js. */
+async function lireCodes(ids) {
+  const codes = new Map();
+  for (const id of ids) {
+    const chemin = join(RACINE, "src", "extensions", id, "extension.js");
+    if (!existsSync(chemin)) continue;
+    const { default: def } = await import(pathToFileURL(chemin).href);
+    if (def?.code) codes.set(def.code, id);
+  }
+  return codes;
 }
 
 /** Même translittération que src/lib/roster.js, pour comparer les noms. */
@@ -149,6 +183,25 @@ async function principal(source) {
     }
   }
 
+  // Les cadrages forcés, un seul fichier pour toutes les extensions. Créé
+  // vide s'il manque, pour qu'on le trouve là où il doit être.
+  const codes = await lireCodes(extensionsConnues);
+  const codeDe = new Map([...codes].map(([code, id]) => [id, code]));
+  const cheminCadrages = join(source, FICHIER_CADRAGES);
+  let cadragesParDossier = new Map();
+  if (!existsSync(cheminCadrages)) {
+    writeFileSync(cheminCadrages, JSON.stringify(CADRAGES_VIDE, null, 2) + "\n");
+    console.log(`${FICHIER_CADRAGES} créé dans ${source}, vide : ajoutez-y "TRO-164": 5 pour forcer un cadrage.`);
+  } else {
+    try {
+      const lu = lireCadrages(readFileSync(cheminCadrages, "utf8"), codes);
+      cadragesParDossier = lu.parDossier;
+      for (const r of lu.rejets) avertissements.push(`${FICHIER_CADRAGES} : ${r} — ignoré`);
+    } catch (e) {
+      avertissements.push(`${FICHIER_CADRAGES} illisible, aucun cadrage forcé appliqué : ${e.message}`);
+    }
+  }
+
   const dossiers = readdirSync(source, { withFileTypes: true }).filter((d) => d.isDirectory());
   for (const d of dossiers) {
     const dossier = d.name;
@@ -158,18 +211,12 @@ async function principal(source) {
     }
     const roster = dossier === "pj" ? null : lireRoster(dossier);
     const vus = new Map();
-    let cadrages = new Map();
-    const cheminCadrages = join(source, dossier, "cadrages.json");
-    if (existsSync(cheminCadrages)) {
-      try {
-        const lu = lireCadrages(readFileSync(cheminCadrages, "utf8"));
-        cadrages = lu.cadrages;
-        for (const r of lu.rejets) avertissements.push(`${dossier}/cadrages.json : « ${r} » ignoré, valeur attendue de 0 à 100`);
-      } catch (e) {
-        avertissements.push(`${dossier}/cadrages.json illisible, ignoré : ${e.message}`);
-      }
-    }
+    const cadrages = cadragesParDossier.get(dossier) ?? new Map();
     const cadragesUtilises = new Set();
+    // L'ancien emplacement, un fichier par dossier d'extension, n'est plus lu.
+    if (existsSync(join(source, dossier, FICHIER_CADRAGES))) {
+      avertissements.push(`${dossier}/${FICHIER_CADRAGES} n'est plus lu : reportez ses lignes dans ${FICHIER_CADRAGES} à la racine (clés TRO-164), puis supprimez-le`);
+    }
 
     for (const f of readdirSync(join(source, dossier)).sort()) {
       if (!EXTENSIONS_IMAGE.has(extname(f).toLowerCase())) continue;
@@ -243,7 +290,7 @@ async function principal(source) {
       inventaire.sources[dossier][num] = signatureSource;
     }
     for (const num of cadrages.keys()) {
-      if (!cadragesUtilises.has(num)) avertissements.push(`${dossier}/cadrages.json : aucune image pour la carte n° ${num}, cadrage inutilisé`);
+      if (!cadragesUtilises.has(num)) avertissements.push(`${FICHIER_CADRAGES} : ${codeCarte(codeDe.get(dossier), num)} n'a pas d'image, cadrage inutilisé`);
     }
   }
 

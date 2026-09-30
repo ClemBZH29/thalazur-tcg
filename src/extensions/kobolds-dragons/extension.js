@@ -7,6 +7,7 @@
  */
 export default {
   id: "kobolds-dragons",
+  code: "KOB",
   titre: "Kobolds et Dragons",
   statut: "bientot",
   // Rapport largeur / hauteur du visuel du sachet : chaque visuel a le sien,

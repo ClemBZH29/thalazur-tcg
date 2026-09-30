@@ -5,6 +5,8 @@ import { nomComplet } from "../config/speciales.js";
 import { reperesDe } from "../config/cartes.js";
 import { focalDe, resoudreImage } from "../lib/images.js";
 import { useAjuste } from "../lib/ajuste.js";
+import { codeCarte } from "../lib/code-carte.js";
+import { BOOSTER_PAR_ID } from "../extensions/index.js";
 
 const boite = (z) => ({ left: `${z.x}%`, top: `${z.y}%`, width: `${z.w}%`, height: `${z.h}%` });
 
@@ -31,6 +33,7 @@ export default function FaceCarte({ c, cfgImage, fichiers, vignette = false }) {
   const t = TIER_INFO[c.tier];
   const voulue = resoudreImage(c, cfgImage, fichiers, { vignette });
   const focal = focalDe(c, cfgImage);
+  const code = codeCarte(BOOSTER_PAR_ID[cfgImage?.extension]?.code, c.num);
   // On retient l'adresse qui a échoué, pas un simple drapeau : quand
   // l'inventaire arrive ou qu'une image est publiée, l'adresse change et la
   // carte retente sa chance au lieu de rester sur le monogramme.
@@ -129,7 +132,12 @@ export default function FaceCarte({ c, cfgImage, fichiers, vignette = false }) {
       </div>
 
       <div className="zone-pied" style={boite(CADRE.pied)}>
-        <Encoches n={t.encoches} />
+        {/* Le code (TRO-164) suit les encoches : il identifie la carte d'une
+            extension à l'autre, là où le numéro seul ne suffit pas. */}
+        <span className="pied-gauche">
+          <Encoches n={t.encoches} />
+          {code && <span className="code-carte">{code}</span>}
+        </span>
         <span className="palier">{t.nom}{c.rainbow && " · Rainbow"}</span>
       </div>
 

@@ -7,6 +7,7 @@
  */
 export default {
   id: "nakova",
+  code: "NAK",
   titre: "Nakova",
   statut: "bientot",
   // Rapport largeur / hauteur du visuel du sachet : chaque visuel a le sien,

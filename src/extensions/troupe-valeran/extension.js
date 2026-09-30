@@ -7,6 +7,9 @@
  */
 export default {
   id: "troupe-valeran",
+  // Code de trois lettres, en tête du code de chaque carte (TRO-164) et des
+  // clés de Base Image/cadrages.json. Ne jamais le changer après publication.
+  code: "TRO",
   titre: "La Troupe",
   statut: "ouvert",
   // Rapport largeur / hauteur du visuel du sachet : chaque visuel a le sien,

@@ -20,7 +20,15 @@ standard, et rien ne disait plus si on possédait celle-ci.
 
 La règle tenue aujourd'hui : **chaque carte a sa case normale, toujours ; sa case
 rainbow n'apparaît que si on la détient.** Les deux cases d'une même carte sont
-voisines dans la grille — le tri les garde collées. Un set de cinquante cartes
+voisines dans la grille — le tri les garde collées.
+
+**Ordre et vue d'ouverture.** La grille est rangée par **numéro de carte
+décroissant**, comme un classeur qu'on remplit par la fin : les dernières
+cartes du set en tête, la rainbow juste après sa normale ; les PJ, sans numéro,
+par nom ; il remplace l'ancien tri par palier puis par possession. La vue
+s'ouvre sur les **cartes obtenues** — on vient d'abord voir ce qu'on a ; la
+grille complète, dos gris compris, est à un bouton, et « Réinitialiser »
+ramène aux obtenues. Un set de cinquante cartes
 affiche donc cinquante cases sur une collection vierge, et jusqu'à cent quand on
 a tout en double version. Sur La Troupe, 226 cartes de set et 314 cases pour
 88 rainbow détenues.

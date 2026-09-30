@@ -5,6 +5,8 @@ import assert from "node:assert/strict";
 import { INVENTAIRE_EN_COURS, focalDe, resoudreImage } from "../src/lib/images.js";
 import { carteNommee, identifier, lireCadrages } from "../scripts/portraits.mjs";
 import { originePortraits } from "../vite.config.js";
+import { FORME_CODE_EXTENSION, codeCarte, lireCodeCarte } from "../src/lib/code-carte.js";
+import { BOOSTERS, BOOSTER_PAR_ID } from "../src/extensions/index.js";
 
 const carte = { num: "073", nom: "Scarabée des ruines", slug: "scarabee-des-ruines", urlLigne: null };
 const pj = { num: "pj-hida", nom: "Hida", slug: "hida", urlLigne: null };
@@ -66,10 +68,34 @@ test("le point focal publié l'emporte sur le réglage général", () => {
   assert.equal(focalDe(carte, cfg(null)), 30);
 });
 
-test("cadrages forcés : clés au numéro, valeurs de 0 à 100", () => {
-  const { cadrages, rejets } = lireCadrages('{ "164": 5, "073": 42.4, "12": 140, "x": 3 }');
-  assert.deepEqual([...cadrages], [[164, 5], [73, 42]]);
-  assert.equal(rejets.length, 2);
+test("cadrages forcés : une clé par code de carte, toutes extensions dans le même fichier", () => {
+  const codes = new Map([["TRO", "troupe-valeran"], ["NAK", "nakova"]]);
+  const { parDossier, rejets } = lireCadrages(
+    '{ "_notice": "…", "TRO-164": 5, "tro-073": 42.4, "NAK-1": 60, "TRO-12": 140, "164": 3, "ZZZ-1": 4 }',
+    codes
+  );
+  assert.deepEqual([...parDossier.get("troupe-valeran")], [[164, 5], [73, 42]]);
+  assert.deepEqual([...parDossier.get("nakova")], [[1, 60]]);
+  assert.equal(rejets.length, 3);
+});
+
+test("code d'une carte", () => {
+  assert.equal(codeCarte("TRO", "164"), "TRO-164");
+  assert.equal(codeCarte("TRO", "7"), "TRO-007");
+  assert.equal(codeCarte("TRO", "pj-hida"), null);
+  assert.equal(codeCarte(undefined, "164"), null);
+  assert.deepEqual(lireCodeCarte(" tro-0164 "), { code: "TRO", num: 164 });
+  assert.equal(lireCodeCarte("164"), null);
+});
+
+test("chaque extension déclare un code unique de trois lettres", () => {
+  const vus = new Set();
+  for (const b of BOOSTERS) {
+    assert.match(b.code, FORME_CODE_EXTENSION, b.id);
+    assert.ok(!vus.has(b.code), b.code);
+    vus.add(b.code);
+  }
+  assert.equal(BOOSTER_PAR_ID["troupe-valeran"].code, "TRO");
 });
 
 test("un texte libre après le numéro ne désigne une autre carte que s'il en porte le nom", () => {

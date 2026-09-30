@@ -77,7 +77,7 @@ export default function Reglages({
             disque, puis URL trouvée dans la ligne du roster, puis motif construit sur une base.
             Sans portrait, la carte retombe sur un monogramme gravé. Le portrait est recadré en
             couvrant la fenêtre du cadre ; le point focal règle la hauteur retenue. Une carte
-            forcée dans Base Image/&lt;extension&gt;/cadrages.json garde le sien.
+            forcée dans Base Image/cadrages.json (clé TRO-164) garde le sien.
           </p>
           <div className="champs">
             <label className="champ">
