@@ -79,8 +79,8 @@ export function resoudreImage(c, cfg, fichiers, { vignette = false } = {}) {
 
 /**
  * Point focal vertical d'une carte, de 0 (haut de l'image) à 100 (bas).
- * L'inventaire en porte un par image, calculé ou forcé par `npm run portraits`
- * (voir scripts/portraits.mjs) ; à défaut, le réglage général (30 %).
+ * L'inventaire porte les cadrages forcés (`cadrages.json`, publiés par
+ * `npm run portraits`) ; les autres cartes prennent le réglage général (30 %).
  */
 export function focalDe(c, cfg) {
   const inv = cfg?.inventaire;

@@ -76,13 +76,12 @@ export default function Reglages({
             Trois sources en cascade, la première qui répond gagne : fichiers montés depuis le
             disque, puis URL trouvée dans la ligne du roster, puis motif construit sur une base.
             Sans portrait, la carte retombe sur un monogramme gravé. Le portrait est recadré en
-            couvrant la fenêtre du cadre ; le point focal règle la hauteur retenue. Chaque image
-            publiée porte le sien, calculé ou forcé par npm run portraits : ce réglage ne vaut que
-            pour les images qui n'en ont pas (fichiers montés, URL du roster).
+            couvrant la fenêtre du cadre ; le point focal règle la hauteur retenue. Une carte
+            forcée dans Base Image/&lt;extension&gt;/cadrages.json garde le sien.
           </p>
           <div className="champs">
             <label className="champ">
-              <span>Point focal par défaut — {cfgImage.focal ?? 30} %</span>
+              <span>Point focal vertical — {cfgImage.focal ?? 30} %</span>
               <input
                 type="range" min="0" max="100" step="5" value={cfgImage.focal ?? 30}
                 onChange={(e) => onCfgImage({ ...cfgImage, focal: Number(e.target.value) })}

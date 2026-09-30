@@ -107,25 +107,21 @@ Le portrait couvre la fenêtre d'art (environ 0,93 de large pour 1 de haut) :
 une illustration 2:3 n'y montre qu'environ 72 % de sa hauteur. Le **point focal
 vertical** choisit la bande retenue — 0 garde le haut de l'image, 100 le bas.
 
-Un réglage unique ne convient pas à toutes les images : 30 % coupait la tête
-d'un personnage peint près du bord supérieur. Le point focal est donc **propre
-à chaque image** et publié dans `inventaire.json` :
+Le point focal vaut **30 % pour toutes les cartes**. Il se **force** carte
+par carte quand une image est mal cadrée, dans
+`Base Image/<extension>/cadrages.json`, à côté des images et donc hors du
+dépôt : `{ "164": 5 }`. Le script le publie dans `inventaire.json` ; retirer la
+ligne rend la carte au réglage général. Une ligne dont la carte n'a pas
+d'image, ou hors de 0 à 100, est signalée.
 
-- **calculé** par `npm run portraits`, avec la détection de zone saillante de
-  sharp (visages, peau, contrastes). Le point le plus saillant est amené à 40 %
-  de la hauteur de la fenêtre, un peu au-dessus du milieu : une tête y reste
-  entière avec le buste dessous, là où un centrage strict la ferait remonter
-  contre le bord. Il n'est recalculé que quand l'image change ;
-- **forcé** carte par carte quand la détection se trompe — plus souvent sur un
-  lieu ou une scène de groupe que sur un portrait —, dans
-  `Base Image/<extension>/cadrages.json`, à côté des images et donc hors du
-  dépôt : `{ "164": 5 }`. La valeur forcée l'emporte ; retirer la ligne rend
-  la main au calcul. Une ligne dont la carte n'a pas d'image est signalée.
+Un calcul automatique par zone saillante (sharp, stratégie *attention*) a été
+essayé puis retiré : sur ces illustrations, il poussait la plupart des images
+aux extrêmes, 0 ou 100, et cadrait moins bien que la valeur fixe.
 
 Dix points de focal déplacent le cadre d'environ 3 % de la hauteur de l'image.
 Les full art et les PJ n'en ont pas : leur fenêtre est au format de l'image.
-Le réglage des Réglages MJ ne vaut plus que pour les images sans point focal
-publié (fichiers montés, URL du roster), avec 30 % par défaut.
+Le curseur des Réglages MJ règle la valeur générale en développement ; un
+cadrage forcé l'emporte sur lui.
 
 Sans portrait, la carte affiche un monogramme gravé plutôt qu'une image cassée.
 
@@ -188,7 +184,7 @@ npm run portraits:publier   # idem, puis envoie sur images.thalazur.io
 Le script convertit en WebP (720 × 1080 et vignette 360 × 540), ne réencode que
 ce qui a changé, retire de la sortie ce qui n'est plus dans la source — la
 publication remplace tout le site des portraits, elle doit donc tout contenir —
-calcule le point focal de chaque image, et signale : fichiers sans numéro,
+publie les cadrages forcés, et signale : fichiers sans numéro,
 numéro absent du roster, texte qui est le nom d'une **autre** carte (signe
 d'un numéro décalé ; un texte libre, comme une description de prompt, ne
 déclenche rien), cadrage forcé sans image ou hors de 0 à 100.
