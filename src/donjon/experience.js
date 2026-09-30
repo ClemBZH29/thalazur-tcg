@@ -101,3 +101,28 @@ export function crediterXP(etat, gains) {
   }
   return { etat: { ...etat, xp, collections, sachets }, bilan, po };
 }
+
+/**
+ * L'entraînement : sacrifier `n` exemplaires en trop d'une carte pour lui
+ * donner de l'expérience (`gainParDoublon` chacun). Le dernier exemplaire
+ * n'est jamais pris, et une carte au niveau 100 n'a plus rien à apprendre.
+ * Les paliers franchis paient comme au Donjon (irisée, PO, sachet). Rend
+ * `{ etat, bilan, po }`, ou l'état tel quel si rien n'est possible.
+ */
+export function entrainer(etat, c, n, gainParDoublon) {
+  const k = etat.collections?.[c.ext]?.[c.id]?.normale || 0;
+  if (!c.ext || n < 1 || k - n < 1 || niveauDe(xpDe(etat, c)) >= NIVEAU_MAX) return { etat, bilan: [], po: 0 };
+  const coll = { ...(etat.collections[c.ext] || {}) };
+  coll[c.id] = { ...coll[c.id], normale: k - n };
+  const avant = { ...etat, collections: { ...etat.collections, [c.ext]: coll } };
+  const r = crediterXP(avant, [{ c, xp: n * gainParDoublon }]);
+  const stats = { ...(r.etat.stats || {}), entraines: ((r.etat.stats || {}).entraines || 0) + n };
+  return { ...r, etat: { ...r.etat, stats } };
+}
+
+/** Combien de doublons pour atteindre le niveau suivant (au moins 1). */
+export function doublonsPourNiveau(etat, c, gainParDoublon) {
+  const xp = xpDe(etat, c), n = niveauDe(xp);
+  if (n >= NIVEAU_MAX) return 0;
+  return Math.max(1, Math.ceil((xpPourNiveau(n + 1) - xp) / gainParDoublon));
+}

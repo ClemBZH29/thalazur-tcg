@@ -72,26 +72,32 @@ l'annonce (`src/components/AnnonceReliquaire.jsx`), avec les mêmes égards que 
 retour d'expédition : jamais pendant une ouverture ni un combat, jamais par-dessus
 une autre fenêtre. L'annonce note `reliquaire.ouvert` : il ne se referme plus.
 
-**Trouver la carte à forger.** Une barre collée sous le bandeau sert aux deux
-colonnes : recherche (nom, archétype, faction, sans accents), rareté avec le
-nombre de manquantes, type de carte ; côté forge, « Seulement ce que je peux
-forger », et ce qui se forge passe en tête. Sur grand écran, chaque liste défile
-dans son volet : barre, titres et bouton groupé restent en vue.
+**Refonte du 30/09/2026 : une carte par jour.** L'étal tenait deux listes de
+deux cents lignes (dissoudre, forger), avec recherche et filtres, et l'on y
+choisissait sa carte manquante parmi toutes. Il ne reste qu'une carte :
 
-- **Dissoudre** : un exemplaire en trop contre des vestiges (5, 10, 25, 100 selon
-  le palier). Le dernier exemplaire n'est jamais proposé. Le geste groupé ne
-  touche que les communes et peu communes ; une légendaire se dissout une par
-  une, avec confirmation.
-- **Forger** : une carte manquante contre des vestiges (20, 40, 100, 400).
-  Jamais une carte déjà possédée : aucun cycle forge puis revente.
-- **Légendaire** : collection de l'extension à 60 % au moins, et une par
-  7 jours.
-- **Hors Reliquaire** : cartes de personnage, full art, versions rainbow.
+- **La carte du jour** (`offreDuJour`, `src/reliquaire/regles.js`), la même pour
+  tous : la graine est faite de l'extension et de la date, rien ne dépend de la
+  collection. Elle est tirée **comme dans un booster** : chaque carte pèse la
+  fréquence de son palier par sachet (3 communes, 1,71 peu commune, 0,24 rare,
+  0,05 légendaire, lues dans `SLOTS`), partagée entre les cartes du palier ;
+  puis elle est irisée au taux du booster (3 %).
+- **Prix relevés** de deux fois et demie : 50, 100, 250, 1 000 vestiges ; une
+  version irisée coûte cinq fois plus. On peut la forger même si on la possède
+  (elle s'ajoute aux exemplaires) : la dissoudre ne rend qu'un dixième.
+- **Une forge par jour et par extension** (`reliquaire.achats`).
+- **La dissolution a quitté la page** : elle se fait depuis la bibliothèque, dans
+  le volet Reliquaire de la carte agrandie (voir `bibliotheque.md`), au même
+  barème qu'avant (5, 10, 25, 100). Le dernier exemplaire n'est jamais proposé.
+- **Hors Reliquaire** : cartes de personnage et full art.
 
-Un vestige vaut à peu près une PO de rachat au Comptoir, et la forge coûte
-quatre dissolutions. Dissoudre puis forger rend environ trois quarts de ce que
-rend vendre puis racheter au Comptoir : un peu moins, mais le Reliquaire a
-toujours la carte voulue.
+**Ce que ça change**, mesuré par `node scripts/audit-reliquaire.mjs 40` : une
+carte tirée comme dans un booster est presque toujours une commune, que le
+joueur a déjà à 60 % de complétion. Le Reliquaire ne complète plus la
+collection — deux à quatre cartes forgées sur toute la course, 100 % atteint
+en 153 jours au lieu de 157 pour un joueur occasionnel (115 en vendant ses
+doublons au Comptoir). C'est devenu un rendez-vous quotidien et un débouché
+pour les doublons, plus un raccourci vers la fin de la collection.
 
 Le Reliquaire travaille sur l'extension courante de la boutique.
 
@@ -103,9 +109,10 @@ Deux champs nouveaux dans `etatVide()`, sans changement de `SCHEMA` :
 
 - `expeditions` : `{ routes, orJour, seq }`. Une **valeur** pour la fusion entre
   appareils : l'appareil qui l'a changée depuis la base l'emporte ;
-- `reliquaire` : `{ vestiges, derniereForgeL }`. Les vestiges sont un
-  **compteur** (`fusionnerReliquaire`, `src/lib/nuage/fusion.js`) ; la date garde
-  la plus récente.
+- `reliquaire` : `{ vestiges, achats, ouvert }`. Les vestiges sont un
+  **compteur** (`fusionnerReliquaire`, `src/lib/nuage/fusion.js`) ; pour chaque
+  extension, le jour de la dernière forge garde le plus récent des deux côtés.
+  L'ancien `derniereForgeL` des sauvegardes est ignoré.
 
 Limite connue : une même route accueillie sur deux appareils avant qu'ils se
 synchronisent est payée deux fois (XP et PO s'additionnent). Les montants sont

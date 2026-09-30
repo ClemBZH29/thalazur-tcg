@@ -62,7 +62,7 @@ const vide = () => ({
   xp: {},
   // Expéditions : { routes, orJour, seq } (voir src/expeditions/regles.js).
   expeditions: null,
-  // Reliquaire : { vestiges, derniereForgeL } (voir src/reliquaire/regles.js).
+  // Reliquaire : { vestiges, achats, ouvert } (voir src/reliquaire/regles.js).
   reliquaire: null,
 });
 

@@ -188,6 +188,16 @@ a { color: inherit; text-decoration: none; }
 .pastille-nb.multiple {
   color: #241704; background: var(--lamp); border-color: var(--lamp);
 }
+/* Le niveau de la carte, en haut à gauche : le miroir de la pastille des
+   exemplaires. Couleur de l'expérience (vert du Donjon), jamais de la lampe,
+   pour qu'on ne confonde pas « niveau 3 » avec « trois exemplaires ». */
+.pastille-niv {
+  position: absolute; top: 6px; left: 6px; z-index: 8;
+  padding: 1px 7px; border-radius: 100px; pointer-events: none;
+  font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums;
+  color: #0f2418; background: var(--m-chene); border: 1px solid var(--m-chene);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, .45);
+}
 .case-carte { position: relative; }
 
 /* ── Bascule ─────────────────────────────────────────────────────────────── */

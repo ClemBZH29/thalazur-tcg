@@ -518,6 +518,26 @@
    recale au pixel entier, et le portrait sautait d'un pixel ou deux vers la
    droite. Une opacité ne déplace rien : rien à recaler. */
 .loupe-boite { animation: parait .24s ease-out; }
+/* Les volets de la carte (bibliothèque) : à droite, hors du flux, pour que la
+   carte reste exactement au centre ; sous la carte quand la place manque. */
+.loupe-boite { position: relative; }
+.volets { display: grid; gap: 10px; width: 100%; margin-top: 16px; text-align: left; }
+@media (min-width: 1000px) {
+  .volets { position: absolute; top: 0; left: calc(100% + 28px); width: 272px; margin: 0; }
+}
+.volet { background: rgba(26, 39, 44, .94); border: 1px solid var(--edge-hi); border-radius: var(--r-lg);
+  padding: 12px 14px; display: grid; gap: 8px; }
+.volet h3 { font-size: 16px; margin: 0; }
+.volet p { margin: 0; font-size: 13px; }
+.volet-niveau { display: flex; gap: 10px; align-items: center; }
+.volet-niveau b { color: var(--ink); font-weight: 600; white-space: nowrap; }
+.volet-jauge { flex: 1; height: 5px; border-radius: 5px; background: var(--edge); overflow: hidden; }
+.volet-jauge i { display: block; height: 100%; background: var(--m-chene); transition: width .3s ease-out; }
+.volet-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.volet-compte { font-size: 12.5px; }
+.volet-annonce { font-size: 13px; color: var(--ink); background: rgba(78, 140, 126, .15);
+  border: 1px solid var(--m-chene); border-radius: var(--r-md); padding: 7px 10px; }
+[data-mouvement="reduit"] .volet-jauge i { transition: none; }
 .loupe-titre { text-align: center; margin: 0; font-family: var(--font-display);
   font-variation-settings: var(--wonk); font-weight: 700; font-size: 26px; color: var(--ink);
   display: flex; flex-direction: column; gap: 5px; }
@@ -628,6 +648,7 @@
     contain-intrinsic-size: auto 100px auto 162px; }
   .grille.compacte .cb-petit { width: 100%; }
   .grille.compacte .pastille-nb { transform: scale(.85); transform-origin: top right; }
+  .grille.compacte .pastille-niv { transform: scale(.85); transform-origin: top left; }
   .grille.compacte .legende-carte { font-size: 10.5px; }
 }
 /* Au-delà, la grille se remplit seule : la bascule n'aurait pas d'effet. */
