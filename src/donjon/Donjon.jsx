@@ -5,7 +5,7 @@ import { BOOSTERS } from "../extensions/index.js";
 import { DONJON } from "../config/tiers.js";
 import { resoudreImage } from "../lib/images.js";
 import {
-  BONUS_ARTEFACT, ETAGES, GENRES, RANGS, RENCONTRES, ROLES, STRATEGIES, TRAITS,
+  BONUS_ARTEFACT, GENRES, MODES, etagesDe, graineInfinie, RANGS, RENCONTRES, ROLES, STRATEGIES, TRAITS,
   atqDe, cartesDonjon, choixAuto, choixIA, creerPartie, demarrerCombat, descendre, entrer, fuir,
   gestes, graineDuJour, issue, ouverts, parUid, prochain, rapporte, repos, resoudre,
   tresor, victoire, vivants, allie, ciblesPossibles, convalescences, fiche, peutFuir, gainsXP,
@@ -206,8 +206,8 @@ function Plan({ partie, onEntrer, onSurvol, doigt, bulle, onBulle }) {
    ════════════════════════════════════════════════════════════════════ */
 
 export default function Donjon({ jeu }) {
-  const { etat, cfgImage, fichiers, mouvementReduit, donjon, tentativesRestantes, tentativesParJour, illimite,
-    commencerDonjon, sauverPartie, terminerDonjon, convalescence, niveauCarte, enExpedition } = jeu;
+  const { etat, cfgImage, fichiers, mouvementReduit, donjon, tentativesRestantes, illimite,
+    poInfiniRestant, recordInfini, commencerDonjon, sauverPartie, terminerDonjon, convalescence, niveauCarte, enExpedition } = jeu;
 
   const partieRef = useRef(donjon.partie ? structuredClone(donjon.partie) : null);
   const combatRef = useRef(null);
@@ -223,6 +223,8 @@ export default function Donjon({ jeu }) {
     return "carte";
   });
   const [choix, setChoix] = useState([]);
+  // Le donjon du jour d'abord, tant qu'il reste sa descente.
+  const [mode, setMode] = useState(() => (tentativesRestantes > 0 ? "jour" : "infini"));
   const [artefact, setArtefact] = useState(null);
   const [survol, setSurvol] = useState(null);
   const [resultat, setResultat] = useState(null);
@@ -272,10 +274,12 @@ export default function Donjon({ jeu }) {
   const apprenti = apprentissage(ouvertsTotal, DONJON.apprentissage);
   const partir = () => {
     const equipe = choix.map((id) => collection.allies.find((c) => c.id === id)).filter((c) => c && !enExpedition?.(c));
-    if (equipe.length !== TAILLE_EQUIPE || tentativesRestantes <= 0) return;
+    if (equipe.length !== TAILLE_EQUIPE || (mode === "jour" && tentativesRestantes <= 0)) return;
     const jour = aujourdhui();
     const niveaux = Object.fromEntries(equipe.map((c) => [`${c.ext}:${c.id}`, niveauCarte(c)]));
-    const p = creerPartie({ equipe, artefact, graine: graineDuJour(jour), jour, pools: POOLS, niveaux, apprenti });
+    const M = DONJON.modes[mode];
+    const graine = mode === "infini" ? graineInfinie() : graineDuJour(jour);
+    const p = creerPartie({ equipe, artefact, graine, jour, pools: POOLS, niveaux, apprenti, mode, gainMode: M.gain, xpMode: M.xp });
     partieRef.current = p;
     commencerDonjon(structuredClone(p));
     setEcran("carte");
@@ -329,11 +333,14 @@ export default function Donjon({ jeu }) {
   const terminer = (iss) => {
     const p = partieRef.current;
     const butin = rapporte(p, iss);
-    const complete = iss === "sortie" && p.etage >= ETAGES && p.stats.gardiens >= ETAGES;
+    const complete = p.mode !== "infini" && iss === "sortie" && p.etage >= etagesDe(p) && p.stats.gardiens >= etagesDe(p);
     const repos = convalescences(p, iss);
-    const { po, bilan } = terminerDonjon(butin, { issue: iss, etage: p.etage, gardiens: p.stats.gardiens, complete }, repos, gainsXP(p, iss));
+    const infini = p.mode === "infini";
+    const record = infini && p.stats.gardiens > recordInfini;
+    const { po, bilan } = terminerDonjon(butin, { issue: iss, etage: p.etage, gardiens: p.stats.gardiens, complete, mode: p.mode || "jour" }, repos, gainsXP(p, iss));
     const noms = new Map([...p.equipe.map((u) => u.c), ...p.perdus].map((c) => [`${c.ext}:${c.id}`, c.nom]));
     setFin({ issue: iss, butin, perdu: p.sac - butin, po, stats: { ...p.stats }, etage: p.etage, debout: vivants(p.equipe).length,
+      mode: p.mode || "jour", record, plafonne: infini && po < Math.round(butin * DONJON.multiplicateur),
       total: p.equipe.length, reliques: p.reliques.length, repos: repos.map((x) => ({ nom: noms.get(x.cle), jours: x.jours })), xp: bilan });
     combatRef.current = null;
     partieRef.current = null;
@@ -581,7 +588,9 @@ export default function Donjon({ jeu }) {
   /* ── Rendu ───────────────────────────────────────────────────────── */
   const entete = partie && (
     <div className="dj-entete">
-      <span className="pastille">Étage <b>{partie.etage}</b> / {ETAGES}</span>
+      <span className="pastille">{partie.mode === "infini"
+        ? <>Infini · étage <b>{partie.etage}</b></>
+        : <>Étage <b>{partie.etage}</b> / {etagesDe(partie)}</>}</span>
       <span className="pastille or">Sac <b>{pieces(partie.sac)}</b> <span className="muted">≈ {Math.round(partie.sac * DONJON.multiplicateur)} PO</span></span>
       {(partie.difficulte ?? 1) < 1 && (
         <span className="pastille" title="Adversaires affaiblis et butin réduit, jusqu'au jeu normal au fil des boosters ouverts.">
@@ -593,19 +602,40 @@ export default function Donjon({ jeu }) {
 
   if (ecran === "preparation" || (!partie && ecran !== "fin")) {
     const n = choix.length;
-    const plus = tentativesRestantes > 0;
+    const plus = mode === "infini" || tentativesRestantes > 0;
+    const MJ = DONJON.modes.jour, MI = DONJON.modes.infini;
     return (
       <div className="dj">
         <p className="dj-intro">
           Choisissez quatre compagnons de votre collection et un artéfact. Chaque étage est une carte : vous tracez
           votre chemin, salle après salle, jusqu'au gardien. Vaincu, il vous laisse remonter avec le butin — ou
           descendre, là où il pèse plus lourd. Si l'équipe tombe, il ne reste qu'un quart du sac, et les
-          compagnons restent au repos un jour par étage atteint.
+          compagnons restent au repos.
         </p>
+
+        {/* Deux donjons. Le choix se fait avant l'équipe : il change ce que
+            rapporte la descente et combien de fois on peut la tenter. */}
+        <div className="dj-modes" role="radiogroup" aria-label="Quel donjon">
+          <button type="button" role="radio" aria-checked={mode === "jour"} className={`dj-mode${mode === "jour" ? " on" : ""}`}
+            onClick={() => setMode("jour")}>
+            <b>{MODES.jour.nom}</b>
+            <span>Trois étages, la même carte pour tous le {dateFr(aujourdhui())}. Une descente par jour, butin ×{MJ.gain}.</span>
+            <span className="dj-mode-etat">
+              {illimite ? "Mode test : illimité" : tentativesRestantes > 0 ? "Descente disponible" : "Déjà tentée aujourd'hui"}
+            </span>
+          </button>
+          <button type="button" role="radio" aria-checked={mode === "infini"} className={`dj-mode${mode === "infini" ? " on" : ""}`}
+            onClick={() => setMode("infini")}>
+            <b>{MODES.infini.nom}</b>
+            <span>Des étages sans fin, de plus en plus durs, une carte neuve à chaque descente. Autant de descentes qu'on veut ; butin et expérience réduits, un jour de repos en cas de défaite.</span>
+            <span className="dj-mode-etat">
+              {recordInfini > 0 ? `Record : ${recordInfini} gardien${recordInfini > 1 ? "s" : ""}` : "Pas encore de record"}
+              {" · "}{poInfiniRestant > 0 ? `encore ${poInfiniRestant} PO aujourd'hui` : "PO du jour versées"}
+            </span>
+          </button>
+        </div>
         <p className="muted petit">
-          La carte du donjon du {dateFr(aujourdhui())} est la même pour tous les joueurs.{" "}
-          {illimite ? "Mode test : tentatives illimitées." : `Tentatives restantes aujourd'hui : ${tentativesRestantes} sur ${tentativesParJour}.`}
-          {" "}Le butin rapporté est versé à la bourse ({String(DONJON.multiplicateur).replace(".", ",")} PO par pièce).
+          Le butin rapporté est versé à la bourse ({String(DONJON.multiplicateur).replace(".", ",")} PO par pièce{mode === "infini" ? `, ${MI.plafondPOJour} PO par jour au plus pour le donjon infini` : ""}).
         </p>
         {apprenti.avance < 1 && (
           <p className="avis dj-apprenti">
@@ -688,7 +718,7 @@ export default function Donjon({ jeu }) {
             )}
             <div className="actions gauche dj-partir">
               <button className="btn" type="button" onClick={partir} disabled={n !== TAILLE_EQUIPE || !plus}>
-                {plus ? "Descendre avec cette équipe" : "Plus de tentative aujourd'hui"}
+                {!plus ? "Donjon du jour déjà tenté" : mode === "infini" ? "Descendre dans l'infini" : "Descendre avec cette équipe"}
               </button>
             </div>
           </>
@@ -708,8 +738,10 @@ export default function Donjon({ jeu }) {
           <p>{echec ? "Les derniers compagnons sont ramenés au camp par des mains inconnues. Du sac, il ne reste que ce qui tenait dans les poches."
             : "La brume se referme derrière vous. Au camp, on compte les pièces."}</p>
           <p><span className="dj-butin">+{fin.po} PO</span> <span className="muted">versées à la bourse ({fin.butin} pièces rapportées{echec ? `, ${fin.perdu} perdues en bas` : ""})</span></p>
+          {fin.plafonne && <p className="muted petit">Le donjon infini a versé ses {DONJON.modes.infini.plafondPOJour} PO du jour : le reste du butin ne va pas à la bourse. L'expérience, elle, est acquise.</p>}
+          {fin.record && <p className="avis">Nouveau record du donjon infini : {fin.stats.gardiens} gardien{fin.stats.gardiens > 1 ? "s" : ""} vaincu{fin.stats.gardiens > 1 ? "s" : ""}.</p>}
           <table className="dj-tableau"><tbody>
-            <tr><td>Étage atteint</td><td>{fin.etage} / {ETAGES}</td></tr>
+            <tr><td>Étage atteint</td><td>{fin.mode === "infini" ? fin.etage : `${fin.etage} / ${MODES.jour.etages}`}</td></tr>
             <tr><td>Salles traversées</td><td>{fin.stats.salles}</td></tr>
             <tr><td>Adversaires vaincus</td><td>{fin.stats.ennemis}</td></tr>
             <tr><td>Gardiens</td><td>{fin.stats.gardiens}</td></tr>
@@ -740,7 +772,7 @@ export default function Donjon({ jeu }) {
           )}
           <div className="actions gauche">
             <button className="btn" type="button" onClick={() => { setFin(null); setChoix([]); setEcran("preparation"); }}>
-              {tentativesRestantes > 0 ? "Préparer une autre descente" : "Retour"}
+              Préparer une autre descente
             </button>
           </div>
         </section>
@@ -941,7 +973,7 @@ export default function Donjon({ jeu }) {
   }
 
   if (ecran === "sortie" || (ecran === "resultat" && resultat)) {
-    const dernier = partie.etage >= ETAGES;
+    const dernier = partie.etage >= etagesDe(partie);
     const R = resultat || { titre: `Étage ${partie.etage} nettoyé`, texte: "Le gardien est tombé." };
     return (
       <div className="dj">
@@ -955,7 +987,7 @@ export default function Donjon({ jeu }) {
             {R.relique && <p>Relique : <b>{R.relique.nom}</b> <span className="muted">— {bonusTexte(R.relique.tier)} jusqu'à la sortie.</span></p>}
             {ecran === "sortie" && (
               <p>{dernier ? "C'était le dernier étage. Il ne reste qu'à remonter."
-                : "Remonter maintenant, c'est tout garder. Descendre, c'est des adversaires plus durs et des bourses plus lourdes — mais si l'équipe tombe, il ne restera qu'un quart du sac. L'équipe souffle un peu avant de descendre."}</p>
+                : "Remonter maintenant, c'est tout garder. Descendre, c'est des adversaires plus durs et des bourses plus lourdes — mais si l'équipe tombe, il ne restera qu'un quart du sac. Les tombés se relèvent à peine avant de descendre ; les autres gardent leurs blessures."}</p>
             )}
             <MiniEquipe partie={partie} />
             <div className="actions gauche">
@@ -1064,7 +1096,8 @@ function Regles() {
         <li><b>Combat automatique</b> : une stratégie, et l'équipe joue seule. Repassez en Manuel à tout moment.</li>
         <li><b>Gardien</b> : vaincu, il donne une relique, et le choix de remonter avec tout ou de descendre. On peut aussi remonter après n'importe quelle salle.</li>
         <li><b>Fuir</b> : deux cinquièmes du sac tombent, chacun est blessé, et le compagnon le plus mal en point reste derrière pour couvrir la retraite — il quitte l'expédition et reste au repos jusqu'au lendemain. On ne fuit pas un gardien, ni seul.</li>
-        <li><b>Défaite</b> : il ne reste qu'un quart du sac, et les compagnons restent au repos un jour par étage atteint.</li>
+        <li><b>Défaite</b> : il ne reste qu'un quart du sac, et les compagnons restent au repos un jour par étage atteint (un jour au donjon infini).</li>
+        <li><b>Soins</b> : le repos avant chaque gardien rend 30 % des PV et relève les tombés ; les autres repos sont rares. Entre deux étages, seuls les tombés se relèvent.</li>
         <li><b>Fiches</b> : survolez ou touchez une carte en combat pour lire son rôle, sa capacité et son état.</li>
       </ul>
     </details>

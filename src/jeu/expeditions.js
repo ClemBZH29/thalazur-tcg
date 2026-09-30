@@ -1,7 +1,9 @@
 import { useCallback, useMemo } from "react";
 import { BOOSTERS } from "../extensions/index.js";
 import { cartesDonjon } from "../donjon/regles.js";
-import { cleXP } from "../donjon/experience.js";
+import { cleXP, entrainer } from "../donjon/experience.js";
+import { ENTRAINEMENT } from "../config/reliquaire.js";
+import { crediterGain } from "../lib/economie.js";
 import * as X from "../expeditions/regles.js";
 import * as R from "../reliquaire/regles.js";
 
@@ -62,14 +64,31 @@ export function useExpeditions(etat, setEtat) {
 
   /* ── Reliquaire ─────────────────────────────────────────────────── */
   const dissoudreCarte = useCallback((ext, c, n = 1) => setEtat((e) => R.dissoudre(e, ext, c, n)), [setEtat]);
-  const dissoudreSurplus = useCallback((ext, cartes) => setEtat((e) => R.dissoudreSurplus(e, ext, cartes)), [setEtat]);
   const reliquaireOuvert = R.estOuvert(etat);
   const seuilReliquaire = useMemo(() => R.seuilAtteint({ collections }, PAR_EXTENSION), [collections]);
   const ouvrirReliquaire = useCallback(() => setEtat((e) => R.ouvrir(e)), [setEtat]);
-  const forgerCarte = useCallback((ext, c, cartes) => {
-    const ok = R.peutForger(etat, ext, c, cartes);
-    if (ok) setEtat((e) => R.forger(e, ext, c, cartes));
+  const forgerOffre = useCallback((offre) => {
+    const ok = R.peutForgerOffre(etat, offre);
+    if (ok) setEtat((e) => R.forgerOffre(e, offre));
     return ok;
+  }, [etat, setEtat]);
+
+  /* ── Entraînement : des doublons contre de l'expérience ─────────────── */
+  /**
+   * Même principe que la fin du Donjon : le bilan se lit sur l'état du
+   * moment, le setter refait l'opération sur l'état le plus frais. Les PO
+   * d'un palier d'irisation déjà acquis vont à la bourse.
+   */
+  const entrainerCarte = useCallback((ext, c, n) => {
+    const carte = { ...c, ext };
+    const gain = ENTRAINEMENT.xp[c.tier] || 0;
+    const r = entrainer(etat, carte, n, gain);
+    if (r.etat === etat) return null;
+    setEtat((e0) => {
+      const { etat: e, po } = entrainer(e0, carte, n, gain);
+      return po ? { ...e, bourse: crediterGain(e.bourse, po) } : e;
+    });
+    return r;
   }, [etat, setEtat]);
 
   return {
@@ -80,7 +99,7 @@ export function useExpeditions(etat, setEtat) {
     empechementExpedition: empechement,
     enExpedition: (c) => X.enRoute(etat).has(cleXP(c)),
     vestiges: R.vestiges(etat),
-    dissoudreCarte, dissoudreSurplus, forgerCarte,
+    dissoudreCarte, forgerOffre, entrainerCarte,
     reliquaireOuvert, seuilReliquaire, ouvrirReliquaire,
   };
 }

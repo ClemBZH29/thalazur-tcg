@@ -39,6 +39,24 @@ export const hacher = (s) => {
 // de tous les joueurs au milieu de la journée. Il n'apparaît nulle part.
 export const graineDuJour = (jour) => hacher(`profondeurs-${jour}`);
 
+/**
+ * Deux donjons :
+ *
+ * - **le donjon du jour** : trois étages, la même carte pour tous, une
+ *   descente par jour. C'est lui qui paie le mieux ;
+ * - **le donjon infini** : une graine neuve à chaque descente, des étages sans
+ *   fin, de plus en plus durs (les adversaires montent avec l'étage, sans
+ *   plafond). On y revient autant qu'on veut, mais il paie moins, en butin
+ *   comme en expérience. Le plus profond étage nettoyé fait le record.
+ */
+export const MODES = {
+  jour: { nom: "Donjon du jour", etages: 3 },
+  infini: { nom: "Donjon infini", etages: Infinity },
+};
+export const etagesDe = (partie) => (MODES[partie.mode] || MODES.jour).etages;
+/** Une graine pour une descente infinie : jamais deux fois la même. */
+export const graineInfinie = (t = Date.now(), r = Math.random) => hacher(`infini-${t}-${Math.floor(r() * 1e9)}`);
+
 const choisir = (r, l) => l[Math.floor(r() * l.length)];
 const entre = (r, a, b) => a + Math.floor(r() * (b - a + 1));
 function tirer(r, poids) {
@@ -233,7 +251,7 @@ export function genererEtage(etage, r, lieux) {
     n.genre = n.r === 0 ? "combat"
       : n.r === RANGS - 1 ? "repos"
       : n.r === 3 ? choisir(r, ["tresor", "tresor", "evenement"])
-      : tirer(r, { combat: 44, evenement: 24, elite: n.r >= 2 ? 12 + etage * 2 : 0, repos: n.r >= 2 ? 8 : 0, tresor: 8 });
+      : tirer(r, { combat: 44, evenement: 24, elite: n.r >= 2 ? 12 + Math.min(etage, 12) * 2 : 0, repos: n.r >= 2 ? SOINS.poidsRepos : 0, tresor: 8 });
     n.lieu = legere(choisir(r, lieux));
     n.x = Math.round(62 + n.c * 92 + (r() * 22 - 11));
     n.y = Math.round(60 + n.r * 84 + (r() * 14 - 7));
@@ -249,11 +267,13 @@ export function ouverts(plan) {
 
 /* ── La partie ───────────────────────────────────────────────────────── */
 
-export function creerPartie({ equipe, artefact, graine, jour, pools, niveaux = {}, apprenti = null }) {
+export function creerPartie({ equipe, artefact, graine, jour, pools, niveaux = {}, apprenti = null, mode = "jour", gainMode = 1, xpMode = 1 }) {
   // `apprenti` : l'adoucissement des débuts (voir `apprentissage`). Il est
   // figé pour toute la descente : la difficulté ne bouge pas en chemin.
-  const partie = { jour, graine, uid: 1, etage: 1, sac: 0, benediction: 0, reliques: [], perdus: [], xpPerdus: {},
-    difficulte: apprenti?.difficulte ?? 1, gain: apprenti?.gain ?? 1, combat: null, rencontre: null,
+  // `gainMode` et `xpMode` : ce que le mode ajoute ou retire au butin et à
+  // l'expérience (`DONJON.modes`, src/config/tiers.js).
+  const partie = { jour, graine, mode, uid: 1, etage: 1, sac: 0, benediction: 0, reliques: [], perdus: [], xpPerdus: {},
+    difficulte: apprenti?.difficulte ?? 1, gain: (apprenti?.gain ?? 1) * gainMode, xpMode, combat: null, rencontre: null,
     artefact: artefact ? legere(artefact) : null, equipe: [], ecran: "carte", noeud: null,
     stats: { salles: 0, combats: 0, ennemis: 0, gardiens: 0 } };
   partie.equipe = equipe.map((c) => allie(partie, c, niveaux[`${c.ext}:${c.id}`] || 1));
@@ -272,10 +292,11 @@ export function entrer(partie, id) {
   return P.noeuds[id];
 }
 export function descendre(partie, pools) {
-  // Une halte avant de descendre : les tombés se relèvent, les autres soufflent.
+  // Une halte avant de descendre : les tombés se relèvent, à peine. Les
+  // autres ne soufflent plus — le repos avant le gardien est le seul soin
+  // sûr de l'étage (voir SOINS).
   for (const u of partie.equipe) {
-    if (u.ko) { u.ko = false; u.pv = Math.ceil(u.pvMax * 0.25); }
-    else u.pv = Math.min(u.pvMax, u.pv + Math.ceil(u.pvMax * 0.25));
+    if (u.ko) { u.ko = false; u.pv = Math.ceil(u.pvMax * SOINS.releveHalte); }
   }
   partie.etage++;
   partie.plan = genererEtage(partie.etage, tirage(partie.graine + partie.etage), pools.lieux);
@@ -295,13 +316,22 @@ export function tresor(partie, r, artefacts) {
   const relique = r() < 0.35 ? trouverRelique(partie, r, artefacts) : null;
   return { titre: "Un trésor", texte: "Sous les pierres, une bourse oubliée.", po, relique };
 }
+/**
+ * Les soins, réduits le 30/09/2026 : chaque étage se terminait sur un repos à
+ * +50 %, la halte entre étages rendait encore un quart, et un repos sur quatre
+ * chemins environ s'ajoutait en route. L'usure ne comptait plus. Le repos
+ * avant le gardien demeure, plus court ; les repos de hasard sont deux fois
+ * plus rares ; la halte ne fait plus que relever les tombés.
+ */
+export const SOINS = { repos: 0.3, releveRepos: 0.25, releveHalte: 0.15, poidsRepos: 4 };
+
 export function repos(partie) {
   let releves = 0;
   // Un intendant dans l'équipe, et le repas est meilleur.
   const bonus = partie.equipe.some((u) => u.role === "intendant" && !u.ko) ? 1.25 : 1;
   for (const u of partie.equipe) {
-    if (u.ko) { u.ko = false; u.pv = Math.ceil(u.pvMax * 0.35 * bonus); releves++; }
-    else u.pv = Math.min(u.pvMax, u.pv + Math.ceil(u.pvMax * 0.5 * bonus));
+    if (u.ko) { u.ko = false; u.pv = Math.ceil(u.pvMax * SOINS.releveRepos * bonus); releves++; }
+    else u.pv = Math.min(u.pvMax, u.pv + Math.ceil(u.pvMax * SOINS.repos * bonus));
   }
   return { titre: "Un abri", texte: `Un peu de répit. L'équipe panse ses plaies${releves ? ` et ${releves} compagnon${releves > 1 ? "s" : ""} se relève${releves > 1 ? "nt" : ""}` : ""}.` };
 }
@@ -357,7 +387,7 @@ export const RENCONTRES = [
   { id: "source", titre: "Une source claire",
     texte: (lieu) => `Au milieu de ${lieu}, une eau qui ne connaît pas la brume.`,
     choix: (p) => [
-      { lib: "Boire", f: () => { for (const u of vivants(p.equipe)) u.pv = Math.min(u.pvMax, u.pv + Math.ceil(u.pvMax * 0.4)); return "L'eau est glacée. L'équipe se sent mieux."; } },
+      { lib: "Boire", f: () => { for (const u of vivants(p.equipe)) u.pv = Math.min(u.pvMax, u.pv + Math.ceil(u.pvMax * 0.25)); return "L'eau est glacée. L'équipe se sent mieux."; } },
       { lib: "Fouiller le bassin", f: () => `Au fond, des pièces jetées par d'autres. +${gagner(p, 3 * p.etage)} PO.` }] },
   { id: "echo", titre: "Un écho dans la brume",
     texte: () => "Une voix répète vos pas, un temps trop tard. Elle vient d'un passage étroit.",
@@ -609,7 +639,9 @@ export function convalescences(partie, iss) {
   const l = new Map();
   const mettre = (c, j) => { const k = `${c.ext}:${c.id}`; l.set(k, Math.max(l.get(k) || 0, j)); };
   for (const c of partie.perdus || []) mettre(c, 1);
-  if (iss === "defaite") for (const u of partie.equipe) if (!u.recrue) mettre(u.c, partie.etage);
+  // Au donjon infini, l'étage n'a pas de fin : le repos est d'un jour.
+  const jours = partie.mode === "infini" ? 1 : partie.etage;
+  if (iss === "defaite") for (const u of partie.equipe) if (!u.recrue) mettre(u.c, jours);
   return [...l.entries()].map(([cle, jours]) => ({ cle, jours }));
 }
 
@@ -618,9 +650,9 @@ export function convalescences(partie, iss) {
  * entière ; tomber n'en laisse que la moitié. La recrue n'est pas à nous.
  */
 export function gainsXP(partie, iss) {
-  const f = iss === "defaite" ? 0.5 : 1;
+  const f = (iss === "defaite" ? 0.5 : 1) * (partie.xpMode ?? 1);
   const l = partie.equipe.filter((u) => !u.recrue).map((u) => ({ c: u.c, xp: Math.round((u.xp || 0) * f) }));
-  for (const c of partie.perdus || []) l.push({ c, xp: (partie.xpPerdus || {})[`${c.ext}:${c.id}`] || 0 });
+  for (const c of partie.perdus || []) l.push({ c, xp: Math.round(((partie.xpPerdus || {})[`${c.ext}:${c.id}`] || 0) * (partie.xpMode ?? 1)) });
   return l.filter((x) => x.xp > 0);
 }
 

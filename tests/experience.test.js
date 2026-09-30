@@ -57,3 +57,23 @@ describe("fusion", () => {
     expect(f.k).toEqual({ xp: 45, irisee: true });
   });
 });
+
+describe("entraînement", () => {
+  const c = { ext: "x", id: "a", tier: "commun" };
+  const avec = (normale, xp = 0) => ({ collections: { x: { a: { normale, rainbow: 0 } } }, xp: xp ? { "x:a": { xp } } : {} });
+
+  test("les doublons deviennent de l'expérience, le dernier exemplaire reste", async () => {
+    const { entrainer, xpDe } = await import("../src/donjon/experience.js");
+    const r = entrainer(avec(4), c, 3, 15);
+    expect(r.etat.collections.x.a.normale).toBe(1);
+    expect(xpDe(r.etat, c)).toBe(45);
+    expect(entrainer(r.etat, c, 1, 15).etat).toBe(r.etat);
+  });
+
+  test("le palier d'irisation se paie comme au Donjon", async () => {
+    const { entrainer, xpPourNiveau } = await import("../src/donjon/experience.js");
+    const r = entrainer(avec(3, xpPourNiveau(20) - 10), c, 1, 15);
+    expect(r.bilan[0].irisee).toBe(true);
+    expect(r.etat.collections.x.a.rainbow).toBe(1);
+  });
+});

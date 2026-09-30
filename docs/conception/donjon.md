@@ -4,8 +4,19 @@ Raisonnement de conception : ce que fait cette partie du site, et pourquoi elle 
 
 ## Le module
 
-`#/donjon`. Un donjon de trois étages, un par jour et le même pour tous les
-joueurs. On y descend avec quatre compagnons de sa collection et un artéfact ;
+`#/donjon`. Deux donjons depuis le 30/09/2026 (`MODES`, `src/donjon/regles.js`) :
+
+- **le donjon du jour** : trois étages, la même carte pour tous, **une
+  descente par jour** ; son butin compte double ;
+- **le donjon infini** : une graine neuve à chaque descente, des étages sans
+  fin, de plus en plus durs (les PV et l'ATQ des adversaires montent avec
+  l'étage, sans plafond ; la part des élites plafonne à l'étage 12). Autant de
+  descentes qu'on veut, mais butin ×0,4, expérience ×0,5, et 100 PO par jour
+  au plus versées à la bourse. Une défaite n'y coûte qu'un jour de repos : un
+  jour par étage aurait immobilisé l'équipe neuf jours après l'étage 9. Le
+  plus grand nombre de gardiens vaincus fait le record (`donjon.recordInfini`).
+
+Dans les deux cas, On y descend avec quatre compagnons de sa collection et un artéfact ;
 on en remonte avec du butin, que la bourse convertit en PO. Deux prototypes
 autonomes ont précédé l'intégration (hors dépôt, dans `Claude outputs`).
 
@@ -151,6 +162,23 @@ repris par `useDoigt()` dans `Donjon.jsx` et par la requête média de
   l'entrée du combat. Le combat automatique, la vitesse, le lexique et la
   fuite sont en dessous, en faisant défiler.
 
+### Les soins, réduits (30/09/2026)
+
+Chaque étage se terminait sur un repos à +50 %, la halte entre deux étages
+rendait encore un quart des PV, et un repos de hasard s'ajoutait sur un chemin
+sur quatre : l'usure ne comptait plus. Désormais (`SOINS`) :
+
+| Soin | Avant | Après |
+|---|---:|---:|
+| Repos (avant le gardien, et de hasard) | +50 %, tombés à 35 % | +30 %, tombés à 25 % |
+| Repos de hasard (poids du tirage) | 8 | 4 |
+| Halte entre étages | +25 %, tombés à 25 % | tombés à 15 %, rien pour les autres |
+| Source « Boire » | +40 % | +25 % |
+
+Mesuré (`node scripts/audit-donjon.mjs 800`, équipe type, Concentrer) : trois
+gardiens dans 30 % des descentes au lieu de 42 %, 76 pièces de base par
+descente au lieu de 99.
+
 ### Remonter ou descendre
 
 Après chaque gardien, on remonte avec tout le sac, ou l'on descend. On peut
@@ -217,10 +245,18 @@ Le module rapporte des **pièces de butin** ; `src/jeu/donjon.js` les convertit
 | Levier | Valeur |
 |---|---:|
 | PO par pièce de butin | 0,6 |
-| Tentatives par jour | 2 |
+| Donjon du jour | 1 descente par jour, butin ×2 |
+| Donjon infini | illimité, butin ×0,4, expérience ×0,5, 100 PO par jour au plus |
 
-Une tentative est prise à la descente et non à la remontée : abandonner ne la
-rend pas. Le mode test des outils MJ les rend illimitées.
+La descente du jour est prise au départ et non à la remontée : abandonner ne
+la rend pas. Le mode test des outils MJ la rend illimitée.
+
+Mesure du 30/09/2026 (800 descentes par cas) : ~150 PO par jour pour le
+donjon du jour, ~60 pour trois descentes infinies, soit ×1,6 le gain passif
+pour qui joue les deux — le même ordre qu'avant la refonte, où deux
+descentes du jour faisaient ~200 PO. Au donjon infini, la moitié des
+descentes s'arrêtent avant le troisième gardien ; le meilleur des 800 en a
+vaincu quatorze. Les tableaux plus bas datent d'avant les modes.
 
 Les chiffres ci-dessous sont ceux de l'intégration ; les mesures à jour sont
 dans `claude/audit-donjon.md` (projet) et se refont avec
@@ -247,7 +283,10 @@ jour où un troisième module arrive, l'enveloppe commune des modules devra
 
 ## Sauvegarde
 
-`etat.donjon = { jour, tentatives, partie, dernier, convalescence }`. La partie est un objet
+`etat.donjon = { jour, tentatives, poInfini, recordInfini, partie, dernier, convalescence }`
+(`tentatives` : descentes du donjon du jour ; `poInfini` : PO versées par
+l'infini aujourd'hui ; la partie porte son `mode`, une partie d'avant les
+modes est un donjon du jour). La partie est un objet
 simple, sauvé à chaque changement d'écran : un onglet fermé ne coûte pas la
 tentative. Entre deux appareils, `donjon` est une valeur : celle de l'appareil
 qui l'a changée l'emporte.

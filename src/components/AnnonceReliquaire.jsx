@@ -47,7 +47,7 @@ export default function AnnonceReliquaire({ occupe }) {
       <h2 id="rel-annonce-titre">Le Reliquaire s'ouvre</h2>
       <p>
         Votre collection passe {Math.round(RELIQUAIRE.ouverture * 100)} %. Le gardien vous ouvre sa crypte :
-        dissolvez vos exemplaires en trop en vestiges, et forgez avec eux les cartes qui vous manquent.
+        dissolvez vos doublons en vestiges depuis la bibliothèque, et forgez avec eux la carte du jour.
       </p>
       <div className="exp-retour-pied rel-annonce-pied">
         <button type="button" className="btn quiet" onClick={fermer}>Plus tard</button>

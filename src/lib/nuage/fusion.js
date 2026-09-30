@@ -193,7 +193,11 @@ export function fusionnerReliquaire(base, ici, la) {
   return {
     ...la, ...ici,
     vestiges: Math.max(0, (la.vestiges || 0) + (ici.vestiges || 0) - (b.vestiges || 0)),
-    derniereForgeL: Math.max(la.derniereForgeL || 0, ici.derniereForgeL || 0) || null,
+    // Le jour de la dernière forge, par extension : le plus récent des deux
+    // côtés, pour qu'une carte du jour forgée ailleurs ne se reforge pas ici.
+    achats: Object.fromEntries([...new Set([...Object.keys(la.achats || {}), ...Object.keys(ici.achats || {})])]
+      .filter((k) => k !== "__proto__")
+      .map((k) => [k, [la.achats?.[k], ici.achats?.[k]].filter(Boolean).sort().pop()])),
     ouvert: ici.ouvert || la.ouvert || null,
   };
 }

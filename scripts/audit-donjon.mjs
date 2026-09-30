@@ -14,7 +14,7 @@
 import { readFileSync } from "node:fs";
 import extension from "../src/extensions/troupe-valeran/extension.js";
 import {
-  ETAGES, RENCONTRES, ROLES, cartesDonjon, choixAuto, choixIA, convalescences, creerPartie, demarrerCombat,
+  ETAGES, RENCONTRES, etagesDe, ROLES, cartesDonjon, choixAuto, choixIA, convalescences, creerPartie, demarrerCombat,
   apprentissage, descendre, entrer, gainsXP, issue, ouverts, prochain, rapporte, repos, resoudre, roleDe, tirage, tresor, victoire,
 } from "../src/donjon/regles.js";
 import { PALIER_IRISEE, xpPourNiveau } from "../src/donjon/experience.js";
@@ -58,15 +58,16 @@ const duRole = (r, role, tier) => {
  * `politique(partie)` décide à la sortie de chaque gardien : true pour
  * descendre. `niveau` : le niveau de toute l'équipe.
  */
-function descente(graine, { equipe, strategie = "concentrer", politique = () => true, niveau = 1, artefact = true, apprenti = null }) {
+function descente(graine, { equipe, strategie = "concentrer", politique = () => true, niveau = 1, artefact = true, apprenti = null, mode = "jour" }) {
   const r = tirage(graine * 7919 + 17);
   const eq = typeof equipe === "function" ? equipe(r) : equipe;
   const art = artefact ? POOLS.artefacts[Math.floor(r() * POOLS.artefacts.length)] : null;
   const niveaux = Object.fromEntries(eq.map((c) => [`${c.ext}:${c.id}`, niveau]));
-  const partie = creerPartie({ equipe: eq, artefact: art, graine: graine % 365, jour: "2026-09-28", pools: POOLS, niveaux, apprenti });
+  const M = DONJON.modes[mode];
+  const partie = creerPartie({ equipe: eq, artefact: art, graine: mode === "infini" ? graine * 104729 : graine % 365, jour: "2026-09-28", pools: POOLS, niveaux, apprenti, mode, gainMode: 1, xpMode: M.xp });
   const trace = { tours: [], salles: {}, combatsPerdusGenre: null };
   const fin = (iss) => ({ iss, partie, trace, butin: rapporte(partie, iss), repos: convalescences(partie, iss), xp: gainsXP(partie, iss) });
-  for (let pas = 0; pas < 300; pas++) {
+  for (let pas = 0; pas < 3000; pas++) {
     const o = ouverts(partie.plan);
     const n = entrer(partie, o[Math.floor(r() * o.length)]);
     trace.salles[n.genre] = (trace.salles[n.genre] || 0) + 1;
@@ -95,7 +96,7 @@ function descente(graine, { equipe, strategie = "concentrer", politique = () => 
       }
       victoire(partie, C, r, POOLS.artefacts);
       if (n.genre === "boss") {
-        if (partie.etage >= ETAGES || !politique(partie)) return fin("sortie");
+        if (partie.etage >= etagesDe(partie) || !politique(partie)) return fin("sortie");
         descendre(partie, POOLS);
       }
     }
@@ -202,26 +203,43 @@ console.log(`\nPar descente : ${f1(salles)} salles, ${f1(combats)} combats, ${f1
 const sec = (v) => (actions * 0.95) / v + salles * 3;
 console.log(`Durée estimée : ${f1(sec(1) / 60)} min au pilote ×1, ${f1(sec(4) / 60)} min au pilote ×4 (3 s de lecture par salle).`);
 
-/* 9. Économie */
-const poJour = m0.po * DONJON.tentativesParJour;
+/* 9. Le donjon infini */
+console.log("\n## Donjon infini (collection de 18, Concentrer, on descend tant qu'on tient)\n");
+const inf = Array.from({ length: N }, (_, i) => descente(i + 1, { equipe: typique, mode: "infini" }));
+const gard = inf.map((x) => x.partie.stats.gardiens);
+const quant = (l, q) => [...l].sort((a, b) => a - b)[Math.floor(q * (l.length - 1))];
+console.log("| Mesure | Valeur |\n|---|---:|");
+console.log(`| Gardiens vaincus, médiane | ${quant(gard, 0.5)} |`);
+console.log(`| Gardiens vaincus, 9 descentes sur 10 sous | ${quant(gard, 0.9)} |`);
+console.log(`| Record sur ${N} descentes | ${Math.max(...gard)} |`);
+console.log(`| Pièces rapportées (butin de base, défaite = quart du sac) | ${f1(moy(inf.map((x) => x.butin)))} |`);
+console.log(`| PO par descente au taux de l'infini (×${f1(DONJON.modes.infini.gain)}) | ${f1(moy(inf.map((x) => x.butin * DONJON.multiplicateur * DONJON.modes.infini.gain)))} |`);
+console.log(`| XP par carte (×${f1(DONJON.modes.infini.xp)}) | ${f1(moy(inf.map((x) => moy(x.xp.map((y) => y.xp)) || 0)))} |`);
+
+/* 10. Économie */
+const MJ = DONJON.modes.jour, MI = DONJON.modes.infini;
+const poJourMode = m0.po * MJ.gain * MJ.tentatives;
+const poInf = Math.min(MI.plafondPOJour, moy(inf.map((x) => x.butin * DONJON.multiplicateur * MI.gain)) * 3);
 console.log("\n## Économie\n");
 console.log(`| Grandeur | Valeur |\n|---|---:|`);
-console.log(`| PO créditées par descente (moyenne) | ${f1(m0.po)} |`);
-console.log(`| Par jour, ${DONJON.tentativesParJour} descentes | ${f1(poJour)} |`);
-console.log(`| En boosters par jour | ${f1(poJour / ECONOMIE.prix)} |`);
-console.log(`| Rapporté au gain passif (${ECONOMIE.parHeure * 24} PO/j) | ×${f1(1 + poJour / (ECONOMIE.parHeure * 24))} |`);
+console.log(`| PO de base par descente (moyenne, sans le multiplicateur du mode) | ${f1(m0.po)} |`);
+console.log(`| Donjon du jour : ${MJ.tentatives} descente, butin ×${MJ.gain} | ${f1(poJourMode)} |`);
+console.log(`| Donjon infini : trois descentes, plafonné à ${MI.plafondPOJour} | ${f1(poInf)} |`);
+console.log(`| Par jour, les deux | ${f1(poJourMode + poInf)} |`);
+console.log(`| En boosters par jour | ${f1((poJourMode + poInf) / ECONOMIE.prix)} |`);
+console.log(`| Rapporté au gain passif (${ECONOMIE.parHeure * 24} PO/j) | ×${f1(1 + (poJourMode + poInf) / (ECONOMIE.parHeure * 24))} |`);
 const meilleur = Object.entries(parPol).sort((a, b) => b[1].po - a[1].po)[0];
-console.log(`| Meilleure politique de sortie | ${meilleur[0]}, ${f1(meilleur[1].po)} PO |`);
+console.log(`| Meilleure politique de sortie (donjon du jour) | ${meilleur[0]}, ${f1(meilleur[1].po * MJ.gain)} PO |`);
 
-/* 10. Expérience */
+/* 11. Expérience */
 console.log("\n## Expérience : descentes pour l'irisation (Concentrer, collection de 18)\n");
 const xpD = m0.xp;
-console.log("| Palier | Niveau | XP | Descentes | Jours à 2 par jour |\n|---|---:|---:|---:|---:|");
+console.log("| Palier | Niveau | XP | Descentes du jour | Jours (une par jour) |\n|---|---:|---:|---:|---:|");
 for (const [t, n] of Object.entries(PALIER_IRISEE)) {
   const x = xpPourNiveau(n);
-  console.log(`| ${t} | ${n} | ${x} | ${f1(x / xpD)} | ${f1(x / xpD / 2)} |`);
+  console.log(`| ${t} | ${n} | ${x} | ${f1(x / xpD)} | ${f1(x / xpD)} |`);
 }
-console.log(`| niveau 100 | 100 | ${xpPourNiveau(100)} | ${f1(xpPourNiveau(100) / xpD)} | ${f1(xpPourNiveau(100) / xpD / 2)} |`);
+console.log(`| niveau 100 | 100 | ${xpPourNiveau(100)} | ${f1(xpPourNiveau(100) / xpD)} | ${f1(xpPourNiveau(100) / xpD)} |`);
 
 console.log(`\n## Combats sans issue\n\n${BLOCAGES.length} combats ont dépassé 600 actions sur l'ensemble des cas.`);
 for (const b of BLOCAGES.slice(0, 6)) console.log(`- ${b.genre}, étage ${b.etage} — équipe ${b.equipe.join(" ")} — en face ${b.ennemis.join(" ")}`);
