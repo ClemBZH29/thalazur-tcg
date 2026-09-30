@@ -4,7 +4,7 @@ import { chargerFirebase, nuageConfigure, sessionMemorisee } from "../lib/nuage/
 import { empreinte, fusionner3, fusionnerMine, signature } from "../lib/nuage/fusion.js";
 import { ligneClassement, pseudoValide } from "../succes/classement.js";
 import { effacer, ecrireMine, etatVide, lireMine, relireJeu, suivreMine } from "../lib/storage.js";
-import { SCHEMA } from "../lib/sauvegarde/schema.js";
+import { SCHEMA, migrer } from "../lib/sauvegarde/schema.js";
 import { LEGAL } from "../config/legal.js";
 
 /**
@@ -72,11 +72,48 @@ const ecrireJSON = (cle, v) => {
  * format trop ancien se lit comme une partie vide : l'appareil y réécrira la
  * sienne, en gardant la révision pour que les règles acceptent l'écriture.
  */
-function lireCompte(doc) {
+/** La mine d'un compte ou d'une base, migrée au format courant (texte JSON). */
+function migrerMine(texte) {
+  if (!texte) return null;
+  try {
+    const d = migrer("mine", JSON.parse(texte));
+    return d ? JSON.stringify(d) : null;
+  } catch { return null; }
+}
+
+/**
+ * Lit la copie du compte, **migrée** au format courant.
+ *
+ * Elle exigeait un numéro de format identique à celui du site : au passage du
+ * format 6 au 7 (renumérotation de La Troupe, 30/09/2026), toute copie encore
+ * au 6 — écrite juste avant la mise à jour, ou par un onglet resté ouvert sur
+ * l'ancienne version — se lisait comme une partie vide, et cette partie vide
+ * remplaçait la collection de l'appareil. Elle passe maintenant par les
+ * migrations, comme la sauvegarde locale et les fichiers importés.
+ *
+ * `lisible` faux : rien d'exploitable. `futur` : écrite par une version plus
+ * récente du site que celle qui tourne ici — on n'y touche pas, il faut
+ * recharger la page.
+ */
+export function lireCompte(doc) {
   let brut = null;
-  try { brut = JSON.parse(doc.donnees); } catch { /* illisible : partie vide */ }
-  const jeu = doc.schema === SCHEMA ? relireJeu(brut) : null;
-  return { jeu: jeu || etatVide(), mine: jeu ? doc.mine ?? null : null };
+  try { brut = JSON.parse(doc.donnees); } catch { /* illisible */ }
+  const futur = Number(doc.schema) > SCHEMA || Number(brut?.schema) > SCHEMA;
+  const jeu = futur ? null : relireJeu(brut);
+  return { jeu: jeu || etatVide(), mine: jeu ? migrerMine(doc.mine) : null, lisible: !!jeu, futur };
+}
+
+export const CLE_SECOURS = "brume-thalazur:secours";
+/** Nombre d'exemplaires détenus, toutes extensions et versions confondues. */
+export const compterCartes = (etat) => Object.values(etat?.collections || {})
+  .reduce((n, coll) => n + Object.values(coll || {}).reduce((m, e) => m + (e?.normale || 0) + (e?.rainbow || 0), 0), 0);
+
+/** La base de synchronisation gardée par l'appareil, migrée elle aussi. */
+function lireBase() {
+  const b = lireJSON(CLE_BASE);
+  if (!b) return null;
+  const etat = relireJeu(b.etat);
+  return etat ? { etat, mine: migrerMine(b.mine) } : null;
 }
 
 function serialiser(etat) {
@@ -122,7 +159,7 @@ export function Compte({ children }) {
   const fb = useRef(null);
   const user = useRef(null);
   const etatRef = useRef(etat);
-  const base = useRef(lireJSON(CLE_BASE));
+  const base = useRef(lireBase());
   const marque = useRef(lireJSON(CLE_COMPTE));
   const minuteur = useRef(null);
   const enVol = useRef(false);
@@ -145,6 +182,15 @@ export function Compte({ children }) {
 
   /** Remplace l'état local par une version réconciliée. */
   const adopter = useCallback((nouvel, mine) => {
+    // Filet : une version qui compte moins de cartes que l'appareil n'entre
+    // pas sans qu'une copie de ce qu'on remplace soit gardée à part
+    // (`brume-thalazur:secours`, que le profil propose de fusionner).
+    const avant = etatRef.current;
+    if (compterCartes(nouvel) < compterCartes(avant)) {
+      let mineAvant = null;
+      try { mineAvant = JSON.parse(lireMine()); } catch { /* pas de mine */ }
+      ecrireJSON(CLE_SECOURS, { t: Date.now(), format: "brume-thalazur", schema: SCHEMA, jeu: avant, mine: mineAvant });
+    }
     setEtat(nouvel);
     etatRef.current = nouvel;
     if ((mine || null) !== (lireMine() || null)) {
@@ -163,7 +209,17 @@ export function Compte({ children }) {
    * connaît. Renvoie vrai si l'appareil a encore quelque chose à envoyer.
    */
   const reconcilier = useCallback((doc) => {
-    const { jeu: la, mine: laMine } = lireCompte(doc);
+    const { jeu: la, mine: laMine, lisible, futur } = lireCompte(doc);
+    // Jamais une copie illisible à la place de la partie de l'appareil.
+    if (futur) {
+      setErreur("Votre compte a été enregistré par une version plus récente du site. Rechargez la page pour continuer à synchroniser.");
+      return false;
+    }
+    if (!lisible) {
+      // Rien à reprendre du compte : la partie de l'appareil le remplacera.
+      retenir(doc.revision, etatVide(), null);
+      return true;
+    }
     const b = base.current;
     if (!aChange()) {
       adopter(la, laMine);
@@ -326,17 +382,27 @@ export function Compte({ children }) {
           if (!avait) {
             // Appareil vierge : on prend le compte tel quel. Le fusionner
             // ferait gagner la bourse de départ d'une partie jamais jouée.
-            const { jeu: la, mine: laMine } = lireCompte(doc);
-            adopter(la, laMine);
-            retenir(doc.revision, la, laMine);
-            if (vieillie) await envoyer(true); else setSync("a-jour");
+            const { jeu: la, mine: laMine, lisible, futur } = lireCompte(doc);
+            if (futur) {
+              setErreur("Votre compte a été enregistré par une version plus récente du site. Rechargez la page.");
+              setSync("erreur");
+              return;
+            }
+            if (lisible) {
+              adopter(la, laMine);
+              retenir(doc.revision, la, laMine);
+            } else retenir(doc.revision, etatVide(), null);
+            if (vieillie || !lisible) await envoyer(true); else setSync("a-jour");
           } else {
             reconcilier(doc);
             setAnnonce("La partie jouée sur cet appareil avant la connexion a été ajoutée à votre compte.");
             await envoyer();
           }
-        } else if (doc.revision !== marque.current.revision) {
-          if (reconcilier(doc) || vieillie) await envoyer(true); else setSync("a-jour");
+        } else if (doc.revision !== marque.current.revision || Number(doc.schema) < SCHEMA) {
+          // Une copie à un format plus ancien se relit toujours, même à la
+          // révision connue : c'est ainsi qu'on récupère une collection que
+          // l'ancienne lecture avait prise pour une partie vide.
+          if (reconcilier(doc) || vieillie || Number(doc.schema) < SCHEMA) await envoyer(true); else setSync("a-jour");
         } else {
           await envoyer(vieillie);
         }

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useCompte } from "../jeu/Compte.jsx";
+import { CLE_SECOURS, compterCartes, useCompte } from "../jeu/Compte.jsx";
 import { useJeu } from "../jeu/Jeu.jsx";
 import { Lien } from "../lib/routeur.jsx";
 import { effacer, exporter, importer } from "../lib/storage.js";
@@ -245,6 +245,11 @@ function Sauvegarde() {
   const fichierRef = useRef(null);
   const [message, setMessage] = useState(null);
 
+  // La copie gardée par l'appareil avant qu'une synchronisation ne lui retire
+  // des cartes (voir `adopter`, src/jeu/Compte.jsx).
+  const secours = (() => { try { return JSON.parse(localStorage.getItem(CLE_SECOURS)); } catch { return null; } })();
+  const nSecours = secours ? compterCartes(secours.jeu) : 0;
+
   const charger = async (f, mode) => {
     try {
       setEtat(await importer(f, etat, mode));
@@ -277,6 +282,16 @@ function Sauvegarde() {
           }}
         />
       </div>
+      {nSecours > 0 && (
+        <p className="avis">
+          Copie de secours du {new Date(secours.t).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })} :
+          {" "}{nSecours} exemplaire{nSecours > 1 ? "s" : ""}, gardée par cet appareil avant qu'une synchronisation ne lui retire des cartes.
+          {" "}<button type="button" className="lien lien-bouton"
+            onClick={() => charger(new Blob([JSON.stringify(secours)], { type: "application/json" }), "fusion")}>
+            La fusionner avec la partie
+          </button>
+        </p>
+      )}
       {message && (
         <p className={`avis${message.ok ? "" : " ko"}`} role="status">{message.texte}</p>
       )}
