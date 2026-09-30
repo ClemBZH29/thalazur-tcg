@@ -320,3 +320,55 @@ describe("descentes complètes", () => {
     });
   }
 });
+
+describe("deux donjons et soins réduits", () => {
+  const equipe = (r) => equipeTiree(r);
+  const partieDe = (mode, graine = 5) => creerPartie({ equipe: equipe(tirage(graine)), artefact: null, graine, jour: "2026-09-30", pools: POOLS, mode });
+
+  test("le donjon du jour a trois étages, l'infini n'en a pas de dernier", async () => {
+    const { etagesDe } = await import("../src/donjon/regles.js");
+    expect(etagesDe(partieDe("jour"))).toBe(3);
+    expect(etagesDe(partieDe("infini"))).toBe(Infinity);
+    expect(etagesDe({})).toBe(3); // une partie d'avant les modes reste au donjon du jour
+  });
+
+  test("l'infini se durcit sans plafond : les adversaires montent avec l'étage", () => {
+    const p = partieDe("infini");
+    const c = POOLS.monstres[0];
+    const a = monstre(p, c, 3), b = monstre(p, c, 10);
+    expect(b.pvMax).toBeGreaterThan(a.pvMax * 2);
+    expect(b.atq).toBeGreaterThan(a.atq);
+    for (let e = 2; e <= 8; e++) descendre(p, POOLS);
+    expect(p.etage).toBe(8);
+    expect(Object.keys(p.plan.noeuds).length).toBeGreaterThan(5);
+  });
+
+  test("à l'infini, une défaite ne coûte qu'un jour de repos", () => {
+    const p = partieDe("infini");
+    p.etage = 9;
+    expect(convalescences(p, "defaite").every((x) => x.jours === 1)).toBe(true);
+    const q = partieDe("jour");
+    q.etage = 3;
+    expect(convalescences(q, "defaite").every((x) => x.jours === 3)).toBe(true);
+  });
+
+  test("le butin et l'expérience suivent le mode", () => {
+    const p = creerPartie({ equipe: equipe(tirage(2)), artefact: null, graine: 2, jour: "2026-09-30", pools: POOLS, mode: "infini", gainMode: 0.4, xpMode: 0.5 });
+    expect(p.gain).toBeCloseTo(0.4);
+    p.equipe.forEach((u) => { u.xp = 10; });
+    expect(gainsXP(p, "sortie").every((x) => x.xp === 5)).toBe(true);
+  });
+
+  test("moins de soins : repos à 30 %, la halte ne soigne plus que les tombés", () => {
+    const p = partieDe("jour");
+    const [a, b] = p.equipe;
+    a.pv = 1; b.pv = 0; b.ko = true;
+    descendre(p, POOLS);
+    expect(a.pv).toBe(1);
+    expect(b.ko).toBe(false);
+    expect(b.pv).toBe(Math.ceil(b.pvMax * 0.15));
+    a.pv = 1;
+    repos(p);
+    expect(a.pv).toBe(1 + Math.ceil(a.pvMax * 0.3 * (p.equipe.some((u) => u.role === "intendant") ? 1.25 : 1)));
+  });
+});
