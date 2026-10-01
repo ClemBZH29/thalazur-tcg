@@ -266,6 +266,7 @@
 .dj-panneau h2 { font-size: 26px; margin-bottom: 6px; }
 .dj-panneau p { color: var(--ink2); margin: 8px 0; }
 .dj-panneau .dj-mini { margin: 16px 0 6px; }
+.dj-scene-vignette { display: none; }
 .dj-butin { font-family: var(--font-display); font-variation-settings: var(--wonk); font-size: 36px; font-weight: 800; color: var(--lamp); }
 .dj-tableau { border-collapse: collapse; font-size: 13px; margin: 8px 0 4px; }
 .dj-tableau td { padding: 5px 16px 5px 0; border-bottom: 1px solid var(--edge); color: var(--ink2); }
@@ -489,3 +490,31 @@
 .dj-relique-ennemie b[data-palier="legendaire"] { color: #ff9fb0; }
 .dj-reliques small { font-size: 10.5px; color: var(--ink3); margin-left: 4px; }
 .dj-trouvaille-pouvoir { font-size: 13px; color: var(--ink); }
+
+/* ── Rencontre, résultat, sortie au téléphone ─────────────────────────
+   Le lieu passe en vignette à droite du titre ; les choix restent posés
+   en bas de l'écran, au-dessus du bouton du menu (comme le bilan d'un
+   booster) ; l'équipe tient sur deux colonnes. */
+@media (max-width: 720px), (max-width: 860px) and (max-height: 500px) {
+  .dj-entete { gap: 6px; margin-bottom: 10px; }
+  .dj-entete .pastille { font-size: 11px; padding: 4px 9px; }
+  .dj-entete .pastille .muted { display: none; }
+  .dj-scene { display: block; }
+  .dj-scene-carte { display: none; }
+  .dj-panneau { padding: 16px; }
+  .dj-panneau h2 { font-size: 21px; }
+  .dj-panneau p { margin: 6px 0; font-size: 14px; }
+  .dj-scene-vignette { display: block; float: right; width: 76px; margin: 0 0 8px 12px; }
+  .dj-actions-bas { position: sticky; z-index: 20; clear: both;
+    bottom: calc(72px + env(safe-area-inset-bottom));
+    margin: 12px -16px 0; padding: 12px 16px 10px;
+    background: linear-gradient(to bottom, transparent, var(--panel) 30%); }
+  .dj-actions-bas .btn { flex: 1 1 auto; }
+  .dj-panneau .dj-mini { clear: both; display: grid; grid-template-columns: 1fr 1fr; gap: 8px 14px; margin: 12px 0 4px; }
+  .dj-mini li { font-size: 12px; }
+  .dj-panneau .dj-mini-nom .muted { display: none; }
+  .dj-panneau .dj-trouvaille { clear: both; grid-template-columns: 64px 1fr; gap: 10px; padding: 10px; }
+}
+@media (max-width: 860px) and (max-height: 500px) {
+  .dj-actions-bas { bottom: calc(46px + env(safe-area-inset-bottom)); }
+}

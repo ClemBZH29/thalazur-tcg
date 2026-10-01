@@ -461,7 +461,7 @@ export default function Donjon({ jeu }) {
     differer(async () => {
       // La première salve s'affiche, puis le premier tour ; elle peut avoir tout fini.
       // La source s'annonce au premier tour ; la première salve part.
-      animRef.current.animerSource?.(p.source, CC);
+      animRef.current.animerSource?.(p.source ? { ...p.source, pouvoir: sourceDe(p.source.c).nom } : null, CC);
       if (CC.relique) animRef.current.animerRelique?.(CC.relique, { moment: "porte", porteurs: CC.ennemis.filter((x) => !x.ko) });
       animerPouvoirs(CC.ouverture.map((o) => o.pouvoir));
       if (CC.ouverture.length) requestAnimationFrame(() => montrer(CC.ouverture.flatMap((o) => o.effets)));
@@ -515,6 +515,8 @@ export default function Donjon({ jeu }) {
       arene, el, vitesse: () => vitesseRef.current, reduit: () => reduitRef.current,
       unites: () => (partieRef.current && combatRef.current ? unites(partieRef.current, combatRef.current) : []),
       flottants: false,
+      // Les annonces (source, relique) restent lisibles en vitesse ×2 et ×4.
+      tenueAnnonces: () => Math.round(500 * (1 - 1 / Math.max(1, vitesseRef.current))),
     });
   }
   useEffect(() => () => animRef.current?.nettoyer(), []);
@@ -1059,7 +1061,7 @@ export default function Donjon({ jeu }) {
               <span> — {texteEffets(effetsArtefact(C.relique))}. Battez-les pour la prendre.</span>
             </p>
           )}
-          <div className={`dj-rang ennemis${C.ennemis.some((x) => !x.ko && x.rempart > 0) ? " etat-rempart" : ""}`}><span className="dj-rempart" aria-hidden="true" />{C.ennemis.map(unite)}</div>
+          <div className={`dj-rang ennemis${C.ennemis.some((x) => !x.ko && x.rempart > 0) ? " etat-rempart" : ""}${C.relique ? " porte-relique" : ""}`}><span className="dj-rempart" aria-hidden="true" />{C.ennemis.map(unite)}</div>
           <div className="dj-milieu">
             <div className="dj-consigne" aria-live="polite">{consigne}
               <div className="dj-journal">{journal.slice(0, 3).map((t, i) => <div key={i}>{t}</div>)}</div>
@@ -1101,6 +1103,10 @@ export default function Donjon({ jeu }) {
     );
   }
 
+  /* Au téléphone, la carte du lieu passe en vignette dans le panneau : en
+     pleine largeur, elle repoussait le récit et les boutons sous le pli. */
+  const vignette = lieu && <div className="dj-scene-vignette" aria-hidden="true"><CarteDJ c={lieu} cfgImage={cfgImage} fichiers={fichiers} /></div>;
+
   if (ecran === "rencontre" && rencontre) {
     return (
       <div className="dj">
@@ -1108,9 +1114,10 @@ export default function Donjon({ jeu }) {
         <div className="dj-scene">
           {lieu && <div className="dj-scene-carte"><CarteDJ c={lieu} cfgImage={cfgImage} fichiers={fichiers} /></div>}
           <section className="panneau dj-panneau">
+            {vignette}
             <h2>{rencontre.e.titre}</h2>
             <p>{rencontre.texte}</p>
-            <div className="actions gauche">
+            <div className="actions gauche dj-actions-bas">
               {rencontre.choix.map((c, i) => (
                 <button key={i} type="button" className={`btn${i ? " quiet" : ""}`} disabled={c.ok === false} onClick={() => choisirRencontre(i)}>{c.lib}</button>
               ))}
@@ -1131,6 +1138,7 @@ export default function Donjon({ jeu }) {
         <div className="dj-scene">
           {lieu && <div className="dj-scene-carte"><CarteDJ c={lieu} cfgImage={cfgImage} fichiers={fichiers} /></div>}
           <section className="panneau dj-panneau">
+            {vignette}
             <h2>{R.titre}</h2>
             <p>{R.texte}</p>
             {R.po > 0 && <p><span className="dj-butin">+{R.po}</span> <span className="muted">pièces au sac</span></p>}
@@ -1140,7 +1148,7 @@ export default function Donjon({ jeu }) {
                 : "Remonter maintenant, c'est tout garder. Descendre, c'est des adversaires plus durs et des bourses plus lourdes — mais si l'équipe tombe, il ne restera qu'un quart du sac. Les tombés se relèvent à peine avant de descendre ; les autres gardent leurs blessures."}</p>
             )}
             <MiniEquipe partie={partie} />
-            <div className="actions gauche">
+            <div className="actions gauche dj-actions-bas">
               {ecran === "sortie" ? (
                 <>
                   <button className="btn" type="button" onClick={() => terminer("sortie")}>Remonter avec {pieces(partie.sac)}</button>
