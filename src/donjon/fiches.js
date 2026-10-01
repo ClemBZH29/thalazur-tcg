@@ -31,8 +31,13 @@ export const RANG_MAX = P.rangs.length;
 
 export const ficheDe = (etat, c) => etat.fiches?.[cleXP(c)] || {};
 export const etoiles = (f) => LIGNES.filter((l) => f.etoiles?.[l]).length;
-/** Les quatre lignes étoilées : la carte porte l'étoile dans la collection. */
-export const etoilee = (f) => etoiles(f) === LIGNES.length;
+/**
+ * Un Lieu n'a qu'une ligne, sa source de pouvoir (`source`), qu'une rainbow
+ * en trop étoile aussi (voir pouvoirs.js, ETOILE_SOURCE).
+ */
+export const LIGNE_SOURCE = "source";
+/** La carte porte l'étoile dans la collection : quatre lignes étoilées, ou la source d'un lieu. */
+export const etoilee = (f) => etoiles(f) === LIGNES.length || !!f.etoiles?.[LIGNE_SOURCE];
 
 const entree = (etat, c) => etat.collections?.[c.ext]?.[c.id] || {};
 export const possedee = (etat, c) => (entree(etat, c).normale || 0) > 0;
@@ -97,7 +102,8 @@ export function changerCompetence(etat, c, id) {
 
 /** Étoile une ligne : une rainbow en trop de la carte sort de la collection. */
 export function etoiler(etat, c, ligne) {
-  if (!LIGNES.includes(ligne) || !possedee(etat, c) || rainbowEnTrop(etat, c) < 1) return null;
+  const permise = c.type === "lieu" ? ligne === LIGNE_SOURCE : LIGNES.includes(ligne);
+  if (!permise || !possedee(etat, c) || rainbowEnTrop(etat, c) < 1) return null;
   const f = ficheDe(etat, c);
   if (f.etoiles?.[ligne]) return null;
   const e = entree(etat, c);

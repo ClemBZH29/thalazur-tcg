@@ -15,6 +15,7 @@
  */
 import { construirePool, deduireGrades } from "../lib/roster.js";
 import { bonusNiveau } from "./experience.js";
+import { cumuler, effetsArtefact, effetsSource } from "./pouvoirs.js";
 
 /* ── Tirage reproductible ────────────────────────────────────────────── */
 
@@ -253,7 +254,7 @@ const legere = (c) => ({ id: c.id, num: c.num, nom: c.nom, type: c.type, tier: c
 
 /** Les états qu'un combat pose sur une unité, remis à zéro au suivant. */
 const ETATS = { provoque: 0, galva: 0, galvaVal: 0, rempart: 0, rempartVal: 0, armureProvoc: 0, parade: 0, riposte: 0,
-  voile: 0, marque: 0, marqueVal: 0, saigne: 0, saigneD: 0, etourdi: 0 };
+  voile: 0, marque: 0, marqueVal: 0, saigne: 0, saigneD: 0, etourdi: 0, vengeance: 0, elan: 0 };
 
 /**
  * Un compagnon. `niveau` vient de son expérience (voir experience.js) ;
@@ -309,9 +310,53 @@ export function bonusEquipe(partie) {
   }
   return { atq, pv };
 }
+/* ── Pouvoirs : source de pouvoir et artéfacts (voir pouvoirs.js) ─────── */
+
+/** Les effets d'un camp : l'équipe a sa source et ses reliques ; l'adversaire, la relique qu'il porte. */
+export function effetsCamp(partie, C, camp) {
+  if (camp === "a") return [...(partie.source?.effets || []), ...meilleursEffets([partie.artefact, ...partie.reliques].filter(Boolean).flatMap(effetsArtefact))];
+  return C?.relique ? effetsArtefact(C.relique) : [];
+}
+/**
+ * Les reliques ne s'additionnent pas entre elles sur une même mécanique :
+ * seule la plus forte compte (leurs PV et leur ATQ, eux, s'additionnent comme
+ * avant). Additionnées, deux douzaines de reliques au donjon infini mettaient
+ * tous les effets au plafond vers l'étage 20, et l'équipe ne tombait plus.
+ */
+function meilleursEffets(effets) {
+  const m = {};
+  for (const e of effets) if (!m[e.mec] || e.val > m[e.mec].val) m[e.mec] = e;
+  return Object.values(m);
+}
+// L'équipe change de pouvoirs quand elle trouve une relique, pas plus souvent :
+// on garde la somme tant que la liste des reliques n'a pas bougé.
+const memoEquipe = new WeakMap();
+export function modsEquipe(partie) {
+  const cle = `${partie.reliques.length}|${partie.artefact?.id || ""}|${partie.source?.c?.id || ""}`;
+  const m = memoEquipe.get(partie);
+  if (m && m.cle === cle) return m.val;
+  const val = cumuler(effetsCamp(partie, null, "a"), "a");
+  memoEquipe.set(partie, { cle, val });
+  return val;
+}
+/** Les pouvoirs d'un camp en combat ; hors combat, ceux de l'équipe. */
+export const mods = (partie, C, camp) => (camp === "a" ? modsEquipe(partie) : C?.mods?.e || {});
+
+/**
+ * Ce qui vaut pour toute la descente se pose sur l'unité à son arrivée : PV
+ * des reliques et de la source, INI de la source. Une recrue ramassée en
+ * route le reçoit aussi.
+ */
+function equiper(partie, u) {
+  const m = modsEquipe(partie);
+  u.pvMax += bonusEquipe(partie).pv + (m.pv || 0);
+  u.pv = u.pvMax;
+  u.ini += m.ini || 0;
+}
+
 export const atqDe = (partie, u) =>
-  u.atq + (u.camp === "a" ? bonusEquipe(partie).atq : 0) + (u.galva > 0 ? u.galvaVal || 3 : 0);
-const multButin = (partie) => (1 + 0.1 * partie.equipe.filter((u) => u.role === "debrouillard").length) * (partie.gain ?? 1);
+  u.atq + (u.camp === "a" ? bonusEquipe(partie).atq + (modsEquipe(partie).atq || 0) : 0) + (u.galva > 0 ? u.galvaVal || 3 : 0) + (u.vengeance || 0);
+const multButin = (partie) => (1 + 0.1 * partie.equipe.filter((u) => u.role === "debrouillard").length) * (partie.gain ?? 1) * (1 + (modsEquipe(partie).butin || 0));
 export function gagner(partie, po) {
   const n = Math.round(po * multButin(partie));
   partie.sac += n;
@@ -377,7 +422,7 @@ export function ouverts(plan) {
 
 /* ── La partie ───────────────────────────────────────────────────────── */
 
-export function creerPartie({ equipe, artefact, graine, jour, pools, niveaux = {}, fiches = {}, apprenti = null, mode = "jour", gainMode = 1, xpMode = 1 }) {
+export function creerPartie({ equipe, artefact = null, source = null, graine, jour, pools, niveaux = {}, fiches = {}, apprenti = null, mode = "jour", gainMode = 1, xpMode = 1 }) {
   // `apprenti` : l'adoucissement des débuts (voir `apprentissage`). Il est
   // figé pour toute la descente : la difficulté ne bouge pas en chemin.
   // `gainMode` et `xpMode` : ce que le mode ajoute ou retire au butin et à
@@ -385,10 +430,12 @@ export function creerPartie({ equipe, artefact, graine, jour, pools, niveaux = {
   const partie = { jour, graine, mode, uid: 1, etage: 1, sac: 0, benediction: 0, reliques: [], perdus: [], xpPerdus: {},
     difficulte: apprenti?.difficulte ?? 1, gain: (apprenti?.gain ?? 1) * gainMode, xpMode, combat: null, rencontre: null,
     artefact: artefact ? legere(artefact) : null, equipe: [], ecran: "carte", noeud: null,
+    // La source de pouvoir : un lieu, ses effets figés pour la descente (niveau et étoile du départ).
+    source: source?.c ? { c: legere(source.c), niveau: source.niveau || 1, etoile: !!source.etoile,
+      effets: effetsSource(source.c, source.niveau || 1, !!source.etoile) } : null,
     stats: { salles: 0, combats: 0, ennemis: 0, gardiens: 0 } };
   partie.equipe = equipe.map((c) => allie(partie, c, niveaux[`${c.ext}:${c.id}`] || 1, fiches[`${c.ext}:${c.id}`]));
-  const b = bonusEquipe(partie);
-  for (const u of partie.equipe) { u.pvMax += b.pv; u.pv = u.pvMax; }
+  for (const u of partie.equipe) equiper(partie, u);
   partie.plan = genererEtage(1, tirage(graine + 1), pools.lieux);
   return partie;
 }
@@ -413,17 +460,35 @@ export function descendre(partie, pools) {
   partie.noeud = null;
 }
 
-export function trouverRelique(partie, r, artefacts) {
-  if (!artefacts.length) return null;
-  const a = legere(parmiPalier(r, artefacts, tirer(r, { commun: 45, peucommun: 33, rare: 17, legendaire: 5 })));
+/** Une relique au hasard, pondérée par palier. */
+export const tirerRelique = (r, artefacts) =>
+  artefacts.length ? legere(parmiPalier(r, artefacts, tirer(r, { commun: 45, peucommun: 33, rare: 17, legendaire: 5 }))) : null;
+/**
+ * Huit reliques au plus. Au-delà, elles partent au sac, en pièces : sans
+ * limite, le donjon infini en empilait des centaines, leurs PV et leur ATQ
+ * dépassaient la montée des adversaires, et une descente ne finissait plus.
+ */
+export const RELIQUES_MAX = 8;
+const PRIX_RELIQUE = { commun: 6, peucommun: 9, rare: 14, legendaire: 22 };
+
+/** L'équipe prend une relique : ses PV et son INI comptent tout de suite pour chacun. */
+export function prendreRelique(partie, a) {
+  if (!a) return null;
+  if (partie.reliques.length >= RELIQUES_MAX) {
+    return { ...a, vendue: gagner(partie, (PRIX_RELIQUE[a.tier] || 6) * partie.etage) };
+  }
   partie.reliques.push(a);
-  const b = BONUS_ARTEFACT[a.tier];
-  if (b.pv) for (const u of partie.equipe) { u.pvMax += b.pv; if (!u.ko) u.pv += b.pv; }
+  const b = BONUS_ARTEFACT[a.tier] || BONUS_ARTEFACT.commun;
+  const ini = effetsArtefact(a).filter((e) => e.mec === "ini").reduce((x, e) => x + e.val, 0);
+  for (const u of partie.equipe) { u.pvMax += b.pv; if (!u.ko) u.pv += b.pv; u.ini += ini; }
   return a;
+}
+export function trouverRelique(partie, r, artefacts) {
+  return prendreRelique(partie, tirerRelique(r, artefacts));
 }
 export function tresor(partie, r, artefacts) {
   const po = gagner(partie, entre(r, 5, 8) * partie.etage);
-  const relique = r() < 0.35 ? trouverRelique(partie, r, artefacts) : null;
+  const relique = r() < 0.35 + (modsEquipe(partie).fortune || 0) ? trouverRelique(partie, r, artefacts) : null;
   return { titre: "Un trésor", texte: "Sous les pierres, une bourse oubliée.", po, relique };
 }
 /**
@@ -438,7 +503,7 @@ export const SOINS = { repos: 0.3, releveRepos: 0.25, releveHalte: 0.15, poidsRe
 export function repos(partie) {
   let releves = 0;
   // Un intendant dans l'équipe, et le repas est meilleur.
-  const bonus = partie.equipe.some((u) => u.role === "intendant" && !u.ko) ? 1.25 : 1;
+  const bonus = (partie.equipe.some((u) => u.role === "intendant" && !u.ko) ? 1.25 : 1) * (1 + (modsEquipe(partie).soinRepos || 0));
   for (const u of partie.equipe) {
     if (u.ko) { u.ko = false; u.pv = Math.ceil(u.pvMax * SOINS.releveRepos * bonus); releves++; }
     else u.pv = Math.min(u.pvMax, u.pv + Math.ceil(u.pvMax * SOINS.repos * bonus));
@@ -490,7 +555,7 @@ export const RENCONTRES = [
       const recrue = parmiPalier(r, libres.length ? libres : pools.allies, tirer(r, { commun: 70, peucommun: 25, rare: 5 }));
       return [
         { lib: p.equipe.length < 5 ? `L'emmener (${recrue.nom} rejoint l'équipe)` : "L'équipe est au complet", ok: p.equipe.length < 5, f: () => {
-          const u = allie(p, recrue); u.recrue = true; u.pvMax += bonusEquipe(p).pv; u.pv = Math.ceil(u.pvMax * 0.5); p.equipe.push(u);
+          const u = allie(p, recrue); u.recrue = true; equiper(p, u); u.pv = Math.ceil(u.pvMax * 0.5); p.equipe.push(u);
           return `${recrue.nom} vous suit, clopin-clopant, et se battra à vos côtés.`; } },
         { lib: "Lui laisser des vivres", f: () => `Il vous remercie et vous glisse quelques pièces. +${gagner(p, 2 * p.etage)} PO.` }];
     } },
@@ -530,10 +595,35 @@ function composer(partie, genre, r, pools) {
   if (genre === "elite") { const i = Math.floor(n / 2); l[i] = m("rare", 1.4); l[i].elite = true; }
   return l;
 }
+/**
+ * Un combat. Une salle d'élite (une fois sur deux, davantage avec la bonne
+ * fortune) et chaque gardien gardent une relique : **les adversaires s'en
+ * servent** — ses PV, son ATQ, son effet —, et la victoire la rend à
+ * l'équipe. On voit ce qu'on va gagner, et ce qu'il en coûte.
+ */
 export function demarrerCombat(partie, genre, r, pools) {
   for (const u of partie.equipe) Object.assign(u, { cd: 0 }, ETATS);
   partie.stats.combats++;
-  return { genre, ennemis: composer(partie, genre, r, pools), round: 0, ordre: [], idx: -1, actif: null, compteBoss: 0, fini: null, notes: [] };
+  const ennemis = composer(partie, genre, r, pools);
+  const chance = genre === "boss" ? 1 : genre === "elite" ? 0.55 + (modsEquipe(partie).fortune || 0) : 0;
+  const relique = chance && r() < chance ? tirerRelique(r, pools.artefacts || []) : null;
+  const C = { genre, ennemis, relique, round: 0, ordre: [], idx: -1, actif: null, compteBoss: 0, fini: null, notes: [], ouverture: [], marquePose: {} };
+  if (relique) {
+    const b = BONUS_ARTEFACT[relique.tier] || BONUS_ARTEFACT.commun;
+    const ini = effetsArtefact(relique).filter((e) => e.mec === "ini").reduce((x, e) => x + e.val, 0);
+    for (const m of ennemis) { m.pvMax += b.pv; m.pv = m.pvMax; m.atq += b.atq; m.ini += ini; }
+  }
+  C.mods = { a: modsEquipe(partie), e: cumuler(effetsCamp(partie, C, "e"), "e") };
+  C.brumeTour = BRUME_TOUR + (C.mods.a.brume || 0);
+  // Première salve : chaque camp qui en a une frappe l'autre avant le premier tour.
+  for (const [camp, cibles] of [["a", ennemis], ["e", partie.equipe]]) {
+    const v = C.mods[camp].ouverture;
+    if (!v) continue;
+    const effets = [];
+    for (const x of cibles.filter((y) => !y.ko)) { x.pv = Math.max(0, x.pv - v); if (x.pv === 0) x.ko = true; effets.push({ uid: x.uid, txt: `−${v}`, anim: "touche" }); }
+    C.ouverture.push({ note: camp === "a" ? `Première salve : −${v} à chaque adversaire.` : `Ils ouvrent le feu : −${v} à chaque compagnon.`, effets });
+  }
+  return C;
 }
 export const unites = (partie, C) => [...partie.equipe, ...C.ennemis];
 export const parUid = (partie, C, uid) => unites(partie, C).find((u) => u.uid === uid);
@@ -545,7 +635,15 @@ export const parUid = (partie, C, uid) => unites(partie, C).find((u) => u.uid ==
  * passé part dans `C.notes`, pour le journal.
  */
 function debutDeTour(partie, C, u) {
+  const m = mods(partie, C, u.camp);
   if (u.cd > 0) u.cd--;
+  // Second souffle (pouvoir) : la fraction s'accumule, un tour de recharge tombe à chaque unité pleine.
+  if (m.recharge && u.cd > 0) { u.elan = (u.elan || 0) + m.recharge; if (u.elan >= 1) { u.elan -= 1; u.cd--; } }
+  if (m.regen && !u.ko && u.pv < u.pvMax) {
+    const g = Math.min(u.pvMax - u.pv, Math.max(1, Math.round(u.pvMax * m.regen)));
+    u.pv += g;
+    (C.notes ||= []).push({ uid: u.uid, note: null, effets: [{ uid: u.uid, txt: `+${g}`, cls: "soin" }] });
+  }
   u.provoque = 0;                   // la provocation court jusqu'à son prochain tour
   u.parade = 0; u.riposte = 0; u.voile = 0; u.armureProvoc = 0;
   const nom = u.nomAffiche || u.c.nom;
@@ -572,6 +670,8 @@ function debutDeTour(partie, C, u) {
  */
 export function prochain(partie, C) {
   C.notes = [];
+  // Une première salve peut avoir fini le combat avant le premier tour.
+  if (issue(partie, C)) { C.actif = null; return null; }
   for (let garde = 0; garde < 4; garde++) {
     C.idx++;
     while (C.idx < C.ordre.length) {
@@ -615,27 +715,55 @@ export function gestes(partie, u) {
  * seul.
  */
 export const BRUME_TOUR = 10;
-export const brume = (C) => (C && C.round > BRUME_TOUR ? 1 + 0.2 * (C.round - BRUME_TOUR) : 1);
+export const brume = (C) => {
+  const t = C?.brumeTour ?? BRUME_TOUR;
+  return C && C.round > t ? 1 + 0.2 * (C.round - t) : 1;
+};
 
 function frapper(partie, att, cible, mult, r, perce = false, C = null) {
   if (cible.voile) return { reel: 0, crit: false, voile: true, renvoi: 0 };
+  const ma = mods(partie, C, att.camp), mc = mods(partie, C, cible.camp);
+  // Les pouvoirs ne tirent au sort que s'ils existent : sans eux, les dés tombent comme avant.
+  if (mc.esquive && r() < mc.esquive) return { reel: 0, crit: false, voile: true, esquive: true, renvoi: 0 };
   let d = atqDe(partie, att) * mult * brume(C) * (0.85 + r() * 0.3);
   let crit = false;
   if (att.role === "fourbe" && r() < 0.25) { d *= 2; crit = true; }
+  else if (ma.crit && r() < ma.crit) { d *= 2; crit = true; }
   if (cible.marque > 0) d *= 1 + (cible.marqueVal || 0.5);
+  if (C?.round === 1 && ma.tempo) d *= 1 + ma.tempo;
+  if (ma.chasseur && (cible.boss || cible.elite)) d *= 1 + ma.chasseur;
+  if (ma.execution && cible.pv / cible.pvMax < 0.35) d *= 1 + ma.execution;
+  if (ma.dernierRempart && C && vivants(att.camp === "a" ? partie.equipe : C.ennemis).length === 1) d *= 1 + ma.dernierRempart;
+  if (mc.resistance) d *= 1 - mc.resistance;
+  if (mc.gardien && att.boss) d *= 1 - mc.gardien;
   const armure = perce ? 0 : (cible.role === "garde" ? 1 : 0) + (cible.provoque ? cible.armureProvoc || 2 : 0)
-    + (cible.rempart > 0 ? cible.rempartVal || 3 : 0) + (cible.parade || 0);
+    + (cible.rempart > 0 ? cible.rempartVal || 3 : 0) + (cible.parade || 0)
+    + (mc.armure || 0) + (C?.round === 1 ? mc.rempartDebut || 0 : 0);
   const reel = Math.max(1, Math.round(d) - armure);
   cible.pv = Math.max(0, cible.pv - reel);
-  if (cible.pv === 0) cible.ko = true;
-  // Garde haute : qui frappe la cible prend un retour, si elle tient encore debout.
-  let renvoi = 0;
-  if (cible.riposte && !cible.ko && !att.ko) {
-    renvoi = Math.max(1, Math.round(atqDe(partie, cible) * cible.riposte));
-    att.pv = Math.max(0, att.pv - renvoi);
-    if (att.pv === 0) att.ko = true;
+  if (cible.pv === 0) {
+    cible.ko = true;
+    // Vengeance : les autres du camp du tombé frappent plus fort jusqu'à la fin du combat.
+    if (mc.vengeance && C) for (const x of vivants(cible.camp === "a" ? partie.equipe : C.ennemis)) x.vengeance = (x.vengeance || 0) + mc.vengeance;
   }
-  return { reel, crit, renvoi };
+  // Garde haute, et épines (pouvoir) : qui frappe prend un retour.
+  let renvoi = 0;
+  if (cible.riposte && !cible.ko && !att.ko) renvoi += Math.max(1, Math.round(atqDe(partie, cible) * cible.riposte));
+  if (mc.epines && !att.ko) renvoi += Math.max(1, Math.round(reel * mc.epines));
+  if (renvoi) { att.pv = Math.max(0, att.pv - renvoi); if (att.pv === 0) att.ko = true; }
+  // Soif de sang : une part des dégâts revient en PV.
+  let draine = 0;
+  if (ma.drain && !att.ko) { draine = Math.min(att.pvMax - att.pv, Math.round(reel * ma.drain)); att.pv += draine; }
+  if (!cible.ko && ma.saignement && r() < ma.saignement) {
+    cible.saigne = Math.max(cible.saigne || 0, 2);
+    cible.saigneD = Math.max(cible.saigneD || 0, Math.max(1, Math.round(atqDe(partie, att) * 0.4)));
+  }
+  // Repérage : le premier coup du camp, dans ce combat, marque sa cible.
+  if (ma.marque && C && !C.marquePose?.[att.camp] && !cible.ko) {
+    (C.marquePose ||= {})[att.camp] = true;
+    cible.marque = Math.max(cible.marque || 0, 2); cible.marqueVal = Math.max(cible.marqueVal || 0, ma.marque);
+  }
+  return { reel, crit, renvoi, draine };
 }
 
 /** Les compétences qui frappent une cible : multiplicateur, et l'armure qu'elles ignorent. */
@@ -662,13 +790,15 @@ export function resoudre(partie, C, u, geste, cible, r) {
   const enFace = vivants(u.camp === "a" ? C.ennemis : partie.equipe);
   let renvoiTotal = 0;
   const coup = (x, mult, perce = false, cls = "") => {
-    const { reel, crit, renvoi, voile } = frapper(partie, u, x, mult, r, perce, C);
+    const { reel, crit, renvoi, voile, draine } = frapper(partie, u, x, mult, r, perce, C);
     renvoiTotal += renvoi || 0;
     effets.push({ uid: x.uid, txt: voile ? "Esquive" : `−${reel}`, cls: crit ? "crit" : cls, anim: voile ? undefined : "touche" });
     if (renvoi) effets.push({ uid: u.uid, txt: `−${renvoi}`, anim: "touche" });
+    if (draine) effets.push({ uid: u.uid, txt: `+${draine}`, cls: "soin" });
     return { reel, crit, renvoi, voile };
   };
-  const soigner = (a, n) => { const g = Math.min(a.pvMax - a.pv, Math.max(0, Math.round(n))); a.pv += g; if (g) effets.push({ uid: a.uid, txt: `+${g}`, cls: "soin", anim: "soigne" }); return g; };
+  const bonusSoin = 1 + (mods(partie, C, u.camp).soin || 0);
+  const soigner = (a, n) => { const g = Math.min(a.pvMax - a.pv, Math.max(0, Math.round(n * bonusSoin))); a.pv += g; if (g) effets.push({ uid: a.uid, txt: `+${g}`, cls: "soin", anim: "soigne" }); return g; };
   const plusBlesse = () => [...siens].sort((a, b) => a.pv / a.pvMax - b.pv / b.pvMax)[0];
 
   if (FRAPPES[geste]) {
@@ -763,8 +893,10 @@ export function resoudre(partie, C, u, geste, cible, r) {
 }
 
 export function issue(partie, C) {
-  if (!vivants(C.ennemis).length) return "victoire";
+  // Les deux camps à terre (un renvoi ou des épines achèvent le dernier qui
+  // frappe) : c'est une défaite, l'équipe ne peut pas continuer.
   if (!vivants(partie.equipe).length) return "defaite";
+  if (!vivants(C.ennemis).length) return "victoire";
   return null;
 }
 
@@ -831,7 +963,7 @@ export function choixAuto(partie, C, u, strategie) {
   }
 }
 
-export function victoire(partie, C, r, artefacts) {
+export function victoire(partie, C, r, _artefacts) {
   const base = C.ennemis.reduce((s, m) => s + (m.boss ? 12 : m.elite ? 4 : 1.5) * partie.etage + entre(r, 0, 2), 0);
   const po = gagner(partie, Math.round(C.genre === "elite" ? base * 1.5 : base));
   partie.stats.ennemis += C.ennemis.length;
@@ -841,9 +973,14 @@ export function victoire(partie, C, r, artefacts) {
   // ils étaient de l'expédition.
   const xp = C.ennemis.reduce((s, m) => s + (m.boss ? 5 : m.elite ? 3 : 1) * partie.etage, 0);
   for (const u of partie.equipe) { Object.assign(u, { cd: 0 }, ETATS); u.xp = (u.xp || 0) + xp; }
-  let relique = null;
-  if (C.genre === "elite" && r() < 0.55) relique = trouverRelique(partie, r, artefacts);
-  if (C.genre === "boss") relique = trouverRelique(partie, r, artefacts);
+  // La relique que gardaient les adversaires change de camp.
+  const relique = prendreRelique(partie, C.relique || null);
+  // Bivouac et relève (pouvoirs) : l'équipe souffle après la victoire.
+  const m = modsEquipe(partie);
+  for (const u of partie.equipe) {
+    if (u.ko && m.releve) { u.ko = false; u.pv = Math.max(1, Math.ceil(u.pvMax * m.releve)); }
+    else if (!u.ko && m.finCombat) u.pv = Math.min(u.pvMax, u.pv + Math.ceil(u.pvMax * m.finCombat));
+  }
   return C.genre === "boss"
     ? { titre: `Étage ${partie.etage} nettoyé`, texte: "Le gardien tombe. Plus bas, la brume est plus épaisse — et les bourses plus lourdes.", po, relique }
     : { titre: "Victoire", texte: `${C.ennemis.length} adversaires à terre.`, po, relique };
@@ -891,8 +1028,10 @@ export function convalescences(partie, iss) {
  * entière ; tomber n'en laisse que la moitié. La recrue n'est pas à nous.
  */
 export function gainsXP(partie, iss) {
-  const f = (iss === "defaite" ? 0.5 : 1) * (partie.xpMode ?? 1);
+  const f = (iss === "defaite" ? 0.5 : 1) * (partie.xpMode ?? 1) * (1 + (modsEquipe(partie).xp || 0));
   const l = partie.equipe.filter((u) => !u.recrue).map((u) => ({ c: u.c, xp: Math.round((u.xp || 0) * f) }));
+  // La source de pouvoir apprend avec l'équipe : la moyenne de ce qu'ont gagné les compagnons.
+  if (partie.source?.c && l.length) l.push({ c: partie.source.c, xp: Math.round(l.reduce((s, x) => s + x.xp, 0) / l.length) });
   for (const c of partie.perdus || []) l.push({ c, xp: Math.round(((partie.xpPerdus || {})[`${c.ext}:${c.id}`] || 0) * (partie.xpMode ?? 1)) });
   return l.filter((x) => x.xp > 0);
 }
