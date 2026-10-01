@@ -391,3 +391,10 @@
 .dj-mode:focus-visible { outline: 2px solid var(--lamp); outline-offset: 2px; }
 .dj-mode-etat { font-size: 12.5px; color: var(--ink4); }
 @media (max-width: 640px) { .dj-modes { grid-template-columns: minmax(0, 1fr); } }
+
+/* Fiche de combat : ce que l'étoile laisse voir en descente. */
+.dj-etoiles { color: #f3d27c; letter-spacing: 1px; }
+.dj-geste.etoile { border-color: transparent;
+  background: linear-gradient(#1b252a, #1b252a) padding-box,
+    linear-gradient(115deg, hsl(340 80% 70%), hsl(46 90% 68%), hsl(148 60% 62%), hsl(200 80% 68%), hsl(266 72% 74%)) border-box; }
+.dj-geste.etoile b { color: #f6e3b0; }

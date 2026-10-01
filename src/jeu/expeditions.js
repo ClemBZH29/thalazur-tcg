@@ -3,6 +3,7 @@ import { BOOSTERS } from "../extensions/index.js";
 import { cartesDonjon } from "../donjon/regles.js";
 import { cleXP, entrainer } from "../donjon/experience.js";
 import { ENTRAINEMENT } from "../config/reliquaire.js";
+import * as F from "../donjon/fiches.js";
 import { crediterGain } from "../lib/economie.js";
 import * as X from "../expeditions/regles.js";
 import * as R from "../reliquaire/regles.js";
@@ -91,8 +92,21 @@ export function useExpeditions(etat, setEtat) {
     return r;
   }, [etat, setEtat]);
 
+  /* ── Fiche de combat : des vestiges et des rainbow contre des compétences ── */
+  // Chaque opération est vérifiée sur l'état du moment (pour dire si elle a
+  // eu lieu), puis rejouée sur l'état le plus frais.
+  const operer = useCallback((f) => {
+    if (!f(etat)) return false;
+    setEtat((e) => f(e) || e);
+    return true;
+  }, [etat, setEtat]);
+  const acheterRangCarte = useCallback((c, ligne) => operer((e) => F.acheterRang(e, c, ligne)), [operer]);
+  const changerCompetenceCarte = useCallback((c, id) => operer((e) => F.changerCompetence(e, c, id)), [operer]);
+  const etoilerCarte = useCallback((c, ligne) => operer((e) => F.etoiler(e, c, ligne)), [operer]);
+
   return {
     expeditions: ex,
+    acheterRangCarte, changerCompetenceCarte, etoilerCarte,
     compagnons, lieux,
     indexCartes: INDEX,
     partirExpedition, rappelerExpedition, accueillirExpeditions,

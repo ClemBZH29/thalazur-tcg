@@ -522,8 +522,11 @@
    carte reste exactement au centre ; sous la carte quand la place manque. */
 .loupe-boite { position: relative; }
 .volets { display: grid; gap: 10px; width: 100%; margin-top: 16px; text-align: left; }
-@media (min-width: 1000px) {
+/* 1100 px : la carte (396) et deux volets de 272 px, écartés de 28 px, avec
+   de la marge de part et d'autre. En dessous, les volets passent sous la carte. */
+@media (min-width: 1100px) {
   .volets { position: absolute; top: 0; left: calc(100% + 28px); width: 272px; margin: 0; }
+  .volets.volets-gauche { left: auto; right: calc(100% + 28px); }
 }
 .volet { background: rgba(26, 39, 44, .94); border: 1px solid var(--edge-hi); border-radius: var(--r-lg);
   padding: 12px 14px; display: grid; gap: 8px; }
@@ -538,6 +541,78 @@
 .volet-annonce { font-size: 13px; color: var(--ink); background: rgba(78, 140, 126, .15);
   border: 1px solid var(--m-chene); border-radius: var(--r-md); padding: 7px 10px; }
 [data-mouvement="reduit"] .volet-jauge i { transition: none; }
+
+/* ── Fiche de combat (volet de gauche) ─────────────────────────────────── */
+.fc-tete { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.fc-tete .muted { font-size: 12.5px; }
+.fc-lignes { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.fc-ligne { --fc-fond: rgba(13, 20, 23, .55);
+  display: grid; grid-template-columns: 52px auto 1fr auto; align-items: center; gap: 4px 8px;
+  padding: 6px 8px; border-radius: var(--r-md); background: var(--fc-fond); border: 1px solid var(--edge); }
+.fc-nom { font-size: 11.5px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--ink3); }
+.fc-valeur { font-size: 17px; color: var(--ink); font-variant-numeric: tabular-nums; }
+.fc-passif { font-size: 12px; grid-column: 3 / -1; text-align: right; }
+.fc-rangs { display: inline-flex; gap: 3px; }
+.fc-rangs i { width: 7px; height: 7px; border-radius: 50%; border: 1px solid var(--edge-ui); }
+.fc-rangs i.pris { background: var(--lamp); border-color: var(--lamp); }
+.fc-actions { display: inline-flex; gap: 4px; align-items: center; justify-self: end; }
+.fc-actions .btn.sm { padding: 3px 8px; font-size: 12px; min-height: 28px; }
+.fc-comp { grid-template-columns: 52px 1fr auto; }
+.fc-comp-nom b { font-size: 13.5px; color: var(--ink); font-weight: 600; }
+.fc-comp-aide { grid-column: 1 / -1; font-size: 12px; color: var(--ink2); line-height: 1.35; }
+.fc-comp-nom { display: flex; align-items: center; flex-wrap: wrap; gap: 2px; }
+.fc-recharge { display: inline-flex; gap: 3px; margin-left: 6px; vertical-align: middle; }
+.fc-recharge i { width: 6px; height: 6px; border-radius: 2px; background: var(--ember); transform: rotate(45deg); }
+.fc-recharge.muted { font-size: 11px; margin-left: 6px; }
+.fc-etoiler { display: inline-flex; align-items: center; justify-content: center; gap: 4px; min-width: 28px; min-height: 28px;
+  padding: 0 6px; border-radius: 100px; border: 1px solid var(--edge-ui); background: transparent; color: var(--ink3);
+  font: 600 11.5px var(--font-ui); cursor: pointer; }
+.fc-etoiler:hover:not(:disabled), .fc-etoiler:focus-visible { color: #f3d27c; border-color: #b49cf0; }
+.fc-etoiler.arme { color: #241704; background: linear-gradient(110deg, #f0a3c7, #f5d77e, #8fe0b4, #8fc3f0, #b49cf0); border-color: transparent; }
+.fc-etoiler:disabled { opacity: .35; cursor: not-allowed; }
+.fc-figee { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; font-weight: 700; color: #f3d27c; white-space: nowrap; }
+/* Une ligne étoilée : le cadre des rainbow, tracé en bordure dégradée. */
+.fc-ligne.etoilee { border-color: transparent;
+  background: linear-gradient(var(--fc-fond), var(--fc-fond)) padding-box,
+    linear-gradient(115deg, hsl(340 80% 70%), hsl(46 90% 68%), hsl(148 60% 62%), hsl(200 80% 68%), hsl(266 72% 74%), hsl(340 80% 70%)) border-box;
+  box-shadow: 0 0 14px rgba(157, 124, 240, .25); }
+.fc-ligne.etoilee { --fc-fond: rgb(22, 30, 36); }
+.fc-ligne.etoilee .fc-valeur, .fc-ligne.etoilee .fc-comp-nom b { color: #f6e3b0; }
+.fc-pied { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; }
+.fc-pied b { color: var(--ink); }
+.fc-pied .etoile, .fc-complete .etoile { color: #f3d27c; vertical-align: -1px; }
+.fc-note { font-size: 12.5px; }
+.fc-complete { color: #f6e3b0; }
+.volet-combat.complete { box-shadow: 0 0 0 1px rgba(157, 124, 240, .6), 0 0 26px rgba(157, 124, 240, .22); }
+
+/* La fenêtre de choix d'une compétence. */
+.fc-choix { width: min(760px, calc(100vw - 32px)); max-height: min(86vh, 860px); padding: 0; overflow: auto; overscroll-behavior: contain;
+  border: 1px solid var(--edge-hi); border-radius: var(--r-lg); background: #121b1f; color: var(--ink2);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, .6); }
+.fc-choix::backdrop { background: rgba(6, 10, 12, .72); backdrop-filter: blur(3px); }
+.fc-choix[open] { animation: parait .2s ease-out; }
+.fc-choix-corps { padding: 18px 20px 20px; display: grid; gap: 12px; text-align: left; }
+.fc-choix-tete { display: flex; justify-content: space-between; align-items: start; gap: 12px; }
+.fc-choix-tete h2 { margin: 0; font-family: var(--font-display); font-size: 22px; color: var(--ink); }
+.fc-choix-tete p { margin: 2px 0 0; font-size: 13px; }
+.fc-choix-tete b { color: var(--ink); }
+.fc-choix-aide { margin: 0; font-size: 13px; }
+.fc-options { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+.fc-option { display: grid; grid-template-rows: auto 1fr auto auto; gap: 6px; padding: 12px;
+  border-radius: var(--r-md); border: 1px solid var(--edge); background: rgba(26, 39, 44, .7); }
+.fc-option.actuelle { border-color: var(--m-chene); background: rgba(78, 140, 126, .12); }
+.fc-option-tete { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.fc-option-tete b { color: var(--ink); font-size: 14.5px; }
+.fc-option p { margin: 0; font-size: 12.5px; line-height: 1.4; }
+.fc-option-etoile { color: #e9cf8a; }
+.fc-option-etoile .etoile { vertical-align: -1px; }
+.fc-badge { font-size: 10.5px; font-weight: 700; letter-spacing: .03em; padding: 1px 7px; border-radius: 100px;
+  border: 1px solid var(--edge-ui); color: var(--ink3); }
+.fc-badge.role { border-color: var(--m-chene); color: #9fd3c5; }
+.fc-option .btn { justify-self: stretch; }
+@media (max-width: 560px) { .fc-choix-corps { padding: 14px; } .fc-options { grid-template-columns: 1fr; } }
+[data-mouvement="reduit"] .fc-choix[open] { animation: none; }
 .loupe-titre { text-align: center; margin: 0; font-family: var(--font-display);
   font-variation-settings: var(--wonk); font-weight: 700; font-size: 26px; color: var(--ink);
   display: flex; flex-direction: column; gap: 5px; }
@@ -649,6 +724,7 @@
   .grille.compacte .cb-petit { width: 100%; }
   .grille.compacte .pastille-nb { transform: scale(.85); transform-origin: top right; }
   .grille.compacte .pastille-niv { transform: scale(.85); transform-origin: top left; }
+  .grille.compacte .pastille-etoile { transform: scale(.85); transform-origin: bottom right; }
   .grille.compacte .legende-carte { font-size: 10.5px; }
 }
 /* Au-delà, la grille se remplit seule : la bascule n'aurait pas d'effet. */
@@ -712,3 +788,4 @@
                        calc(var(--sachet) * -.6295)); }
 [data-mouvement="reduit"] .dos-empile { transition: none; }
 [data-mouvement="reduit"] .lueur.monte { opacity: .5; }
+.fc-option.fermee { opacity: .55; }

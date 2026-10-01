@@ -11,8 +11,8 @@ Raisonnement de conception : ce que fait cette partie du site, et pourquoi elle 
 - **le donjon infini** : une graine neuve à chaque descente, des étages sans
   fin, de plus en plus durs (les PV et l'ATQ des adversaires montent avec
   l'étage, sans plafond ; la part des élites plafonne à l'étage 12). Autant de
-  descentes qu'on veut, mais butin ×0,4, expérience ×0,5, et 100 PO par jour
-  au plus versées à la bourse. Une défaite n'y coûte qu'un jour de repos : un
+  descentes qu'on veut, mais butin ×0,4, expérience ×0,5, et 120 PO par jour
+  au plus versées à la bourse (100 jusqu'au 01/10/2026 ; 120, c'est un booster). Une défaite n'y coûte qu'un jour de repos : un
   jour par étage aurait immobilisé l'équipe neuf jours après l'étage 9. Le
   plus grand nombre de gardiens vaincus fait le record (`donjon.recordInfini`).
 
@@ -237,6 +237,87 @@ Le niveau se lit sous chaque vignette de la préparation, avec une fine barre
 vers le niveau suivant ; le bilan de fin de descente détaille les points
 gagnés, les niveaux franchis et les récompenses.
 
+## La fiche de combat (01/10/2026)
+
+Chaque PNJ allié a une **fiche de combat**, qu'on ouvre dans la bibliothèque :
+c'est le volet « Combat », à gauche de la carte agrandie, en miroir des volets
+Entraîner et Reliquaire (`src/components/VoletCombat.jsx`). Il vaut pour la
+carte, pas pour une version : la rainbow montre la même fiche. Les règles sont
+dans `src/donjon/fiches.js`, les prix dans `PERSONNALISATION`
+(`src/config/reliquaire.js`).
+
+**Quatre lignes modifiables**, payées en vestiges :
+
+| Ligne | D'origine | Modification | Prix |
+|---|---|---|---:|
+| ATQ | palier, niveau, rôle | +1 par rang, trois rangs | 50, 100, 200 |
+| INI | rôle et palier | +1 par rang, trois rangs | 50, 100, 200 |
+| Compétence 1 · geste | Attaquer | un autre geste (sans recharge) | 80 |
+| Compétence 2 · technique | celle du rôle | une autre technique | 150 |
+
+Une compétence naturelle au rôle de la carte coûte moitié prix ; revenir à
+celle d'origine est gratuit. Le choix se fait dans une fenêtre qui montre,
+pour chaque compétence, sa recharge, son effet et ce qu'elle devient étoilée.
+
+**Les compétences** (`COMPETENCES`, `src/donjon/regles.js`). Huit gestes
+(Attaquer, Estoc, Entaille, Coup de bouclier, Double frappe, Main
+secourable, Garde haute, Trait de brume) et dix-sept techniques : les neuf
+d'origine, inchangées, et huit nouvelles aux recharges variées (Exécution,
+Marque du chasseur, Second souffle, Tempête, Cri de ralliement, Piège à
+mâchoires, Voile de brume, Lame vampire). Avant, presque tout se rechargeait
+en deux tours d'attente, soit un usage tous les trois tours. Les nouvelles
+vont de deux à quatre tours, et les gestes n'en ont pas. Elles ajoutent cinq
+états : saignement, marque, piège (perte d'un tour, jamais pour un gardien),
+voile (intouchable) et garde haute (renvoi des coups).
+
+**Les soins sont réservés** à leurs rôles (`reservee`) : Soin, Ravitaillement,
+Second souffle et Main secourable. Ouverts à tous, un Soin donné à la
+meilleure carte faisait passer les trois gardiens de 29 % à 56 % : chaque
+équipe aurait pris trois soigneurs.
+
+**L'étoile.** Chaque ligne s'étoile contre **un exemplaire rainbow en trop de
+la carte** (la dernière rainbow reste dans la collection). Une ligne étoilée
+prend le cadre irisé, est figée, et gagne (`ETOILE`) :
+
+- ATQ ×1,35 ;
+- INI +3, et un tour de plus en tête du premier tour de chaque combat ;
+- une compétence ×1,45 en puissance (dégâts, soins, armure) et un tour de
+  recharge en moins.
+
+Les quatre lignes étoilées, la carte porte l'étoile dans la collection, en
+bas à droite, sous le nombre d'exemplaires. Les rainbow tombent au même taux
+(3 %) pour toutes les cartes, et l'on ouvre bien plus de communes : c'est
+l'incitation à faire descendre des cartes modestes.
+
+**Ce que ça pèse** (`node scripts/audit-donjon.mjs`, section « Fiche de
+combat », 400 descentes par cas, la meilleure carte de l'équipe modifiée ;
+référence 29 % de descentes au bout) :
+
+| Cas | Trois gardiens |
+|---|---:|
+| Un geste ou une technique changés | 26 à 36 % (des choix de côté) |
+| Rangs complets sur une carte | 44 % |
+| Une ligne étoilée | 35 à 41 % |
+| Une carte aux quatre étoiles | 65 % |
+| Rangs complets sur toute l'équipe | 68 % |
+
+Une carte aux quatre étoiles double à peu près le butin du donjon du jour
+(~150 PO de plus par jour). Elle demande quatre rainbow en trop de la même
+carte : c'est un trophée de plusieurs mois. Les rangs de toute une équipe
+coûtent 2 800 vestiges, soit environ 560 doublons communs dissous.
+
+**Sans fiche, rien ne change** : les rôles gardent leur technique et
+leurs chiffres, et l'audit complet du Donjon sort à l'identique avant et
+après l'arrivée des fiches.
+
+**Sauvegarde** : `etat.fiches["extension:carte"] = { atq, ini, geste, tech, etoiles }`,
+un champ nouveau de `etatVide()`, sans changement de `SCHEMA`. Entre deux
+appareils (`fusionnerFiches`), les rangs sont des compteurs plafonnés (ils
+ont été payés des deux côtés), les étoiles s'additionnent (la rainbow est
+sortie de la collection), et une compétence suit l'appareil qui l'a changée,
+sauf sur une ligne étoilée. Une partie en cours sauvée avant les fiches se
+joue encore : une unité sans geste ni technique reprend ceux de son rôle.
+
 ## L'économie
 
 Le module rapporte des **pièces de butin** ; `src/jeu/donjon.js` les convertit
@@ -246,7 +327,7 @@ Le module rapporte des **pièces de butin** ; `src/jeu/donjon.js` les convertit
 |---|---:|
 | PO par pièce de butin | 0,6 |
 | Donjon du jour | 1 descente par jour, butin ×2 |
-| Donjon infini | illimité, butin ×0,4, expérience ×0,5, 100 PO par jour au plus |
+| Donjon infini | illimité, butin ×0,4, expérience ×0,5, 120 PO par jour au plus |
 
 La descente du jour est prise au départ et non à la remontée : abandonner ne
 la rend pas. Le mode test des outils MJ la rend illimitée.

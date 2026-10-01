@@ -9,8 +9,9 @@ import {
   atqDe, cartesDonjon, choixAuto, choixIA, creerPartie, demarrerCombat, descendre, entrer, fuir,
   gestes, graineDuJour, issue, ouverts, parUid, prochain, rapporte, repos, resoudre,
   tresor, victoire, vivants, allie, ciblesPossibles, convalescences, fiche, peutFuir, gainsXP,
-  apprentissage, brume, tirage, BRUME_TOUR,
+  apprentissage, brume, tirage, BRUME_TOUR, COMPETENCES, techDe,
 } from "./regles.js";
+import { etoiles, ficheDe, fichesDe } from "./fiches.js";
 import { NIVEAU_MAX, PALIER_IRISEE, avancement, xpDe } from "./experience.js";
 import "../styles/donjon.css";
 
@@ -75,6 +76,12 @@ function CarteDJ({ c, u = null, partie = null, cfgImage, fichiers }) {
   if (u?.provoque) statuts.push("Provoque");
   if (u?.galva > 0) statuts.push("+3 ATQ");
   if (u?.rempart > 0) statuts.push("Rempart");
+  if (u?.parade > 0) statuts.push(`Armure +${u.parade}`);
+  if (u?.riposte > 0) statuts.push("Garde haute");
+  if (u?.voile) statuts.push("Voilé");
+  if (u?.marque > 0) statuts.push("Marqué");
+  if (u?.saigne > 0) statuts.push("Saigne");
+  if (u?.etourdi > 0) statuts.push("Piégé");
   if (u?.camp === "a" && u.cd > 0) statuts.push(`Recharge ${u.cd}`);
   return (
     <div className="dj-carte cardbox">
@@ -94,7 +101,7 @@ function CarteDJ({ c, u = null, partie = null, cfgImage, fichiers }) {
             <b className="atq">{atqDe(partie, u)}</b>
             <b className={`pv${pct < 35 ? " bas" : ""}`}>{u.ko ? "×" : u.pv}</b>
           </span>
-          {(u.provoque > 0 || u.galva > 0 || u.rempart > 0) && <span className="dj-etat-point" />}
+          {(u.provoque > 0 || u.galva > 0 || u.rempart > 0 || u.parade > 0 || u.riposte > 0 || u.voile > 0 || u.marque > 0 || u.saigne > 0 || u.etourdi > 0) && <span className="dj-etat-point" />}
         </div>
       )}
     </div>
@@ -277,9 +284,10 @@ export default function Donjon({ jeu }) {
     if (equipe.length !== TAILLE_EQUIPE || (mode === "jour" && tentativesRestantes <= 0)) return;
     const jour = aujourdhui();
     const niveaux = Object.fromEntries(equipe.map((c) => [`${c.ext}:${c.id}`, niveauCarte(c)]));
+    const fiches = fichesDe(etat, equipe);
     const M = DONJON.modes[mode];
     const graine = mode === "infini" ? graineInfinie() : graineDuJour(jour);
-    const p = creerPartie({ equipe, artefact, graine, jour, pools: POOLS, niveaux, apprenti, mode, gainMode: M.gain, xpMode: M.xp });
+    const p = creerPartie({ equipe, artefact, graine, jour, pools: POOLS, niveaux, fiches, apprenti, mode, gainMode: M.gain, xpMode: M.xp });
     partieRef.current = p;
     commencerDonjon(structuredClone(p));
     setEcran("carte");
@@ -501,7 +509,20 @@ export default function Donjon({ jeu }) {
     requestAnimationFrame(() => montrer(res.effets));
     await new Promise((ok) => setTimeout(ok, 560 / vitesseRef.current));
     if (combatRef.current !== CC) return;
-    const fin = issue(p, CC);
+    let fin = issue(p, CC);
+    if (!fin) {
+      // La main passe. Un saignement ou un piège joue entre deux mains : il
+      // part au journal, et peut clore le combat.
+      prochain(p, CC);
+      const notes = CC.notes || [];
+      if (notes.length) {
+        setJournal((j) => [...notes.map((n) => n.note).reverse(), ...j].slice(0, 12));
+        requestAnimationFrame(() => montrer(notes.flatMap((n) => n.effets)));
+      }
+      fin = issue(p, CC);
+      if (!fin) { setOccupe(false); redessiner(); return; }
+      redessiner();
+    }
     if (fin === "victoire") {
       CC.fini = "victoire";
       p.combat = null;
@@ -511,10 +532,7 @@ export default function Donjon({ jeu }) {
       differer(() => { combatRef.current = null; aller(CC.genre === "boss" ? "sortie" : "resultat"); }, 450 / vitesseRef.current);
       return;
     }
-    if (fin === "defaite") { CC.fini = "defaite"; differer(() => terminer("defaite"), 700); return; }
-    prochain(p, CC);
-    setOccupe(false);
-    redessiner();
+    if (fin === "defaite") { CC.fini = "defaite"; differer(() => terminer("defaite"), 700); }
   }, [aller]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // À chaque passage de main : l'adversaire joue seul, le pilote automatique
@@ -663,7 +681,8 @@ export default function Donjon({ jeu }) {
               {collection.allies.map((c) => {
                 const pris = choix.includes(c.id);
                 const niv = niveauCarte(c);
-                const u = allie({ uid: 0 }, c, niv), R = ROLES[u.role];
+                const fc = ficheDe(etat, c);
+                const u = allie({ uid: 0 }, c, niv, fc), R = ROLES[u.role], nEt = etoiles(fc);
                 const palier = PALIER_IRISEE[c.tier] || 20;
                 // Mode test : la convalescence s'affiche mais n'empêche rien.
                 const repos = convalescence(c);
@@ -686,7 +705,7 @@ export default function Donjon({ jeu }) {
                     </button>
                     <div className="dj-choix-pied">
                       <span className="dj-ligne1">
-                        <span className={`dj-mot r-${u.role}`}>{R.nom}</span>
+                        <span className={`dj-mot r-${u.role}`}>{R.nom}{nEt > 0 && <span className="dj-etoiles" title={`${nEt} ligne${nEt > 1 ? "s" : ""} étoilée${nEt > 1 ? "s" : ""}`}> {"★".repeat(nEt)}</span>}</span>
                         <span className="dj-niv" title={niv < palier ? `Irisée au niveau ${palier}` : niv < NIVEAU_MAX ? `Sachet offert au niveau ${NIVEAU_MAX}` : "Niveau maximal"}>
                           Niv. {niv}
                         </span>
@@ -869,7 +888,7 @@ export default function Donjon({ jeu }) {
       const ciblable = def && !u.ko && ((def.cible === "e") ? frappables.has(u.uid) : u.camp === "a");
       const f = inspecte === u.uid ? fiche(partie, u) : null;
       const R = ROLES[u.role];
-      const etiquette = u.boss ? "Gardien · Balayage" : R ? `${R.nom} · ${R.cap.nom}` : `${u.elite ? "Élite · " : ""}${TRAITS[u.role].nom}`;
+      const etiquette = u.boss ? "Gardien · Balayage" : R ? `${R.nom} · ${COMPETENCES[techDe(u)].nom}${u.etoiles?.tech ? " ★" : ""}` : `${u.elite ? "Élite · " : ""}${TRAITS[u.role].nom}`;
       return (
         <div key={u.uid} data-uid={u.uid}
           className={`dj-u${u.uid === C.actif ? " actif" : ""}${u.ko ? " ko" : ""}${ciblable ? ` ciblable${u.camp === "a" ? " allie" : ""}` : ""}${u.boss ? " boss" : ""}`}
@@ -906,7 +925,7 @@ export default function Donjon({ jeu }) {
             <span className="tour">Tour {C.round}</span>
             {brume(C) > 1 && <span className="dj-brume" title={`Passé le tour ${BRUME_TOUR}, la brume se referme : +20 % de dégâts par tour, des deux côtés.`}>Brume +{Math.round((brume(C) - 1) * 100)} %</span>}
             {ordre.map(({ u, i }) => (
-              <Jeton key={u.uid} u={u} cls={u.uid === C.actif ? "actif" : i < C.idx ? "passe" : ""} cfgImage={cfgImage} fichiers={fichiers} />
+              <Jeton key={`${u.uid}-${i}`} u={u} cls={u.uid === C.actif ? "actif" : i < C.idx ? "passe" : ""} cfgImage={cfgImage} fichiers={fichiers} />
             ))}
           </div>
           <div className="dj-rang ennemis">{C.ennemis.map(unite)}</div>
@@ -916,8 +935,8 @@ export default function Donjon({ jeu }) {
             </div>
             <div className="dj-gestes">
               {liste.map((x) => (
-                <button key={x.id} type="button" className={`dj-geste${geste === x.id ? " on" : ""}`} disabled={!x.pret} onClick={() => choisirGeste(x.id)}>
-                  <b>{x.nom}</b><span>{x.aide}</span>
+                <button key={x.id} type="button" className={`dj-geste${geste === x.id ? " on" : ""}${x.etoile ? " etoile" : ""}`} disabled={!x.pret} onClick={() => choisirGeste(x.id)}>
+                  <b>{x.nom}{x.etoile && " ★"}</b><span>{x.aide}</span>
                 </button>
               ))}
             </div>
@@ -1061,8 +1080,15 @@ function Lexique({ focus, onFermer }) {
         <p className="muted petit">Le rôle d'un PNJ vient de son archétype. Les PNJ rivaux ont les mêmes, et s'en servent contre vous.</p>
         <dl>
           {Object.entries(ROLES).map(([id, R]) => entree(id, R.nom,
-            <><b>{R.cap.nom}</b> — {R.cap.aide}.</>,
-            `${R.passif ? `${R.passif}. ` : ""}Recharge : ${R.cap.cd ? `${R.cap.cd} tour${R.cap.cd > 1 ? "s" : ""}` : "aucune"}. Initiative de base ${R.ini}.`))}
+            <><b>{COMPETENCES[R.tech].nom}</b> — {COMPETENCES[R.tech].aide}.</>,
+            `${R.passif ? `${R.passif}. ` : ""}Recharge : ${COMPETENCES[R.tech].cd ? `${COMPETENCES[R.tech].cd} tour${COMPETENCES[R.tech].cd > 1 ? "s" : ""}` : "aucune"}. Initiative de base ${R.ini}.`))}
+        </dl>
+        <h3>Compétences</h3>
+        <p className="muted petit">Chaque carte porte un geste (compétence 1, sans recharge) et une technique (compétence 2). Les deux se changent contre des vestiges, depuis la carte agrandie de la bibliothèque, comme les rangs d'ATQ et d'INI. Une rainbow en trop de la carte étoile une ligne : elle est figée, et bien plus forte.</p>
+        <dl>
+          {Object.values(COMPETENCES).map((K) => entree(`k-${K.id}`, `${K.nom}${K.place === "geste" ? " (geste)" : ""}`,
+            `${K.aide}.`,
+            `${K.place === "tech" ? `Recharge : ${K.cd ? `${K.cd} tour${K.cd > 1 ? "s" : ""}` : "aucune"}. ` : ""}Étoilée : ${K.etoile.charAt(0).toLowerCase()}${K.etoile.slice(1)}.`))}
         </dl>
         <h3>Adversaires</h3>
         <dl>
@@ -1075,6 +1101,11 @@ function Lexique({ focus, onFermer }) {
           {entree("provoc", "Provoque", "Seule cible possible pour le camp d'en face, armure +2, jusqu'à son prochain tour.")}
           {entree("galva", "+3 ATQ", "Galvanisé par un meneur, pour trois tours.")}
           {entree("rempart", "Rempart", "Armure +3, posée par un artificier sur toute l'équipe, pour deux tours.")}
+          {entree("saigne", "Saigne", "Perd une part de l'ATQ de qui l'a entaillé à chacun de ses tours.")}
+          {entree("marque", "Marqué", "Prend plus de dégâts, pour deux tours.")}
+          {entree("piege", "Piégé", "Perd son prochain tour. Un gardien y résiste.")}
+          {entree("voile", "Voilé", "Ne peut pas être touché jusqu'à son prochain tour.")}
+          {entree("gardehaute", "Garde haute", "Rend une part de son ATQ à qui le frappe, jusqu'à son prochain tour.")}
           {entree("brume", "Brume", `Passé le tour ${BRUME_TOUR}, la brume se referme : chaque tour ajoute 20 % aux dégâts des deux camps. Aucun combat ne dure toujours.`)}
           {entree("recharge", "Recharge", "Tours avant que la capacité serve à nouveau.")}
           {entree("repos", "Au repos", "Convalescence après une défaite (un jour par étage atteint) ou une fuite (un jour) : la carte ne peut pas redescendre avant.")}

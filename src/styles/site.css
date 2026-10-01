@@ -198,6 +198,16 @@ a { color: inherit; text-decoration: none; }
   color: #0f2418; background: var(--m-chene); border: 1px solid var(--m-chene);
   box-shadow: 0 2px 8px rgba(0, 0, 0, .45);
 }
+/* L'étoile de la fiche de combat, en bas à droite : le miroir vertical des
+   exemplaires. Cadre irisé, comme les lignes étoilées du volet. */
+.pastille-etoile {
+  position: absolute; bottom: 6px; right: 6px; z-index: 8; pointer-events: none;
+  display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%;
+  color: #f6e3b0; border: 1.5px solid transparent;
+  background: radial-gradient(circle, #2a2335, #141018) padding-box,
+    conic-gradient(hsl(340 80% 70%), hsl(46 90% 68%), hsl(148 60% 62%), hsl(200 80% 68%), hsl(266 72% 74%), hsl(340 80% 70%)) border-box;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, .45), 0 0 12px rgba(157, 124, 240, .35);
+}
 .case-carte { position: relative; }
 
 /* ── Bascule ─────────────────────────────────────────────────────────────── */

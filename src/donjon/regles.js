@@ -111,26 +111,118 @@ export function cartesDonjon(extensions) {
 const BASE = { commun: { pv: 10, atq: 3 }, peucommun: { pv: 13, atq: 4 }, rare: { pv: 17, atq: 5 }, legendaire: { pv: 23, atq: 7 } };
 const INI_PALIER = { commun: 0, peucommun: 1, rare: 2, legendaire: 3 };
 
+/**
+ * Les rôles. Chacun donne un passif, une initiative de base et sa technique
+ * d'origine (`tech`, une clé de COMPETENCES). Le geste d'origine est
+ * l'attaque, pour tous.
+ */
 export const ROLES = {
-  garde: { nom: "Garde", ini: 2, passif: "Armure 1",
-    cap: { id: "provoc", nom: "Provocation", cd: 3, aide: "Attire tous les coups jusqu'à son prochain tour, armure +2" } },
-  frappeur: { nom: "Frappeur", ini: 5, passif: "+1 ATQ",
-    cap: { id: "lourde", nom: "Frappe lourde", cd: 2, cible: "e", aide: "Dégâts ×1,9 sur une cible" } },
-  tireur: { nom: "Tireur", ini: 7, passif: "Agit tôt",
-    cap: { id: "vise", nom: "Tir visé", cd: 2, cible: "e", aide: "Dégâts ×1,6, ignore l'armure" } },
-  soigneur: { nom: "Soigneur", ini: 3, passif: "",
-    cap: { id: "soin", nom: "Soin", cd: 0, cible: "a", aide: "Rend ATQ + 2 PV à un allié" } },
-  mage: { nom: "Mage", ini: 4, passif: "",
-    cap: { id: "vague", nom: "Vague de brume", cd: 1, aide: "Frappe tous les adversaires" } },
-  meneur: { nom: "Meneur", ini: 4, passif: "",
-    cap: { id: "galva", nom: "Galvaniser", cd: 2, aide: "+3 ATQ à toute l'équipe pendant trois tours" } },
-  debrouillard: { nom: "Débrouillard", ini: 5, passif: "+10 % de butin",
-    cap: { id: "coupbas", nom: "Coup bas", cd: 2, cible: "e", aide: "Dégâts ×1,4, et chaparde quelques PO" } },
-  artificier: { nom: "Artificier", ini: 3, passif: "",
-    cap: { id: "rempart", nom: "Rempart", cd: 2, aide: "Armure +3 à toute l'équipe pendant deux tours" } },
-  intendant: { nom: "Intendant", ini: 3, passif: "Repos +25 %",
-    cap: { id: "ravit", nom: "Ravitaillement", cd: 2, aide: "Rend ATQ PV à toute l'équipe" } },
+  garde: { nom: "Garde", ini: 2, passif: "Armure 1", tech: "provoc" },
+  frappeur: { nom: "Frappeur", ini: 5, passif: "+1 ATQ", tech: "lourde" },
+  tireur: { nom: "Tireur", ini: 7, passif: "Agit tôt", tech: "vise" },
+  soigneur: { nom: "Soigneur", ini: 3, passif: "", tech: "soin" },
+  mage: { nom: "Mage", ini: 4, passif: "", tech: "vague" },
+  meneur: { nom: "Meneur", ini: 4, passif: "", tech: "galva" },
+  debrouillard: { nom: "Débrouillard", ini: 5, passif: "+10 % de butin", tech: "coupbas" },
+  artificier: { nom: "Artificier", ini: 3, passif: "", tech: "rempart" },
+  intendant: { nom: "Intendant", ini: 3, passif: "Repos +25 %", tech: "ravit" },
 };
+
+/**
+ * Les compétences. Une carte en porte deux : un **geste** (compétence 1, sans
+ * recharge, ce qu'elle fait quand elle ne fait rien d'autre) et une
+ * **technique** (compétence 2, avec sa recharge). Les deux se changent contre
+ * des vestiges depuis la bibliothèque (voir fiches.js).
+ *
+ * - `cd` : tours de l'unité à attendre avant de la rejouer ;
+ * - `cible` : "e" un adversaire, "a" un allié, null personne à désigner ;
+ * - `roles` : ceux pour qui elle est naturelle, à moitié prix ;
+ * - `reservee` : elle n'est ouverte qu'à ces rôles-là. Ce sont les soins :
+ *   ouverts à tous, chaque équipe prenait trois soigneurs, et un soin donné
+ *   à la meilleure carte faisait passer les trois gardiens de 29 % à 56 %
+ *   (scripts/audit-donjon.mjs) ;
+ * - `etoile` : ce qu'elle devient une fois étoilée (voir ETOILE).
+ *
+ * Les neuf techniques d'origine gardent leurs chiffres d'avant : une carte
+ * qu'on ne touche pas se bat exactement comme avant.
+ */
+export const COMPETENCES = {
+  /* Gestes */
+  attaque: { place: "geste", nom: "Attaquer", cd: 0, cible: "e", roles: [],
+    aide: "Dégâts ×1 sur une cible", etoile: "Dégâts ×1,45" },
+  estoc: { place: "geste", nom: "Estoc", cd: 0, cible: "e", roles: ["tireur", "debrouillard", "frappeur"],
+    aide: "Dégâts ×0,85 qui ignorent l'armure", etoile: "Dégâts ×1,25 qui ignorent l'armure" },
+  entaille: { place: "geste", nom: "Entaille", cd: 0, cible: "e", roles: ["debrouillard", "frappeur"],
+    aide: "Dégâts ×0,6, et la cible saigne deux tours (40 % de l'ATQ à chacun de ses tours)", etoile: "Dégâts ×0,85, saignement de trois tours à 65 %" },
+  bouclier: { place: "geste", nom: "Coup de bouclier", cd: 0, cible: "e", roles: ["garde", "artificier"],
+    aide: "Dégâts ×0,7, et armure +2 jusqu'à son prochain tour", etoile: "Dégâts ×1, et armure +4" },
+  double: { place: "geste", nom: "Double frappe", cd: 0, cible: "e", roles: ["frappeur", "tireur"],
+    aide: "Deux coups ×0,55 sur la même cible", etoile: "Deux coups ×0,8" },
+  secours: { place: "geste", nom: "Main secourable", cd: 0, cible: "e", roles: ["soigneur", "intendant", "meneur"], reservee: true,
+    aide: "Dégâts ×0,5, et l'allié le plus blessé reprend le tiers de l'ATQ en PV", etoile: "Dégâts ×0,7, et soin de la moitié de l'ATQ" },
+  ripostee: { place: "geste", nom: "Garde haute", cd: 0, cible: "e", roles: ["garde", "frappeur"],
+    aide: "Dégâts ×0,8 ; jusqu'à son prochain tour, rend son ATQ à qui le frappe", etoile: "Dégâts ×1,15, et rend 1,5 fois son ATQ" },
+  trait: { place: "geste", nom: "Trait de brume", cd: 0, cible: "e", roles: ["mage", "tireur"],
+    aide: "Dégâts ×0,7 sur la cible et sur un autre adversaire", etoile: "Dégâts ×1 sur les deux" },
+
+  /* Techniques d'origine */
+  provoc: { place: "tech", nom: "Provocation", cd: 3, cible: null, roles: ["garde"],
+    aide: "Attire tous les coups jusqu'à son prochain tour, armure +2", etoile: "Armure +5, recharge 2" },
+  lourde: { place: "tech", nom: "Frappe lourde", cd: 2, cible: "e", roles: ["frappeur"],
+    aide: "Dégâts ×1,9 sur une cible", etoile: "Dégâts ×2,75, recharge 1" },
+  vise: { place: "tech", nom: "Tir visé", cd: 2, cible: "e", roles: ["tireur"],
+    aide: "Dégâts ×1,6, ignore l'armure", etoile: "Dégâts ×2,3, ignore l'armure, recharge 1" },
+  soin: { place: "tech", nom: "Soin", cd: 0, cible: "a", roles: ["soigneur"], reservee: true,
+    aide: "Rend ATQ + 2 PV à un allié", etoile: "Rend 1,45 × (ATQ + 2) PV" },
+  vague: { place: "tech", nom: "Vague de brume", cd: 1, cible: null, roles: ["mage"],
+    aide: "Frappe tous les adversaires", etoile: "Dégâts ×1,45 sur tous, sans recharge" },
+  galva: { place: "tech", nom: "Galvaniser", cd: 2, cible: null, roles: ["meneur"],
+    aide: "+3 ATQ à toute l'équipe pendant trois tours", etoile: "+5 ATQ, recharge 1" },
+  coupbas: { place: "tech", nom: "Coup bas", cd: 2, cible: "e", roles: ["debrouillard"],
+    aide: "Dégâts ×1,4, et chaparde quelques PO", etoile: "Dégâts ×2, butin doublé, recharge 1" },
+  rempart: { place: "tech", nom: "Rempart", cd: 2, cible: null, roles: ["artificier"],
+    aide: "Armure +3 à toute l'équipe pendant deux tours", etoile: "Armure +5, recharge 1" },
+  ravit: { place: "tech", nom: "Ravitaillement", cd: 2, cible: null, roles: ["intendant"], reservee: true,
+    aide: "Rend ATQ PV à toute l'équipe", etoile: "Rend 1,45 × ATQ PV, recharge 1" },
+
+  /* Techniques nouvelles */
+  execution: { place: "tech", nom: "Exécution", cd: 3, cible: "e", roles: ["frappeur", "debrouillard"],
+    aide: "Dégâts ×1,4, triplés si la cible a moins de 35 % de ses PV", etoile: "Dégâts ×2 (×6 sous 35 %), recharge 2" },
+  marque: { place: "tech", nom: "Marque du chasseur", cd: 3, cible: "e", roles: ["tireur", "meneur"],
+    aide: "Dégâts ×1 ; la cible prend +60 % de dégâts pendant deux tours", etoile: "Dégâts ×1,45, +90 % de dégâts subis, recharge 2" },
+  souffle: { place: "tech", nom: "Second souffle", cd: 4, cible: null, roles: ["soigneur", "intendant"], reservee: true,
+    aide: "Relève le compagnon à terre le plus solide à 40 % de ses PV ; sinon, soigne le plus blessé de 40 %", etoile: "65 % au lieu de 40 %, recharge 3" },
+  tempete: { place: "tech", nom: "Tempête", cd: 4, cible: null, roles: ["mage"],
+    aide: "Dégâts ×1,25 sur tous les adversaires", etoile: "Dégâts ×1,8 sur tous, recharge 3" },
+  ralliement: { place: "tech", nom: "Cri de ralliement", cd: 3, cible: null, roles: ["meneur"],
+    aide: "+2 ATQ à toute l'équipe pendant deux tours, et les recharges des autres baissent de deux tours", etoile: "+3 ATQ, et toutes les recharges remises à zéro, recharge 2" },
+  piege: { place: "tech", nom: "Piège à mâchoires", cd: 3, cible: "e", roles: ["artificier", "debrouillard"],
+    aide: "Dégâts ×0,8 ; la cible perd son prochain tour (un gardien y résiste)", etoile: "Dégâts ×1,15, recharge 2" },
+  voile: { place: "tech", nom: "Voile de brume", cd: 3, cible: "a", roles: ["mage", "garde"],
+    aide: "Un allié ne peut plus être touché jusqu'à son prochain tour", etoile: "Le voile soigne aussi 30 % des PV, recharge 2" },
+  drain: { place: "tech", nom: "Lame vampire", cd: 2, cible: "e", roles: ["frappeur", "mage"],
+    aide: "Dégâts ×1,3, et rend la moitié des dégâts en PV", etoile: "Dégâts ×1,9, recharge 1" },
+};
+for (const [id, k] of Object.entries(COMPETENCES)) k.id = id;
+// `cap` : la technique d'origine, telle que l'appelaient les versions d'avant.
+for (const R of Object.values(ROLES)) R.cap = COMPETENCES[R.tech];
+
+/**
+ * L'étoile. Une ligne étoilée est figée — on ne la modifie plus — et gagne :
+ * ATQ ×1,35 ; INI +3 et un tour de plus au premier tour de chaque combat ;
+ * une compétence ×1,45 en puissance (dégâts, soins) et un tour de recharge en
+ * moins. Mesuré (audit du Donjon) : une étoile seule porte les trois gardiens
+ * de 29 % à 35-40 % ; quatre sur la même carte, autour de 60 %. Elle coûte un exemplaire rainbow en trop de la carte (voir fiches.js).
+ */
+export const ETOILE = { puissance: 1.45, atq: 1.35, ini: 3 };
+
+/** Le geste et la technique d'une unité ; les parties d'avant n'en portaient pas. */
+export const gesteDe = (u) => (COMPETENCES[u.geste]?.place === "geste" ? u.geste : "attaque");
+export const techDe = (u) => (COMPETENCES[u.tech]?.place === "tech" ? u.tech : ROLES[u.role]?.tech || null);
+const etoileSur = (u, id) => (id === gesteDe(u) && !!u.etoiles?.geste) || (id === techDe(u) && !!u.etoiles?.tech);
+/** La recharge réelle d'une technique pour cette unité, étoile comprise. */
+export const rechargeDe = (u, id) => Math.max(0, (COMPETENCES[id]?.cd || 0) - (etoileSur(u, id) ? 1 : 0));
+
 export const TRAITS = {
   rapide: { nom: "Rapide", aide: "Agit tôt dans le tour" },
   fourbe: { nom: "Fourbe", aide: "25 % de coup critique, achève le plus faible" },
@@ -159,16 +251,34 @@ export function roleDe(rep1) {
 /** Une carte, sans ce dont le donjon n'a pas besoin : c'est ce qui part dans la sauvegarde. */
 const legere = (c) => ({ id: c.id, num: c.num, nom: c.nom, type: c.type, tier: c.tier, rep1: c.rep1, race: c.race, rep3: c.rep3, citation: c.citation, ext: c.ext });
 
-/** Un compagnon. `niveau` vient de son expérience (voir experience.js). */
-export function allie(partie, c, niveau = 1) {
+/** Les états qu'un combat pose sur une unité, remis à zéro au suivant. */
+const ETATS = { provoque: 0, galva: 0, galvaVal: 0, rempart: 0, rempartVal: 0, armureProvoc: 0, parade: 0, riposte: 0,
+  voile: 0, marque: 0, marqueVal: 0, saigne: 0, saigneD: 0, etourdi: 0 };
+
+/**
+ * Un compagnon. `niveau` vient de son expérience (voir experience.js) ;
+ * `fiche`, de ce que le joueur a acheté pour la carte (voir fiches.js) :
+ * rangs d'ATQ et d'INI, geste et technique choisis, lignes étoilées.
+ */
+export function allie(partie, c, niveau = 1, fiche = null) {
   const b = BASE[c.tier] || BASE.commun, role = roleDe(c.rep1);
   const bn = bonusNiveau(niveau);
+  const f = fiche || {}, et = f.etoiles || {};
   let pv = b.pv + bn.pv, atq = b.atq + bn.atq;
   if (role === "garde") pv = Math.round(pv * 1.3);
   if (role === "frappeur") atq += 1;
   if (["soigneur", "debrouillard", "mage", "intendant"].includes(role)) pv = Math.round(pv * 0.9);
-  return { uid: partie.uid++, c: legere(c), camp: "a", role, pvMax: pv, pv, atq, niveau, xp: 0,
-    ini: ROLES[role].ini + (INI_PALIER[c.tier] || 0), ko: false, cd: 0, provoque: 0, galva: 0, rempart: 0 };
+  atq += f.atq || 0;
+  if (et.atq) atq = Math.round(atq * ETOILE.atq);
+  let ini = ROLES[role].ini + (INI_PALIER[c.tier] || 0) + (f.ini || 0);
+  if (et.ini) ini += ETOILE.ini;
+  const u = { uid: partie.uid++, c: legere(c), camp: "a", role, pvMax: pv, pv, atq, niveau, xp: 0,
+    ini, ko: false, cd: 0, ...ETATS };
+  if (COMPETENCES[f.geste]?.place === "geste" && f.geste !== "attaque") u.geste = f.geste;
+  if (COMPETENCES[f.tech]?.place === "tech" && f.tech !== ROLES[role].tech) u.tech = f.tech;
+  const etoiles = Object.fromEntries(Object.entries(et).filter(([, v]) => v));
+  if (Object.keys(etoiles).length) u.etoiles = etoiles;
+  return u;
 }
 /**
  * Un adversaire. Le bestiaire et la pègre portent un trait (rapide, fourbe,
@@ -184,7 +294,7 @@ export function monstre(partie, c, etage, mult = 1) {
   if (!hostile && ["soigneur", "mage", "debrouillard", "intendant"].includes(role)) pvMax = Math.round(pvMax * 0.9);
   const atq = Math.max(1, Math.round((Math.round(b.atq * 0.85) + Math.round((etage - 1) * 1.4) + (mult > 1.5 ? 2 : mult > 1 ? 1 : 0) + (role === "frappeur" ? 1 : 0)) * dif));
   const ini = (hostile ? { rapide: 7, fourbe: 5, brute: 3 }[role] : ROLES[role].ini) + (INI_PALIER[c.tier] || 0);
-  return { uid: partie.uid++, c: legere(c), camp: "e", role, pvMax, pv: pvMax, atq, ini, ko: false, cd: 0, provoque: 0, galva: 0, rempart: 0 };
+  return { uid: partie.uid++, c: legere(c), camp: "e", role, pvMax, pv: pvMax, atq, ini, ko: false, cd: 0, ...ETATS };
 }
 
 export const vivants = (l) => l.filter((u) => !u.ko);
@@ -200,7 +310,7 @@ export function bonusEquipe(partie) {
   return { atq, pv };
 }
 export const atqDe = (partie, u) =>
-  u.atq + (u.camp === "a" ? bonusEquipe(partie).atq : 0) + (u.galva > 0 ? 3 : 0);
+  u.atq + (u.camp === "a" ? bonusEquipe(partie).atq : 0) + (u.galva > 0 ? u.galvaVal || 3 : 0);
 const multButin = (partie) => (1 + 0.1 * partie.equipe.filter((u) => u.role === "debrouillard").length) * (partie.gain ?? 1);
 export function gagner(partie, po) {
   const n = Math.round(po * multButin(partie));
@@ -267,7 +377,7 @@ export function ouverts(plan) {
 
 /* ── La partie ───────────────────────────────────────────────────────── */
 
-export function creerPartie({ equipe, artefact, graine, jour, pools, niveaux = {}, apprenti = null, mode = "jour", gainMode = 1, xpMode = 1 }) {
+export function creerPartie({ equipe, artefact, graine, jour, pools, niveaux = {}, fiches = {}, apprenti = null, mode = "jour", gainMode = 1, xpMode = 1 }) {
   // `apprenti` : l'adoucissement des débuts (voir `apprentissage`). Il est
   // figé pour toute la descente : la difficulté ne bouge pas en chemin.
   // `gainMode` et `xpMode` : ce que le mode ajoute ou retire au butin et à
@@ -276,7 +386,7 @@ export function creerPartie({ equipe, artefact, graine, jour, pools, niveaux = {
     difficulte: apprenti?.difficulte ?? 1, gain: (apprenti?.gain ?? 1) * gainMode, xpMode, combat: null, rencontre: null,
     artefact: artefact ? legere(artefact) : null, equipe: [], ecran: "carte", noeud: null,
     stats: { salles: 0, combats: 0, ennemis: 0, gardiens: 0 } };
-  partie.equipe = equipe.map((c) => allie(partie, c, niveaux[`${c.ext}:${c.id}`] || 1));
+  partie.equipe = equipe.map((c) => allie(partie, c, niveaux[`${c.ext}:${c.id}`] || 1, fiches[`${c.ext}:${c.id}`]));
   const b = bonusEquipe(partie);
   for (const u of partie.equipe) { u.pvMax += b.pv; u.pv = u.pvMax; }
   partie.plan = genererEtage(1, tirage(graine + 1), pools.lieux);
@@ -421,42 +531,81 @@ function composer(partie, genre, r, pools) {
   return l;
 }
 export function demarrerCombat(partie, genre, r, pools) {
-  for (const u of partie.equipe) { u.cd = 0; u.provoque = 0; u.galva = 0; u.rempart = 0; }
+  for (const u of partie.equipe) Object.assign(u, { cd: 0 }, ETATS);
   partie.stats.combats++;
-  return { genre, ennemis: composer(partie, genre, r, pools), round: 0, ordre: [], idx: -1, actif: null, compteBoss: 0, fini: null };
+  return { genre, ennemis: composer(partie, genre, r, pools), round: 0, ordre: [], idx: -1, actif: null, compteBoss: 0, fini: null, notes: [] };
 }
 export const unites = (partie, C) => [...partie.equipe, ...C.ennemis];
 export const parUid = (partie, C, uid) => unites(partie, C).find((u) => u.uid === uid);
 
 /**
+ * Ce qui arrive à une unité quand vient son tour : ses postures tombent
+ * (provocation, garde, voile), sa recharge baisse, elle saigne, ou elle
+ * reste étourdie. Rend faux si elle ne joue pas ce tour-ci ; ce qui s'est
+ * passé part dans `C.notes`, pour le journal.
+ */
+function debutDeTour(partie, C, u) {
+  if (u.cd > 0) u.cd--;
+  u.provoque = 0;                   // la provocation court jusqu'à son prochain tour
+  u.parade = 0; u.riposte = 0; u.voile = 0; u.armureProvoc = 0;
+  const nom = u.nomAffiche || u.c.nom;
+  if (u.saigne > 0) {
+    u.saigne--;
+    const d = Math.max(1, u.saigneD || 1);
+    u.pv = Math.max(0, u.pv - d);
+    if (u.pv === 0) u.ko = true;
+    (C.notes ||= []).push({ note: `${nom} saigne : −${d}${u.ko ? " — à terre" : ""}`, effets: [{ uid: u.uid, txt: `−${d}`, anim: "touche" }] });
+    if (u.ko) return false;
+  }
+  if (u.etourdi > 0) {
+    u.etourdi--;
+    (C.notes ||= []).push({ note: `${nom} se dégage du piège et perd son tour.`, effets: [{ uid: u.uid, txt: "Étourdi", cls: "info" }] });
+    return false;
+  }
+  return true;
+}
+
+/**
  * Passe la main à l'unité suivante et la rend, ou ouvre un nouveau tour.
- * À initiative égale, l'équipe passe devant : on joue chez soi.
+ * À initiative égale, l'équipe passe devant : on joue chez soi. Rend null si
+ * le combat s'est joué entre deux mains (un saignement achève le dernier).
  */
 export function prochain(partie, C) {
+  C.notes = [];
   for (let garde = 0; garde < 4; garde++) {
     C.idx++;
-    while (C.idx < C.ordre.length && parUid(partie, C, C.ordre[C.idx]).ko) C.idx++;
+    while (C.idx < C.ordre.length) {
+      const u = parUid(partie, C, C.ordre[C.idx]);
+      if (!u.ko && debutDeTour(partie, C, u)) break;
+      if (issue(partie, C)) { C.actif = null; return null; }
+      C.idx++;
+    }
     if (C.idx < C.ordre.length) {
       const u = parUid(partie, C, C.ordre[C.idx]);
       C.actif = u.uid;
-      if (u.cd > 0) u.cd--;
-      u.provoque = 0;                   // la provocation court jusqu'à son prochain tour
       return u;
     }
     C.round++;
     C.ordre = vivants(unites(partie, C)).sort((a, b) => (b.ini - a.ini) || (a.camp === "a" ? -1 : 1)).map((u) => u.uid);
+    // INI étoilée : un tour de plus, en tête, au premier tour du combat.
+    if (C.round === 1) {
+      const vifs = C.ordre.filter((uid) => parUid(partie, C, uid).etoiles?.ini);
+      if (vifs.length) C.ordre = [...vifs, ...C.ordre];
+    }
     C.idx = -1;
-    for (const u of unites(partie, C)) { if (u.galva > 0) u.galva--; if (u.rempart > 0) u.rempart--; }
+    for (const u of unites(partie, C)) { if (u.galva > 0) u.galva--; if (u.rempart > 0) u.rempart--; if (u.marque > 0) u.marque--; }
   }
   return null;
 }
 
+/** Les deux gestes possibles de l'unité qui joue : son geste, et sa technique. */
 export function gestes(partie, u) {
-  const cap = ROLES[u.role].cap;
-  return [
-    { id: "attaque", nom: "Attaquer", cible: "e", pret: true, aide: `${atqDe(partie, u)} dégâts sur une cible` },
-    { ...cap, pret: u.cd === 0, aide: u.cd > 0 ? `Prêt dans ${u.cd} tour${u.cd > 1 ? "s" : ""}` : cap.aide },
-  ];
+  const g = COMPETENCES[gesteDe(u)], t = COMPETENCES[techDe(u)];
+  const l = [{ id: g.id, nom: g.nom, cible: g.cible, pret: true, etoile: !!u.etoiles?.geste,
+    aide: g.id === "attaque" ? `${Math.round(atqDe(partie, u) * (u.etoiles?.geste ? ETOILE.puissance : 1))} dégâts sur une cible` : (u.etoiles?.geste ? g.etoile : g.aide) }];
+  if (t) l.push({ id: t.id, nom: t.nom, cible: t.cible, pret: u.cd === 0, etoile: !!u.etoiles?.tech,
+    aide: u.cd > 0 ? `Prêt dans ${u.cd} tour${u.cd > 1 ? "s" : ""}` : (u.etoiles?.tech ? t.etoile : t.aide) });
+  return l;
 }
 
 /**
@@ -469,15 +618,33 @@ export const BRUME_TOUR = 10;
 export const brume = (C) => (C && C.round > BRUME_TOUR ? 1 + 0.2 * (C.round - BRUME_TOUR) : 1);
 
 function frapper(partie, att, cible, mult, r, perce = false, C = null) {
+  if (cible.voile) return { reel: 0, crit: false, voile: true, renvoi: 0 };
   let d = atqDe(partie, att) * mult * brume(C) * (0.85 + r() * 0.3);
   let crit = false;
   if (att.role === "fourbe" && r() < 0.25) { d *= 2; crit = true; }
-  const armure = perce ? 0 : (cible.role === "garde" ? 1 : 0) + (cible.provoque ? 2 : 0) + (cible.rempart > 0 ? 3 : 0);
+  if (cible.marque > 0) d *= 1 + (cible.marqueVal || 0.5);
+  const armure = perce ? 0 : (cible.role === "garde" ? 1 : 0) + (cible.provoque ? cible.armureProvoc || 2 : 0)
+    + (cible.rempart > 0 ? cible.rempartVal || 3 : 0) + (cible.parade || 0);
   const reel = Math.max(1, Math.round(d) - armure);
   cible.pv = Math.max(0, cible.pv - reel);
   if (cible.pv === 0) cible.ko = true;
-  return { reel, crit };
+  // Garde haute : qui frappe la cible prend un retour, si elle tient encore debout.
+  let renvoi = 0;
+  if (cible.riposte && !cible.ko && !att.ko) {
+    renvoi = Math.max(1, Math.round(atqDe(partie, cible) * cible.riposte));
+    att.pv = Math.max(0, att.pv - renvoi);
+    if (att.pv === 0) att.ko = true;
+  }
+  return { reel, crit, renvoi };
 }
+
+/** Les compétences qui frappent une cible : multiplicateur, et l'armure qu'elles ignorent. */
+const FRAPPES = {
+  attaque: { mult: 1 }, estoc: { mult: 0.85, perce: true }, entaille: { mult: 0.6 }, bouclier: { mult: 0.7 },
+  double: { mult: 0.55, coups: 2 }, secours: { mult: 0.5 }, ripostee: { mult: 0.8 }, trait: { mult: 0.7 },
+  lourde: { mult: 1.9 }, vise: { mult: 1.6, perce: true }, coupbas: { mult: 1.4 }, execution: { mult: 1.4 },
+  marque: { mult: 1 }, piege: { mult: 0.8 }, drain: { mult: 1.3 },
+};
 
 /**
  * Résout un geste. Rend ce que l'interface doit montrer : le mouvement
@@ -488,48 +655,108 @@ export function resoudre(partie, C, u, geste, cible, r) {
   const nom = (x) => x.nomAffiche || x.c.nom;
   const effets = [];
   let note = "", anim = "pulser";
-  if (["attaque", "lourde", "vise", "coupbas"].includes(geste)) {
+  const K = COMPETENCES[geste];
+  const etoile = K && etoileSur(u, geste);
+  const p = etoile ? ETOILE.puissance : 1;
+  const siens = vivants(u.camp === "a" ? partie.equipe : C.ennemis);
+  const enFace = vivants(u.camp === "a" ? C.ennemis : partie.equipe);
+  const coup = (x, mult, perce = false, cls = "") => {
+    const { reel, crit, renvoi, voile } = frapper(partie, u, x, mult, r, perce, C);
+    effets.push({ uid: x.uid, txt: voile ? "Esquive" : `−${reel}`, cls: crit ? "crit" : cls, anim: voile ? undefined : "touche" });
+    if (renvoi) effets.push({ uid: u.uid, txt: `−${renvoi}`, anim: "touche" });
+    return { reel, crit, renvoi, voile };
+  };
+  const soigner = (a, n) => { const g = Math.min(a.pvMax - a.pv, Math.max(0, Math.round(n))); a.pv += g; if (g) effets.push({ uid: a.uid, txt: `+${g}`, cls: "soin", anim: "soigne" }); return g; };
+  const plusBlesse = () => [...siens].sort((a, b) => a.pv / a.pvMax - b.pv / b.pvMax)[0];
+
+  if (FRAPPES[geste]) {
     anim = "ruer";
-    const mult = { attaque: 1, lourde: 1.9, vise: 1.6, coupbas: 1.4 }[geste];
-    const { reel, crit } = frapper(partie, u, cible, mult, r, geste === "vise", C);
-    effets.push({ uid: cible.uid, txt: `−${reel}`, cls: crit || geste !== "attaque" ? "crit" : "", anim: "touche" });
+    const F = FRAPPES[geste];
+    let mult = F.mult * p;
+    if (geste === "execution" && cible.pv / cible.pvMax < 0.35) mult *= 3;
+    let total = 0, crit = false, renvoi = 0;
+    for (let i = 0; i < (F.coups || 1) && !cible.ko; i++) {
+      const res = coup(cible, mult, !!F.perce, geste !== "attaque" ? "crit" : "");
+      total += res.reel; crit ||= res.crit; renvoi += res.renvoi;
+    }
     note = geste === "attaque"
-      ? `${nom(u)} frappe ${nom(cible)} : −${reel}${crit ? " (critique)" : ""}`
-      : `${nom(u)} — ${ROLES[u.role].cap.nom} sur ${nom(cible)} : −${reel}`;
-    if (geste === "coupbas" && u.camp === "a") { const po = gagner(partie, entre(r, 1, 3) * partie.etage); effets.push({ uid: u.uid, txt: `+${po} PO`, cls: "info" }); note += `, +${po} PO`; }
+      ? `${nom(u)} frappe ${nom(cible)} : −${total}${crit ? " (critique)" : ""}`
+      : `${nom(u)} — ${K.nom} sur ${nom(cible)} : −${total}`;
+    if (renvoi) note += ` (renvoi : −${renvoi})`;
     if (cible.ko) note += " — à terre";
+    else if (geste === "entaille") { cible.saigne = etoile ? 3 : 2; cible.saigneD = Math.max(1, Math.round(atqDe(partie, u) * (etoile ? 0.65 : 0.4))); note += ", qui saigne"; }
+    else if (geste === "marque") { cible.marque = 2; cible.marqueVal = etoile ? 0.9 : 0.6; effets.push({ uid: cible.uid, txt: "Marqué", cls: "info" }); }
+    else if (geste === "piege") {
+      if (cible.boss) note += " (le gardien s'en dégage)";
+      else { cible.etourdi = 1; effets.push({ uid: cible.uid, txt: "Piégé", cls: "info" }); note += ", qui perdra son tour"; }
+    }
+    if (geste === "trait") {
+      const autre = enFace.filter((x) => x !== cible && !x.ko);
+      if (autre.length) { const x = choisir(r, autre); const res = coup(x, mult); note += `, et −${res.reel} à ${nom(x)}`; }
+    }
+    if (geste === "bouclier") { u.parade = etoile ? 4 : 2; effets.push({ uid: u.uid, txt: `Armure +${u.parade}`, cls: "info" }); }
+    if (geste === "ripostee") { u.riposte = etoile ? 1.5 : 1; effets.push({ uid: u.uid, txt: "Garde haute", cls: "info" }); }
+    if (geste === "secours") { const b = plusBlesse(); if (b) { const g = soigner(b, Math.ceil(atqDe(partie, u) * (etoile ? 0.5 : 1 / 3))); if (g) note += `, ${nom(b)} +${g}`; } }
+    if (geste === "drain" && total) { const g = soigner(u, total / 2); if (g) note += `, +${g} PV`; }
+    if (geste === "coupbas" && u.camp === "a") { const po = gagner(partie, entre(r, 1, 3) * partie.etage * (etoile ? 2 : 1)); effets.push({ uid: u.uid, txt: `+${po} PO`, cls: "info" }); note += `, +${po} PO`; }
   } else if (geste === "soin") {
-    const s = Math.min(cible.pvMax - cible.pv, atqDe(partie, u) + 2);
-    cible.pv += s;
-    effets.push({ uid: cible.uid, txt: `+${s}`, cls: "soin", anim: "soigne" });
+    const s = soigner(cible, (atqDe(partie, u) + 2) * p);
     note = `${nom(u)} soigne ${nom(cible)} : +${s}`;
-  } else if (geste === "vague") {
-    for (const e of vivants(u.camp === "a" ? C.ennemis : partie.equipe)) { const { reel } = frapper(partie, u, e, 1, r, false, C); effets.push({ uid: e.uid, txt: `−${reel}`, anim: "touche" }); }
-    note = `${nom(u)} déchaîne la brume sur ${u.camp === "a" ? "tous les adversaires" : "toute l'équipe"}.`;
+  } else if (geste === "vague" || geste === "tempete") {
+    const mult = (geste === "tempete" ? 1.25 : 1) * p;
+    for (const e of enFace) coup(e, mult);
+    note = geste === "vague"
+      ? `${nom(u)} déchaîne la brume sur ${u.camp === "a" ? "tous les adversaires" : "toute l'équipe"}.`
+      : `${nom(u)} lève une tempête sur ${u.camp === "a" ? "tous les adversaires" : "toute l'équipe"}.`;
   } else if (geste === "provoc") {
-    u.provoque = 1;
+    u.provoque = 1; u.armureProvoc = etoile ? 5 : 2;
     effets.push({ uid: u.uid, txt: "Provocation", cls: "info" });
     note = `${nom(u)} attire les coups sur lui.`;
   } else if (geste === "galva") {
     // Décompté à chaque nouveau tour : 3, c'est la fin de celui-ci et deux tours pleins.
-    for (const a of vivants(u.camp === "a" ? partie.equipe : C.ennemis)) { a.galva = 3; effets.push({ uid: a.uid, txt: "+3 ATQ", cls: "info" }); }
+    const v = etoile ? 5 : 3;
+    for (const a of siens) { a.galva = 3; a.galvaVal = v; effets.push({ uid: a.uid, txt: `+${v} ATQ`, cls: "info" }); }
     note = `${nom(u)} galvanise ${u.camp === "a" ? "l'équipe" : "les siens"}.`;
   } else if (geste === "balayage") {
-    for (const a of vivants(partie.equipe)) { const { reel } = frapper(partie, u, a, 0.6, r, false, C); effets.push({ uid: a.uid, txt: `−${reel}`, anim: "touche" }); }
+    for (const a of vivants(partie.equipe)) coup(a, 0.6);
     note = `${nom(u)} balaie toute l'équipe.`;
   } else if (geste === "rempart") {
-    for (const a of vivants(u.camp === "a" ? partie.equipe : C.ennemis)) { a.rempart = 2; effets.push({ uid: a.uid, txt: "Rempart", cls: "info" }); }
+    const v = etoile ? 5 : 3;
+    for (const a of siens) { a.rempart = 2; a.rempartVal = v; effets.push({ uid: a.uid, txt: "Rempart", cls: "info" }); }
     note = `${nom(u)} dresse un rempart devant ${u.camp === "a" ? "l'équipe" : "les siens"}.`;
   } else if (geste === "ravit") {
-    const s = atqDe(partie, u);
-    for (const a of vivants(u.camp === "a" ? partie.equipe : C.ennemis)) {
-      const g = Math.min(a.pvMax - a.pv, s); a.pv += g;
-      if (g) effets.push({ uid: a.uid, txt: `+${g}`, cls: "soin", anim: "soigne" });
-    }
+    const s = atqDe(partie, u) * p;
+    for (const a of siens) soigner(a, s);
     note = `${nom(u)} ravitaille ${u.camp === "a" ? "l'équipe" : "les siens"}.`;
+  } else if (geste === "souffle") {
+    const part = etoile ? 0.65 : 0.4;
+    const tombes = (u.camp === "a" ? partie.equipe : C.ennemis).filter((a) => a.ko).sort((a, b) => b.pvMax - a.pvMax);
+    if (tombes.length) {
+      const a = tombes[0]; a.ko = false; a.pv = Math.max(1, Math.ceil(a.pvMax * part));
+      effets.push({ uid: a.uid, txt: `+${a.pv}`, cls: "soin", anim: "soigne" });
+      note = `${nom(u)} relève ${nom(a)}.`;
+    } else {
+      const b = plusBlesse(); const g = b ? soigner(b, b.pvMax * part) : 0;
+      note = g ? `${nom(u)} rend son souffle à ${nom(b)} : +${g}` : `${nom(u)} reprend son souffle.`;
+    }
+  } else if (geste === "ralliement") {
+    // Le +ATQ passe par le galvanisé (deux tours pleins), sans écraser un plus fort.
+    const v = etoile ? 3 : 2;
+    for (const a of siens) {
+      if (a !== u) a.cd = etoile ? 0 : Math.max(0, a.cd - 2);
+      const actif = a.galva > 0 ? a.galvaVal || 3 : 0;
+      if (actif <= v) { a.galva = Math.max(a.galva, 2); a.galvaVal = v; }
+      effets.push({ uid: a.uid, txt: `Rallié +${v}`, cls: "info" });
+    }
+    note = `${nom(u)} rallie ${u.camp === "a" ? "l'équipe" : "les siens"}.`;
+  } else if (geste === "voile") {
+    cible.voile = 1;
+    effets.push({ uid: cible.uid, txt: "Voilé", cls: "info" });
+    if (etoile) soigner(cible, cible.pvMax * 0.3);
+    note = `${nom(u)} enveloppe ${nom(cible)} de brume.`;
   }
   // Recharge : comptée en tours de l'unité, le sien compris, d'où le +1.
-  if (ROLES[u.role] && geste !== "attaque" && geste !== "balayage") { const cd = ROLES[u.role].cap.cd; u.cd = cd ? cd + 1 : 0; }
+  if (K?.place === "tech") { const cd = rechargeDe(u, geste); u.cd = cd ? cd + 1 : 0; }
   return { anim, cible: cible?.uid ?? null, effets, note };
 }
 
@@ -578,16 +805,28 @@ export function choixAuto(partie, C, u, strategie) {
   const cible = strategie === "concentrer" ? faible : menace;
   const blesse = [...allies].sort((a, b) => a.pv / a.pvMax - b.pv / b.pvMax)[0];
   const pret = u.cd === 0;
-  if (u.role === "soigneur" && blesse && blesse.pv / blesse.pvMax < (strategie === "prudence" ? 0.6 : 0.45)) return { geste: "soin", cible: blesse };
-  if (pret && u.role === "garde" && (strategie === "prudence" || allies.some((a) => a !== u && a.pv / a.pvMax < 0.5))) return { geste: "provoc", cible: null };
-  if (pret && u.role === "meneur") return { geste: "galva", cible: null };
-  if (pret && u.role === "intendant" && allies.reduce((s, a) => s + (a.pvMax - a.pv), 0) >= allies.length * 3) return { geste: "ravit", cible: null };
-  if (pret && u.role === "artificier" && allies.some((a) => !a.rempart)) return { geste: "rempart", cible: null };
-  if (pret && u.role === "mage" && ennemis.length >= 2) return { geste: "vague", cible: null };
-  if (pret && u.role === "frappeur") return { geste: "lourde", cible };
-  if (pret && u.role === "tireur") return { geste: "vise", cible };
-  if (pret && u.role === "debrouillard") return { geste: "coupbas", cible };
-  return { geste: "attaque", cible };
+  const T = techDe(u);
+  const frappe = { geste: gesteDe(u), cible };
+  if (T === "soin" && blesse && blesse.pv / blesse.pvMax < (strategie === "prudence" ? 0.6 : 0.45)) return { geste: "soin", cible: blesse };
+  if (!pret || !T) return frappe;
+  switch (T) {
+    case "provoc": return strategie === "prudence" || allies.some((a) => a !== u && a.pv / a.pvMax < 0.5) ? { geste: T, cible: null } : frappe;
+    case "galva": return { geste: T, cible: null };
+    case "ravit": return allies.reduce((s, a) => s + (a.pvMax - a.pv), 0) >= allies.length * 3 ? { geste: T, cible: null } : frappe;
+    case "rempart": return allies.some((a) => !a.rempart) ? { geste: T, cible: null } : frappe;
+    case "vague": case "tempete": return ennemis.length >= 2 ? { geste: T, cible: null } : frappe;
+    case "lourde": case "vise": case "coupbas": case "drain": return { geste: T, cible };
+    case "marque": { const x = cible?.marque ? ennemis.find((e) => !e.marque) : cible; return x ? { geste: T, cible: x } : frappe; }
+    case "piege": { const x = cible && !cible.boss && !cible.etourdi ? cible : ennemis.find((e) => !e.boss && !e.etourdi); return x ? { geste: T, cible: x } : frappe; }
+    case "execution": { const x = ennemis.filter((e) => e.pv / e.pvMax < 0.35).sort((a, b) => b.pv - a.pv)[0]; return x ? { geste: T, cible: x } : frappe; }
+    case "souffle": {
+      const tombe = (u.camp === "a" ? partie.equipe : C.ennemis).some((a) => a.ko && !a.recrue);
+      return tombe || (blesse && blesse.pv / blesse.pvMax < 0.4) ? { geste: T, cible: null } : frappe;
+    }
+    case "voile": return blesse && blesse.pv / blesse.pvMax < 0.5 && !blesse.voile ? { geste: T, cible: blesse } : frappe;
+    case "ralliement": return allies.reduce((s, a) => s + (a === u ? 0 : a.cd), 0) >= 2 || allies.every((a) => !(a.galva > 0)) ? { geste: T, cible: null } : frappe;
+    default: return frappe;
+  }
 }
 
 export function victoire(partie, C, r, artefacts) {
@@ -599,7 +838,7 @@ export function victoire(partie, C, r, artefacts) {
   // cinq par étage pour le gardien. Toute l'équipe la reçoit, tombés compris :
   // ils étaient de l'expédition.
   const xp = C.ennemis.reduce((s, m) => s + (m.boss ? 5 : m.elite ? 3 : 1) * partie.etage, 0);
-  for (const u of partie.equipe) { u.provoque = 0; u.galva = 0; u.rempart = 0; u.cd = 0; u.xp = (u.xp || 0) + xp; }
+  for (const u of partie.equipe) { Object.assign(u, { cd: 0 }, ETATS); u.xp = (u.xp || 0) + xp; }
   let relique = null;
   if (C.genre === "elite" && r() < 0.55) relique = trouverRelique(partie, r, artefacts);
   if (C.genre === "boss") relique = trouverRelique(partie, r, artefacts);
@@ -656,20 +895,28 @@ export function gainsXP(partie, iss) {
   return l.filter((x) => x.xp > 0);
 }
 
-/** Ce qu'une fiche d'unité doit dire : rôle ou trait, capacité, et son état. */
+/** Ce qu'une fiche d'unité doit dire : rôle ou trait, compétences, et son état. */
 export function fiche(partie, u) {
   const R = ROLES[u.role];
   const lignes = [];
+  const pourEux = (t) => (u.camp === "e" ? t.replace("un allié", "un des siens").replace("toute l'équipe", "tous les siens").replace("tous les adversaires", "toute votre équipe") : t);
   if (u.boss) lignes.push({ t: "Gardien", d: "Balaie toute l'équipe tous les trois tours (×0,6)." });
   if (u.elite) lignes.push({ t: "Élite", d: "PV et ATQ renforcés." });
   if (R) {
-    if (R.passif) lignes.push({ t: R.nom, d: R.passif });
-    else lignes.push({ t: R.nom, d: "" });
-    lignes.push({ t: R.cap.nom, d: `${u.camp === "e" ? R.cap.aide.replace("un allié", "un des siens").replace("toute l'équipe", "tous les siens").replace("tous les adversaires", "toute votre équipe") : R.cap.aide}${u.cd > 0 ? ` — prêt dans ${u.cd} tour${u.cd > 1 ? "s" : ""}` : " — prêt"}` });
+    lignes.push({ t: R.nom, d: R.passif || "" });
+    const g = COMPETENCES[gesteDe(u)], t = COMPETENCES[techDe(u)];
+    if (g.id !== "attaque" || u.etoiles?.geste) lignes.push({ t: `${g.nom}${u.etoiles?.geste ? " ★" : ""}`, d: pourEux(u.etoiles?.geste ? g.etoile : g.aide) });
+    lignes.push({ t: `${t.nom}${u.etoiles?.tech ? " ★" : ""}`, d: `${pourEux(u.etoiles?.tech ? t.etoile : t.aide)}${u.cd > 0 ? ` — prêt dans ${u.cd} tour${u.cd > 1 ? "s" : ""}` : " — prêt"}` });
   } else if (TRAITS[u.role]) lignes.push({ t: TRAITS[u.role].nom, d: TRAITS[u.role].aide });
-  if (u.provoque) lignes.push({ t: "Provocation", d: "Attire tous les coups, armure +2." });
-  if (u.galva > 0) lignes.push({ t: "Galvanisé", d: "+3 ATQ." });
-  if (u.rempart > 0) lignes.push({ t: "Rempart", d: "Armure +3." });
+  if (u.provoque) lignes.push({ t: "Provocation", d: `Attire tous les coups, armure +${u.armureProvoc || 2}.` });
+  if (u.galva > 0) lignes.push({ t: "Galvanisé", d: `+${u.galvaVal || 3} ATQ.` });
+  if (u.rempart > 0) lignes.push({ t: "Rempart", d: `Armure +${u.rempartVal || 3}.` });
+  if (u.parade > 0) lignes.push({ t: "Bouclier levé", d: `Armure +${u.parade}.` });
+  if (u.riposte > 0) lignes.push({ t: "Garde haute", d: "Rend une partie des coups reçus." });
+  if (u.voile) lignes.push({ t: "Voilé", d: "Ne peut pas être touché." });
+  if (u.marque > 0) lignes.push({ t: "Marqué", d: `+${Math.round((u.marqueVal || 0.5) * 100)} % de dégâts subis.` });
+  if (u.saigne > 0) lignes.push({ t: "Saigne", d: `−${u.saigneD} à chacun de ses tours, encore ${u.saigne}.` });
+  if (u.etourdi > 0) lignes.push({ t: "Piégé", d: "Perd son prochain tour." });
   return { nom: u.nomAffiche || u.c.nom, stats: `${u.camp === "a" ? `Niveau ${u.niveau || 1} · ` : ""}${u.pv} / ${u.pvMax} PV · ATQ ${atqDe(partie, u)} · INI ${u.ini}`, lignes };
 }
 /** Ce que l'on rapporte : tout le sac en remontant, un quart si l'équipe tombe. */

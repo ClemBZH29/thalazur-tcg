@@ -14,7 +14,7 @@
 import { readFileSync } from "node:fs";
 import extension from "../src/extensions/troupe-valeran/extension.js";
 import {
-  ETAGES, RENCONTRES, etagesDe, ROLES, cartesDonjon, choixAuto, choixIA, convalescences, creerPartie, demarrerCombat,
+  ETAGES, RENCONTRES, etagesDe, ROLES, COMPETENCES, cartesDonjon, choixAuto, choixIA, convalescences, creerPartie, demarrerCombat,
   apprentissage, descendre, entrer, gainsXP, issue, ouverts, prochain, rapporte, repos, resoudre, roleDe, tirage, tresor, victoire,
 } from "../src/donjon/regles.js";
 import { PALIER_IRISEE, xpPourNiveau } from "../src/donjon/experience.js";
@@ -58,13 +58,13 @@ const duRole = (r, role, tier) => {
  * `politique(partie)` décide à la sortie de chaque gardien : true pour
  * descendre. `niveau` : le niveau de toute l'équipe.
  */
-function descente(graine, { equipe, strategie = "concentrer", politique = () => true, niveau = 1, artefact = true, apprenti = null, mode = "jour" }) {
+function descente(graine, { equipe, strategie = "concentrer", politique = () => true, niveau = 1, artefact = true, apprenti = null, mode = "jour", fiches = null }) {
   const r = tirage(graine * 7919 + 17);
   const eq = typeof equipe === "function" ? equipe(r) : equipe;
   const art = artefact ? POOLS.artefacts[Math.floor(r() * POOLS.artefacts.length)] : null;
   const niveaux = Object.fromEntries(eq.map((c) => [`${c.ext}:${c.id}`, niveau]));
   const M = DONJON.modes[mode];
-  const partie = creerPartie({ equipe: eq, artefact: art, graine: mode === "infini" ? graine * 104729 : graine % 365, jour: "2026-09-28", pools: POOLS, niveaux, apprenti, mode, gainMode: 1, xpMode: M.xp });
+  const partie = creerPartie({ equipe: eq, artefact: art, graine: mode === "infini" ? graine * 104729 : graine % 365, jour: "2026-09-28", pools: POOLS, niveaux, fiches: fiches ? fiches(eq) : {}, apprenti, mode, gainMode: 1, xpMode: M.xp });
   const trace = { tours: [], salles: {}, combatsPerdusGenre: null };
   const fin = (iss) => ({ iss, partie, trace, butin: rapporte(partie, iss), repos: convalescences(partie, iss), xp: gainsXP(partie, iss) });
   for (let pas = 0; pas < 3000; pas++) {
@@ -83,6 +83,7 @@ function descente(graine, { equipe, strategie = "concentrer", politique = () => 
       let f = null, t = 0;
       for (; t < 600 && !f; t++) {
         const u = prochain(partie, C);
+        if (!u) { f = issue(partie, C); break; } // un saignement a clos le combat
         const { geste, cible } = u.camp === "e" ? choixIA(partie, C, u, r) : choixAuto(partie, C, u, strategie);
         resoudre(partie, C, u, geste, cible, r);
         f = issue(partie, C);
@@ -240,6 +241,37 @@ for (const [t, n] of Object.entries(PALIER_IRISEE)) {
   console.log(`| ${t} | ${n} | ${x} | ${f1(x / xpD)} | ${f1(x / xpD)} |`);
 }
 console.log(`| niveau 100 | 100 | ${xpPourNiveau(100)} | ${f1(xpPourNiveau(100) / xpD)} | ${f1(xpPourNiveau(100) / xpD)} |`);
+
+/*
+ * La fiche de combat : ce que pèsent les rangs, les compétences et les
+ * étoiles. Le cas réaliste : une seule carte de l'équipe modifiée (la
+ * meilleure, celle qu'on emmène toujours) ; puis l'équipe entière.
+ */
+{
+  console.log("\n## Fiche de combat (collection de 18, Concentrer, niveau 1)\n");
+  console.log("Sauf mention, seule la meilleure carte de l'équipe porte la fiche.\n");
+  console.log(entete);
+  const eq = (r) => collectionTiree(r).slice(0, 4);
+  const toutes = (f) => (l) => Object.fromEntries(l.map((c) => [`${c.ext}:${c.id}`, f]));
+  const une = (f) => (l) => ({ [`${l[0].ext}:${l[0].id}`]: f });
+  const E4 = { atq: true, ini: true, geste: true, tech: true };
+  const cas = [
+    ["Sans fiche (référence)", null],
+    ["ATQ +3", une({ atq: 3 })],
+    ["INI +3", une({ ini: 3 })],
+    ["Rangs complets", une({ atq: 3, ini: 3 })],
+    ...Object.values(COMPETENCES).filter((k) => k.place === "geste" && k.id !== "attaque").map((k) => [`Geste : ${k.nom}`, une({ geste: k.id })]),
+    ...Object.values(COMPETENCES).filter((k) => k.place === "tech").map((k) => [`Technique : ${k.nom}`, une({ tech: k.id })]),
+    ["ATQ étoilée", une({ etoiles: { atq: true } })],
+    ["INI étoilée", une({ etoiles: { ini: true } })],
+    ["Geste étoilé", une({ etoiles: { geste: true } })],
+    ["Technique étoilée", une({ etoiles: { tech: true } })],
+    ["Quatre étoiles", une({ etoiles: E4 })],
+    ["Équipe : rangs complets", toutes({ atq: 3, ini: 3 })],
+    ["Équipe : quatre étoiles", toutes({ etoiles: E4 })],
+  ];
+  for (const [nom, fiches] of cas) console.log(ligne(nom, mesurer({ equipe: eq, fiches })));
+}
 
 console.log(`\n## Combats sans issue\n\n${BLOCAGES.length} combats ont dépassé 600 actions sur l'ensemble des cas.`);
 for (const b of BLOCAGES.slice(0, 6)) console.log(`- ${b.genre}, étage ${b.etage} — équipe ${b.equipe.join(" ")} — en face ${b.ennemis.join(" ")}`);

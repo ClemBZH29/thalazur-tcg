@@ -57,7 +57,7 @@ qu'à partir du niveau 2, sur la case normale seulement : une grille couverte de
 **Les doublons se décident sur la carte agrandie.** Ouverte depuis la
 bibliothèque, la loupe porte deux volets à droite de la carte, hors du flux
 (la carte reste exactement au centre) ; sous la carte quand la largeur manque
-(moins de 1 000 px) :
+(moins de 1 100 px, depuis l'arrivée du volet de gauche) :
 
 - **Entraîner** : un doublon devient de l'expérience pour sa carte — 15, 30,
   75, 250 points selon le palier (`ENTRAINEMENT`, `src/config/reliquaire.js`),
@@ -69,7 +69,17 @@ bibliothèque, la loupe porte deux volets à droite de la carte, hors du flux
   N'apparaît qu'une fois le Reliquaire ouvert (une extension à 60 %).
 
 Le dernier exemplaire n'est jamais proposé ; une légendaire se dissout avec
-confirmation. Pas de volets sur une version irisée ni sur l'onglet PJ.
+confirmation. Pas de volets de doublons sur une version irisée ni sur l'onglet PJ.
+
+**À gauche, la fiche de combat** (volet « Combat », 01/10/2026) : PV, ATQ,
+INI et les deux compétences de la carte, avec ce qu'on peut y changer contre
+des vestiges, et l'étoile de chaque ligne contre une rainbow en trop. Il ne
+s'affiche que pour les PNJ alliés, les seuls qui descendent, et aussi sur la
+version irisée : la fiche est celle de la carte. Voir `donjon.md`, « La fiche
+de combat ».
+
+**L'étoile, en bas à droite**, sous le nombre d'exemplaires : les quatre
+lignes de la fiche sont étoilées. Elle s'affiche sur les deux versions.
 
 **Les cartes PJ ont leur propre onglet**, à côté des extensions. Elles ne sont
 d'aucune d'entre elles — elles tombent dans toutes — et les compter dans le set
