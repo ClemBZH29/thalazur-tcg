@@ -158,7 +158,7 @@ export default function VoletCombat({ c }) {
   );
   const confirmation = (ligne, nom) => confirme === ligne && (
     <div className="fc-confirme" role="group" aria-label={`Étoiler ${nom}`}>
-      <span>Une rainbow de la carte quitte la collection ; la ligne est figée.</span>
+      <span>Dépensez une de vos Rainbow en double pour améliorer définitivement la ligne.</span>
       <span className="fc-confirme-boutons">
         <button type="button" className="btn sm fc-confirmer" onClick={() => etoiler(ligne, nom)}><Etoile /> Étoiler</button>
         <button type="button" className="btn quiet sm" onClick={() => setConfirme(null)}>Annuler</button>
