@@ -237,6 +237,28 @@ Le niveau se lit sous chaque vignette de la préparation, avec une fine barre
 vers le niveau suivant ; le bilan de fin de descente détaille les points
 gagnés, les niveaux franchis et les récompenses.
 
+## Les reliques (vérifiées le 01/10/2026)
+
+Une relique trouvée (trésor 35 %, élite 55 %, gardien toujours, l'écho une
+fois sur deux) ajoute son bonus à **toute l'équipe, tout de suite et jusqu'à
+la sortie** (`BONUS_ARTEFACT`) : commun +2 PV, peu commun +1 ATQ, rare +1 ATQ
+et +3 PV, légendaire +2 ATQ et +5 PV. Les PV montent le maximum (un tombé ne
+se relève pas pour autant) ; l'ATQ entre dans chaque coup et chaque soin
+(`atqDe`). Une recrue ramassée ensuite les reçoit aussi ; tout survit à un
+rechargement et au changement d'étage. Vérifié par test
+(`tests/donjon.test.js`, « reliques »).
+
+**Visibilité.** La relique s'annonçait par une ligne de texte sous le butin,
+et la colonne de la carte n'affichait que des noms. Désormais :
+
+- à la trouvaille, un encart avec la carte de la relique, son palier, son
+  effet et le nouveau total de l'équipe, y compris quand elle vient d'une
+  rencontre (l'écho, qui ne l'annonçait pas) ;
+- la colonne « Reliques » donne l'effet de chacune et le total de l'équipe ;
+- le bilan de fin nomme les reliques trouvées au lieu de les compter.
+
+Les reliques ne rejoignent pas la collection : elles valent pour la descente.
+
 ## La fiche de combat (01/10/2026)
 
 Chaque PNJ allié a une **fiche de combat**, qu'on ouvre dans la bibliothèque :

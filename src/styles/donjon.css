@@ -160,6 +160,24 @@
 .dj-reliques [data-palier="peucommun"] { border-color: var(--m-chene); }
 .dj-reliques [data-palier="rare"] { border-color: var(--m-noyer); }
 .dj-reliques [data-palier="legendaire"] { border-color: var(--m-ebene); }
+.dj-reliques i { font-style: normal; font-weight: 700; color: #f6c979; margin-left: 4px; }
+.dj-reliques-total { margin: 0 0 6px; font-size: 12.5px; color: var(--ink2); }
+.dj-reliques-total b { color: #f6c979; }
+
+/* Une relique trouvée : la carte, son effet, le nouveau total. */
+.dj-trouvaille { display: grid; grid-template-columns: 96px 1fr; gap: 14px; align-items: center; margin: 10px 0 12px;
+  padding: 12px; border-radius: 12px; border: 1px solid var(--edge-hi); background: rgba(232, 163, 61, .06);
+  animation: dj-trouvaille .6s ease-out; }
+.dj-trouvaille[data-palier="peucommun"] { border-color: var(--m-chene); }
+.dj-trouvaille[data-palier="rare"] { border-color: var(--m-noyer); box-shadow: 0 0 22px rgba(209, 154, 60, .18); }
+.dj-trouvaille[data-palier="legendaire"] { border-color: var(--m-ebene); box-shadow: 0 0 26px rgba(179, 48, 73, .25); }
+.dj-trouvaille-texte { display: grid; gap: 3px; min-width: 0; }
+.dj-trouvaille-titre { font-size: 10.5px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--lamp); }
+.dj-trouvaille-nom { font-family: var(--font-display); font-size: 20px; color: var(--ink); }
+.dj-trouvaille-effet { font-size: 14px; font-weight: 600; color: #f6c979; }
+@keyframes dj-trouvaille { from { opacity: 0; } to { opacity: 1; } }
+[data-mouvement="reduit"] .dj-trouvaille { animation: none; }
+@media (max-width: 520px) { .dj-trouvaille { grid-template-columns: 72px 1fr; } }
 
 /* ── Combat ──────────────────────────────────────────────────────────── */
 .dj-arene { position: relative; border: 1px solid var(--edge); border-radius: 16px; padding: 14px 14px 12px;

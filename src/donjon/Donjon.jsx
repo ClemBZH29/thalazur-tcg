@@ -2,10 +2,10 @@ import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "r
 import FaceCarte from "../components/FaceCarte.jsx";
 import Icone from "../components/Icone.jsx";
 import { BOOSTERS } from "../extensions/index.js";
-import { DONJON } from "../config/tiers.js";
+import { DONJON, TIER_INFO } from "../config/tiers.js";
 import { resoudreImage } from "../lib/images.js";
 import {
-  BONUS_ARTEFACT, GENRES, MODES, etagesDe, graineInfinie, RANGS, RENCONTRES, ROLES, STRATEGIES, TRAITS,
+  BONUS_ARTEFACT, bonusEquipe, GENRES, MODES, etagesDe, graineInfinie, RANGS, RENCONTRES, ROLES, STRATEGIES, TRAITS,
   atqDe, cartesDonjon, choixAuto, choixIA, creerPartie, demarrerCombat, descendre, entrer, fuir,
   gestes, graineDuJour, issue, ouverts, parUid, prochain, rapporte, repos, resoudre,
   tresor, victoire, vivants, allie, ciblesPossibles, convalescences, fiche, peutFuir, gainsXP,
@@ -165,13 +165,54 @@ function MiniEquipe({ partie }) {
   );
 }
 
+/** Ce que toutes les reliques (et l'autel) donnent à l'équipe, en clair. */
+const totalTexte = (partie) => {
+  const b = bonusEquipe(partie);
+  return [b.atq && `+${b.atq} ATQ`, b.pv && `+${b.pv} PV max`].filter(Boolean).join(" · ") || "aucun bonus";
+};
+const bonusCourt = (t) => {
+  const b = BONUS_ARTEFACT[t] || BONUS_ARTEFACT.commun;
+  return [b.atq && `+${b.atq} ATQ`, b.pv && `+${b.pv} PV`].filter(Boolean).join(" ");
+};
+
+/**
+ * Les reliques de la descente, chacune avec son effet, et le total qu'elles
+ * donnent à toute l'équipe : on voyait des noms, sans savoir ce qu'ils
+ * faisaient ni s'ils comptaient.
+ */
 function Reliques({ partie }) {
   const l = [partie.artefact, ...partie.reliques].filter(Boolean);
   if (!l.length && !partie.benediction) return <p className="muted petit">Aucune relique.</p>;
   return (
-    <div className="dj-reliques">
-      {l.map((a, i) => <span key={i} data-palier={a.tier} title={bonusTexte(a.tier)}>{a.nom}</span>)}
-      {partie.benediction > 0 && <span data-palier="legendaire">Autel +{partie.benediction} ATQ</span>}
+    <>
+      <p className="dj-reliques-total">Toute l'équipe : <b>{totalTexte(partie)}</b></p>
+      <div className="dj-reliques">
+        {l.map((a, i) => (
+          <span key={i} data-palier={a.tier} title={`${TIER_INFO[a.tier]?.nom || ""} — ${bonusTexte(a.tier)}`}>
+            {a.nom}{i === 0 && partie.artefact ? " (emporté)" : ""} <i>{bonusCourt(a.tier)}</i>
+          </span>
+        ))}
+        {partie.benediction > 0 && <span data-palier="legendaire">Autel <i>+{partie.benediction} ATQ</i></span>}
+      </div>
+    </>
+  );
+}
+
+/**
+ * Une relique trouvée : la carte, ce qu'elle donne, et le nouveau total de
+ * l'équipe. Elle s'annonçait par une ligne de texte sous le butin.
+ */
+function ReliqueTrouvee({ a, partie, cfgImage, fichiers }) {
+  return (
+    <div className="dj-trouvaille" data-palier={a.tier} role="status">
+      <div className="dj-trouvaille-carte"><CarteDJ c={a} cfgImage={cfgImage} fichiers={fichiers} /></div>
+      <div className="dj-trouvaille-texte">
+        <span className="dj-trouvaille-titre">Relique trouvée</span>
+        <b className="dj-trouvaille-nom">{a.nom}</b>
+        <span className="muted petit">{TIER_INFO[a.tier]?.nom}</span>
+        <span className="dj-trouvaille-effet">{bonusTexte(a.tier)}, tout de suite et jusqu'à la sortie.</span>
+        <span className="muted petit">Désormais : {totalTexte(partie)} pour chaque compagnon.</span>
+      </div>
     </div>
   );
 }
@@ -341,11 +382,13 @@ export default function Donjon({ jeu }) {
   const choisirRencontre = (i) => {
     const ch = rencontre.choix[i];
     if (!ch || ch.ok === false) return;
-    const texte = ch.f();
     const p = partieRef.current;
+    const avant = p.reliques.length;
+    const texte = ch.f();
     p.rencontre = null;
     if (!vivants(p.equipe).length) return terminer("defaite");
-    setResultat({ titre: rencontre.e.titre, texte });
+    // Une rencontre peut donner une relique (l'écho) : elle s'annonce comme les autres.
+    setResultat({ titre: rencontre.e.titre, texte, relique: p.reliques.length > avant ? p.reliques.at(-1) : null });
     aller("resultat");
   };
 
@@ -360,7 +403,7 @@ export default function Donjon({ jeu }) {
     const noms = new Map([...p.equipe.map((u) => u.c), ...p.perdus].map((c) => [`${c.ext}:${c.id}`, c.nom]));
     setFin({ issue: iss, butin, perdu: p.sac - butin, po, stats: { ...p.stats }, etage: p.etage, debout: vivants(p.equipe).length,
       mode: p.mode || "jour", record, plafonne: infini && po < Math.round(butin * DONJON.multiplicateur),
-      total: p.equipe.length, reliques: p.reliques.length, repos: repos.map((x) => ({ nom: noms.get(x.cle), jours: x.jours })), xp: bilan });
+      total: p.equipe.length, reliques: p.reliques.map((a) => a.nom), repos: repos.map((x) => ({ nom: noms.get(x.cle), jours: x.jours })), xp: bilan });
     combatRef.current = null;
     partieRef.current = null;
     setEcran("fin");
@@ -777,7 +820,7 @@ export default function Donjon({ jeu }) {
             <tr><td>Salles traversées</td><td>{fin.stats.salles}</td></tr>
             <tr><td>Adversaires vaincus</td><td>{fin.stats.ennemis}</td></tr>
             <tr><td>Gardiens</td><td>{fin.stats.gardiens}</td></tr>
-            <tr><td>Reliques</td><td>{fin.reliques}</td></tr>
+            <tr><td>Reliques trouvées</td><td>{fin.reliques.length ? fin.reliques.join(", ") : "aucune"}</td></tr>
             <tr><td>Compagnons debout</td><td>{fin.debout} / {fin.total}</td></tr>
           </tbody></table>
           {fin.xp.length > 0 && (
@@ -1016,7 +1059,7 @@ export default function Donjon({ jeu }) {
             <h2>{R.titre}</h2>
             <p>{R.texte}</p>
             {R.po > 0 && <p><span className="dj-butin">+{R.po}</span> <span className="muted">pièces au sac</span></p>}
-            {R.relique && <p>Relique : <b>{R.relique.nom}</b> <span className="muted">— {bonusTexte(R.relique.tier)} jusqu'à la sortie.</span></p>}
+            {R.relique && <ReliqueTrouvee a={R.relique} partie={partie} cfgImage={cfgImage} fichiers={fichiers} />}
             {ecran === "sortie" && (
               <p>{dernier ? "C'était le dernier étage. Il ne reste qu'à remonter."
                 : "Remonter maintenant, c'est tout garder. Descendre, c'est des adversaires plus durs et des bourses plus lourdes — mais si l'équipe tombe, il ne restera qu'un quart du sac. Les tombés se relèvent à peine avant de descendre ; les autres gardent leurs blessures."}</p>
