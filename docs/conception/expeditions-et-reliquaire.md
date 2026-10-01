@@ -101,6 +101,12 @@ pour les doublons, plus un raccourci vers la fin de la collection.
 
 Le Reliquaire travaille sur l'extension courante de la boutique.
 
+**Les vestiges ont un second usage** depuis le 01/10/2026 : la fiche de combat
+des cartes (rangs d'ATQ et d'INI, changement de geste ou de technique), dans
+le volet « Combat » de la carte agrandie. Voir `donjon.md`, « La fiche de
+combat ». C'est le débouché que la forge du jour, une carte par jour, ne
+suffisait plus à offrir.
+
 ---
 
 ## Sauvegarde et comptes

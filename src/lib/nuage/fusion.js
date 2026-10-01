@@ -168,15 +168,22 @@ export function fusionnerSucces(base = {}, ici = {}, la = {}) {
 /**
  * Expérience des cartes : les points s'additionnent comme des compteurs, les
  * paliers payés (`irisee`, `cent`) sont acquis dès qu'un côté les a notés.
+ * Une remise à zéro (STAR RESET) faite depuis la base l'emporte.
  */
 export function fusionnerXP(base = {}, ici = {}, la = {}) {
   const sortie = {};
   for (const k of cles(ici, la)) {
     const b = base[k] || {}, i = ici[k] || {}, l = la[k] || {};
+    // STAR RESET (`remise`, voir fiches.js) fait depuis la base : l'expérience
+    // repart de ce côté-là, paliers compris ; sinon ils reviendraient de l'autre.
+    const ri = (i.remise || 0) > (b.remise || 0) ? i.remise : 0;
+    const rl = (l.remise || 0) > (b.remise || 0) ? l.remise : 0;
+    if (ri || rl) { sortie[k] = ri >= rl ? i : l; continue; }
     sortie[k] = {
       xp: Math.max(0, (l.xp || 0) + (i.xp || 0) - (b.xp || 0)),
       ...((i.irisee || l.irisee) ? { irisee: true } : {}),
       ...((i.cent || l.cent) ? { cent: true } : {}),
+      ...(b.remise ? { remise: b.remise } : {}),
     };
   }
   return sortie;
@@ -202,8 +209,43 @@ export function fusionnerReliquaire(base, ici, la) {
   };
 }
 
+/**
+ * Fiches de combat. Les rangs sont des compteurs plafonnés : un rang acheté
+ * ici et un autre là, payés deux fois en vestiges, font deux rangs. Une
+ * étoile, posée d'un côté, est acquise (sa rainbow est déjà sortie de la
+ * collection). Une compétence suit l'appareil qui l'a changée ; une ligne
+ * étoilée garde la compétence du côté qui l'a étoilée. Un STAR RESET
+ * (`remise`) fait depuis la base remplace la fiche entière.
+ */
+export function fusionnerFiches(base = {}, ici = {}, la = {}, rangMax = 3) {
+  const sortie = {};
+  for (const k of cles(ici, la)) {
+    const b = base[k] || {}, i = ici[k] || {}, l = la[k] || {};
+    // STAR RESET : la remise la plus récente, faite depuis la base, l'emporte
+    // entière ; sinon les rangs et les étoiles de l'autre côté reviendraient.
+    const ri = (i.remise || 0) > (b.remise || 0) ? i.remise : 0;
+    const rl = (l.remise || 0) > (b.remise || 0) ? l.remise : 0;
+    if (ri || rl) { sortie[k] = ri >= rl ? i : l; continue; }
+    const f = {};
+    for (const r of ["atq", "ini"]) {
+      const n = Math.min(rangMax, (l[r] || 0) + Math.max(0, (i[r] || 0) - (b[r] || 0)));
+      if (n) f[r] = n;
+    }
+    const etoiles = {};
+    for (const e of ["atq", "ini", "geste", "tech"]) if (i.etoiles?.[e] || l.etoiles?.[e]) etoiles[e] = true;
+    for (const place of ["geste", "tech"]) {
+      const v = l.etoiles?.[place] ? l[place] : i.etoiles?.[place] ? i[place] : i[place] !== b[place] ? i[place] : l[place];
+      if (v) f[place] = v;
+    }
+    if (Object.keys(etoiles).length) f.etoiles = etoiles;
+    if (b.remise) f.remise = b.remise;
+    sortie[k] = f;
+  }
+  return sortie;
+}
+
 const COMPTEURS = new Set([
-  "collections", "boosters", "bourse", "mine", "schema", "succes", "sachets", "stats", "xp", "reliquaire",
+  "collections", "boosters", "bourse", "mine", "schema", "succes", "sachets", "stats", "xp", "reliquaire", "fiches",
 ]);
 
 /**
@@ -224,6 +266,7 @@ export function fusionner3(base, ici, la, vide) {
   sortie.stats = fusionnerCompteurs(b.stats, ici.stats, la.stats);
   sortie.xp = fusionnerXP(b.xp, ici.xp, la.xp);
   sortie.reliquaire = fusionnerReliquaire(b.reliquaire, ici.reliquaire, la.reliquaire);
+  sortie.fiches = fusionnerFiches(b.fiches, ici.fiches, la.fiches);
   const { succes, doublons } = fusionnerSucces(b.succes, ici.succes, la.succes);
   sortie.succes = succes;
   // Les sachets s'additionnent toujours, y compris à la première connexion :

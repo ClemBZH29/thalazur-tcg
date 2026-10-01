@@ -4,6 +4,7 @@ import { TIER_INFO } from "../config/tiers.js";
 import { nomComplet } from "../config/speciales.js";
 import { reperesDe, nomType } from "../config/cartes.js";
 import Volets from "./VoletsCarte.jsx";
+import VoletCombat from "./VoletCombat.jsx";
 
 export default function Loupe({ c, cfgImage, fichiers, onFermer }) {
   const boite = useRef(null);
@@ -16,6 +17,8 @@ export default function Loupe({ c, cfgImage, fichiers, onFermer }) {
     bouton.current?.focus();
 
     const k = (e) => {
+      // Une fenêtre ouverte par-dessus (choix d'une compétence) gère ses touches.
+      if (e.defaultPrevented || boite.current?.querySelector("dialog[open]")) return;
       if (e.key === "Escape") return onFermer();
       if (e.key !== "Tab") return;
       // Piège à focus : sans lui, la tabulation ressort derrière le voile.
@@ -43,7 +46,9 @@ export default function Loupe({ c, cfgImage, fichiers, onFermer }) {
     >
       <div className="loupe-boite" onClick={(e) => e.stopPropagation()}>
         <Carte c={c} taille="zoom" cfgImage={cfgImage} fichiers={fichiers} />
-        {/* Hors du flux sur grand écran : la carte garde sa place au centre. */}
+        {/* Hors du flux sur grand écran : la carte garde sa place au centre.
+            La fiche de combat vaut pour la carte entière, rainbow comprise. */}
+        {c.volets && <VoletCombat c={c} onFermer={onFermer} />}
         {c.volets && !c.rainbow && <Volets c={c} />}
       </div>
       <div className="loupe-fiche">

@@ -5,6 +5,8 @@ import { TIERS, TIER_ORDER, TIER_INFO } from "../config/tiers.js";
 import { BOOSTERS, BOOSTER_PAR_ID } from "../extensions/index.js";
 import { nomComplet } from "../config/speciales.js";
 import { niveauDe, xpDe } from "../donjon/experience.js";
+import { etoilee, ficheDe } from "../donjon/fiches.js";
+import { Etoile } from "./VoletCombat.jsx";
 
 /** Une case manquante : le dos, grisé, sans interaction ni nom. */
 function Manquante() {
@@ -456,6 +458,12 @@ export default function Bibliotheque({
                   « Niv. 1 ». */}
               {niv > 1 && (
                 <span className="pastille-niv" title={`Niveau ${niv}`}>Niv. {niv}</span>
+              )}
+              {/* L'étoile, en bas à droite, sous les exemplaires : les quatre
+                  lignes de la fiche de combat étoilées. Sur les deux versions,
+                  la fiche est celle de la carte. */}
+              {ext && etoilee(ficheDe(etat, { ext, id: c.id })) && (
+                <span className="pastille-etoile" title="Carte étoilée : ATQ, INI et compétences"><Etoile taille={14} /></span>
               )}
               {TIER_INFO[c.tier]?.pleine && (
                 <span className="legende-carte">{nomComplet(c)}</span>

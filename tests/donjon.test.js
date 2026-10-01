@@ -5,7 +5,7 @@ import extension from "../src/extensions/troupe-valeran/extension.js";
 import {
   RANGS, RENCONTRES, cartesDonjon, choixAuto, choixIA, ciblesPossibles, convalescences, creerPartie, demarrerCombat,
   descendre, entrer, fuir, gainsXP, genererEtage, monstre, peutFuir, apprentissage, brume, BRUME_TOUR, atqDe, allie,
-  graineDuJour, issue, ouverts, parUid, prochain, rapporte, repos, resoudre, roleDe, tirage, tresor, victoire,
+  graineDuJour, issue, ouverts, parUid, prochain, rapporte, repos, resoudre, roleDe, tirage, tresor, trouverRelique, victoire,
 } from "../src/donjon/regles.js";
 
 const roster = JSON.parse(readFileSync(new URL("../src/extensions/troupe-valeran/roster.json", import.meta.url), "utf8"));
@@ -370,5 +370,27 @@ describe("deux donjons et soins réduits", () => {
     a.pv = 1;
     repos(p);
     expect(a.pv).toBe(1 + Math.ceil(a.pvMax * 0.3 * (p.equipe.some((u) => u.role === "intendant") ? 1.25 : 1)));
+  });
+});
+
+describe("reliques", () => {
+  test("une relique trouvée vaut tout de suite pour toute l'équipe, tombés et recrue compris", () => {
+    const p = creerPartie({ equipe: POOLS.allies.slice(0, 4), artefact: null, graine: 1, jour: "x", pools: POOLS });
+    const avant = p.equipe.map((u) => ({ pvMax: u.pvMax, atq: atqDe(p, u) }));
+    p.equipe[1].pv = 0; p.equipe[1].ko = true;
+    const a = trouverRelique(p, () => 0.99, POOLS.artefacts); // légendaire : +2 ATQ, +5 PV
+    expect(a.tier).toBe("legendaire");
+    p.equipe.forEach((u, i) => {
+      expect(u.pvMax).toBe(avant[i].pvMax + 5);
+      expect(atqDe(p, u)).toBe(avant[i].atq + 2);
+    });
+    expect(p.equipe[1].pv).toBe(0); // un tombé gagne le maximum, pas des PV
+    const ch = RENCONTRES.find((x) => x.id === "blesse").choix(p, { r: tirage(3), pools: POOLS });
+    ch[0].f();
+    const rec = p.equipe.at(-1);
+    expect(rec.pvMax).toBe(allie({ uid: 0 }, rec.c).pvMax + 5);
+    expect(atqDe(p, rec)).toBe(rec.atq + 2);
+    const q = JSON.parse(JSON.stringify(p));
+    expect(q.equipe.map((u) => atqDe(q, u))).toEqual(p.equipe.map((u) => atqDe(p, u)));
   });
 });

@@ -124,7 +124,7 @@ export const DONJON = {
   multiplicateur: 0.6,   // PO créditées par pièce de butin rapportée
   modes: {
     jour: { tentatives: 1, gain: 2, xp: 1 },
-    infini: { tentatives: Infinity, gain: 0.4, xp: 0.5, plafondPOJour: 100 },
+    infini: { tentatives: Infinity, gain: 0.4, xp: 0.5, plafondPOJour: 120 },
   },
   // Les débuts adoucis : adversaires affaiblis et butin réduit, qui remontent
   // en ligne droite jusqu'au jeu normal au `jusqua`-ième booster ouvert.

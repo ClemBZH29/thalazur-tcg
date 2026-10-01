@@ -34,3 +34,22 @@ export const RELIQUAIRE = {
 export const ENTRAINEMENT = {
   xp: { commun: 15, peucommun: 30, rare: 75, legendaire: 250 },
 };
+
+/**
+ * La fiche de combat d'une carte (volet « Combat » de la carte agrandie) :
+ * ce que coûtent, en vestiges, les rangs d'ATQ et d'INI, et le changement de
+ * geste ou de technique. Une compétence naturelle au rôle de la carte coûte
+ * moitié prix ; revenir à celle d'origine est gratuit.
+ *
+ * Repères : un doublon commun dissous rapporte 5 vestiges, un rare 25. Un
+ * premier rang coûte donc dix communes, une technique trente — un vrai
+ * choix, pas une formalité. Les soins sont réservés à leurs rôles (voir
+ * `reservee`, src/donjon/regles.js). L'étoile, elle, ne se paie qu'en rainbow (une
+ * version irisée en trop de la carte par ligne).
+ */
+export const PERSONNALISATION = {
+  rangs: [50, 100, 200],
+  geste: 80,
+  tech: 150,
+  affinite: 0.5,
+};
