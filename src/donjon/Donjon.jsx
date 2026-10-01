@@ -715,7 +715,13 @@ export default function Donjon({ jeu }) {
     const n = choix.length;
     const plus = mode === "infini" || tentativesRestantes > 0;
     const sourceManque = collection.lieux.length > 0 && !collection.lieux.some((l) => `${l.ext}:${l.id}` === sourceCle && !enExpedition?.(l));
-    const parRole = Object.keys(ROLES).map((r) => [r, collection.allies.filter((c) => roleDe(c.rep1) === r)]).filter(([, l]) => l.length);
+    // Les cartes indisponibles (en expédition, au repos) passent en fin de
+    // rangée, toujours grisées : on ne fait pas défiler pour trouver qui peut descendre.
+    // Une carte déjà choisie reste à sa place, même si elle est indisponible (mode test).
+    const indispo = (c) => !choix.includes(c.id) && (!!enExpedition?.(c) || (!!convalescence(c) && !illimite));
+    const enFin = (l) => [...l.filter((c) => !indispo(c)), ...l.filter(indispo)];
+    const parRole = Object.keys(ROLES).map((r) => [r, enFin(collection.allies.filter((c) => roleDe(c.rep1) === r))]).filter(([, l]) => l.length);
+    const lieuxRangee = [...collection.lieux.filter((l) => !enExpedition?.(l)), ...collection.lieux.filter((l) => enExpedition?.(l))];
     const MJ = DONJON.modes.jour, MI = DONJON.modes.infini;
     return (
       <div className="dj">
@@ -829,7 +835,7 @@ export default function Donjon({ jeu }) {
             </p>
             {collection.lieux.length === 0 ? <p className="muted petit">Aucun lieu dans votre collection : l'équipe descend sans source de pouvoir.</p> : (
               <Rangee titre="Lieux" nb={collection.lieux.length} pris={sourceCle ? 1 : 0} classe="r-lieu">
-                {collection.lieux.map((l) => {
+                {lieuxRangee.map((l) => {
                   const cle = `${l.ext}:${l.id}`, pris = sourceCle === cle;
                   const niv = niveauCarte(l), et = !!ficheDe(etat, l).etoiles?.source;
                   const S = sourceDe(l), eff = effetsSource(l, niv, et);
