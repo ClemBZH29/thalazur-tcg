@@ -232,7 +232,7 @@ export function fusionnerFiches(base = {}, ici = {}, la = {}, rangMax = 3) {
       if (n) f[r] = n;
     }
     const etoiles = {};
-    for (const e of ["atq", "ini", "geste", "tech"]) if (i.etoiles?.[e] || l.etoiles?.[e]) etoiles[e] = true;
+    for (const e of ["atq", "ini", "geste", "tech", "source"]) if (i.etoiles?.[e] || l.etoiles?.[e]) etoiles[e] = true;
     for (const place of ["geste", "tech"]) {
       const v = l.etoiles?.[place] ? l[place] : i.etoiles?.[place] ? i[place] : i[place] !== b[place] ? i[place] : l[place];
       if (v) f[place] = v;

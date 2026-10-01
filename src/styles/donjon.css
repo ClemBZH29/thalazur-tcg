@@ -443,3 +443,40 @@
   background: linear-gradient(#1b252a, #1b252a) padding-box,
     linear-gradient(115deg, hsl(340 80% 70%), hsl(46 90% 68%), hsl(148 60% 62%), hsl(200 80% 68%), hsl(266 72% 74%)) border-box; }
 .dj-geste.etoile b { color: #f6e3b0; }
+
+/* ── Préparation : une rangée par rôle, qui défile ───────────────────────
+   Au doigt : glissement carte par carte (scroll-snap). À la souris : les
+   bords, qui n'apparaissent que s'il reste à voir, défilent au survol. */
+.dj-rangee { margin: 0 0 18px; }
+.dj-rangee-tete { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin: 0 0 8px; }
+.dj-rangee-tete h3 { margin: 0; font-size: 16px; color: var(--ink); }
+.dj-rangee-cadre { position: relative; }
+.dj-rangee-piste { display: grid; grid-auto-flow: column; grid-auto-columns: 140px; gap: 12px; overflow-x: auto;
+  padding: 12px 4px 10px; scroll-snap-type: x mandatory; scroll-padding: 0 4px; overscroll-behavior-x: contain;
+  scrollbar-width: thin; }
+.dj-rangee-piste > * { scroll-snap-align: start; }
+.dj-rangee-bord { position: absolute; top: 0; bottom: 0; z-index: 12; width: 54px; border: 0; padding: 0; cursor: pointer;
+  font-size: 30px; line-height: 1; color: var(--ink); display: grid; place-items: center; }
+.dj-rangee-bord.g { left: -4px; background: linear-gradient(90deg, rgba(10, 16, 19, .95), rgba(10, 16, 19, 0)); justify-items: start; padding-left: 6px; }
+.dj-rangee-bord.d { right: -4px; background: linear-gradient(270deg, rgba(10, 16, 19, .95), rgba(10, 16, 19, 0)); justify-items: end; padding-right: 6px; }
+.dj-rangee-bord:hover, .dj-rangee-bord:focus-visible { color: var(--lamp); }
+@media (hover: none) { .dj-rangee-bord { display: none; } }
+@media (max-width: 720px) { .dj-rangee-piste { grid-auto-columns: 112px; gap: 9px; } }
+
+/* La source de pouvoir : la carte, le nom du pouvoir et ses effets. */
+.dj-rangee.r-lieu .dj-rangee-piste { grid-auto-columns: 168px; }
+@media (max-width: 720px) { .dj-rangee.r-lieu .dj-rangee-piste { grid-auto-columns: 136px; } }
+.dj-source-pied { display: grid; gap: 4px; }
+.dj-source-nom { font-size: 12.5px; color: var(--lamp); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dj-source-pied ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 2px; }
+.dj-source-pied li { font-size: 11.5px; line-height: 1.3; color: var(--ink2); }
+.dj-source-pastille .etoile { color: #f3d27c; vertical-align: -1px; }
+.dj-source-pastille.star { border-color: #b49cf0; }
+
+/* La relique que portent les adversaires, au-dessus de leur rang. */
+.dj-relique-ennemie { margin: 0 auto 4px; max-width: 640px; text-align: center; font-size: 12.5px; color: var(--ink2);
+  padding: 5px 12px; border-radius: 100px; background: rgba(179, 48, 73, .12); border: 1px solid rgba(179, 48, 73, .45); }
+.dj-relique-ennemie b { color: #f6c979; }
+.dj-relique-ennemie b[data-palier="legendaire"] { color: #ff9fb0; }
+.dj-reliques small { font-size: 10.5px; color: var(--ink3); margin-left: 4px; }
+.dj-trouvaille-pouvoir { font-size: 13px; color: var(--ink); }

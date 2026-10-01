@@ -78,6 +78,11 @@ s'affiche que pour les PNJ alliés, les seuls qui descendent, et aussi sur la
 version irisée : la fiche est celle de la carte. Voir `donjon.md`, « La fiche
 de combat ».
 
+**Pour un Lieu, le volet de gauche est sa source de pouvoir** (01/10/2026) :
+le pouvoir qu'il donne à l'équipe au Donjon, à son niveau et au niveau 100,
+son étoile (une rainbow en trop du lieu) et STAR RESET. Voir `donjon.md`,
+« Sources de pouvoir et artéfacts ».
+
 **L'étoile, en bas à droite**, sous le nombre d'exemplaires : les quatre
 lignes de la fiche sont étoilées. Elle s'affiche sur les deux versions.
 

@@ -3,8 +3,9 @@ import { useJeu } from "../jeu/Jeu.jsx";
 import { BOOSTERS } from "../extensions/index.js";
 import { COMPETENCES, ETOILE, ROLES, allie, cartesDonjon, roleDe } from "../donjon/regles.js";
 import { cleXP, niveauDe, xpDe } from "../donjon/experience.js";
+import { ETOILE_SOURCE, effetsSource, sourceDe, texteEffets } from "../donjon/pouvoirs.js";
 import {
-  RANG_MAX, catalogue, competenceDe, coutCompetence, coutRang, etoiles, ficheDe, naturelle, origine, possedee, rainbowEnTrop,
+  LIGNE_SOURCE, RANG_MAX, catalogue, competenceDe, coutCompetence, coutRang, etoiles, ficheDe, naturelle, origine, possedee, rainbowEnTrop,
 } from "../donjon/fiches.js";
 
 /** Les PNJ alliés : les seules cartes qui descendent au Donjon. */
@@ -110,14 +111,66 @@ function ChoixCompetence({ c, place, actuelle, vestiges, onChoisir, onFermer }) 
 }
 
 /**
+ * STAR RESET, pour toute carte possédée, étoilée ou non. Trois temps : le
+ * bouton, un premier avertissement, un second, puis la suppression.
+ */
+function StarReset({ c, niveau, onFermer, fiche }) {
+  const { etat, resetStarCarte, enExpedition } = useJeu();
+  const [reset, setReset] = useState(0); // 0, puis les deux avertissements
+  const nNorm = etat.collections?.[c.ext]?.[c.id]?.normale || 0;
+  const nRb = etat.collections?.[c.ext]?.[c.id]?.rainbow || 0;
+  if (nNorm + nRb < 1) return null;
+  return (
+        <section className={`volet fc-reset${reset ? ` etape-${reset}` : ""}`}>
+          {!reset && (
+            <button type="button" className="btn quiet sm fc-reset-bouton" disabled={enExpedition?.(c)}
+              title={enExpedition?.(c) ? "La carte est en expédition." : undefined}
+              onClick={() => setReset(1)}>
+              <Etoile taille={11} /> STAR RESET
+            </button>
+          )}
+          {reset === 1 && (
+            <div className="fc-reset-confirme" role="group" aria-label="STAR RESET, avertissement 1 sur 2">
+              <p className="fc-reset-etape">Avertissement 1 / 2</p>
+              <p>
+                La fiche revient à l'origine ({fiche}) et les{" "}
+                <b>{pluriel(nNorm + nRb, "exemplaire")}</b> de {c.nom} sont perdus
+                ({nNorm} normale{nNorm > 1 ? "s" : ""}, {nRb} rainbow), comme si vous n'aviez jamais eu la carte.
+              </p>
+              <span className="fc-confirme-boutons">
+                <button type="button" className="btn sm fc-reset-ok" onClick={() => setReset(2)}>Confirmer</button>
+                <button type="button" className="btn quiet sm" onClick={() => setReset(0)}>Annuler</button>
+              </span>
+            </div>
+          )}
+          {reset === 2 && (
+            <div className="fc-reset-confirme" role="alertdialog" aria-label="STAR RESET, avertissement 2 sur 2">
+              <p className="fc-reset-etape">Avertissement 2 / 2 · dernière confirmation</p>
+              <p className="fc-reset-alerte">
+                Le niveau de la carte repart à 1 (aujourd'hui niveau {niveau}), paliers compris. Les vestiges
+                dépensés ne sont pas rendus. <b>Cette suppression est définitive.</b>
+              </p>
+              <span className="fc-confirme-boutons">
+                <button type="button" className="btn sm fc-reset-ok" onClick={() => {
+                  setReset(0);
+                  if (resetStarCarte(c)) onFermer?.();
+                }}>Supprimer définitivement</button>
+                <button type="button" className="btn quiet sm" onClick={() => setReset(0)}>Annuler</button>
+              </span>
+            </div>
+          )}
+        </section>
+  );
+}
+
+/**
  * Le volet « Combat » de la carte agrandie, à gauche de la carte : ce qu'elle
  * vaut au Donjon, et ce qu'on peut y changer (voir src/donjon/fiches.js).
  * Il vaut pour la carte, pas pour une version : la normale et la rainbow
  * montrent la même fiche.
  */
 export default function VoletCombat({ c, onFermer }) {
-  const { etat, vestiges, acheterRangCarte, changerCompetenceCarte, etoilerCarte, resetStarCarte, enExpedition, reliquaireOuvert } = useJeu();
-  const [reset, setReset] = useState(0); // 0, puis les deux avertissements
+  const { etat, vestiges, acheterRangCarte, changerCompetenceCarte, etoilerCarte, reliquaireOuvert } = useJeu();
   const [choix, setChoix] = useState(null);
   const [confirme, setConfirme] = useState(null);
   const [annonce, setAnnonce] = useState("");
@@ -130,8 +183,6 @@ export default function VoletCombat({ c, onFermer }) {
   const a = possedee(etat, c);
   const rb = rainbowEnTrop(etat, c);
   const nEt = etoiles(f);
-  const nNorm = etat.collections?.[c.ext]?.[c.id]?.normale || 0;
-  const nRb = etat.collections?.[c.ext]?.[c.id]?.rainbow || 0;
 
   const rang = (ligne) => {
     const nom = ligne === "atq" ? "ATQ" : "INI";
@@ -241,49 +292,7 @@ export default function VoletCombat({ c, onFermer }) {
         <p className="sr" role="status" aria-live="polite">{annonce}</p>
         {annonce && <p className="volet-annonce" aria-hidden="true">{annonce}</p>}
       </section>
-      {/* STAR RESET, pour toute carte possédée, étoilée ou non. Trois temps :
-          le bouton, un premier avertissement, un second, puis la suppression. */}
-      {(nNorm + nRb) > 0 && (
-        <section className={`volet fc-reset${reset ? ` etape-${reset}` : ""}`}>
-          {!reset && (
-            <button type="button" className="btn quiet sm fc-reset-bouton" disabled={enExpedition?.(c)}
-              title={enExpedition?.(c) ? "La carte est en expédition." : undefined}
-              onClick={() => setReset(1)}>
-              <Etoile taille={11} /> STAR RESET
-            </button>
-          )}
-          {reset === 1 && (
-            <div className="fc-reset-confirme" role="group" aria-label="STAR RESET, avertissement 1 sur 2">
-              <p className="fc-reset-etape">Avertissement 1 / 2</p>
-              <p>
-                La fiche revient à l'origine (rangs, compétences, étoiles) et les{" "}
-                <b>{pluriel(nNorm + nRb, "exemplaire")}</b> de {c.nom} sont perdus
-                ({nNorm} normale{nNorm > 1 ? "s" : ""}, {nRb} rainbow), comme si vous n'aviez jamais eu la carte.
-              </p>
-              <span className="fc-confirme-boutons">
-                <button type="button" className="btn sm fc-reset-ok" onClick={() => setReset(2)}>Confirmer</button>
-                <button type="button" className="btn quiet sm" onClick={() => setReset(0)}>Annuler</button>
-              </span>
-            </div>
-          )}
-          {reset === 2 && (
-            <div className="fc-reset-confirme" role="alertdialog" aria-label="STAR RESET, avertissement 2 sur 2">
-              <p className="fc-reset-etape">Avertissement 2 / 2 · dernière confirmation</p>
-              <p className="fc-reset-alerte">
-                Le niveau de la carte repart à 1 (aujourd'hui niveau {niveau}), paliers compris. Les vestiges
-                dépensés ne sont pas rendus. <b>Cette suppression est définitive.</b>
-              </p>
-              <span className="fc-confirme-boutons">
-                <button type="button" className="btn sm fc-reset-ok" onClick={() => {
-                  setReset(0);
-                  if (resetStarCarte(c)) onFermer?.();
-                }}>Supprimer définitivement</button>
-                <button type="button" className="btn quiet sm" onClick={() => setReset(0)}>Annuler</button>
-              </span>
-            </div>
-          )}
-        </section>
-      )}
+      <StarReset c={c} niveau={niveau} onFermer={onFermer} fiche="rangs, compétences, étoiles" />
       {choix && (
         <ChoixCompetence c={c} place={choix} actuelle={competenceDe(c, f, choix)} vestiges={vestiges}
           onFermer={() => setChoix(null)}
@@ -293,6 +302,69 @@ export default function VoletCombat({ c, onFermer }) {
             return ok;
           }} />
       )}
+    </aside>
+  );
+}
+
+/**
+ * Le volet « Source de pouvoir » d'un Lieu, à gauche de la carte agrandie :
+ * le pouvoir que le lieu donne à l'équipe au Donjon, à son niveau, ce qu'il
+ * deviendra au niveau 100, et son étoile (une rainbow en trop du lieu).
+ */
+export function VoletSource({ c, onFermer }) {
+  const { etat, etoilerCarte } = useJeu();
+  const [confirme, setConfirme] = useState(false);
+  const [annonce, setAnnonce] = useState("");
+  if (c?.type !== "lieu" || !c.ext) return null;
+  const f = ficheDe(etat, c);
+  const et = !!f.etoiles?.[LIGNE_SOURCE];
+  const niveau = niveauDe(xpDe(etat, c));
+  const S = sourceDe(c);
+  const ici = effetsSource(c, niveau, et), cent = effetsSource(c, 100, et);
+  const rb = rainbowEnTrop(etat, c), a = possedee(etat, c);
+  return (
+    <aside className="volets volets-gauche" aria-label={`Source de pouvoir de ${c.nom}`} onClick={(e) => e.stopPropagation()}>
+      <section className={`volet volet-combat${et ? " complete" : ""}`}>
+        <header className="fc-tete">
+          <h3>Source de pouvoir</h3>
+          <span className="muted">Niv. {niveau}</span>
+        </header>
+        <div className={`fc-ligne fc-comp${et ? " etoilee" : ""}`}>
+          <span className="fc-cap">{et ? <><Etoile taille={10} /> Étoilée · ×{String(ETOILE_SOURCE).replace(".", ",")}</> : "Au Donjon, pour toute l'équipe"}</span>
+          <b className="fc-comp-nom">{S.nom}</b>
+          <span className="fc-actions">
+            {et ? <span className="fc-figee"><Etoile /> Figée</span> : (
+              <button type="button" className={`fc-etoiler${confirme ? " arme" : ""}`} disabled={!a || rb < 1} aria-expanded={confirme}
+                title={rb < 1 ? `Il faut une rainbow de ${c.nom} en plus de celle de la collection.` : "Étoiler la source"}
+                aria-label="Étoiler la source" onClick={() => setConfirme((x) => !x)}><Etoile /></button>
+            )}
+          </span>
+          <ul className="fc-comp-aide fc-effets">{ici.map((e) => <li key={e.mec}>{e.texte}</li>)}</ul>
+          {confirme && !et && (
+            <div className="fc-confirme" role="group" aria-label="Étoiler la source">
+              <span>Dépensez une de vos Rainbow en double pour améliorer définitivement la ligne.</span>
+              <span className="fc-confirme-boutons">
+                <button type="button" className="btn sm fc-confirmer" onClick={() => {
+                  setConfirme(false);
+                  if (etoilerCarte(c, LIGNE_SOURCE)) setAnnonce(`Source étoilée. Une rainbow de ${c.nom} a quitté la collection.`);
+                }}><Etoile /> Étoiler</button>
+                <button type="button" className="btn quiet sm" onClick={() => setConfirme(false)}>Annuler</button>
+              </span>
+            </div>
+          )}
+        </div>
+        {niveau < 100 && (
+          <p className="muted fc-note">Au niveau 100 : {texteEffets(cent)}.</p>
+        )}
+        <p className="fc-pied muted">
+          <span>Rareté {c.tier === "commun" ? "commune" : c.tier === "peucommun" ? "peu commune" : c.tier === "rare" ? "rare" : "légendaire"}</span>
+          <span><Etoile taille={11} /> {rb} rainbow en trop</span>
+        </p>
+        <p className="muted fc-note">Le lieu gagne de l'expérience avec l'équipe qu'il accompagne, et s'entraîne avec ses doublons.</p>
+        <p className="sr" role="status" aria-live="polite">{annonce}</p>
+        {annonce && <p className="volet-annonce" aria-hidden="true">{annonce}</p>}
+      </section>
+      <StarReset c={c} niveau={niveau} onFermer={onFermer} fiche="étoile de la source" />
     </aside>
   );
 }

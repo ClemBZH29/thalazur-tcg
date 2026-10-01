@@ -48,6 +48,7 @@ function descente(graine, strategie = "concentrer") {
       let fin = null;
       for (let t = 0; t < 500 && !fin; t++) {
         const u = prochain(partie, C);
+        if (!u) { fin = issue(partie, C); break; }
         const { geste, cible } = u.camp === "e" ? choixIA(partie, C, u, r) : choixAuto(partie, C, u, strategie);
         resoudre(partie, C, u, geste, cible, r);
         fin = issue(partie, C);
@@ -177,6 +178,7 @@ describe("rôles et états", () => {
     let fin = null, t = 0;
     for (; t < 600 && !fin; t++) {
       const u = prochain(p, C);
+      if (!u) { fin = issue(p, C); break; }
       const { geste, cible } = u.camp === "e" ? choixIA(p, C, u, r) : choixAuto(p, C, u, "prudence");
       resoudre(p, C, u, geste, cible, r);
       fin = issue(p, C);
@@ -190,6 +192,7 @@ describe("rôles et états", () => {
       let fin = null;
       for (let t = 0; t < 600 && !fin; t++) {
         const u = prochain(p, C);
+        if (!u) { fin = issue(p, C); break; }
         const { geste, cible } = u.camp === "e" ? choixIA(p, C, u, r) : choixAuto(p, C, u, "concentrer");
         resoudre(p, C, u, geste, cible, r);
         fin = issue(p, C);

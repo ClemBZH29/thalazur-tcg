@@ -813,3 +813,7 @@
 .fc-reset-alerte { color: #f2b49a; }
 .fc-reset-etape { font-size: 10.5px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: #e9b4c8; }
 .fc-reset.etape-2 { border-color: var(--ember); box-shadow: 0 0 0 1px rgba(229, 119, 75, .35), 0 0 22px rgba(229, 119, 75, .18); }
+.fc-effets { margin: 3px 0 0; padding: 0; list-style: none; display: grid; gap: 3px; }
+.fc-effets li { padding-left: 10px; position: relative; }
+.fc-effets li::before { content: ""; position: absolute; left: 0; top: .55em; width: 4px; height: 4px; border-radius: 50%; background: var(--lamp); }
+.fc-cap .etoile { color: #f3d27c; }

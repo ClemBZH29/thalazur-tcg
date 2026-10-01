@@ -261,10 +261,164 @@ Les chiffres flottants restent ceux des règles (`montrer`) : le module les
 coupe pour ne pas les doubler. En mouvement réduit, un fondu seulement, et
 les états restent immobiles.
 
+## Sources de pouvoir et artéfacts (01/10/2026)
+
+**Plus d'artéfact au départ.** On ne choisit plus un artéfact de sa collection :
+les artéfacts se gagnent en bas. À la place, on choisit une **source de
+pouvoir**, l'un de ses Lieux (obligatoire dès qu'on en possède un). Les règles
+sont dans `src/donjon/pouvoirs.js`.
+
+**La préparation** range les compagnons **une rangée par rôle**, qui défile à
+l'horizontale : au doigt, carte par carte (scroll-snap) ; à la souris, en
+survolant le bord de la rangée (l'aimantation est suspendue le temps du
+survol), ou d'un clic sur ce bord. Les lieux ont leur rangée, avec le nom de
+leur pouvoir et ses effets sous chaque carte.
+
+### Les mécaniques
+
+Tous les pouvoirs passent par une trentaine de mécaniques (`MECANIQUES`) :
+ATQ, PV, INI, armure, critiques, soins, vol de vie, épines, coup de grâce,
+chasse au gros, régénération, bivouac, relève, butin, expérience, première
+salve, retranchement, brume familière, saignement, esquive, recharges,
+repérage, vengeance, dernier carré, charge, bonne fortune, bonne table, défi,
+endurci. Chacune a une base (sa valeur pour une commune au niveau 1) et un
+plafond, appliqué à la somme de tout ce que porte un camp. Les mécaniques de
+butin, d'expérience ou de repos ne servent à rien chez l'adversaire.
+
+### La source de pouvoir
+
+Chaque lieu a son pouvoir, **et aucun n'a le même** : une mécanique pour une
+commune ou une peu commune, deux pour une rare, trois pour une légendaire (un
+lieu d'une future extension sans entrée en reçoit une tirée de son
+identifiant). Force = base × rareté (commune 1, peu commune 1,5, rare 2,
+légendaire 2,5 ; un pouvoir à plusieurs mécaniques les paie ×0,7 chacune) ×
+niveau du lieu (×1 au niveau 1, ×2 au niveau 100) × étoile (×1,5).
+
+- **Le niveau** : le lieu gagne de l'expérience avec l'équipe qu'il
+  accompagne (la moyenne des compagnons), et s'entraîne avec ses doublons
+  comme toute carte.
+- **L'étoile** : une rainbow en trop du lieu étoile sa source (la ligne
+  `source` de la fiche, voir fiches.js). Le lieu porte alors l'étoile dans la
+  collection, et la pastille « STAR » au Donjon. STAR RESET vaut aussi.
+- **Le volet « Source de pouvoir »**, à gauche de la carte agrandie d'un lieu,
+  montre le pouvoir à son niveau, ce qu'il sera au niveau 100, et l'étoile.
+- Les effets sont **figés au départ** dans la partie (`partie.source`) ; un
+  lieu en expédition ne peut pas servir de source.
+
+| Lieu | Rareté | Pouvoir | Niveau 1 | Niveau 100 ★ |
+|---|---|---|---|---|
+| Le squale gris | commune | Cale de contrebande | butin +10 % | butin +30 % |
+| Tente militaire | commune | Retranchement | armure +1 au premier tour de chaque combat | armure +4 au premier tour de chaque combat |
+| Restaurant militaire | commune | Gamelle chaude | rend 5 % des PV max après chaque victoire | rend 15 % des PV max après chaque victoire |
+| Yourte de la steppe | commune | Hospitalité des steppes | les repos soignent +40 % | les repos soignent +120 % |
+| Camp de mercenaires | commune | Lames à louer | +1 ATQ | +3 ATQ |
+| Forêt rongée | commune | Épines rongées | 20 % de chances de faire saigner (2 tours) | 60 % de chances de faire saigner (2 tours) |
+| Port du nord | commune | Vent du large | +1 INI | +3 INI |
+| Ruelle Sombre | commune | Coup dans le dos | 10 % de coups critiques (dégâts ×2) | 30 % de coups critiques (dégâts ×2) |
+| Chez Trabin | commune | Tournée de Brazuk | +2 PV max | +6 PV max |
+| Poste de garde du désert | commune | Boucliers du poste | armure +1 | armure +2 |
+| Collines des géants | commune | Chasse aux géants | +25 % de dégâts sur les élites et les gardiens | +75 % de dégâts sur les élites et les gardiens |
+| Plage de l'arrivée | commune | Rescapés | après une victoire, les tombés se relèvent à 7 % de leurs PV | après une victoire, les tombés se relèvent à 21 % de leurs PV |
+| Mines d'Azar | commune | Filon de reliques | +10 % de chances de trouver une relique | +30 % de chances de trouver une relique |
+| Arène de Riddobo | commune | Clameur de l'arène | +25 % de dégâts au premier tour de chaque combat | +75 % de dégâts au premier tour de chaque combat |
+| Fumerie de Kramach | commune | Volutes apaisantes | rend 2 % des PV max à chaque tour | rend 5 % des PV max à chaque tour |
+| Désert des cauchemars | commune | Cauchemars | en début de combat, 2 dégâts à chaque adversaire | en début de combat, 6 dégâts à chaque adversaire |
+| Poste frontière du col | commune | Vétérans du col | −5 % de dégâts reçus | −15 % de dégâts reçus |
+| Lac Süurin | commune | Eaux du Süurin | soins +25 % | soins +75 % |
+| Salle de jeux Kobold | commune | Coups de dés | expérience +15 % | expérience +45 % |
+| Observatoire Sud | peu commune | Lunettes de l'observatoire | le premier coup de chaque combat marque sa cible (+90 % de dégâts, 2 tours) | le premier coup de chaque combat marque sa cible (+100 % de dégâts, 2 tours) |
+| Bastion de l'Ordre | peu commune | Discipline de Vorsak | −30 % de dégâts reçus des gardiens | −50 % de dégâts reçus des gardiens |
+| Triple-Socle | peu commune | Trois appuis | les recharges baissent 75 % plus vite | les recharges baissent 75 % plus vite |
+| Grand Marais | peu commune | Enfants du marais | la brume se referme 5 tours plus tard | la brume se referme 6 tours plus tard |
+| Forêt de Nakova | peu commune | La forêt est la forêt | 12 % de chances d'esquiver un coup | 30 % de chances d'esquiver un coup |
+| Site en construction | peu commune | Fondations | le dernier debout frappe +180 % plus fort | le dernier debout frappe +300 % plus fort |
+| Cabinet du Dr Deutenik | peu commune | Transfusion | rend 9 % des dégâts infligés en PV | rend 25 % des dégâts infligés en PV |
+| Azar | peu commune | Sang d'Azar | +2 ATQ aux autres chaque fois qu'un des leurs tombe | +4 ATQ aux autres chaque fois qu'un des leurs tombe |
+| Olionde | peu commune | Ronces d'Olionde | renvoie 45 % des dégâts reçus | renvoie 60 % des dégâts reçus |
+| Tente du Haut Commandement | peu commune | Ordre d'achever | +150 % de dégâts sur une cible sous 35 % de PV | +250 % de dégâts sur une cible sous 35 % de PV |
+| Prison Secrète | rare | Interrogatoire | 28 % de chances de faire saigner (2 tours) ; +140 % de dégâts sur une cible sous 35 % de PV | 60 % de chances de faire saigner (2 tours) ; +250 % de dégâts sur une cible sous 35 % de PV |
+| Soldestin | rare | Soleil de Soldestin | rend 2 % des PV max à chaque tour ; soins +35 % | rend 6 % des PV max à chaque tour ; soins +100 % |
+| Éklénor | rare | Garde d'Éklénor | +1 ATQ ; +1 INI | +4 ATQ ; +4 INI |
+| Grandes Ruines Centrales | rare | Mémoire des ruines | +14 % de chances de trouver une relique ; expérience +21 % | +40 % de chances de trouver une relique ; expérience +63 % |
+| Temple de la Paix | rare | Paix du temple | rend 7 % des PV max après chaque victoire ; après une victoire, les tombés se relèvent à 10 % de leurs PV | rend 21 % des PV max après chaque victoire ; après une victoire, les tombés se relèvent à 29 % de leurs PV |
+| Valkarth | rare | Remparts de Valkarth | armure +1 ; renvoie 42 % des dégâts reçus | armure +3 ; renvoie 60 % des dégâts reçus |
+| Temple Panthéonique | légendaire | Tous les cultes | soins +44 % ; −9 % de dégâts reçus ; après une victoire, les tombés se relèvent à 12 % de leurs PV | soins +100 % ; −26 % de dégâts reçus ; après une victoire, les tombés se relèvent à 37 % de leurs PV |
+| Palais de Dispater | légendaire | Faveur de Dispater | 18 % de coups critiques (dégâts ×2) ; rend 11 % des dégâts infligés en PV ; en début de combat, 4 dégâts à chaque adversaire | 50 % de coups critiques (dégâts ×2) ; rend 25 % des dégâts infligés en PV ; en début de combat, 10 dégâts à chaque adversaire |
+
+### Les artéfacts
+
+Chaque artéfact garde son bonus de PV et d'ATQ, et reçoit **un pouvoir**
+(deux pour les légendaires) :
+
+| Artéfact | Rareté | Pouvoir |
+|---|---|---|
+| Sacoche de bille | commune | butin +10 % |
+| Poignée de Skarn | commune | 10 % de coups critiques (dégâts ×2) |
+| Brazûk ai Kazûk | commune | rend 2 % des PV max à chaque tour |
+| Pochon de Kramach | commune | 8 % de chances d'esquiver un coup |
+| Tian | commune | −5 % de dégâts reçus |
+| Rune Goliath | commune | armure +1 |
+| Écaille de Ver Pourpre | commune | renvoie 30 % des dégâts reçus |
+| Sceau de Valéran | peu commune | +2 INI |
+| Carte de Thalazur | peu commune | +15 % de chances de trouver une relique |
+| Coutille de géant du feu | peu commune | en début de combat, 3 dégâts à chaque adversaire |
+| Médaille de dompteur d'auroch | peu commune | +38 % de dégâts sur les élites et les gardiens |
+| Relique des profondeurs | peu commune | rend 9 % des dégâts infligés en PV |
+| Marque de Vorsak | peu commune | le premier coup de chaque combat marque sa cible (+90 % de dégâts, 2 tours) |
+| Laelsíleth | rare | +200 % de dégâts sur une cible sous 35 % de PV |
+| Tête Mécanique | rare | armure +3 au premier tour de chaque combat |
+| Vif Écaille | rare | +50 % de dégâts au premier tour de chaque combat |
+| Duo de larme | légendaire | soins +44 % ; après une victoire, les tombés se relèvent à 12 % de leurs PV |
+| Hakaihane | légendaire | 35 % de chances de faire saigner (2 tours) ; 18 % de coups critiques (dégâts ×2) |
+
+**Portés par les adversaires.** Une salle d'élite (une fois sur deux, plus avec
+la bonne fortune) et chaque gardien gardent une relique : **les adversaires
+s'en servent** (PV, ATQ, INI et pouvoir) et la victoire la rend à l'équipe.
+Elle est annoncée au-dessus de leur rang (« Ils portent… ») et dans le
+journal. Les trésors et l'écho en donnent encore, sans combat.
+
+**Ce qui borne l'empilement.**
+
+- Entre reliques, **une même mécanique ne compte qu'une fois**, la plus forte
+  (la source, elle, s'y ajoute) ;
+- **huit reliques au plus** (`RELIQUES_MAX`) : au-delà, elles partent au sac,
+  en pièces ;
+- les plafonds des mécaniques.
+
+Sans ces bornes, le donjon infini empilait des centaines de reliques, et une
+équipe passait l'étage 370 sans tomber. Le record mesuré revient à 13
+gardiens, comme avant.
+
+**Autres corrections.** Une première salve peut finir un combat avant le premier tour
+(`prochain` rend null, l'interface conclut). Si les deux camps tombent en
+même temps (des épines ou une garde haute achèvent le dernier qui frappe),
+c'est une défaite.
+
+### Ce que ça pèse
+
+`node scripts/audit-donjon.mjs`, section « Sources de pouvoir », 400
+descentes par cas, collection de 18 au hasard :
+
+| Cas | Trois gardiens |
+|---|---:|
+| Sans source | 27 % |
+| Avant (artéfact de la collection au départ) | 30 % |
+| Source tirée au hasard dans la collection | 39 % |
+| Communes | 27 à 45 % |
+| Rares | 33 à 53 % |
+| Légendaires | 59 à 64 % |
+| Niveau 100 étoilé | jusqu'à 92 % (Palais de Dispater) |
+
+Quelques pouvoirs pèsent peu sur les descentes complètes : brume familière,
+recharges, dernier carré et coup de grâce, ou rien du tout (butin,
+expérience). Ils jouent sur le butin, l'expérience ou la longueur des
+combats. Le donjon du jour rapporte environ 190 PO (150 avant) : la source
+remplace l'artéfact de départ, et les reliques en trop se vendent.
+
 ## Les reliques (vérifiées le 01/10/2026)
 
-Une relique trouvée (trésor 35 %, élite 55 %, gardien toujours, l'écho une
-fois sur deux) ajoute son bonus à **toute l'équipe, tout de suite et jusqu'à
+Une relique trouvée (trésor 35 %, élite 55 % et gardien toujours, sur les
+adversaires depuis le 01/10/2026, l'écho une fois sur deux) ajoute son bonus à **toute l'équipe, tout de suite et jusqu'à
 la sortie** (`BONUS_ARTEFACT`) : commun +2 PV, peu commun +1 ATQ, rare +1 ATQ
 et +3 PV, légendaire +2 ATQ et +5 PV. Les PV montent le maximum (un tombé ne
 se relève pas pour autant) ; l'ATQ entre dans chaque coup et chaque soin

@@ -18,6 +18,7 @@ import {
   apprentissage, descendre, entrer, gainsXP, issue, ouverts, prochain, rapporte, repos, resoudre, roleDe, tirage, tresor, victoire,
 } from "../src/donjon/regles.js";
 import { PALIER_IRISEE, xpPourNiveau } from "../src/donjon/experience.js";
+import { sourceDe } from "../src/donjon/pouvoirs.js";
 import { DONJON, ECONOMIE } from "../src/config/tiers.js";
 
 const BLOCAGES = [];
@@ -52,19 +53,30 @@ const duRole = (r, role, tier) => {
   return l.length ? l[Math.floor(r() * l.length)] : null;
 };
 
+/** Un lieu de la collection, tiré au palier comme au sortir des boosters. */
+function lieuTire(r) {
+  const poids = [["commun", 58], ["peucommun", 28], ["rare", 11], ["legendaire", 3]];
+  let x = r() * 100, t = "commun";
+  for (const [k, v] of poids) { x -= v; if (x <= 0) { t = k; break; } }
+  const l = POOLS.lieux.filter((c) => c.tier === t);
+  return l[Math.floor(r() * l.length)];
+}
+
 /* ── Une descente ────────────────────────────────────────────────────── */
 
 /**
  * `politique(partie)` décide à la sortie de chaque gardien : true pour
  * descendre. `niveau` : le niveau de toute l'équipe.
  */
-function descente(graine, { equipe, strategie = "concentrer", politique = () => true, niveau = 1, artefact = true, apprenti = null, mode = "jour", fiches = null }) {
+function descente(graine, { equipe, strategie = "concentrer", politique = () => true, niveau = 1, source = "hasard", apprenti = null, mode = "jour", fiches = null, niveauSource = null, etoileSource = false }) {
   const r = tirage(graine * 7919 + 17);
   const eq = typeof equipe === "function" ? equipe(r) : equipe;
-  const art = artefact ? POOLS.artefacts[Math.floor(r() * POOLS.artefacts.length)] : null;
+  // Plus d'artéfact au départ (01/10/2026) : une source de pouvoir, un lieu
+  // tiré comme une carte de la collection (« hasard »), imposé, ou aucun.
+  const lieuSource = source === "hasard" ? lieuTire(r) : source;
   const niveaux = Object.fromEntries(eq.map((c) => [`${c.ext}:${c.id}`, niveau]));
   const M = DONJON.modes[mode];
-  const partie = creerPartie({ equipe: eq, artefact: art, graine: mode === "infini" ? graine * 104729 : graine % 365, jour: "2026-09-28", pools: POOLS, niveaux, fiches: fiches ? fiches(eq) : {}, apprenti, mode, gainMode: 1, xpMode: M.xp });
+  const partie = creerPartie({ equipe: eq, source: lieuSource ? { c: lieuSource, niveau: niveauSource ?? niveau, etoile: etoileSource } : null, graine: mode === "infini" ? graine * 104729 : graine % 365, jour: "2026-09-28", pools: POOLS, niveaux, fiches: fiches ? fiches(eq) : {}, apprenti, mode, gainMode: 1, xpMode: M.xp });
   const trace = { tours: [], salles: {}, combatsPerdusGenre: null };
   const fin = (iss) => ({ iss, partie, trace, butin: rapporte(partie, iss), repos: convalescences(partie, iss), xp: gainsXP(partie, iss) });
   for (let pas = 0; pas < 3000; pas++) {
@@ -83,7 +95,7 @@ function descente(graine, { equipe, strategie = "concentrer", politique = () => 
       let f = null, t = 0;
       for (; t < 600 && !f; t++) {
         const u = prochain(partie, C);
-        if (!u) { f = issue(partie, C); break; } // un saignement a clos le combat
+        if (!u) { f = issue(partie, C); break; } // un saignement ou une salve a clos le combat
         const { geste, cible } = u.camp === "e" ? choixIA(partie, C, u, r) : choixAuto(partie, C, u, strategie);
         resoudre(partie, C, u, geste, cible, r);
         f = issue(partie, C);
@@ -102,7 +114,7 @@ function descente(graine, { equipe, strategie = "concentrer", politique = () => 
       }
     }
   }
-  throw new Error("descente sans fin");
+  throw new Error(`descente sans fin (graine ${graine}, étage ${partie.etage}, reliques ${partie.reliques.length}, source ${partie.source?.c?.nom}, équipe ${partie.equipe.map((u) => `${u.c.nom} ${u.pv}/${u.pvMax}${u.ko ? " ko" : ""}`).join(", ")})`);
 }
 
 function mesurer(cas) {
@@ -271,6 +283,21 @@ console.log(`| niveau 100 | 100 | ${xpPourNiveau(100)} | ${f1(xpPourNiveau(100) 
     ["Équipe : quatre étoiles", toutes({ etoiles: E4 })],
   ];
   for (const [nom, fiches] of cas) console.log(ligne(nom, mesurer({ equipe: eq, fiches })));
+}
+
+/* Les sources de pouvoir, une par une (niveau 1, puis niveau 100 étoilé). */
+{
+  console.log("\n## Sources de pouvoir (collection de 18, Concentrer)\n");
+  console.log("| Lieu | Palier | Effet | Trois gardiens (niv. 1) | PO (niv. 1) | Trois gardiens (niv. 100 ★) |\n|---|---|---|---:|---:|---:|");
+  const eq = (r) => collectionTiree(r).slice(0, 4);
+  const sans = mesurer({ equipe: eq, source: null });
+  console.log(`| Sans source | — | — | ${pct(sans.complet)} | ${f1(sans.po)} | — |`);
+  const ordre = ["commun", "peucommun", "rare", "legendaire"];
+  for (const l of [...POOLS.lieux].sort((a, b) => ordre.indexOf(a.tier) - ordre.indexOf(b.tier))) {
+    const m1 = mesurer({ equipe: eq, source: l });
+    const m100 = mesurer({ equipe: eq, source: l, niveauSource: 100, etoileSource: true });
+    console.log(`| ${l.nom} | ${l.tier} | ${sourceDe(l).nom} | ${pct(m1.complet)} | ${f1(m1.po)} | ${pct(m100.complet)} |`);
+  }
 }
 
 console.log(`\n## Combats sans issue\n\n${BLOCAGES.length} combats ont dépassé 600 actions sur l'ensemble des cas.`);

@@ -4,7 +4,7 @@ import { TIER_INFO } from "../config/tiers.js";
 import { nomComplet } from "../config/speciales.js";
 import { reperesDe, nomType } from "../config/cartes.js";
 import Volets from "./VoletsCarte.jsx";
-import VoletCombat from "./VoletCombat.jsx";
+import VoletCombat, { VoletSource } from "./VoletCombat.jsx";
 
 export default function Loupe({ c, cfgImage, fichiers, onFermer }) {
   const boite = useRef(null);
@@ -49,6 +49,7 @@ export default function Loupe({ c, cfgImage, fichiers, onFermer }) {
         {/* Hors du flux sur grand écran : la carte garde sa place au centre.
             La fiche de combat vaut pour la carte entière, rainbow comprise. */}
         {c.volets && <VoletCombat c={c} onFermer={onFermer} />}
+        {c.volets && <VoletSource c={c} onFermer={onFermer} />}
         {c.volets && !c.rainbow && <Volets c={c} />}
       </div>
       <div className="loupe-fiche">
