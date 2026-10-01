@@ -48,7 +48,7 @@ export default function Loupe({ c, cfgImage, fichiers, onFermer }) {
         <Carte c={c} taille="zoom" cfgImage={cfgImage} fichiers={fichiers} />
         {/* Hors du flux sur grand écran : la carte garde sa place au centre.
             La fiche de combat vaut pour la carte entière, rainbow comprise. */}
-        {c.volets && <VoletCombat c={c} />}
+        {c.volets && <VoletCombat c={c} onFermer={onFermer} />}
         {c.volets && !c.rainbow && <Volets c={c} />}
       </div>
       <div className="loupe-fiche">

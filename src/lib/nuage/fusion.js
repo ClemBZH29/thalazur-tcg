@@ -207,12 +207,18 @@ export function fusionnerReliquaire(base, ici, la) {
  * ici et un autre là, payés deux fois en vestiges, font deux rangs. Une
  * étoile, posée d'un côté, est acquise (sa rainbow est déjà sortie de la
  * collection). Une compétence suit l'appareil qui l'a changée ; une ligne
- * étoilée garde la compétence du côté qui l'a étoilée.
+ * étoilée garde la compétence du côté qui l'a étoilée. Un STAR RESET
+ * (`remise`) fait depuis la base remplace la fiche entière.
  */
 export function fusionnerFiches(base = {}, ici = {}, la = {}, rangMax = 3) {
   const sortie = {};
   for (const k of cles(ici, la)) {
     const b = base[k] || {}, i = ici[k] || {}, l = la[k] || {};
+    // STAR RESET : la remise la plus récente, faite depuis la base, l'emporte
+    // entière ; sinon les rangs et les étoiles de l'autre côté reviendraient.
+    const ri = (i.remise || 0) > (b.remise || 0) ? i.remise : 0;
+    const rl = (l.remise || 0) > (b.remise || 0) ? l.remise : 0;
+    if (ri || rl) { sortie[k] = ri >= rl ? i : l; continue; }
     const f = {};
     for (const r of ["atq", "ini"]) {
       const n = Math.min(rangMax, (l[r] || 0) + Math.max(0, (i[r] || 0) - (b[r] || 0)));
@@ -225,6 +231,7 @@ export function fusionnerFiches(base = {}, ici = {}, la = {}, rangMax = 3) {
       if (v) f[place] = v;
     }
     if (Object.keys(etoiles).length) f.etoiles = etoiles;
+    if (b.remise) f.remise = b.remise;
     sortie[k] = f;
   }
   return sortie;

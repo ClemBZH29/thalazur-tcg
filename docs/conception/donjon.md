@@ -295,6 +295,17 @@ mouvement réduit). En combat, la même pastille, et le badge ATQ ou INI
 (3 %) pour toutes les cartes, et l'on ouvre bien plus de communes : c'est
 l'incitation à faire descendre des cartes modestes.
 
+**STAR RESET** (bouton sous l'encart Combat). La fiche revient à l'origine
+(rangs, compétences, étoiles), contre **tous** les exemplaires de la carte,
+normales et rainbow : la case redevient vide, comme si on ne l'avait jamais
+eue. Les vestiges dépensés ne sont pas rendus, le niveau de la carte reste
+(il se gagne en jouant). Refusé si la fiche est déjà d'origine ou si la
+carte est en expédition. Confirmation obligatoire, qui détaille les
+exemplaires perdus ; la loupe se ferme ensuite (`resetStar`, fiches.js). La
+fiche garde la date de la remise (`remise`) : entre deux appareils, la
+remise faite depuis la dernière synchronisation l'emporte, sinon les rangs
+et les étoiles de l'autre côté reviendraient.
+
 **Ce que ça pèse** (`node scripts/audit-donjon.mjs`, section « Fiche de
 combat », 400 descentes par cas, la meilleure carte de l'équipe modifiée ;
 référence 29 % de descentes au bout) :

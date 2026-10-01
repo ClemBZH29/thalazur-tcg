@@ -801,3 +801,12 @@
 [data-mouvement="reduit"] .dos-empile { transition: none; }
 [data-mouvement="reduit"] .lueur.monte { opacity: .5; }
 .fc-option.fermee { opacity: .55; }
+/* STAR RESET : sous l'encart, à l'écart des achats, et confirmé à part. */
+.fc-reset { padding: 10px 12px; }
+.fc-reset-bouton { justify-self: stretch; justify-content: center; gap: 6px; letter-spacing: .08em; font-weight: 800;
+  color: #e9b4c8; border-color: rgba(229, 119, 75, .45); }
+.fc-reset-bouton:hover:not(:disabled) { color: #ffd6e2; border-color: var(--ember); }
+.fc-reset-confirme { display: grid; gap: 8px; font-size: 12.5px; line-height: 1.4; color: var(--ink); }
+.fc-reset-confirme p { margin: 0; }
+.fc-reset-ok { background: var(--ember); border-color: var(--ember); color: #221604; }
+.fc-reset-ok:hover { filter: brightness(1.08); }

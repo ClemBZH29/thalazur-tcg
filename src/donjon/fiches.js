@@ -106,5 +106,24 @@ export function etoiler(etat, c, ligne) {
     { ...f, etoiles: { ...(f.etoiles || {}), [ligne]: true } });
 }
 
+/** La fiche porte-t-elle quelque chose (rang, compétence, étoile) ? `remise` n'en est pas. */
+export const modifiee = (f) => Object.keys(f).some((k) => k !== "remise" && (k !== "etoiles" || etoiles(f) > 0));
+
+/**
+ * STAR RESET : la fiche revient à l'origine (rangs, compétences, étoiles),
+ * contre **tous** les exemplaires de la carte, normales et rainbow, comme si
+ * on ne l'avait jamais eue. Les vestiges dépensés ne sont pas rendus ;
+ * l'expérience de la carte reste (elle se gagne en jouant, pas en payant).
+ *
+ * `remise` date l'opération : sans elle, la fusion entre appareils
+ * reprendrait les rangs et les étoiles de l'autre côté (voir fusionnerFiches).
+ */
+export function resetStar(etat, c, maintenant = Date.now()) {
+  const e = entree(etat, c);
+  if (!possedee(etat, c) || !modifiee(ficheDe(etat, c))) return null;
+  const coll = { ...(etat.collections?.[c.ext] || {}), [c.id]: { ...e, normale: 0, rainbow: 0 } };
+  return ecrire({ ...etat, collections: { ...etat.collections, [c.ext]: coll } }, c, { remise: maintenant });
+}
+
 /** Les fiches de toute une équipe, pour `creerPartie`. */
 export const fichesDe = (etat, cartes) => Object.fromEntries(cartes.map((c) => [cleXP(c), ficheDe(etat, c)]));

@@ -7,7 +7,7 @@ import {
   prochain, resoudre, roleDe, tirage, victoire,
 } from "../src/donjon/regles.js";
 import {
-  acheterRang, catalogue, changerCompetence, coutCompetence, coutRang, etoilee, etoiler, ficheDe, origine, rainbowEnTrop,
+  acheterRang, catalogue, changerCompetence, coutCompetence, coutRang, etoilee, etoiler, ficheDe, modifiee, origine, rainbowEnTrop, resetStar,
 } from "../src/donjon/fiches.js";
 import { PERSONNALISATION } from "../src/config/reliquaire.js";
 import { fusionner3, fusionnerFiches } from "../src/lib/nuage/fusion.js";
@@ -216,5 +216,33 @@ describe("fiche : fusion entre appareils", () => {
     const vide = etatVide();
     const b = { ...vide, fiches: {} }, i = { ...vide, fiches: { [k]: { ini: 1 } } }, l = { ...vide, fiches: { [k]: { ini: 1 } } };
     expect(fusionner3(b, i, l, vide).fiches[k].ini).toBe(2);
+  });
+});
+
+describe("STAR RESET", () => {
+  test("fiche remise à l'origine, tous les exemplaires perdus, niveau gardé", () => {
+    let e = etatAvec(mage, { normale: 9, rainbow: 2 });
+    e = { ...e, xp: { [cle(mage)]: { xp: 300 } } };
+    e = etoiler(acheterRang(e, mage, "atq"), mage, "tech");
+    const r = resetStar(e, mage, 1234);
+    expect(r.collections[mage.ext][mage.id]).toMatchObject({ normale: 0, rainbow: 0 });
+    expect(ficheDe(r, mage)).toEqual({ remise: 1234 });
+    expect(modifiee(ficheDe(r, mage))).toBe(false);
+    expect(r.xp[cle(mage)].xp).toBe(300);
+    expect(r.reliquaire.vestiges).toBe(e.reliquaire.vestiges);
+    expect(resetStar(r, mage)).toBeNull(); // plus de carte
+  });
+  test("rien à remettre à zéro : refusé", () => {
+    expect(resetStar(etatAvec(mage, { normale: 3 }), mage)).toBeNull();
+  });
+  test("la fusion garde la remise, les rangs et étoiles de l'autre côté ne reviennent pas", () => {
+    const k = cle(mage);
+    const base = { [k]: { atq: 2, etoiles: { tech: true } } };
+    const ici = { [k]: { remise: 50 } };
+    const la = { [k]: { atq: 3, etoiles: { tech: true, ini: true } } };
+    expect(fusionnerFiches(base, ici, la)[k]).toEqual({ remise: 50 });
+    expect(fusionnerFiches(base, la, ici)[k]).toEqual({ remise: 50 });
+    // Après la remise, on rachète : la remise vue des deux côtés n'efface plus rien.
+    expect(fusionnerFiches({ [k]: { remise: 50 } }, { [k]: { remise: 50, atq: 1 } }, { [k]: { remise: 50 } })[k]).toEqual({ atq: 1, remise: 50 });
   });
 });

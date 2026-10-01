@@ -103,10 +103,12 @@ export function useExpeditions(etat, setEtat) {
   const acheterRangCarte = useCallback((c, ligne) => operer((e) => F.acheterRang(e, c, ligne)), [operer]);
   const changerCompetenceCarte = useCallback((c, id) => operer((e) => F.changerCompetence(e, c, id)), [operer]);
   const etoilerCarte = useCallback((c, ligne) => operer((e) => F.etoiler(e, c, ligne)), [operer]);
+  // Une carte en expédition ne se remet pas à zéro : la route la rendrait.
+  const resetStarCarte = useCallback((c) => !X.enRoute(etat).has(cleXP(c)) && operer((e) => F.resetStar(e, c)), [etat, operer]);
 
   return {
     expeditions: ex,
-    acheterRangCarte, changerCompetenceCarte, etoilerCarte,
+    acheterRangCarte, changerCompetenceCarte, etoilerCarte, resetStarCarte,
     compagnons, lieux,
     indexCartes: INDEX,
     partirExpedition, rappelerExpedition, accueillirExpeditions,

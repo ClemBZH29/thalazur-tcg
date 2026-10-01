@@ -4,7 +4,7 @@ import { BOOSTERS } from "../extensions/index.js";
 import { COMPETENCES, ETOILE, ROLES, allie, cartesDonjon, roleDe } from "../donjon/regles.js";
 import { cleXP, niveauDe, xpDe } from "../donjon/experience.js";
 import {
-  RANG_MAX, catalogue, competenceDe, coutCompetence, coutRang, etoiles, ficheDe, naturelle, origine, possedee, rainbowEnTrop,
+  RANG_MAX, catalogue, competenceDe, coutCompetence, coutRang, etoiles, ficheDe, modifiee, naturelle, origine, possedee, rainbowEnTrop,
 } from "../donjon/fiches.js";
 
 /** Les PNJ alliés : les seules cartes qui descendent au Donjon. */
@@ -115,8 +115,9 @@ function ChoixCompetence({ c, place, actuelle, vestiges, onChoisir, onFermer }) 
  * Il vaut pour la carte, pas pour une version : la normale et la rainbow
  * montrent la même fiche.
  */
-export default function VoletCombat({ c }) {
-  const { etat, vestiges, acheterRangCarte, changerCompetenceCarte, etoilerCarte, reliquaireOuvert } = useJeu();
+export default function VoletCombat({ c, onFermer }) {
+  const { etat, vestiges, acheterRangCarte, changerCompetenceCarte, etoilerCarte, resetStarCarte, enExpedition, reliquaireOuvert } = useJeu();
+  const [reset, setReset] = useState(false);
   const [choix, setChoix] = useState(null);
   const [confirme, setConfirme] = useState(null);
   const [annonce, setAnnonce] = useState("");
@@ -129,6 +130,8 @@ export default function VoletCombat({ c }) {
   const a = possedee(etat, c);
   const rb = rainbowEnTrop(etat, c);
   const nEt = etoiles(f);
+  const nNorm = etat.collections?.[c.ext]?.[c.id]?.normale || 0;
+  const nRb = etat.collections?.[c.ext]?.[c.id]?.rainbow || 0;
 
   const rang = (ligne) => {
     const nom = ligne === "atq" ? "ATQ" : "INI";
@@ -238,6 +241,33 @@ export default function VoletCombat({ c }) {
         <p className="sr" role="status" aria-live="polite">{annonce}</p>
         {annonce && <p className="volet-annonce" aria-hidden="true">{annonce}</p>}
       </section>
+      {a && (
+        <section className="volet fc-reset">
+          {!reset ? (
+            <button type="button" className="btn quiet sm fc-reset-bouton" disabled={!modifiee(f) || enExpedition?.(c)}
+              title={enExpedition?.(c) ? "La carte est en expédition." : !modifiee(f) ? "La fiche est déjà d'origine." : undefined}
+              onClick={() => setReset(true)}>
+              <Etoile taille={11} /> STAR RESET
+            </button>
+          ) : (
+            <div className="fc-reset-confirme" role="group" aria-label="STAR RESET">
+              <p>
+                La fiche revient à l'origine (rangs, compétences, étoiles) et les{" "}
+                <b>{pluriel(nNorm + nRb, "exemplaire")}</b> de {c.nom} sont perdus
+                ({nNorm} normale{nNorm > 1 ? "s" : ""}, {nRb} rainbow), comme si vous n'aviez jamais eu la carte.
+              </p>
+              <p className="muted">Les vestiges dépensés ne sont pas rendus ; le niveau de la carte reste.</p>
+              <span className="fc-confirme-boutons">
+                <button type="button" className="btn sm fc-reset-ok" onClick={() => {
+                  setReset(false);
+                  if (resetStarCarte(c)) onFermer?.();
+                }}>Confirmer</button>
+                <button type="button" className="btn quiet sm" onClick={() => setReset(false)}>Annuler</button>
+              </span>
+            </div>
+          )}
+        </section>
+      )}
       {choix && (
         <ChoixCompetence c={c} place={choix} actuelle={competenceDe(c, f, choix)} vestiges={vestiges}
           onFermer={() => setChoix(null)}
