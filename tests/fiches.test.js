@@ -238,8 +238,10 @@ describe("STAR RESET", () => {
     expect(r.reliquaire.vestiges).toBe(e.reliquaire.vestiges);
     expect(resetStar(r, mage)).toBeNull(); // plus de carte
   });
-  test("rien à remettre à zéro : refusé", () => {
-    expect(resetStar(etatAvec(mage, { normale: 3 }), mage)).toBeNull();
+  test("toute carte possédée se remet à zéro, même d'origine ; sans exemplaire, refusé", () => {
+    const r = resetStar(etatAvec(mage, { normale: 3 }), mage, 7);
+    expect(r.collections[mage.ext][mage.id]).toMatchObject({ normale: 0, rainbow: 0 });
+    expect(resetStar(etatAvec(mage, { normale: 0, rainbow: 0 }), mage)).toBeNull();
   });
   test("la fusion garde la remise, les rangs et étoiles de l'autre côté ne reviennent pas", () => {
     const k = cle(mage);

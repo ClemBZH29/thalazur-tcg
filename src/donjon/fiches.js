@@ -120,7 +120,9 @@ export const modifiee = (f) => Object.keys(f).some((k) => k !== "remise" && (k !
  */
 export function resetStar(etat, c, maintenant = Date.now()) {
   const e = entree(etat, c);
-  if (!possedee(etat, c) || !modifiee(ficheDe(etat, c))) return null;
+  // Toute carte possédée, même d'origine ou étoilée en partie : on n'attend
+  // pas d'avoir fini une carte pour la recommencer.
+  if ((e.normale || 0) + (e.rainbow || 0) < 1) return null;
   const coll = { ...(etat.collections?.[c.ext] || {}), [c.id]: { ...e, normale: 0, rainbow: 0 } };
   const xp = { ...(etat.xp || {}), [cleXP(c)]: { xp: 0, remise: maintenant } };
   return ecrire({ ...etat, collections: { ...etat.collections, [c.ext]: coll }, xp }, c, { remise: maintenant });

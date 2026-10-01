@@ -4,7 +4,7 @@ import { BOOSTERS } from "../extensions/index.js";
 import { COMPETENCES, ETOILE, ROLES, allie, cartesDonjon, roleDe } from "../donjon/regles.js";
 import { cleXP, niveauDe, xpDe } from "../donjon/experience.js";
 import {
-  RANG_MAX, catalogue, competenceDe, coutCompetence, coutRang, etoiles, ficheDe, modifiee, naturelle, origine, possedee, rainbowEnTrop,
+  RANG_MAX, catalogue, competenceDe, coutCompetence, coutRang, etoiles, ficheDe, naturelle, origine, possedee, rainbowEnTrop,
 } from "../donjon/fiches.js";
 
 /** Les PNJ alliés : les seules cartes qui descendent au Donjon. */
@@ -117,7 +117,7 @@ function ChoixCompetence({ c, place, actuelle, vestiges, onChoisir, onFermer }) 
  */
 export default function VoletCombat({ c, onFermer }) {
   const { etat, vestiges, acheterRangCarte, changerCompetenceCarte, etoilerCarte, resetStarCarte, enExpedition, reliquaireOuvert } = useJeu();
-  const [reset, setReset] = useState(false);
+  const [reset, setReset] = useState(0); // 0, puis les deux avertissements
   const [choix, setChoix] = useState(null);
   const [confirme, setConfirme] = useState(null);
   const [annonce, setAnnonce] = useState("");
@@ -241,31 +241,44 @@ export default function VoletCombat({ c, onFermer }) {
         <p className="sr" role="status" aria-live="polite">{annonce}</p>
         {annonce && <p className="volet-annonce" aria-hidden="true">{annonce}</p>}
       </section>
-      {a && (
-        <section className="volet fc-reset">
-          {!reset ? (
-            <button type="button" className="btn quiet sm fc-reset-bouton" disabled={!modifiee(f) || enExpedition?.(c)}
-              title={enExpedition?.(c) ? "La carte est en expédition." : !modifiee(f) ? "La fiche est déjà d'origine." : undefined}
-              onClick={() => setReset(true)}>
+      {/* STAR RESET, pour toute carte possédée, étoilée ou non. Trois temps :
+          le bouton, un premier avertissement, un second, puis la suppression. */}
+      {(nNorm + nRb) > 0 && (
+        <section className={`volet fc-reset${reset ? ` etape-${reset}` : ""}`}>
+          {!reset && (
+            <button type="button" className="btn quiet sm fc-reset-bouton" disabled={enExpedition?.(c)}
+              title={enExpedition?.(c) ? "La carte est en expédition." : undefined}
+              onClick={() => setReset(1)}>
               <Etoile taille={11} /> STAR RESET
             </button>
-          ) : (
-            <div className="fc-reset-confirme" role="group" aria-label="STAR RESET">
+          )}
+          {reset === 1 && (
+            <div className="fc-reset-confirme" role="group" aria-label="STAR RESET, avertissement 1 sur 2">
+              <p className="fc-reset-etape">Avertissement 1 / 2</p>
               <p>
                 La fiche revient à l'origine (rangs, compétences, étoiles) et les{" "}
                 <b>{pluriel(nNorm + nRb, "exemplaire")}</b> de {c.nom} sont perdus
                 ({nNorm} normale{nNorm > 1 ? "s" : ""}, {nRb} rainbow), comme si vous n'aviez jamais eu la carte.
               </p>
+              <span className="fc-confirme-boutons">
+                <button type="button" className="btn sm fc-reset-ok" onClick={() => setReset(2)}>Confirmer</button>
+                <button type="button" className="btn quiet sm" onClick={() => setReset(0)}>Annuler</button>
+              </span>
+            </div>
+          )}
+          {reset === 2 && (
+            <div className="fc-reset-confirme" role="alertdialog" aria-label="STAR RESET, avertissement 2 sur 2">
+              <p className="fc-reset-etape">Avertissement 2 / 2 · dernière confirmation</p>
               <p className="fc-reset-alerte">
                 Le niveau de la carte repart à 1 (aujourd'hui niveau {niveau}), paliers compris. Les vestiges
-                dépensés ne sont pas rendus. C'est définitif.
+                dépensés ne sont pas rendus. <b>Cette suppression est définitive.</b>
               </p>
               <span className="fc-confirme-boutons">
                 <button type="button" className="btn sm fc-reset-ok" onClick={() => {
-                  setReset(false);
+                  setReset(0);
                   if (resetStarCarte(c)) onFermer?.();
-                }}>Confirmer</button>
-                <button type="button" className="btn quiet sm" onClick={() => setReset(false)}>Annuler</button>
+                }}>Supprimer définitivement</button>
+                <button type="button" className="btn quiet sm" onClick={() => setReset(0)}>Annuler</button>
               </span>
             </div>
           )}

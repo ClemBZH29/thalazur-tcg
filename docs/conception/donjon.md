@@ -299,10 +299,11 @@ l'incitation à faire descendre des cartes modestes.
 (rangs, compétences, étoiles), contre **tous** les exemplaires de la carte,
 normales et rainbow : la case redevient vide, comme si on ne l'avait jamais
 eue : le niveau repart à 1, paliers payés compris (irisation, niveau 100),
-et les vestiges dépensés ne sont pas rendus. Refusé si la fiche est déjà d'origine ou si la
-carte est en expédition. Double confirmation (le bouton, puis
-« Confirmer »), avec les avertissements : exemplaires perdus, niveau perdu,
-vestiges non rendus ; la loupe se ferme ensuite (`resetStar`, fiches.js). La
+et les vestiges dépensés ne sont pas rendus. Ouvert à toute carte possédée, étoilée ou non :
+on n'attend pas d'avoir fini une carte pour la recommencer. Refusé si la
+carte est en expédition. Double confirmation : le bouton, un premier
+avertissement (fiche et exemplaires perdus) à confirmer, un second (niveau
+perdu, vestiges non rendus, suppression définitive) à confirmer encore ; la loupe se ferme ensuite (`resetStar`, fiches.js). La
 fiche garde la date de la remise (`remise`) : entre deux appareils, la
 remise faite depuis la dernière synchronisation l'emporte, pour la fiche
 comme pour l'expérience (`etat.xp`, qui porte aussi `remise`) ; sinon les
