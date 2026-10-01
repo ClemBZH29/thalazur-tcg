@@ -135,25 +135,35 @@ export default function VoletCombat({ c }) {
     if (acheterRangCarte(c, ligne)) setAnnonce(`${nom} +1 : rang ${(f[ligne] || 0) + 1} sur ${RANG_MAX}.`);
   };
   const etoiler = (ligne, nom) => {
-    const cle = `e-${ligne}`;
-    if (confirme !== cle) { setConfirme(cle); return; }
     setConfirme(null);
     if (etoilerCarte(c, ligne)) setAnnonce(`${nom} étoilée. Une rainbow de ${c.nom} a quitté la collection.`);
   };
 
   // Des fonctions qui rendent du JSX, pas des composants : déclarés dans le
-  // rendu, ils seraient remontés à chaque fois, et le bouton armé perdrait
-  // son focus entre les deux clics.
+  // rendu, ils seraient remontés à chaque fois.
+  //
+  // Chaque ligne a la même grille et une largeur fixe : un bouton armé ou un
+  // nom long ne doit jamais élargir le volet (il débordait sur la carte). La
+  // confirmation d'une étoile s'ouvre donc *sous* la ligne, pas dans le bouton.
   const boutonEtoile = (ligne, nom) => f.etoiles?.[ligne] ? (
-    <span className="fc-figee"><Etoile /> Figée</span>
+    <span className="fc-figee" title="Ligne étoilée : elle ne se modifie plus"><Etoile /> Figée</span>
   ) : (
-    <button type="button" className={`fc-etoiler${confirme === `e-${ligne}` ? " arme" : ""}`} disabled={!a || rb < 1}
-      onBlur={() => setConfirme((x) => (x === `e-${ligne}` ? null : x))}
-      title={rb < 1 ? `Il faut une rainbow de ${c.nom} en plus de celle de la collection.` : `Étoiler la ligne ${nom} : elle sera figée.`}
-      aria-label={confirme === `e-${ligne}` ? `Confirmer : étoiler ${nom} contre une rainbow` : `Étoiler ${nom}`}
-      onClick={() => etoiler(ligne, nom)}>
-      <Etoile />{confirme === `e-${ligne}` && <span>1 rainbow ?</span>}
+    <button type="button" className={`fc-etoiler${confirme === ligne ? " arme" : ""}`} disabled={!a || rb < 1}
+      aria-expanded={confirme === ligne}
+      title={rb < 1 ? `Il faut une rainbow de ${c.nom} en plus de celle de la collection.` : `Étoiler ${nom} : la ligne sera figée.`}
+      aria-label={`Étoiler ${nom}`}
+      onClick={() => setConfirme((x) => (x === ligne ? null : ligne))}>
+      <Etoile />
     </button>
+  );
+  const confirmation = (ligne, nom) => confirme === ligne && (
+    <div className="fc-confirme" role="group" aria-label={`Étoiler ${nom}`}>
+      <span>Une rainbow de la carte quitte la collection ; la ligne est figée.</span>
+      <span className="fc-confirme-boutons">
+        <button type="button" className="btn sm fc-confirmer" onClick={() => etoiler(ligne, nom)}><Etoile /> Étoiler</button>
+        <button type="button" className="btn quiet sm" onClick={() => setConfirme(null)}>Annuler</button>
+      </span>
+    </div>
   );
 
   const rangLigne = (ligne, nom, valeur) => {
@@ -161,18 +171,21 @@ export default function VoletCombat({ c }) {
     const cout = coutRang(f, ligne);
     return (
       <li className={`fc-ligne${f.etoiles?.[ligne] ? " etoilee" : ""}`}>
-        <span className="fc-nom">{nom}</span>
-        <b className="fc-valeur">{valeur}</b>
-        <span className="fc-rangs" title={`Rang ${r} sur ${RANG_MAX}`}>
-          {Array.from({ length: RANG_MAX }, (_, i) => <i key={i} className={i < r ? "pris" : ""} />)}
+        <span className="fc-cap">
+          {nom}
+          <span className="fc-rangs" title={`Rang ${r} sur ${RANG_MAX}`} aria-label={`Rang ${r} sur ${RANG_MAX}`}>
+            {Array.from({ length: RANG_MAX }, (_, i) => <i key={i} className={i < r ? "pris" : ""} />)}
+          </span>
         </span>
+        <b className="fc-valeur">{valeur}</b>
         <span className="fc-actions">
           {cout != null && (
-            <button type="button" className="btn quiet sm" disabled={!a || cout > vestiges} onClick={() => rang(ligne)}
+            <button type="button" className="btn quiet sm fc-plus" disabled={!a || cout > vestiges} onClick={() => rang(ligne)}
               aria-label={`${nom} +1 pour ${cout} vestiges`}>+1 · {cout}</button>
           )}
           {boutonEtoile(ligne, nom)}
         </span>
+        {confirmation(ligne, nom)}
       </li>
     );
   };
@@ -182,14 +195,17 @@ export default function VoletCombat({ c }) {
     const fig = f.etoiles?.[place];
     return (
       <li className={`fc-ligne fc-comp${fig ? " etoilee" : ""}`}>
-        <span className="fc-nom">{place === "geste" ? "Comp. 1" : "Comp. 2"}</span>
-        <span className="fc-comp-nom"><b>{K.nom}</b>{place === "tech" && <Recharge cd={Math.max(0, K.cd - (fig ? 1 : 0))} />}</span>
+        <span className="fc-cap">
+          {place === "geste" ? "Comp. 1" : "Comp. 2"}
+          {place === "tech" && <Recharge cd={Math.max(0, K.cd - (fig ? 1 : 0))} />}
+        </span>
+        <b className="fc-comp-nom">{K.nom}</b>
         <span className="fc-actions">
-          {!fig && <button type="button" className="btn quiet sm" disabled={!a} onClick={() => setChoix(place)}>Changer</button>}
+          {!fig && <button type="button" className="btn quiet sm fc-changer" disabled={!a} onClick={() => setChoix(place)}>Changer</button>}
           {boutonEtoile(place, K.nom)}
         </span>
-        {/* L'effet sur toute la largeur, sous le nom et les boutons. */}
         <small className="fc-comp-aide">{fig ? K.etoile : K.aide}</small>
+        {confirmation(place, K.nom)}
       </li>
     );
   };
@@ -203,8 +219,9 @@ export default function VoletCombat({ c }) {
         </header>
         <ul className="fc-lignes">
           <li className="fc-ligne">
-            <span className="fc-nom">PV</span><b className="fc-valeur">{u.pvMax}</b>
-            <span className="fc-passif muted">{R.passif ? `Passif : ${R.passif}` : ""}</span>
+            <span className="fc-cap">PV</span>
+            <b className="fc-valeur">{u.pvMax}</b>
+            {R.passif && <span className="fc-actions fc-passif muted">Passif : {R.passif}</span>}
           </li>
           {rangLigne("atq", "ATQ", u.atq)}
           {rangLigne("ini", "INI", u.ini)}

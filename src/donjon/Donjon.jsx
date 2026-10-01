@@ -12,6 +12,7 @@ import {
   apprentissage, brume, tirage, BRUME_TOUR, COMPETENCES, techDe,
 } from "./regles.js";
 import { etoiles, ficheDe, fichesDe } from "./fiches.js";
+import { Etoile } from "../components/VoletCombat.jsx";
 import { NIVEAU_MAX, PALIER_IRISEE, avancement, xpDe } from "./experience.js";
 import "../styles/donjon.css";
 
@@ -84,13 +85,14 @@ function CarteDJ({ c, u = null, partie = null, cfgImage, fichiers }) {
   if (u?.etourdi > 0) statuts.push("Piégé");
   if (u?.camp === "a" && u.cd > 0) statuts.push(`Recharge ${u.cd}`);
   return (
-    <div className="dj-carte cardbox">
+    <div className={`dj-carte cardbox${u?.etoiles ? " star" : ""}${u?.etoiles && Object.keys(u.etoiles).length === 4 ? " star-pleine" : ""}`}>
+      {u?.camp === "a" && u.etoiles && <EtoilesCarte n={Object.keys(u.etoiles).length} petit />}
       <div className="dj-face"><FaceCarte c={c} cfgImage={cfg} fichiers={fichiers} vignette /></div>
       {u && (
         <div className="dj-sur" aria-hidden="true">
           <span className="dj-badges">
-            <b className="atq">ATQ {atqDe(partie, u)}</b>
-            <b className="ini">INI {u.ini}</b>
+            <b className={`atq${u.etoiles?.atq ? " et" : ""}`}>ATQ {atqDe(partie, u)}</b>
+            <b className={`ini${u.etoiles?.ini ? " et" : ""}`}>INI {u.ini}</b>
           </span>
           {statuts.length > 0 && <span className="dj-statuts">{statuts.map((s) => <i key={s}>{s}</i>)}</span>}
           <span className={`dj-pv${pct < 35 ? " bas" : ""}`}><span style={{ width: `${pct}%` }} /></span>
@@ -105,6 +107,15 @@ function CarteDJ({ c, u = null, partie = null, cfgImage, fichiers }) {
         </div>
       )}
     </div>
+  );
+}
+
+/** La pastille STAR : le nombre de lignes étoilées, « STAR » aux quatre. */
+function EtoilesCarte({ n, petit = false }) {
+  return (
+    <span className={`dj-star${n === 4 ? " pleine" : ""}${petit ? " petit" : ""}`} aria-hidden="true">
+      <Etoile taille={petit ? 10 : 12} />{n === 4 ? "STAR" : `${n}/4`}
+    </span>
   );
 }
 
@@ -694,18 +705,20 @@ export default function Donjon({ jeu }) {
                 // des capacités, variable d'une carte à l'autre, désalignait la grille.
                 return (
                   <div key={`${c.ext}:${c.id}`}
-                    className={`dj-choix${pris ? " pris" : ""}${(n >= TAILLE_EQUIPE && !pris) || bloque ? " grise" : ""}${repos || partie ? " repos" : ""}`}>
+                    className={`dj-choix${nEt ? " star" : ""}${nEt === 4 ? " star-pleine" : ""}${pris ? " pris" : ""}${(n >= TAILLE_EQUIPE && !pris) || bloque ? " grise" : ""}${repos || partie ? " repos" : ""}`}>
                     <button type="button" className="dj-choix-carte" aria-pressed={pris} disabled={bloque && !pris}
-                      aria-label={`${c.nom}, ${R.nom}${partie ? ", en expédition" : repos ? `, au repos jusqu'au ${dateFr(repos)}` : ""}`}
+                      aria-label={`${c.nom}, ${R.nom}${nEt ? `, ${nEt === 4 ? "STAR" : `${nEt} ligne${nEt > 1 ? "s" : ""} étoilée${nEt > 1 ? "s" : ""}`}` : ""}${partie ? ", en expédition" : repos ? `, au repos jusqu'au ${dateFr(repos)}` : ""}`}
                       onClick={() => setChoix((l) => (l.includes(c.id) ? l.filter((x) => x !== c.id) : l.length < TAILLE_EQUIPE ? [...l, c.id] : l))}>
                       {pris && <span className="dj-coche" aria-hidden="true">✓</span>}
+                      {/* La carte STAR se voit de loin : pastille irisée et cadre irisé. */}
+                      {nEt > 0 && <EtoilesCarte n={nEt} />}
                       {partie ? <span className="dj-repos">En expédition</span>
                         : repos && <span className="dj-repos">Au repos jusqu'au {dateFr(repos).slice(0, 5)}</span>}
                       <CarteDJ c={c} cfgImage={cfgImage} fichiers={fichiers} />
                     </button>
                     <div className="dj-choix-pied">
                       <span className="dj-ligne1">
-                        <span className={`dj-mot r-${u.role}`}>{R.nom}{nEt > 0 && <span className="dj-etoiles" title={`${nEt} ligne${nEt > 1 ? "s" : ""} étoilée${nEt > 1 ? "s" : ""}`}> {"★".repeat(nEt)}</span>}</span>
+                        <span className={`dj-mot r-${u.role}`}>{R.nom}</span>
                         <span className="dj-niv" title={niv < palier ? `Irisée au niveau ${palier}` : niv < NIVEAU_MAX ? `Sachet offert au niveau ${NIVEAU_MAX}` : "Niveau maximal"}>
                           Niv. {niv}
                         </span>

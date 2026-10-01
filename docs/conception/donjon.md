@@ -277,7 +277,9 @@ meilleure carte faisait passer les trois gardiens de 29 % à 56 % : chaque
 
 **L'étoile.** Chaque ligne s'étoile contre **un exemplaire rainbow en trop de
 la carte** (la dernière rainbow reste dans la collection). Une ligne étoilée
-prend le cadre irisé, est figée, et gagne (`ETOILE`) :
+prend le cadre irisé, est figée, et gagne (`ETOILE`). L'étoile se demande
+par le petit bouton rond de la ligne ; la confirmation s'ouvre sous la ligne,
+sans jamais élargir le volet (largeur fixe de 288 px) :
 
 - ATQ ×1,35 ;
 - INI +3, et un tour de plus en tête du premier tour de chaque combat ;
@@ -285,7 +287,11 @@ prend le cadre irisé, est figée, et gagne (`ETOILE`) :
   recharge en moins.
 
 Les quatre lignes étoilées, la carte porte l'étoile dans la collection, en
-bas à droite, sous le nombre d'exemplaires. Les rainbow tombent au même taux
+bas à droite, sous le nombre d'exemplaires. Au Donjon, une carte étoilée se repère
+de loin : un anneau irisé autour de la vignette et une pastille au sommet,
+« 2/4 » ou « STAR » aux quatre étoiles (l'anneau ondule alors, sauf en
+mouvement réduit). En combat, la même pastille, et le badge ATQ ou INI
+étoilé prend le cadre irisé. Les rainbow tombent au même taux
 (3 %) pour toutes les cartes, et l'on ouvre bien plus de communes : c'est
 l'incitation à faire descendre des cartes modestes.
 
