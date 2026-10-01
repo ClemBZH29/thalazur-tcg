@@ -460,6 +460,10 @@ export default function Donjon({ jeu }) {
     window.scrollTo({ top: 0 });
     differer(async () => {
       // La première salve s'affiche, puis le premier tour ; elle peut avoir tout fini.
+      // La source s'annonce au premier tour ; la première salve part.
+      animRef.current.animerSource?.(p.source, CC);
+      if (CC.relique) animRef.current.animerRelique?.(CC.relique, { moment: "porte", porteurs: CC.ennemis.filter((x) => !x.ko) });
+      animerPouvoirs(CC.ouverture.map((o) => o.pouvoir));
       if (CC.ouverture.length) requestAnimationFrame(() => montrer(CC.ouverture.flatMap((o) => o.effets)));
       const fin = await passerLaMain(p, CC);
       if (fin) return conclure(fin, p, CC);
@@ -530,16 +534,31 @@ export default function Donjon({ jeu }) {
       return [];
     }));
   };
+  /**
+   * Les pouvoirs (source de pouvoir, reliques) qui viennent de jouer : chacun
+   * son animation, si le module en a une (animerPouvoir, voir le brief
+   * docs/conception/brief-animations-pouvoirs.md). Sans elle, rien ne bouge.
+   */
+  const animerPouvoirs = (liste) => {
+    if (!liste?.length || !arene()) return;
+    for (const ev of liste) if (ev) animRef.current.animerPouvoir?.(ev, { unite: (uid) => parUid(partieRef.current, combatRef.current, uid) });
+  };
   const aTerre = () => new Set(unites(partieRef.current, combatRef.current).filter((x) => x.ko).map((x) => x.uid));
 
   const montrer = (effets) => {
     for (const f of effets) {
       const e = el(f.uid); if (!e) continue;
       if (f.anim) { e.classList.remove(f.anim); void e.offsetWidth; e.classList.add(f.anim); }
+      // Les chiffres d'une même carte s'empilent au lieu de se recouvrir, et
+      // durent moins longtemps quand le combat va vite.
+      const deja = e.querySelectorAll(".dj-flottant").length;
+      const duree = Math.round(Math.max(380, 760 / vitesseRef.current));
       const s = document.createElement("span");
       s.className = `dj-flottant ${f.cls || ""}`; s.textContent = f.txt;
+      s.style.setProperty("--rang", String(Math.min(deja, 3)));
+      s.style.animationDuration = `${duree}ms`;
       e.appendChild(s);
-      setTimeout(() => s.remove(), 1100);
+      setTimeout(() => s.remove(), duree + 40);
     }
   };
 
@@ -552,6 +571,7 @@ export default function Donjon({ jeu }) {
     const res = resoudre(p, CC, u, g, cible, rngCombat.current);
     setJournal((j) => [res.note, ...j].slice(0, 12));
     montrer(res.effets);
+    animerPouvoirs(res.pouvoirs);
     if (res.renvoi && cible) await animRef.current.animerEvenement("renvoi", cible, { attaquant: u });
     await animerChutes(avant);
     redessiner();
@@ -578,7 +598,8 @@ export default function Donjon({ jeu }) {
       // Saignement qui mord, piège qui tient : chacun son animation, puis ses chiffres.
       for (const n of notes) {
         const x = n.uid ? parUid(p, CC, n.uid) : null;
-        if (x && n.evt) await animRef.current.animerEvenement(n.evt, x, {});
+        if (n.evt === "pouvoir") animerPouvoirs([n.pouvoir]);
+        else if (x && n.evt) await animRef.current.animerEvenement(n.evt, x, {});
         montrer(n.effets);
       }
       await animerChutes(avant);
@@ -592,6 +613,8 @@ export default function Donjon({ jeu }) {
       CC.fini = "victoire";
       p.combat = null;
       const r = victoire(p, CC, rngCombat.current, POOLS.artefacts);
+      animerPouvoirs(r.pouvoirs);
+      if (CC.relique) animRef.current.animerRelique?.(CC.relique, { moment: r.relique?.vendue ? "vendue" : "prise", equipe: vivants(p.equipe) });
       setResultat(r);
       setOccupe(false);
       differer(() => { combatRef.current = null; aller(CC.genre === "boss" ? "sortie" : "resultat"); }, 450 / vitesseRef.current);

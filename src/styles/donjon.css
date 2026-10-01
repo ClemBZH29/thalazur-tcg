@@ -223,15 +223,18 @@
   background: radial-gradient(circle, rgba(255,210,170,.75), rgba(229,119,75,.2) 45%, transparent 70%);
   animation: dj-eclat .35s ease-out forwards; }
 @keyframes dj-eclat { from { opacity: 1; transform: scale(.6); } to { opacity: 0; transform: scale(1.25); } }
-.dj-flottant { position: absolute; left: 50%; top: 28%; z-index: 9; transform: translateX(-50%); pointer-events: none;
+/* --rang : le nombre de chiffres déjà affichés sur la carte ; chacun prend
+   la ligne au-dessus. La durée est posée par le script, selon la vitesse. */
+.dj-flottant { position: absolute; left: 50%; top: calc(28% - var(--rang, 0) * 1.25em); z-index: 9; transform: translateX(-50%); pointer-events: none;
   font-family: var(--font-display); font-variation-settings: var(--wonk); font-weight: 900; font-size: clamp(18px, 3vw, 28px);
   color: #ffb08f; text-shadow: 0 2px 0 #3a1206, 0 0 10px rgba(0,0,0,.8); white-space: nowrap; animation: dj-flotte 1s ease-out forwards; }
 .dj-flottant.soin { color: var(--dj-soin); text-shadow: 0 2px 0 #0b2c24, 0 0 10px rgba(0,0,0,.8); }
 .dj-flottant.crit { color: #ffd36e; font-size: clamp(22px, 3.6vw, 34px); }
 .dj-flottant.info { color: #cfe2ff; font-size: clamp(13px, 2vw, 16px); }
-@keyframes dj-flotte { 0% { opacity: 0; transform: translate(-50%, 8px) scale(.8); } 15% { opacity: 1; transform: translate(-50%, 0) scale(1.1); }
-  100% { opacity: 0; transform: translate(-50%, -38px) scale(1); } }
-[data-mouvement="reduit"] .dj-flottant { animation-duration: 1.4s; }
+@keyframes dj-flotte { 0% { opacity: 0; transform: translate(-50%, 8px) scale(.8); } 14% { opacity: 1; transform: translate(-50%, 0) scale(1.1); }
+  70% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -26px) scale(1); } }
+[data-mouvement="reduit"] .dj-flottant { animation-name: dj-flotte-fixe; }
+@keyframes dj-flotte-fixe { 0%, 80% { opacity: 1; transform: translateX(-50%); } 100% { opacity: 0; transform: translateX(-50%); } }
 
 /* Hauteurs fixes : la consigne, le journal et les gestes changent à chaque
    tour, et sans cela toute l'arène sautait d'une ligne à l'autre. */
@@ -455,6 +458,12 @@
   padding: 12px 4px 10px; scroll-snap-type: x mandatory; scroll-padding: 0 4px; overscroll-behavior-x: contain;
   scrollbar-width: thin; }
 .dj-rangee-piste > * { scroll-snap-align: start; }
+/* La rangée a ses bords pour défiler à la souris : sa barre reste discrète,
+   un fil sous les cartes qui s'épaissit au survol. */
+.dj-rangee-piste { scrollbar-color: rgba(232, 163, 61, .35) transparent; }
+.dj-rangee-piste::-webkit-scrollbar { height: 6px; }
+.dj-rangee-piste::-webkit-scrollbar-thumb { background: rgba(232, 163, 61, .35); border: 0; border-radius: 6px; }
+.dj-rangee-piste:hover::-webkit-scrollbar-thumb { background: rgba(232, 163, 61, .6); }
 .dj-rangee-bord { position: absolute; top: 0; bottom: 0; z-index: 12; width: 54px; border: 0; padding: 0; cursor: pointer;
   font-size: 30px; line-height: 1; color: var(--ink); display: grid; place-items: center; }
 .dj-rangee-bord.g { left: -4px; background: linear-gradient(90deg, rgba(10, 16, 19, .95), rgba(10, 16, 19, 0)); justify-items: start; padding-left: 6px; }

@@ -149,3 +149,27 @@ describe("l'étoile d'un lieu", () => {
     expect(e1.collections[l.ext][l.id].rainbow).toBe(1);
   });
 });
+
+describe("les événements de pouvoir (pour les animations)", () => {
+  test("un coup avec épines et vol de vie les signale, avec leur origine", () => {
+    const p = partie({ c: lieu("123-cabinet-du-dr-deutenik"), niveau: 100, etoile: true }); // vol de vie
+    const C = demarrerCombat(p, "combat", tirage(1), POOLS);
+    const u = p.equipe[0]; u.pv = 1; u.atq = 30;
+    const e = C.ennemis[0]; e.pv = e.pvMax = 999;
+    const res = resoudre(p, C, u, "attaque", e, tirage(4));
+    const ev = res.pouvoirs.find((x) => x.mec === "drain");
+    expect(ev).toMatchObject({ camp: "a", origine: "source", uid: u.uid, cible: e.uid });
+    expect(C.pouvoirs).toHaveLength(0);
+  });
+  test("la première salve et la relève se signalent", () => {
+    const p = partie({ c: lieu("023-desert-des-cauchemars"), niveau: 1 });
+    const C = demarrerCombat(p, "combat", tirage(1), POOLS);
+    expect(C.ouverture[0].pouvoir).toMatchObject({ mec: "ouverture", camp: "a", origine: "source" });
+    const q = partie({ c: lieu("019-plage-de-l-arrivee"), niveau: 1 });
+    const C2 = demarrerCombat(q, "combat", tirage(1), POOLS);
+    q.equipe[0].pv = 0; q.equipe[0].ko = true;
+    for (const m of C2.ennemis) { m.pv = 0; m.ko = true; }
+    const r = victoire(q, C2, tirage(2), POOLS.artefacts);
+    expect(r.pouvoirs.some((x) => x.mec === "releve" && x.uid === q.equipe[0].uid)).toBe(true);
+  });
+});

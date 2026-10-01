@@ -339,6 +339,19 @@ export function modsEquipe(partie) {
   memoEquipe.set(partie, { cle, val });
   return val;
 }
+/**
+ * Les pouvoirs qui jouent, pour l'interface (animations) : chacun est un
+ * événement { mec, camp, origine, uid, cible?, valeur? }. `origine` dit d'où
+ * vient le pouvoir : « source » (le lieu de l'équipe) ou « relique ». Ils
+ * s'accumulent dans `C.pouvoirs` pendant un geste, et `resoudre` les rend.
+ */
+export function origineDe(partie, camp, mec) {
+  return camp === "a" && (partie.source?.effets || []).some((e) => e.mec === mec) ? "source" : "relique";
+}
+function signaler(partie, C, camp, mec, e) {
+  if (C) (C.pouvoirs ||= []).push({ mec, camp, origine: origineDe(partie, camp, mec), ...e });
+}
+
 /** Les pouvoirs d'un camp en combat ; hors combat, ceux de l'équipe. */
 export const mods = (partie, C, camp) => (camp === "a" ? modsEquipe(partie) : C?.mods?.e || {});
 
@@ -621,7 +634,8 @@ export function demarrerCombat(partie, genre, r, pools) {
     if (!v) continue;
     const effets = [];
     for (const x of cibles.filter((y) => !y.ko)) { x.pv = Math.max(0, x.pv - v); if (x.pv === 0) x.ko = true; effets.push({ uid: x.uid, txt: `−${v}`, anim: "touche" }); }
-    C.ouverture.push({ note: camp === "a" ? `Première salve : −${v} à chaque adversaire.` : `Ils ouvrent le feu : −${v} à chaque compagnon.`, effets });
+    C.ouverture.push({ note: camp === "a" ? `Première salve : −${v} à chaque adversaire.` : `Ils ouvrent le feu : −${v} à chaque compagnon.`, effets,
+      pouvoir: { mec: "ouverture", camp, origine: origineDe(partie, camp, "ouverture"), cibles: cibles.map((x) => x.uid), valeur: v } });
   }
   return C;
 }
@@ -638,11 +652,18 @@ function debutDeTour(partie, C, u) {
   const m = mods(partie, C, u.camp);
   if (u.cd > 0) u.cd--;
   // Second souffle (pouvoir) : la fraction s'accumule, un tour de recharge tombe à chaque unité pleine.
-  if (m.recharge && u.cd > 0) { u.elan = (u.elan || 0) + m.recharge; if (u.elan >= 1) { u.elan -= 1; u.cd--; } }
+  if (m.recharge && u.cd > 0) {
+    u.elan = (u.elan || 0) + m.recharge;
+    if (u.elan >= 1) {
+      u.elan -= 1; u.cd--;
+      (C.notes ||= []).push({ evt: "pouvoir", uid: u.uid, note: null, effets: [], pouvoir: { mec: "recharge", camp: u.camp, origine: origineDe(partie, u.camp, "recharge"), uid: u.uid } });
+    }
+  }
   if (m.regen && !u.ko && u.pv < u.pvMax) {
     const g = Math.min(u.pvMax - u.pv, Math.max(1, Math.round(u.pvMax * m.regen)));
     u.pv += g;
-    (C.notes ||= []).push({ uid: u.uid, note: null, effets: [{ uid: u.uid, txt: `+${g}`, cls: "soin" }] });
+    (C.notes ||= []).push({ evt: "pouvoir", uid: u.uid, note: null, effets: [{ uid: u.uid, txt: `+${g}`, cls: "soin" }],
+      pouvoir: { mec: "regen", camp: u.camp, origine: origineDe(partie, u.camp, "regen"), uid: u.uid, valeur: g } });
   }
   u.provoque = 0;                   // la provocation court jusqu'à son prochain tour
   u.parade = 0; u.riposte = 0; u.voile = 0; u.armureProvoc = 0;
@@ -724,18 +745,24 @@ function frapper(partie, att, cible, mult, r, perce = false, C = null) {
   if (cible.voile) return { reel: 0, crit: false, voile: true, renvoi: 0 };
   const ma = mods(partie, C, att.camp), mc = mods(partie, C, cible.camp);
   // Les pouvoirs ne tirent au sort que s'ils existent : sans eux, les dés tombent comme avant.
-  if (mc.esquive && r() < mc.esquive) return { reel: 0, crit: false, voile: true, esquive: true, renvoi: 0 };
+  if (mc.esquive && r() < mc.esquive) {
+    signaler(partie, C, cible.camp, "esquive", { uid: cible.uid, cible: att.uid });
+    return { reel: 0, crit: false, voile: true, esquive: true, renvoi: 0 };
+  }
   let d = atqDe(partie, att) * mult * brume(C) * (0.85 + r() * 0.3);
   let crit = false;
   if (att.role === "fourbe" && r() < 0.25) { d *= 2; crit = true; }
-  else if (ma.crit && r() < ma.crit) { d *= 2; crit = true; }
+  else if (ma.crit && r() < ma.crit) { d *= 2; crit = true; signaler(partie, C, att.camp, "crit", { uid: att.uid, cible: cible.uid }); }
   if (cible.marque > 0) d *= 1 + (cible.marqueVal || 0.5);
-  if (C?.round === 1 && ma.tempo) d *= 1 + ma.tempo;
-  if (ma.chasseur && (cible.boss || cible.elite)) d *= 1 + ma.chasseur;
-  if (ma.execution && cible.pv / cible.pvMax < 0.35) d *= 1 + ma.execution;
-  if (ma.dernierRempart && C && vivants(att.camp === "a" ? partie.equipe : C.ennemis).length === 1) d *= 1 + ma.dernierRempart;
+  // Les bonus de dégâts conditionnels : chacun se signale quand il joue.
+  const bonus = (mec, ok) => { if (ok && ma[mec]) { d *= 1 + ma[mec]; signaler(partie, C, att.camp, mec, { uid: att.uid, cible: cible.uid }); } };
+  bonus("tempo", C?.round === 1);
+  bonus("chasseur", cible.boss || cible.elite);
+  bonus("execution", cible.pv / cible.pvMax < 0.35);
+  bonus("dernierRempart", C && vivants(att.camp === "a" ? partie.equipe : C.ennemis).length === 1);
   if (mc.resistance) d *= 1 - mc.resistance;
-  if (mc.gardien && att.boss) d *= 1 - mc.gardien;
+  if (mc.gardien && att.boss) { d *= 1 - mc.gardien; signaler(partie, C, cible.camp, "gardien", { uid: cible.uid, cible: att.uid }); }
+  if (C?.round === 1 && mc.rempartDebut) signaler(partie, C, cible.camp, "rempartDebut", { uid: cible.uid });
   const armure = perce ? 0 : (cible.role === "garde" ? 1 : 0) + (cible.provoque ? cible.armureProvoc || 2 : 0)
     + (cible.rempart > 0 ? cible.rempartVal || 3 : 0) + (cible.parade || 0)
     + (mc.armure || 0) + (C?.round === 1 ? mc.rempartDebut || 0 : 0);
@@ -744,24 +771,36 @@ function frapper(partie, att, cible, mult, r, perce = false, C = null) {
   if (cible.pv === 0) {
     cible.ko = true;
     // Vengeance : les autres du camp du tombé frappent plus fort jusqu'à la fin du combat.
-    if (mc.vengeance && C) for (const x of vivants(cible.camp === "a" ? partie.equipe : C.ennemis)) x.vengeance = (x.vengeance || 0) + mc.vengeance;
+    if (mc.vengeance && C) for (const x of vivants(cible.camp === "a" ? partie.equipe : C.ennemis)) {
+      x.vengeance = (x.vengeance || 0) + mc.vengeance;
+      signaler(partie, C, x.camp, "vengeance", { uid: x.uid, cible: cible.uid, valeur: mc.vengeance });
+    }
   }
   // Garde haute, et épines (pouvoir) : qui frappe prend un retour.
   let renvoi = 0;
   if (cible.riposte && !cible.ko && !att.ko) renvoi += Math.max(1, Math.round(atqDe(partie, cible) * cible.riposte));
-  if (mc.epines && !att.ko) renvoi += Math.max(1, Math.round(reel * mc.epines));
+  if (mc.epines && !att.ko) {
+    const ep = Math.max(1, Math.round(reel * mc.epines));
+    renvoi += ep;
+    signaler(partie, C, cible.camp, "epines", { uid: cible.uid, cible: att.uid, valeur: ep });
+  }
   if (renvoi) { att.pv = Math.max(0, att.pv - renvoi); if (att.pv === 0) att.ko = true; }
   // Soif de sang : une part des dégâts revient en PV.
   let draine = 0;
-  if (ma.drain && !att.ko) { draine = Math.min(att.pvMax - att.pv, Math.round(reel * ma.drain)); att.pv += draine; }
+  if (ma.drain && !att.ko) {
+    draine = Math.min(att.pvMax - att.pv, Math.round(reel * ma.drain)); att.pv += draine;
+    if (draine) signaler(partie, C, att.camp, "drain", { uid: att.uid, cible: cible.uid, valeur: draine });
+  }
   if (!cible.ko && ma.saignement && r() < ma.saignement) {
     cible.saigne = Math.max(cible.saigne || 0, 2);
     cible.saigneD = Math.max(cible.saigneD || 0, Math.max(1, Math.round(atqDe(partie, att) * 0.4)));
+    signaler(partie, C, att.camp, "saignement", { uid: att.uid, cible: cible.uid });
   }
   // Repérage : le premier coup du camp, dans ce combat, marque sa cible.
   if (ma.marque && C && !C.marquePose?.[att.camp] && !cible.ko) {
     (C.marquePose ||= {})[att.camp] = true;
     cible.marque = Math.max(cible.marque || 0, 2); cible.marqueVal = Math.max(cible.marqueVal || 0, ma.marque);
+    signaler(partie, C, att.camp, "marque", { uid: att.uid, cible: cible.uid });
   }
   return { reel, crit, renvoi, draine };
 }
@@ -786,6 +825,7 @@ export function resoudre(partie, C, u, geste, cible, r) {
   const K = COMPETENCES[geste];
   const etoile = K && etoileSur(u, geste);
   const p = etoile ? ETOILE.puissance : 1;
+  C.pouvoirs = [];
   const siens = vivants(u.camp === "a" ? partie.equipe : C.ennemis);
   const enFace = vivants(u.camp === "a" ? C.ennemis : partie.equipe);
   let renvoiTotal = 0;
@@ -798,7 +838,13 @@ export function resoudre(partie, C, u, geste, cible, r) {
     return { reel, crit, renvoi, voile };
   };
   const bonusSoin = 1 + (mods(partie, C, u.camp).soin || 0);
-  const soigner = (a, n) => { const g = Math.min(a.pvMax - a.pv, Math.max(0, Math.round(n * bonusSoin))); a.pv += g; if (g) effets.push({ uid: a.uid, txt: `+${g}`, cls: "soin", anim: "soigne" }); return g; };
+  const soigner = (a, n) => {
+    const g = Math.min(a.pvMax - a.pv, Math.max(0, Math.round(n * bonusSoin)));
+    if (g && bonusSoin > 1) signaler(partie, C, u.camp, "soin", { uid: u.uid, cible: a.uid, valeur: g });
+    a.pv += g;
+    if (g) effets.push({ uid: a.uid, txt: `+${g}`, cls: "soin", anim: "soigne" });
+    return g;
+  };
   const plusBlesse = () => [...siens].sort((a, b) => a.pv / a.pvMax - b.pv / b.pvMax)[0];
 
   if (FRAPPES[geste]) {
@@ -889,7 +935,7 @@ export function resoudre(partie, C, u, geste, cible, r) {
   }
   // Recharge : comptée en tours de l'unité, le sien compris, d'où le +1.
   if (K?.place === "tech") { const cd = rechargeDe(u, geste); u.cd = cd ? cd + 1 : 0; }
-  return { anim, cible: cible?.uid ?? null, effets, note, renvoi: renvoiTotal };
+  return { anim, cible: cible?.uid ?? null, effets, note, renvoi: renvoiTotal, pouvoirs: C.pouvoirs.splice(0) };
 }
 
 export function issue(partie, C) {
@@ -977,13 +1023,19 @@ export function victoire(partie, C, r, _artefacts) {
   const relique = prendreRelique(partie, C.relique || null);
   // Bivouac et relève (pouvoirs) : l'équipe souffle après la victoire.
   const m = modsEquipe(partie);
+  const pouvoirs = [];
   for (const u of partie.equipe) {
-    if (u.ko && m.releve) { u.ko = false; u.pv = Math.max(1, Math.ceil(u.pvMax * m.releve)); }
-    else if (!u.ko && m.finCombat) u.pv = Math.min(u.pvMax, u.pv + Math.ceil(u.pvMax * m.finCombat));
+    if (u.ko && m.releve) {
+      u.ko = false; u.pv = Math.max(1, Math.ceil(u.pvMax * m.releve));
+      pouvoirs.push({ mec: "releve", camp: "a", origine: origineDe(partie, "a", "releve"), uid: u.uid, valeur: u.pv });
+    } else if (!u.ko && m.finCombat && u.pv < u.pvMax) {
+      const g = Math.min(u.pvMax - u.pv, Math.ceil(u.pvMax * m.finCombat)); u.pv += g;
+      pouvoirs.push({ mec: "finCombat", camp: "a", origine: origineDe(partie, "a", "finCombat"), uid: u.uid, valeur: g });
+    }
   }
   return C.genre === "boss"
-    ? { titre: `Étage ${partie.etage} nettoyé`, texte: "Le gardien tombe. Plus bas, la brume est plus épaisse — et les bourses plus lourdes.", po, relique }
-    : { titre: "Victoire", texte: `${C.ennemis.length} adversaires à terre.`, po, relique };
+    ? { titre: `Étage ${partie.etage} nettoyé`, texte: "Le gardien tombe. Plus bas, la brume est plus épaisse — et les bourses plus lourdes.", po, relique, pouvoirs }
+    : { titre: "Victoire", texte: `${C.ennemis.length} adversaires à terre.`, po, relique, pouvoirs };
 }
 /** On ne fuit pas seul : il faut quelqu'un pour couvrir la retraite. */
 export const peutFuir = (partie, C) => C.genre !== "boss" && vivants(partie.equipe).length >= 2;
