@@ -298,13 +298,15 @@ l'incitation à faire descendre des cartes modestes.
 **STAR RESET** (bouton sous l'encart Combat). La fiche revient à l'origine
 (rangs, compétences, étoiles), contre **tous** les exemplaires de la carte,
 normales et rainbow : la case redevient vide, comme si on ne l'avait jamais
-eue. Les vestiges dépensés ne sont pas rendus, le niveau de la carte reste
-(il se gagne en jouant). Refusé si la fiche est déjà d'origine ou si la
-carte est en expédition. Confirmation obligatoire, qui détaille les
-exemplaires perdus ; la loupe se ferme ensuite (`resetStar`, fiches.js). La
+eue : le niveau repart à 1, paliers payés compris (irisation, niveau 100),
+et les vestiges dépensés ne sont pas rendus. Refusé si la fiche est déjà d'origine ou si la
+carte est en expédition. Double confirmation (le bouton, puis
+« Confirmer »), avec les avertissements : exemplaires perdus, niveau perdu,
+vestiges non rendus ; la loupe se ferme ensuite (`resetStar`, fiches.js). La
 fiche garde la date de la remise (`remise`) : entre deux appareils, la
-remise faite depuis la dernière synchronisation l'emporte, sinon les rangs
-et les étoiles de l'autre côté reviendraient.
+remise faite depuis la dernière synchronisation l'emporte, pour la fiche
+comme pour l'expérience (`etat.xp`, qui porte aussi `remise`) ; sinon les
+rangs, les étoiles et les niveaux de l'autre côté reviendraient.
 
 **Ce que ça pèse** (`node scripts/audit-donjon.mjs`, section « Fiche de
 combat », 400 descentes par cas, la meilleure carte de l'équipe modifiée ;

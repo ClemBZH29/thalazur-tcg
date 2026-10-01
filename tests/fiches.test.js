@@ -10,7 +10,7 @@ import {
   acheterRang, catalogue, changerCompetence, coutCompetence, coutRang, etoilee, etoiler, ficheDe, modifiee, origine, rainbowEnTrop, resetStar,
 } from "../src/donjon/fiches.js";
 import { PERSONNALISATION } from "../src/config/reliquaire.js";
-import { fusionner3, fusionnerFiches } from "../src/lib/nuage/fusion.js";
+import { fusionner3, fusionnerFiches, fusionnerXP } from "../src/lib/nuage/fusion.js";
 import { etatVide } from "../src/lib/storage.js";
 
 const roster = JSON.parse(readFileSync(new URL("../src/extensions/troupe-valeran/roster.json", import.meta.url), "utf8"));
@@ -220,7 +220,13 @@ describe("fiche : fusion entre appareils", () => {
 });
 
 describe("STAR RESET", () => {
-  test("fiche remise à l'origine, tous les exemplaires perdus, niveau gardé", () => {
+  test("l'expérience remise à zéro ne revient pas de l'autre appareil", () => {
+    const k = cle(mage);
+    const base = { [k]: { xp: 500, irisee: true } };
+    expect(fusionnerXP(base, { [k]: { xp: 0, remise: 9 } }, { [k]: { xp: 560, irisee: true } })[k]).toEqual({ xp: 0, remise: 9 });
+    expect(fusionnerXP({ [k]: { xp: 0, remise: 9 } }, { [k]: { xp: 40, remise: 9 } }, { [k]: { xp: 0, remise: 9 } })[k]).toEqual({ xp: 40, remise: 9 });
+  });
+  test("fiche remise à l'origine, tous les exemplaires perdus, niveau remis à 1", () => {
     let e = etatAvec(mage, { normale: 9, rainbow: 2 });
     e = { ...e, xp: { [cle(mage)]: { xp: 300 } } };
     e = etoiler(acheterRang(e, mage, "atq"), mage, "tech");
@@ -228,7 +234,7 @@ describe("STAR RESET", () => {
     expect(r.collections[mage.ext][mage.id]).toMatchObject({ normale: 0, rainbow: 0 });
     expect(ficheDe(r, mage)).toEqual({ remise: 1234 });
     expect(modifiee(ficheDe(r, mage))).toBe(false);
-    expect(r.xp[cle(mage)].xp).toBe(300);
+    expect(r.xp[cle(mage)]).toEqual({ xp: 0, remise: 1234 });
     expect(r.reliquaire.vestiges).toBe(e.reliquaire.vestiges);
     expect(resetStar(r, mage)).toBeNull(); // plus de carte
   });

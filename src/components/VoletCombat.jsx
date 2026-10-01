@@ -256,7 +256,10 @@ export default function VoletCombat({ c, onFermer }) {
                 <b>{pluriel(nNorm + nRb, "exemplaire")}</b> de {c.nom} sont perdus
                 ({nNorm} normale{nNorm > 1 ? "s" : ""}, {nRb} rainbow), comme si vous n'aviez jamais eu la carte.
               </p>
-              <p className="muted">Les vestiges dépensés ne sont pas rendus ; le niveau de la carte reste.</p>
+              <p className="fc-reset-alerte">
+                Le niveau de la carte repart à 1 (aujourd'hui niveau {niveau}), paliers compris. Les vestiges
+                dépensés ne sont pas rendus. C'est définitif.
+              </p>
               <span className="fc-confirme-boutons">
                 <button type="button" className="btn sm fc-reset-ok" onClick={() => {
                   setReset(false);

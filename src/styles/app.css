@@ -810,3 +810,4 @@
 .fc-reset-confirme p { margin: 0; }
 .fc-reset-ok { background: var(--ember); border-color: var(--ember); color: #221604; }
 .fc-reset-ok:hover { filter: brightness(1.08); }
+.fc-reset-alerte { color: #f2b49a; }

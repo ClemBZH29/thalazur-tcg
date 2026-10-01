@@ -168,15 +168,22 @@ export function fusionnerSucces(base = {}, ici = {}, la = {}) {
 /**
  * Expérience des cartes : les points s'additionnent comme des compteurs, les
  * paliers payés (`irisee`, `cent`) sont acquis dès qu'un côté les a notés.
+ * Une remise à zéro (STAR RESET) faite depuis la base l'emporte.
  */
 export function fusionnerXP(base = {}, ici = {}, la = {}) {
   const sortie = {};
   for (const k of cles(ici, la)) {
     const b = base[k] || {}, i = ici[k] || {}, l = la[k] || {};
+    // STAR RESET (`remise`, voir fiches.js) fait depuis la base : l'expérience
+    // repart de ce côté-là, paliers compris ; sinon ils reviendraient de l'autre.
+    const ri = (i.remise || 0) > (b.remise || 0) ? i.remise : 0;
+    const rl = (l.remise || 0) > (b.remise || 0) ? l.remise : 0;
+    if (ri || rl) { sortie[k] = ri >= rl ? i : l; continue; }
     sortie[k] = {
       xp: Math.max(0, (l.xp || 0) + (i.xp || 0) - (b.xp || 0)),
       ...((i.irisee || l.irisee) ? { irisee: true } : {}),
       ...((i.cent || l.cent) ? { cent: true } : {}),
+      ...(b.remise ? { remise: b.remise } : {}),
     };
   }
   return sortie;

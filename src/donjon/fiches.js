@@ -112,8 +112,8 @@ export const modifiee = (f) => Object.keys(f).some((k) => k !== "remise" && (k !
 /**
  * STAR RESET : la fiche revient à l'origine (rangs, compétences, étoiles),
  * contre **tous** les exemplaires de la carte, normales et rainbow, comme si
- * on ne l'avait jamais eue. Les vestiges dépensés ne sont pas rendus ;
- * l'expérience de la carte reste (elle se gagne en jouant, pas en payant).
+ * on ne l'avait jamais eue : l'expérience repart de zéro, paliers payés
+ * compris (irisation, niveau 100). Les vestiges dépensés ne sont pas rendus.
  *
  * `remise` date l'opération : sans elle, la fusion entre appareils
  * reprendrait les rangs et les étoiles de l'autre côté (voir fusionnerFiches).
@@ -122,7 +122,8 @@ export function resetStar(etat, c, maintenant = Date.now()) {
   const e = entree(etat, c);
   if (!possedee(etat, c) || !modifiee(ficheDe(etat, c))) return null;
   const coll = { ...(etat.collections?.[c.ext] || {}), [c.id]: { ...e, normale: 0, rainbow: 0 } };
-  return ecrire({ ...etat, collections: { ...etat.collections, [c.ext]: coll } }, c, { remise: maintenant });
+  const xp = { ...(etat.xp || {}), [cleXP(c)]: { xp: 0, remise: maintenant } };
+  return ecrire({ ...etat, collections: { ...etat.collections, [c.ext]: coll }, xp }, c, { remise: maintenant });
 }
 
 /** Les fiches de toute une équipe, pour `creerPartie`. */
