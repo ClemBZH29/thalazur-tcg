@@ -56,3 +56,28 @@ partie comprise (simulation par défaut, `--effacer` pour agir). Chaque
 suppression automatique par TTL Firestore exige la facturation (offre Blaze)
 et n'est pas active ; le jour où elle l'est, une règle TTL sur `joueurs.expire`
 suffit, sans toucher au code.
+
+### Incident du 30/09/2026 : collections vidées au passage au format 7
+
+La copie du compte n'était lue que si son numéro de format était exactement
+celui du site. Au passage du format 6 au 7 (renumérotation de La Troupe), une
+copie encore au 6 — écrite juste avant la mise à jour, ou par un onglet resté
+ouvert sur l'ancienne version — se lisait comme une partie vide ; cette partie
+vide remplaçait la collection de l'appareil, qui la renvoyait ensuite sur le
+compte. Reproduit avec un Firebase simulé : 20 cartes → 0.
+
+Correctifs (`src/jeu/Compte.jsx`) :
+
+- la copie du compte passe par les migrations (`lireCompte`), comme la
+  sauvegarde locale et les fichiers importés ; la base de synchronisation
+  aussi (`lireBase`) ;
+- une copie illisible n'est jamais adoptée ; une copie d'une version plus
+  récente du site n'est pas touchée, et le joueur est invité à recharger ;
+- une copie à un format ancien est relue à chaque ouverture de session, même
+  à la révision connue : si elle porte encore la collection, elle revient ;
+- **copie de secours** : avant d'adopter une version qui compte moins
+  d'exemplaires que l'appareil, celui-ci garde ce qu'il remplace
+  (`brume-thalazur:secours`), que le profil propose de fusionner.
+
+Règle pour la suite : **ne jamais comparer un numéro de format avec `===`** ;
+toute lecture passe par `migrer()`.
