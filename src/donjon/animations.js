@@ -15,13 +15,20 @@
  * `.dj-eclat` existant se pose dans la carte), et les chiffres flottants sont
  * coupés (`flottants: false`) : les vrais chiffres viennent des règles, après
  * coup, par `montrer`.
+ *
+ * Complément du 01/10/2026 (brief-animations-pouvoirs.md) : animerPouvoir,
+ * animerSource, animerRelique et leurs briques (bloc « Pouvoirs » plus bas).
+ * Une seule retouche à l'existant : `poser` accepte des variables CSS
+ * (`--t1`…) dans son style ; les appels d'avant ne changent pas.
+ * Option nouvelle : `tenueAnnonces` (ms, ou fonction) prolonge le seul texte
+ * des annonces de source et de relique, sans retarder le combat. Défaut : 0.
  */
 
 const IRIS = ['#f0a3c7', '#f5d77e', '#8fe0b4', '#8fc3f0', '#b49cf0'];
 const GESTES = ['attaque', 'estoc', 'entaille', 'bouclier', 'double', 'secours', 'ripostee', 'trait'];
 const MAX_PARTICULES = 30;
 
-export function creerAnimationsDonjon({ arene, el, vitesse = () => 1, reduit = () => false, unites = () => [], flottants = true }) {
+export function creerAnimationsDonjon({ arene, el, vitesse = () => 1, reduit = () => false, unites = () => [], flottants = true, tenueAnnonces = 0 }) {
   let etoile = false, nbParticules = 0;
   const poses = new Set();
   const D = ms => ms / (vitesse() || 1);
@@ -63,7 +70,7 @@ export function creerAnimationsDonjon({ arene, el, vitesse = () => 1, reduit = (
     const n = document.createElement('div');
     n.className = 'dj-fx ' + cls + (etoile ? ' etoile' : '');
     n.style.left = x + 'px'; n.style.top = y + 'px';
-    if (style) Object.assign(n.style, style);
+    if (style) for (const k in style) { if (k.startsWith('--')) n.style.setProperty(k, style[k]); else n.style[k] = style[k]; }
     arene().appendChild(n); poses.add(n);
     return n;
   }
@@ -610,13 +617,441 @@ export function creerAnimationsDonjon({ arene, el, vitesse = () => 1, reduit = (
     if (EVT[type]) await EVT[type](u, o);
   }
 
+  /* ---------- Pouvoirs : sources de pouvoir et reliques ---------- */
+  // Chaque calque de pouvoir porte .pv et sa famille : .src (le lieu) ou .rel (relique ; .rel.e chez
+  // l'adversaire). Teinte (--t1), clair (--t2), joyau (--t3) passent en variables CSS.
+  // Signature d'origine, sur le porteur : pastille ronde et teintée pour un lieu, gemme taillée pour une relique.
+  const LIEUX = {
+    taverne:   { t1: '#e6a23c', t2: '#ffe3a3', motif: 'mousse' },
+    militaire: { t1: '#9fb0b8', t2: '#eef4f6', motif: 'acier' },
+    cotier:    { t1: '#7fb0c9', t2: '#e3f3fb', motif: 'etendard' },
+    village:   { t1: '#c99558', t2: '#f3dcb4', motif: 'paille' },
+    rencontre: { t1: '#9a8cc4', t2: '#e2dbf7', motif: 'ombre' },
+    feuillage: { t1: '#7cc45c', t2: '#dbf6b9', motif: 'feuille' },
+    eau:       { t1: '#52b6de', t2: '#d6f4ff', motif: 'eau' },
+    sable:     { t1: '#d9b066', t2: '#fbeac4', motif: 'grain' },
+    temple:    { t1: '#f0d78a', t2: '#fffbe9', motif: 'rayon' },
+    coutume:   { t1: '#d683de', t2: '#9fe6d0', motif: 'fumee' },
+    clan:      { t1: '#cf3045', t2: '#f5b6a3', motif: 'peinture' },
+    ruines:    { t1: '#a69c90', t2: '#f5d77e', motif: 'pierre' },
+    capitale:  { t1: '#e4cf98', t2: '#fff3c7', motif: 'pierre' },
+    palais:    { t1: '#6f8ee3', t2: '#e3eaff', motif: 'etendard' },
+    service:   { t1: '#7ad7cc', t2: '#ecfffb', motif: 'mousse' },
+    dis:       { t1: '#ff5a1f', t2: '#ffd08a', motif: 'braise' },
+    defaut:    { t1: '#d9cfbc', t2: '#fff8ea', motif: 'etincelle' },
+  };
+  const RELIQUES = {
+    a: { t1: '#e2b04a', t2: '#fff1c8', t3: '#7fd6ff', motif: 'joyau', cls: 'rel', fam: 'relique' },
+    e: { t1: '#a3283d', t2: '#e7a0ab', t3: '#3b0b16', motif: 'joyau', cls: 'rel e', fam: 'relique' },
+  };
+  const FREQUENTS = ['crit', 'drain', 'saignement', 'rempartDebut', 'soin'];
+  let sourceCourante = null;
+  const derniersSceaux = new Map();
+  const tenue = () => Math.max(0, +(typeof tenueAnnonces === 'function' ? tenueAnnonces() : tenueAnnonces) || 0);
+  const simple = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+
+  function typeLieu(c = {}) {
+    const t = simple(c.rep3), n = simple(c.nom);
+    if (t.startsWith('dis') || n.includes('dispater')) return 'dis';
+    if (t.includes('verne')) return 'taverne';      // « Tarverne » compris
+    if (t.includes('cotier')) return 'cotier';
+    if (t === 'biome') return /lac|marais|plage|suurin/.test(n) ? 'eau' : /desert|mine|soldestin/.test(n) ? 'sable' : 'feuillage';
+    return LIEUX[t] ? t : 'defaut';
+  }
+  function paletteLieu(s) {
+    const k = s ? typeLieu(s.c) : 'defaut';
+    return { ...LIEUX[k], type: k, cls: 'src', fam: 'source', etoile: !!s?.etoile };
+  }
+  const palette = ev => ev.origine === 'relique' ? RELIQUES[ev.camp === 'e' ? 'e' : 'a'] : paletteLieu(ev.source || sourceCourante);
+  const vars = p => ({ '--t1': p.t1, '--t2': p.t2, '--t3': p.t3 || p.t2 });
+  const versDe = (a, b) => { const dx = b.x - a.x, dy = b.y - a.y, L = Math.hypot(dx, dy) || 1; return { dx, dy, L, ux: dx / L, uy: dy / L, px: -dy / L, py: dx / L }; };
+
+  function poserP(p, cls, x, y, style) {
+    const n = poser(`${cls} pv ${p.cls}`, x, y, { ...vars(p), ...style });
+    n.classList.toggle('etoile', !!p.etoile);
+    return n;
+  }
+  // Calque hors de l'arène (vers la pastille « Sac » de l'en-tête) : coordonnées de la fenêtre.
+  function poserFixe(p, cls, x, y, style) {
+    const n = document.createElement('div');
+    n.className = `dj-fx ${cls} pv ${p.cls}`;
+    Object.assign(n.style, { position: 'fixed', left: x + 'px', top: y + 'px', zIndex: 1000 });
+    const st = { ...vars(p), ...style };
+    for (const k in st) { if (k.startsWith('--')) n.style.setProperty(k, st[k]); else n.style[k] = st[k]; }
+    document.body.appendChild(n); poses.add(n);
+    return n;
+  }
+  const projP = (p, de, vers, cls, o = {}) => projectile(de, vers, `${cls} pv ${p.cls}${p.etoile ? ' etoile' : ''}`, { ...o, style: { ...vars(p), ...(o.style || {}) } });
+
+  // Particules au motif du lieu (ou de la relique). Même plafond que `particules`.
+  function semer(p, x, y, n, o = {}) {
+    n = Math.min(n, MAX_PARTICULES - nbParticules);
+    if (n <= 0) return Promise.resolve();
+    const { angle = -90, ecart = 360, dist: dd = [14, 34], ms = 220, gravite = 0, delai = 0, xEcart = 0, yEcart = 0, motif = p.motif, oriente = false } = o;
+    const ps = [];
+    for (let i = 0; i < n; i++) {
+      const t = (angle + (Math.random() - .5) * ecart) * Math.PI / 180, d = dd[0] + Math.random() * (dd[1] - dd[0]);
+      const q = poserP(p, 'fx-part fx-motif m-' + motif, x + (Math.random() - .5) * xEcart, y + (Math.random() - .5) * yEcart);
+      if (i % 2) q.style.setProperty('--t1', p.t2);
+      if (p.etoile && i % 3 === 0) q.style.setProperty('--t1', IRIS[i % IRIS.length]);
+      const r0 = oriente ? t * 180 / Math.PI + 90 : Math.random() * 360;
+      nbParticules++;
+      ps.push(jouer(q, [{ transform: T(0, 0, `rotate(${r0}deg) scale(.6)`), opacity: 0 },
+        { transform: T(Math.cos(t) * d * .45, Math.sin(t) * d * .45, `rotate(${r0}deg) scale(1)`), opacity: 1, offset: .3 },
+        { transform: T(Math.cos(t) * d, Math.sin(t) * d + gravite, `rotate(${r0 + (oriente ? 0 : 60)}deg) scale(.5)`), opacity: 0 }],
+        ms * (.85 + Math.random() * .15), { delai: delai + Math.random() * 20 }).then(() => nbParticules--));
+    }
+    return Promise.all(ps);
+  }
+  function cercle(p, u, o = {}) {
+    const b = pt(u); if (!b) return Promise.resolve();
+    const t = (o.taille ?? 1.05) * b.w;
+    const n = poserP(p, 'fx-anneau ' + (o.cls || ''), b.x, b.y, { width: t + 'px', height: t + 'px' });
+    return jouer(n, [{ transform: T(0, 0, `scale(${o.de ?? .6})`), opacity: o.opacite ?? .95 }, { transform: T(0, 0, `scale(${o.a ?? 1.3})`), opacity: 0 }], o.ms ?? 300, { delai: o.delai, easing: o.easing });
+  }
+  function traitP(p, de, vers, cls, ms = 220, o = {}) {
+    const a = pt(de), b = pt(vers); if (!a || !b) return Promise.resolve();
+    const v = versDe(a, b), ang = Math.atan2(v.dy, v.dx) * 180 / Math.PI;
+    const n = poserP(p, 'fx-trait ' + cls, a.x, a.y, { width: v.L + 'px' });
+    const R = s => `translate(0,-50%) rotate(${ang}deg) ${s}`;
+    const kf = o.reste
+      ? [{ transform: R('scaleX(0)'), opacity: 1 }, { transform: R('scaleX(1)'), opacity: 1, offset: .3 }, { transform: R('scaleX(1)'), opacity: .9, offset: .6 }, { transform: R('scaleX(1) scaleY(.4)'), opacity: 0 }]
+      : [{ transform: R('scaleX(0)'), opacity: 1 }, { transform: R('scaleX(1)'), opacity: 1, offset: .5 }, { transform: R(`translateX(${v.L}px) scaleX(0)`), opacity: .5 }];
+    return jouer(n, kf, ms, { easing: 'cubic-bezier(.3,0,.4,1)', delai: o.delai });
+  }
+  // La signature d'origine : petite, au coin de la carte du porteur, une seule à la fois par porteur.
+  function sceau(p, u, o = {}) {
+    const b = pt(u); if (!b) return Promise.resolve();
+    const cle = u.uid + '|' + p.cls, now = performance.now();
+    if (now - (derniersSceaux.get(cle) ?? -1e9) < D(140)) return Promise.resolve();
+    derniersSceaux.set(cle, now);
+    const t = Math.max(12, b.w * .2), x = b.x + b.w * .4, y = b.y + (u.camp === 'e' ? 1 : -1) * b.h * .44, ms = o.ms ?? 220;
+    const n = poserP(p, 'fx-sceau', x, y, { width: t + 'px', height: t + 'px' });
+    if (p.etoile) cercle(p, { x, y, w: t * 1.7, h: t * 1.7 }, { cls: 'irise', ms, de: .5, a: 1.2, delai: o.delai });
+    return jouer(n, [{ transform: T(0, 0, 'scale(.2) rotate(-30deg)'), opacity: 0 }, { transform: T(0, 0, 'scale(1.15) rotate(0deg)'), opacity: 1, offset: .3 },
+      { transform: T(0, 0, 'scale(1)'), opacity: 1, offset: .72 }, { transform: T(0, 0, 'scale(.8)'), opacity: 0 }], ms, { delai: o.delai });
+  }
+  function impact(p, u, o = {}) {
+    const b = pt(u); if (!b) return Promise.resolve();
+    const t = b.w * (o.taille ?? .55);
+    const n = poserP(p, 'fx-impact', b.x, b.y, { width: t + 'px', height: t + 'px' });
+    semer(p, b.x, b.y, o.n ?? 2, { dist: [b.w * .2, b.w * .4], ms: 180 });
+    return jouer(n, [{ transform: T(0, 0, 'scale(.3)'), opacity: 1 }, { transform: T(0, 0, 'scale(1.2)'), opacity: 0 }], o.ms ?? 200);
+  }
+  function halo(p, u, ms = 300) {
+    const b = pt(u); if (!b) return Promise.resolve();
+    const n = poserP(p, 'fx-halo', b.x, b.y, { width: b.w + 6 + 'px', height: b.h + 6 + 'px' });
+    return jouer(n, [{ opacity: 0 }, { opacity: .9, offset: .4 }, { opacity: 0 }], ms, { easing: 'ease-in-out' });
+  }
+  // Texte d'annonce : lignes [balise, texte]. o.bas : le texte se pose au-dessus du point.
+  function annonce(p, x, y, lignes, ms, o = {}) {
+    const n = poserP(p, 'fx-annonce', x, y);
+    lignes.forEach(([tag, txt]) => { if (!txt) return; const e = document.createElement(tag); e.textContent = txt; n.appendChild(e); });
+    const Y = o.bas ? '-100%' : '0', mv = reduit() ? 0 : (o.bas ? 6 : -6);
+    const tr = d => `translate(-50%,${Y}) translateY(${d}px)`;
+    return jouer(n, [{ opacity: 0, transform: tr(mv) }, { opacity: 1, transform: tr(0), offset: .16 }, { opacity: 1, transform: tr(0), offset: .8 }, { opacity: 0, transform: tr(-mv * .6) }], ms, { delai: o.delai });
+  }
+
+  // Un pouvoir par mécanique : (palette, porteur, autre unité, événement, trouver).
+  const POUV = {
+    // Fréquents : 360 ms au plus, aucune secousse.
+    crit: async (p, u, c) => {
+      const cc = c || u, b = pt(cc), t = b.w * .72;
+      sceau(p, u, { ms: 300 });
+      bouger(faceDe(cc), [{ filter: 'none' }, { filter: 'brightness(1.8) contrast(1.1)', offset: .25 }, { filter: 'none' }], 300);
+      semer(p, b.x, b.y, 4, { dist: [b.w * .28, b.w * .52], ms: 315, oriente: true });
+      const n = poserP(p, 'fx-crit', b.x, b.y, { width: t + 'px', height: t + 'px' });
+      await jouer(n, [{ transform: T(0, 0, 'scale(.3) rotate(-20deg)'), opacity: 1 }, { transform: T(0, 0, 'scale(1.1) rotate(8deg)'), opacity: 1, offset: .35 }, { transform: T(0, 0, 'scale(1.35) rotate(15deg)'), opacity: 0 }], 330, { easing: 'cubic-bezier(.2,.8,.3,1)' });
+    },
+    drain: async (p, u, c) => {
+      sceau(p, u, { ms: 330 });
+      if (!c) return cercle(p, u, { cls: 'filet', ms: 300, de: .9, a: 1.05 });
+      traitP(p, c, u, 'fx-filet', 300);
+      await cercle(p, u, { cls: 'filet', ms: 165, de: .95, a: 1.06, delai: 195 });
+    },
+    saignement: async (p, u, c) => {
+      const cc = c || u, b = pt(cc), L = b.w * .36, a = (cc.camp === 'e' ? -28 : 28) * Math.PI / 180;
+      sceau(p, u, { ms: 300 });
+      traitP(p, { x: b.x - Math.cos(a) * L, y: b.y - Math.sin(a) * L }, { x: b.x + Math.cos(a) * L, y: b.y + Math.sin(a) * L }, 'fx-entaille', 300, { reste: true });
+      semer(p, b.x, b.y + b.h * .05, 3, { angle: 90, ecart: 50, dist: [b.h * .12, b.h * .26], gravite: b.h * .1, ms: 330, xEcart: b.w * .4, motif: 'goutte' });
+      await attendre(360);
+    },
+    rempartDebut: async (p, u) => {
+      const b = pt(u), w = b.w * .22;
+      sceau(p, u, { ms: 330 });
+      const k = poserP(p, 'fx-cadre', b.x, b.y, { width: b.w + 6 + 'px', height: b.h + 6 + 'px' });
+      jouer(k, [{ opacity: 0, transform: T(0, 0, 'scale(1.06)') }, { opacity: 1, transform: T(0, 0), offset: .35 }, { opacity: 0, transform: T(0, 0) }], 345);
+      const r = poserP(p, 'fx-reflet', b.x - b.w * .5, b.y, { width: w + 'px', height: b.h + 'px' });
+      await jouer(r, [{ transform: T(0, 0, 'skewX(-18deg)'), opacity: 0 }, { opacity: 1, offset: .3 }, { transform: T(b.w, 0, 'skewX(-18deg)'), opacity: 0 }], 345, { easing: 'ease-in-out' });
+    },
+    soin: async (p, u, c) => {
+      const cc = c || u, b = pt(cc);
+      sceau(p, u, { ms: 300 });
+      const g = poserP(p, 'fx-lueur', b.x, b.y, { width: b.w * 1.35 + 'px', height: b.h * 1.15 + 'px' });
+      semer(p, b.x, b.y + b.h * .3, 3, { angle: -90, ecart: 40, dist: [b.h * .3, b.h * .55], ms: 330, xEcart: b.w * .6 });
+      await jouer(g, [{ opacity: 0, transform: T(0, 0, 'scale(.85)') }, { opacity: .95, transform: T(0, 0), offset: .4 }, { opacity: 0, transform: T(0, 0, 'scale(1.05)') }], 360);
+    },
+
+    // Les autres : courts, sans secousse sauf la salve.
+    esquive: async (p, u) => {
+      const carte = carteDe(u), b = pt(u);
+      sceau(p, u, { ms: 260 });
+      const fantomes = [-1, 1].map(s => {
+        const n = poserP(p, 'fx-mirage', b.x, b.y, { width: b.w + 'px', height: b.h + 'px' });
+        const k = carte.cloneNode(true);
+        k.removeAttribute('id'); k.querySelectorAll('[id]').forEach(x => x.removeAttribute('id')); k.querySelectorAll('.dj-jeton').forEach(x => x.remove());
+        k.style.cssText += ';position:absolute;left:0;top:0;width:100%;height:100%;margin:0;transform:none;animation:none';
+        n.appendChild(k);
+        return jouer(n, [{ transform: T(0, 0), opacity: 0 }, { transform: T(s * b.w * .22, 0), opacity: .6, offset: .35 }, { transform: T(s * b.w * .34, 0), opacity: 0 }], 300, { easing: 'cubic-bezier(.2,.7,.3,1)' });
+      });
+      bouger(carte, [{ opacity: 1 }, { opacity: .3, offset: .3 }, { opacity: 1 }], 300);
+      await Promise.all(fantomes);
+    },
+    epines: async (p, u, c) => {
+      sceau(p, u, { ms: 240 });
+      if (!c) return cercle(p, u, { ms: 240 });
+      for (let i = 0; i < 3; i++) projP(p, u, c, 'fx-epine', { ms: 200, arc: (i - 1) * 14, delai: i * 35 });
+      await attendre(200);
+      await impact(p, c, { ms: 110, taille: .45, n: 0 });
+    },
+    marque: async (p, u, c) => {
+      const cc = c || u, b = pt(cc), t = b.w * .5;
+      sceau(p, u, { ms: 260 });
+      const s = poserP(p, 'fx-sigle', b.x, b.y - b.h * .06, { width: t + 'px', height: t + 'px' });
+      await jouer(s, [{ transform: T(0, 0, 'scale(1.6) rotate(-40deg)'), opacity: 0 }, { transform: T(0, 0, 'scale(.95) rotate(0deg)'), opacity: 1, offset: .45 },
+        { transform: T(0, 0, 'scale(1)'), opacity: 1, offset: .72 }, { transform: T(0, 0, 'scale(1)'), opacity: 0 }], 420);
+    },
+    tempo: async (p, u, c) => {
+      const a = pt(u), b = c ? pt(c) : { x: a.x, y: a.y + (u.camp === 'e' ? 1 : -1) * a.h }, v = versDe(a, b), l = a.h * .9;
+      sceau(p, u, { ms: 260 });
+      [-1, 0, 1].forEach(k => {
+        const o = k * a.w * .28;
+        traitP(p, { x: a.x - v.ux * l * .8 + v.px * o, y: a.y - v.uy * l * .8 + v.py * o }, { x: a.x + v.ux * l * .5 + v.px * o, y: a.y + v.uy * l * .5 + v.py * o }, 'fx-elan', 260, { delai: Math.abs(k) * 40 });
+      });
+      await attendre(300);
+    },
+    chasseur: async (p, u, c) => {
+      const a = pt(u), cc = c || u, b = pt(cc), t = a.w * .42, dir = u.camp === 'e' ? 1 : -1;
+      const C0 = { x: a.x, y: a.y + dir * a.h * .58, w: t, h: t };
+      sceau(p, u, { ms: 300 });
+      const cor = poserP(p, 'fx-cor', C0.x, C0.y, { width: t + 'px', height: t * .6 + 'px' });
+      jouer(cor, [{ transform: T(0, -dir * 8, 'scale(.6) rotate(-12deg)'), opacity: 0 }, { transform: T(0, 0, 'scale(1) rotate(0deg)'), opacity: 1, offset: .3 },
+        { transform: T(0, 0, 'scale(1.06) rotate(4deg)'), opacity: 1, offset: .6 }, { transform: T(0, dir * 4), opacity: 0 }], 420);
+      cercle(p, C0, { cls: 'onde', ms: 300, de: .5, a: 1.7, delai: 80 }); cercle(p, C0, { cls: 'onde', ms: 300, de: .5, a: 1.7, delai: 160 });
+      await attendre(200);
+      const e = poserP(p, 'fx-eclat-dore', b.x, b.y, { width: b.w * .95 + 'px', height: b.w * .95 + 'px' });
+      await jouer(e, [{ transform: T(0, 0, 'scale(.3)'), opacity: 1 }, { transform: T(0, 0, 'scale(1.2)'), opacity: 0 }], 240);
+    },
+    execution: async (p, u, c) => {
+      const cc = c || u, b = pt(cc);
+      sceau(p, u, { ms: 320 });
+      const v = poserP(p, 'fx-vignette', b.x, b.y, { width: b.w * 1.9 + 'px', height: b.h * 1.6 + 'px' });
+      jouer(v, [{ opacity: 0 }, { opacity: 1, offset: .3 }, { opacity: 1, offset: .7 }, { opacity: 0 }], 510);
+      await attendre(160);
+      const top = Math.max(0, b.y - b.h * 1.2), H = b.y + b.h * .5 - top;
+      const k = poserP(p, 'fx-couperet-fin', b.x, top, { height: H + 'px' });
+      jouer(k, [{ transform: 'translateX(-50%) scaleY(0)', opacity: 1 }, { transform: 'translateX(-50%) scaleY(1)', opacity: 1, offset: .3 }, { transform: 'translateX(-50%) scaleY(1) scaleX(.2)', opacity: 0 }], 300);
+      await attendre(90);
+      impact(p, cc, { taille: .7, n: 4, ms: 220 });
+      bouger(faceDe(cc), [{ filter: 'none' }, { filter: 'brightness(1.6)', offset: .3 }, { filter: 'none' }], 220);
+      await attendre(260);
+    },
+    dernierRempart: async (p, u, c) => {
+      const a = pt(u);
+      sceau(p, u, { ms: 300 });
+      const f = poserP(p, 'fx-flamme', a.x, a.y, { width: a.w * 1.28 + 'px', height: a.h * 1.22 + 'px' });
+      jouer(f, [{ opacity: 0, transform: T(0, a.h * .06, 'scaleY(.8)') }, { opacity: 1, transform: T(0, 0, 'scaleY(1.04)'), offset: .35 },
+        { opacity: .85, transform: T(0, -a.h * .02, 'scaleY(.98)'), offset: .65 }, { opacity: 0, transform: T(0, -a.h * .06, 'scaleY(1.08)') }], 440);
+      semer(p, a.x, a.y + a.h * .45, 5, { angle: -90, ecart: 24, dist: [a.h * .5, a.h * .9], ms: 400, xEcart: a.w * .95, motif: 'flamme', oriente: true });
+      if (c) attendre(220).then(() => cercle(p, c, { ms: 200, de: .6, a: 1.15 }));
+      await attendre(440);
+    },
+    gardien: async (p, u, c) => {
+      const a = pt(u), b = c ? pt(c) : { x: a.x, y: a.y + (u.camp === 'e' ? 1 : -1) * a.h }, v = versDe(a, b), t = a.w * .55;
+      const x = a.x + v.ux * a.h * .42, y = a.y + v.uy * a.h * .42;
+      sceau(p, u, { ms: 300 });
+      const s = poserP(p, 'fx-egide', x, y, { width: t + 'px', height: t * 1.15 + 'px' });
+      jouer(s, [{ transform: T(0, 0, 'scale(.4)'), opacity: 0 }, { transform: T(0, 0, 'scale(1.05)'), opacity: 1, offset: .3 }, { transform: T(-v.ux * 4, -v.uy * 4, 'scale(.9)'), opacity: 1, offset: .45 },
+        { transform: T(0, 0, 'scale(1)'), opacity: 1, offset: .72 }, { transform: T(0, 0, 'scale(1)'), opacity: 0 }], 380);
+      await attendre(170);
+      semer(p, x, y, 4, { angle: Math.atan2(v.dy, v.dx) * 180 / Math.PI, ecart: 140, dist: [t * .3, t * .7], ms: 200, motif: 'etincelle' });
+      await attendre(210);
+    },
+    vengeance: async (p, u, c) => {
+      const a = pt(u);
+      sceau(p, u, { ms: 320 });
+      if (c) traitP(p, c, u, 'fx-filet sang', 260);
+      const g = poserP(p, 'fx-courroux', a.x, a.y + a.h * .1, { width: a.w * 1.15 + 'px', height: a.h * .95 + 'px' });
+      jouer(g, [{ opacity: 0, transform: T(0, a.h * .15) }, { opacity: 1, transform: T(0, 0), offset: .4 }, { opacity: 0, transform: T(0, -a.h * .15) }], 520, { delai: 120 });
+      semer(p, a.x, a.y + a.h * .4, 4, { angle: -90, ecart: 24, dist: [a.h * .6, a.h], ms: 480, xEcart: a.w * .7, delai: 140, motif: 'braise-rouge' });
+      await attendre(640);
+    },
+    regen: async (p, u) => {
+      const a = pt(u);
+      sceau(p, u, { ms: 300 });
+      bouger(faceDe(u), [{ filter: 'none' }, { filter: 'brightness(1.15) saturate(1.15)', offset: .5 }, { filter: 'none' }], 420);
+      semer(p, a.x, a.y + a.h * .25, 2, { angle: -90, ecart: 30, dist: [a.h * .25, a.h * .45], ms: 380, xEcart: a.w * .5 });
+      const g = poserP(p, 'fx-souffle-vert', a.x, a.y, { width: a.w * 1.2 + 'px', height: a.h * 1.12 + 'px' });
+      await jouer(g, [{ opacity: 0, transform: T(0, 0, 'scale(.94)') }, { opacity: .9, transform: T(0, 0, 'scale(1.02)'), offset: .5 }, { opacity: 0, transform: T(0, 0) }], 420, { easing: 'ease-in-out' });
+    },
+    recharge: async (p, u) => {
+      const b = pt(u), r = el(u.uid)?.querySelector('.dj-recharge');
+      const a = r ? centre(r) : { x: b.x + b.w * .36, y: b.y - b.h * .36 }, t = Math.max(12, b.w * .2);
+      sceau(p, u, { ms: 300 });
+      bouger(r, [{ transform: 'none' }, { transform: 'translateY(-3px) scale(1.2)', offset: .4 }, { transform: 'none' }], 300, { delai: 120 });
+      const s = poserP(p, 'fx-sablier', a.x, a.y - t * .9, { width: t + 'px', height: t * 1.3 + 'px' });
+      await jouer(s, [{ transform: T(0, 6, 'scale(.5) rotate(0deg)'), opacity: 0 }, { transform: T(0, -4, 'scale(1) rotate(0deg)'), opacity: 1, offset: .3 },
+        { transform: T(0, -8, 'scale(1) rotate(180deg)'), opacity: 1, offset: .7 }, { transform: T(0, -10, 'scale(.8) rotate(180deg)'), opacity: 0 }], 380);
+    },
+    ouverture: async (p, u, c, ev, trouver) => {
+      const camp = ev.camp === 'e' ? 'e' : 'a';
+      let cibles = (ev.cibles || []).map(trouver).filter(x => x && pt(x));
+      if (!cibles.length) cibles = vivants(autre(camp));
+      const r = rang(camp); if (!r || !cibles.length) return;
+      const rr = centre(r), n = cibles.length, pas = Math.min(45, 180 / Math.max(1, n - 1)), y0 = rr.y + (camp === 'a' ? -1 : 1) * rr.h * .3;
+      if (u && pt(u)) { sceau(p, u, { ms: 320 }); cercle(p, u, { ms: 300, de: .7, a: 1.2 }); }
+      cibles.forEach((x, i) => {
+        const de = { x: rr.gauche + rr.w * (n === 1 ? .5 : .12 + .76 * i / (n - 1)), y: y0 };
+        projP(p, de, x, 'fx-salve', { ms: 240, arc: (i % 2 ? 1 : -1) * 14, delai: 60 + i * pas }).then(() => impact(p, x));
+      });
+      attendre(300).then(() => secouer(3, 180));
+      await attendre(60 + (n - 1) * pas + 240 + 200);
+    },
+    releve: async (p, u) => {
+      const b = pt(u), H = b.y + b.h * .5;
+      const n = poserP(p, 'fx-colonne pouvoir', b.x, 0, { width: b.w * 1.05 + 'px', height: H + 'px' });
+      jouer(n, [{ transform: 'translateX(-50%) scaleY(0)', opacity: 0 }, { transform: 'translateX(-50%) scaleY(1)', opacity: 1, offset: .35 },
+        { transform: 'translateX(-50%) scaleY(1)', opacity: .9, offset: .7 }, { transform: 'translateX(-50%) scaleY(1)', opacity: 0 }], 660);
+      semer(p, b.x, b.y + b.h * .4, 6, { angle: -90, ecart: 24, dist: [b.h * .6, b.h * 1.1], ms: 560, xEcart: b.w * .7, delai: 80 });
+      sceau(p, u, { ms: 400, delai: 200 });
+      attendre(260).then(() => cercle(p, u, { ms: 380, de: .6, a: 1.5 }));
+      await attendre(680);
+    },
+    finCombat: async (p, u) => {
+      const b = pt(u);
+      sceau(p, u, { ms: 360 });
+      const f = poserP(p, 'fx-foyer', b.x, b.y + b.h * .2, { width: b.w * 1.3 + 'px', height: b.h * .9 + 'px' });
+      jouer(f, [{ opacity: 0, transform: T(0, 0, 'scale(.8)') }, { opacity: 1, transform: T(0, 0), offset: .35 }, { opacity: .8, transform: T(0, 0, 'scale(1.04)'), offset: .65 }, { opacity: 0, transform: T(0, 0) }], 600);
+      bouger(faceDe(u), [{ filter: 'none' }, { filter: 'sepia(.35) brightness(1.15)', offset: .45 }, { filter: 'none' }], 560);
+      semer(p, b.x, b.y + b.h * .42, 4, { angle: -90, ecart: 30, dist: [b.h * .35, b.h * .7], ms: 520, xEcart: b.w * .4, delai: 60, motif: 'braise' });
+      await attendre(600);
+    },
+    // Mécaniques sans instant (butin, xp…) si le jeu les envoie quand même : la signature, rien de plus.
+    autre: async (p, u) => { sceau(p, u, { ms: 300 }); await cercle(p, u, { ms: 300, de: .8, a: 1.15 }); },
+  };
+
+  async function animerPouvoir(ev, o = {}) {
+    if (!ev || !ev.mec) return;
+    try {
+      const trouver = id => (id == null ? null : (o.unite ? o.unite(id) : unites().find(x => x.uid === id)) || null);
+      const p = palette(ev), u = trouver(ev.uid), c0 = trouver(ev.cible), c = c0 && pt(c0) ? c0 : null;
+      if (ev.mec !== 'ouverture' && !(u && pt(u))) return;
+      if (reduit()) { if (!FREQUENTS.includes(ev.mec) && u && pt(u)) await halo(p, u); return; }
+      await (POUV[ev.mec] || POUV.autre)(p, u, c, ev, trouver);
+    } catch (e) { /* un pouvoir n'interrompt jamais le combat */ }
+  }
+
+  // Début de combat : le nom du pouvoir au-dessus du rang de l'équipe, un souffle qui le traverse.
+  async function animerSource(source, _C) {
+    sourceCourante = source || null;
+    if (!source) return;
+    try {
+      const p = paletteLieu(source), r = rang('a'); if (!r) return;
+      const rr = centre(r), tel = arene().classList.contains('telephone');
+      const nom = source.pouvoir || source.nom || source.c?.rep1 || source.c?.nom || '';
+      const lieu = source.c?.nom && source.c.nom !== nom ? source.c.nom : '';
+      const effets = (source.effets || []).map(e => e.texte).filter(Boolean).join(' · ');
+      annonce(p, rr.x, rr.y - rr.h / 2 - (tel ? 6 : 12), [['small', lieu], ['b', nom], ['i', effets]], 600 + tenue(), { bas: true });
+      if (reduit()) return attendre(600);
+      const w = rr.w * .4, h = rr.h * 1.2, x0 = rr.gauche - w / 2, x1 = rr.gauche + rr.w + w / 2;
+      const bd = poserP(p, 'fx-bande pouvoir', x0, rr.y, { width: w + 'px', height: h + 'px' });
+      jouer(bd, [{ transform: T(0, 0, 'skewX(-14deg)'), opacity: 0 }, { opacity: .9, offset: .2 }, { opacity: .9, offset: .75 }, { transform: T(x1 - x0, 0, 'skewX(-14deg)'), opacity: 0 }], 520, { easing: 'cubic-bezier(.45,0,.55,1)' });
+      vivants('a').forEach(x => attendre(60 + fractionX(x, r) * 380).then(() => cercle(p, x, { ms: 200, de: .85, a: 1.12, opacite: .8 })));
+      semer(p, rr.x, rr.y, 8, { angle: -90, ecart: 60, dist: [rr.h * .2, rr.h * .5], ms: 500, xEcart: rr.w * .9, delai: 60 });
+      await attendre(600);
+    } catch (e) {}
+  }
+
+  async function relPorte(rel, o) {
+    const p = RELIQUES.e, r = rang('e'); if (!r) return;
+    const porteurs = (o.porteurs || vivants('e')).filter(x => x && !x.ko && pt(x)), rr = centre(r);
+    annonce(p, rr.x, rr.y + rr.h / 2 + 8, [['small', 'Relique'], ['b', rel.nom]], 600 + tenue());
+    if (reduit()) return attendre(600);
+    const t = Math.max(18, (porteurs[0] ? pt(porteurs[0]).w : 100) * .3);
+    const g = poserP(p, 'fx-gemme', rr.x, rr.y, { width: t + 'px', height: t + 'px' });
+    jouer(g, [{ transform: T(0, 0, 'scale(.2) rotate(-90deg)'), opacity: 0 }, { transform: T(0, 0, 'scale(1.2) rotate(0deg)'), opacity: 1, offset: .3 },
+      { transform: T(0, 0, 'scale(1)'), opacity: 1, offset: .55 }, { transform: T(0, 0, 'scale(2)'), opacity: 0 }], 520);
+    const pas = Math.min(40, 120 / Math.max(1, porteurs.length - 1));
+    porteurs.forEach((x, i) => {
+      cercle(p, x, { cls: 'aura', de: 1.6, a: .95, ms: 380, delai: 200 + i * pas, easing: 'ease-in' });
+      bouger(faceDe(x), [{ filter: 'none' }, { filter: 'brightness(.6) saturate(.7) sepia(.3)', offset: .5 }, { filter: 'none' }], 380, { delai: 220 + i * pas });
+    });
+    await attendre(Math.min(640, 220 + (porteurs.length - 1) * pas + 380));
+  }
+
+  async function relPrise(rel, o) {
+    const p = RELIQUES.a, re = rang('e'), ra = rang('a'); if (!re || !ra) return;
+    const A = centre(re), B = centre(ra), equipe = (o.equipe || vivants('a')).filter(x => x && pt(x));
+    const w0 = equipe[0] ? pt(equipe[0]).w : 100, t = Math.max(22, w0 * .34);
+    annonce(p, B.x, B.y - B.h / 2 - 10, [['small', 'Relique prise'], ['b', rel.nom]], reduit() ? 600 + tenue() : 440 + tenue(), { bas: true, delai: reduit() ? 0 : 260 });
+    if (reduit()) return attendre(600);
+    const g0 = poserP(RELIQUES.e, 'fx-gemme', A.x, A.y, { width: t + 'px', height: t + 'px' });
+    jouer(g0, [{ transform: T(0, 0, 'scale(.3)'), opacity: 0 }, { transform: T(0, 0, 'scale(1.1)'), opacity: 1, offset: .5 }, { transform: T(0, 0, 'scale(1.5)'), opacity: 0 }], 200);
+    const dx = B.x - A.x, dy = B.y - A.y, h = Math.abs(dy) * .3 + 30, kf = [];
+    for (let i = 0; i <= 10; i++) { const s = i / 10; kf.push({ transform: T(dx * s + 4 * h * s * (1 - s) * .6, dy * s, `rotate(${s * 360}deg) scale(${1 + .35 * Math.sin(Math.PI * s)})`), opacity: i ? 1 : 0, offset: s * .85 }); }
+    kf.push({ transform: T(dx, dy, 'scale(1.8)'), opacity: 0, offset: 1 });
+    const g = poserP(p, 'fx-gemme grande', A.x, A.y, { width: t + 'px', height: t + 'px' });
+    jouer(g, kf, 470, { delai: 80, easing: 'cubic-bezier(.4,0,.5,1)' });
+    await attendre(480);
+    cercle(p, { x: B.x, y: B.y, w: t * 2.6, h: t * 2.6 }, { ms: 200, de: .4, a: 1.4 });
+    semer(p, B.x, B.y, 6, { dist: [t * .6, t * 1.4], ms: 200 });
+    equipe.forEach(x => projP(p, B, x, 'fx-eclat-or', { ms: 160 }));
+    await attendre(220);
+  }
+
+  async function relVendue(_rel, _o) {
+    const sac = document.querySelector('.dj-entete .pastille.or');
+    if (reduit()) return bouger(sac, [{ opacity: 1 }, { opacity: .4 }, { opacity: 1 }], 300);
+    const re = rang('e'), ar = arene().getBoundingClientRect(), A0 = re ? centre(re) : { x: ar.width / 2, y: ar.height * .3 };
+    const A = { x: ar.left + A0.x, y: ar.top + A0.y }, s = sac?.getBoundingClientRect();
+    const B = s ? { x: s.left + s.width / 2, y: s.top + s.height / 2 } : { x: A.x, y: ar.top - 20 };
+    const p = RELIQUES.a, t = 22;
+    const g = poserFixe(p, 'fx-gemme', A.x, A.y, { width: t + 'px', height: t + 'px' });
+    jouer(g, [{ transform: T(0, 0, 'scale(.3) rotate(-60deg)'), opacity: 0 }, { transform: T(0, -14, 'scale(1.1) rotate(0deg)'), opacity: 1, offset: .55 }, { transform: T(0, -18, 'scale(1.6)'), opacity: 0 }], 240);
+    await attendre(180);
+    const dx = B.x - A.x, dy = B.y - (A.y - 16), pieces = [];
+    for (let i = 0; i < 4; i++) {
+      const n = poserFixe(p, 'fx-piece', A.x, A.y - 16), side = (i - 1.5) * 18, kf = [];
+      for (let k = 0; k <= 8; k++) { const q = k / 8; kf.push({ transform: T(dx * q + side * Math.sin(Math.PI * q), dy * q - 40 * Math.sin(Math.PI * q), `scale(${1 - .3 * q})`), opacity: k === 8 ? .3 : 1, offset: q }); }
+      pieces.push(jouer(n, kf, 300, { delai: i * 30, easing: 'cubic-bezier(.5,0,.6,1)' }));
+    }
+    attendre(290).then(() => bouger(sac, [{ transform: 'none', filter: 'none' }, { transform: 'scale(1.18)', filter: 'brightness(1.5)', offset: .4 }, { transform: 'none', filter: 'none' }], 200));
+    await Promise.all(pieces);
+    await attendre(110);
+  }
+
+  async function animerRelique(relique, o = {}) {
+    if (!relique) return;
+    try {
+      if (o.moment === 'porte') return await relPorte(relique, o);
+      if (o.moment === 'prise') return await relPrise(relique, o);
+      if (o.moment === 'vendue') return await relVendue(relique, o);
+    } catch (e) {}
+  }
+
   function nettoyer() { poses.forEach(retirer); }
 
   return {
     animerGeste, animerEvenement, choisirSouffle, plusBlesse, voisin, nettoyer,
+    animerPouvoir, animerSource, animerRelique,
+    definirSource: s => { sourceCourante = s || null; },
+    paletteDe: palette,
     nbPoses: () => poses.size,
-    briques: { ruer, pulser, secouer, eclater, projectile, balayer, anneau, flottant, poser, trainee, colonne, sigle, fissures, eclair, machoires, volutes, particules, surcoucheEtoile },
+    nbParticules: () => nbParticules,
+    briques: { ruer, pulser, secouer, eclater, projectile, balayer, anneau, flottant, poser, trainee, colonne, sigle, fissures, eclair, machoires, volutes, particules, surcoucheEtoile,
+      poserP, semer, sceau, cercle, traitP, projP, impact, annonce, halo },
   };
 }
 
 export const GESTES_DONJON = GESTES;
+export const POUVOIRS_FREQUENTS = ['crit', 'drain', 'saignement', 'rempartDebut', 'soin'];

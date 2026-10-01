@@ -261,6 +261,17 @@ Les chiffres flottants restent ceux des règles (`montrer`) : le module les
 coupe pour ne pas les doubler. En mouvement réduit, un fondu seulement, et
 les états restent immobiles.
 
+Les pouvoirs ont suivi ([second brief](brief-animations-pouvoirs.md)) :
+`animerPouvoir(ev)` pour chaque événement de `resoudre`, de `debutDeTour`
+et de la victoire (teinte du type de lieu, ou gemme de relique, rouge chez
+l'adversaire) ; `animerSource` annonce la source en début de combat (le nom
+du pouvoir est passé en `pouvoir`) ; `animerRelique` joue la relique
+portée, prise ou vendue. Le rang adverse porte `.porte-relique` tant que la
+relique est en jeu. `tenueAnnonces` prolonge le seul texte des annonces en
+vitesse ×2 et ×4, sans retarder le combat. Au téléphone, les écrans de
+rencontre et de résultat mettent le lieu en vignette et gardent leurs
+boutons en bas de l'écran, au-dessus du menu.
+
 ## Sources de pouvoir et artéfacts (01/10/2026)
 
 **Plus d'artéfact au départ.** On ne choisit plus un artéfact de sa collection :

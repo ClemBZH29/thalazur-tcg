@@ -460,6 +460,10 @@ export default function Donjon({ jeu }) {
     window.scrollTo({ top: 0 });
     differer(async () => {
       // La première salve s'affiche, puis le premier tour ; elle peut avoir tout fini.
+      // La source s'annonce au premier tour ; la première salve part.
+      animRef.current.animerSource?.(p.source ? { ...p.source, pouvoir: sourceDe(p.source.c).nom } : null, CC);
+      if (CC.relique) animRef.current.animerRelique?.(CC.relique, { moment: "porte", porteurs: CC.ennemis.filter((x) => !x.ko) });
+      animerPouvoirs(CC.ouverture.map((o) => o.pouvoir));
       if (CC.ouverture.length) requestAnimationFrame(() => montrer(CC.ouverture.flatMap((o) => o.effets)));
       const fin = await passerLaMain(p, CC);
       if (fin) return conclure(fin, p, CC);
@@ -511,6 +515,8 @@ export default function Donjon({ jeu }) {
       arene, el, vitesse: () => vitesseRef.current, reduit: () => reduitRef.current,
       unites: () => (partieRef.current && combatRef.current ? unites(partieRef.current, combatRef.current) : []),
       flottants: false,
+      // Les annonces (source, relique) restent lisibles en vitesse ×2 et ×4.
+      tenueAnnonces: () => Math.round(500 * (1 - 1 / Math.max(1, vitesseRef.current))),
     });
   }
   useEffect(() => () => animRef.current?.nettoyer(), []);
@@ -530,16 +536,31 @@ export default function Donjon({ jeu }) {
       return [];
     }));
   };
+  /**
+   * Les pouvoirs (source de pouvoir, reliques) qui viennent de jouer : chacun
+   * son animation, si le module en a une (animerPouvoir, voir le brief
+   * docs/conception/brief-animations-pouvoirs.md). Sans elle, rien ne bouge.
+   */
+  const animerPouvoirs = (liste) => {
+    if (!liste?.length || !arene()) return;
+    for (const ev of liste) if (ev) animRef.current.animerPouvoir?.(ev, { unite: (uid) => parUid(partieRef.current, combatRef.current, uid) });
+  };
   const aTerre = () => new Set(unites(partieRef.current, combatRef.current).filter((x) => x.ko).map((x) => x.uid));
 
   const montrer = (effets) => {
     for (const f of effets) {
       const e = el(f.uid); if (!e) continue;
       if (f.anim) { e.classList.remove(f.anim); void e.offsetWidth; e.classList.add(f.anim); }
+      // Les chiffres d'une même carte s'empilent au lieu de se recouvrir, et
+      // durent moins longtemps quand le combat va vite.
+      const deja = e.querySelectorAll(".dj-flottant").length;
+      const duree = Math.round(Math.max(380, 760 / vitesseRef.current));
       const s = document.createElement("span");
       s.className = `dj-flottant ${f.cls || ""}`; s.textContent = f.txt;
+      s.style.setProperty("--rang", String(Math.min(deja, 3)));
+      s.style.animationDuration = `${duree}ms`;
       e.appendChild(s);
-      setTimeout(() => s.remove(), 1100);
+      setTimeout(() => s.remove(), duree + 40);
     }
   };
 
@@ -552,6 +573,7 @@ export default function Donjon({ jeu }) {
     const res = resoudre(p, CC, u, g, cible, rngCombat.current);
     setJournal((j) => [res.note, ...j].slice(0, 12));
     montrer(res.effets);
+    animerPouvoirs(res.pouvoirs);
     if (res.renvoi && cible) await animRef.current.animerEvenement("renvoi", cible, { attaquant: u });
     await animerChutes(avant);
     redessiner();
@@ -578,7 +600,8 @@ export default function Donjon({ jeu }) {
       // Saignement qui mord, piège qui tient : chacun son animation, puis ses chiffres.
       for (const n of notes) {
         const x = n.uid ? parUid(p, CC, n.uid) : null;
-        if (x && n.evt) await animRef.current.animerEvenement(n.evt, x, {});
+        if (n.evt === "pouvoir") animerPouvoirs([n.pouvoir]);
+        else if (x && n.evt) await animRef.current.animerEvenement(n.evt, x, {});
         montrer(n.effets);
       }
       await animerChutes(avant);
@@ -592,6 +615,8 @@ export default function Donjon({ jeu }) {
       CC.fini = "victoire";
       p.combat = null;
       const r = victoire(p, CC, rngCombat.current, POOLS.artefacts);
+      animerPouvoirs(r.pouvoirs);
+      if (CC.relique) animRef.current.animerRelique?.(CC.relique, { moment: r.relique?.vendue ? "vendue" : "prise", equipe: vivants(p.equipe) });
       setResultat(r);
       setOccupe(false);
       differer(() => { combatRef.current = null; aller(CC.genre === "boss" ? "sortie" : "resultat"); }, 450 / vitesseRef.current);
@@ -692,7 +717,13 @@ export default function Donjon({ jeu }) {
     const n = choix.length;
     const plus = mode === "infini" || tentativesRestantes > 0;
     const sourceManque = collection.lieux.length > 0 && !collection.lieux.some((l) => `${l.ext}:${l.id}` === sourceCle && !enExpedition?.(l));
-    const parRole = Object.keys(ROLES).map((r) => [r, collection.allies.filter((c) => roleDe(c.rep1) === r)]).filter(([, l]) => l.length);
+    // Les cartes indisponibles (en expédition, au repos) passent en fin de
+    // rangée, toujours grisées : on ne fait pas défiler pour trouver qui peut descendre.
+    // Une carte déjà choisie reste à sa place, même si elle est indisponible (mode test).
+    const indispo = (c) => !choix.includes(c.id) && (!!enExpedition?.(c) || (!!convalescence(c) && !illimite));
+    const enFin = (l) => [...l.filter((c) => !indispo(c)), ...l.filter(indispo)];
+    const parRole = Object.keys(ROLES).map((r) => [r, enFin(collection.allies.filter((c) => roleDe(c.rep1) === r))]).filter(([, l]) => l.length);
+    const lieuxRangee = [...collection.lieux.filter((l) => !enExpedition?.(l)), ...collection.lieux.filter((l) => enExpedition?.(l))];
     const MJ = DONJON.modes.jour, MI = DONJON.modes.infini;
     return (
       <div className="dj">
@@ -806,7 +837,7 @@ export default function Donjon({ jeu }) {
             </p>
             {collection.lieux.length === 0 ? <p className="muted petit">Aucun lieu dans votre collection : l'équipe descend sans source de pouvoir.</p> : (
               <Rangee titre="Lieux" nb={collection.lieux.length} pris={sourceCle ? 1 : 0} classe="r-lieu">
-                {collection.lieux.map((l) => {
+                {lieuxRangee.map((l) => {
                   const cle = `${l.ext}:${l.id}`, pris = sourceCle === cle;
                   const niv = niveauCarte(l), et = !!ficheDe(etat, l).etoiles?.source;
                   const S = sourceDe(l), eff = effetsSource(l, niv, et);
@@ -1030,7 +1061,7 @@ export default function Donjon({ jeu }) {
               <span> — {texteEffets(effetsArtefact(C.relique))}. Battez-les pour la prendre.</span>
             </p>
           )}
-          <div className={`dj-rang ennemis${C.ennemis.some((x) => !x.ko && x.rempart > 0) ? " etat-rempart" : ""}`}><span className="dj-rempart" aria-hidden="true" />{C.ennemis.map(unite)}</div>
+          <div className={`dj-rang ennemis${C.ennemis.some((x) => !x.ko && x.rempart > 0) ? " etat-rempart" : ""}${C.relique ? " porte-relique" : ""}`}><span className="dj-rempart" aria-hidden="true" />{C.ennemis.map(unite)}</div>
           <div className="dj-milieu">
             <div className="dj-consigne" aria-live="polite">{consigne}
               <div className="dj-journal">{journal.slice(0, 3).map((t, i) => <div key={i}>{t}</div>)}</div>
@@ -1072,6 +1103,10 @@ export default function Donjon({ jeu }) {
     );
   }
 
+  /* Au téléphone, la carte du lieu passe en vignette dans le panneau : en
+     pleine largeur, elle repoussait le récit et les boutons sous le pli. */
+  const vignette = lieu && <div className="dj-scene-vignette" aria-hidden="true"><CarteDJ c={lieu} cfgImage={cfgImage} fichiers={fichiers} /></div>;
+
   if (ecran === "rencontre" && rencontre) {
     return (
       <div className="dj">
@@ -1079,9 +1114,10 @@ export default function Donjon({ jeu }) {
         <div className="dj-scene">
           {lieu && <div className="dj-scene-carte"><CarteDJ c={lieu} cfgImage={cfgImage} fichiers={fichiers} /></div>}
           <section className="panneau dj-panneau">
+            {vignette}
             <h2>{rencontre.e.titre}</h2>
             <p>{rencontre.texte}</p>
-            <div className="actions gauche">
+            <div className="actions gauche dj-actions-bas">
               {rencontre.choix.map((c, i) => (
                 <button key={i} type="button" className={`btn${i ? " quiet" : ""}`} disabled={c.ok === false} onClick={() => choisirRencontre(i)}>{c.lib}</button>
               ))}
@@ -1102,6 +1138,7 @@ export default function Donjon({ jeu }) {
         <div className="dj-scene">
           {lieu && <div className="dj-scene-carte"><CarteDJ c={lieu} cfgImage={cfgImage} fichiers={fichiers} /></div>}
           <section className="panneau dj-panneau">
+            {vignette}
             <h2>{R.titre}</h2>
             <p>{R.texte}</p>
             {R.po > 0 && <p><span className="dj-butin">+{R.po}</span> <span className="muted">pièces au sac</span></p>}
@@ -1111,7 +1148,7 @@ export default function Donjon({ jeu }) {
                 : "Remonter maintenant, c'est tout garder. Descendre, c'est des adversaires plus durs et des bourses plus lourdes — mais si l'équipe tombe, il ne restera qu'un quart du sac. Les tombés se relèvent à peine avant de descendre ; les autres gardent leurs blessures."}</p>
             )}
             <MiniEquipe partie={partie} />
-            <div className="actions gauche">
+            <div className="actions gauche dj-actions-bas">
               {ecran === "sortie" ? (
                 <>
                   <button className="btn" type="button" onClick={() => terminer("sortie")}>Remonter avec {pieces(partie.sac)}</button>
