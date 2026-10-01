@@ -212,13 +212,8 @@
 /* La pose « à terre » est portée par la carte, comme la chute animée qui y
    mène (animations.js) : la classe prend le relais à l'identique, sans saut. */
 .dj-u.ko { opacity: .55; }
-.dj-u.ko .dj-carte { filter: grayscale(1) brightness(.5); transform: translateY(6px) rotate(-3deg); }
+.dj-u.ko .dj-carte { filter: grayscale(1) brightness(.55); transform: translateY(6px) rotate(-3deg); } /* = fin de la chute animée */
 .dj-u.boss { flex-basis: 170px; }
-.dj-u.touche .dj-face { animation: dj-touche .38s; }
-.dj-u.soigne .plaque { animation: dj-soigne .6s; }
-@keyframes dj-touche { 0% { transform: translate(0) } 20% { transform: translate(-7px, 2px) } 45% { transform: translate(6px, -2px) }
-  70% { transform: translate(-3px, 0) } 100% { transform: translate(0) } }
-@keyframes dj-soigne { 40% { box-shadow: 0 0 0 4px rgba(127,209,185,.8), 0 0 40px rgba(127,209,185,.6); } }
 .dj-eclat { position: absolute; inset: 0 0 20px; z-index: 8; pointer-events: none; border-radius: 4%;
   background: radial-gradient(circle, rgba(255,210,170,.75), rgba(229,119,75,.2) 45%, transparent 70%);
   animation: dj-eclat .35s ease-out forwards; }

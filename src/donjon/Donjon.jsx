@@ -450,6 +450,9 @@ export default function Donjon({ jeu }) {
     rngCombat.current = tirage(p.combat.graine);
     combatRef.current = demarrerCombat(p, p.combat.genre, rngCombat.current, POOLS);
     const CC = combatRef.current;
+    // La première salve a pu en abattre : debout à l'écran jusqu'à ce qu'elle les touche.
+    koVu.current.clear();
+    for (const x of CC.ennemis) if (x.ko) koVu.current.set(x.uid, false);
     setJournal([
       ...CC.ouverture.map((o) => o.note).reverse(),
       ...(CC.relique ? [`Ils portent ${CC.relique.nom} : battez-les pour la prendre.`] : []),
@@ -464,7 +467,11 @@ export default function Donjon({ jeu }) {
       animRef.current.animerSource?.(p.source ? { ...p.source, pouvoir: sourceDe(p.source.c).nom } : null, CC);
       if (CC.relique) animRef.current.animerRelique?.(CC.relique, { moment: "porte", porteurs: CC.ennemis.filter((x) => !x.ko) });
       animerPouvoirs(CC.ouverture.map((o) => o.pouvoir));
-      if (CC.ouverture.length) requestAnimationFrame(() => montrer(CC.ouverture.flatMap((o) => o.effets)));
+      if (CC.ouverture.length) {
+        requestAnimationFrame(() => montrer(CC.ouverture.flatMap((o) => o.effets)));
+        // Les tombés de la salve chutent quand elle arrive, pas avant.
+        if (CC.ennemis.some((x) => x.ko)) await new Promise((ok) => setTimeout(ok, 480 / vitesseRef.current));
+      }
       const fin = await passerLaMain(p, CC);
       if (fin) return conclure(fin, p, CC);
       setOccupe(false); redessiner();
@@ -510,6 +517,8 @@ export default function Donjon({ jeu }) {
   const arene = () => zone.current?.querySelector(".dj-arene");
   const reduitRef = useRef(mouvementReduit); reduitRef.current = mouvementReduit;
   const animRef = useRef(null);
+  const koVu = useRef(new Map());
+  const koAffiche = (x) => (koVu.current.has(x.uid) ? koVu.current.get(x.uid) : x.ko);
   if (!animRef.current) {
     animRef.current = creerAnimationsDonjon({
       arene, el, vitesse: () => vitesseRef.current, reduit: () => reduitRef.current,
@@ -529,12 +538,16 @@ export default function Donjon({ jeu }) {
   /** Les mises à terre et relèves d'une action, animées avant que l'état ne les fige. */
   const animerChutes = (avant) => {
     const p = partieRef.current, CC = combatRef.current;
-    if (!p || !CC || !arene()) return Promise.resolve();
+    const liberer = () => { koVu.current.clear(); };
+    if (!p || !CC || !arene()) { liberer(); return Promise.resolve(); }
+    // `appliquer` : la pose à terre (ou debout) passe à l'affichage au moment
+    // précis où l'animation la rejoint, ni avant ni après.
+    const poser = (x) => () => { koVu.current.set(x.uid, x.ko); el(x.uid)?.classList.toggle("ko", x.ko); };
     return Promise.all(unites(p, CC).flatMap((x) => {
-      if (x.ko && !avant.has(x.uid)) return [animRef.current.animerEvenement("ko", x, { appliquer: () => el(x.uid)?.classList.add("ko") })];
-      if (!x.ko && avant.has(x.uid)) return [animRef.current.animerEvenement("releve", x, { appliquer: () => el(x.uid)?.classList.remove("ko") })];
+      if (x.ko && !avant.has(x.uid)) return [animRef.current.animerEvenement("ko", x, { appliquer: poser(x) })];
+      if (!x.ko && avant.has(x.uid)) return [animRef.current.animerEvenement("releve", x, { appliquer: poser(x) })];
       return [];
-    }));
+    })).then(liberer, liberer);
   };
   /**
    * Les pouvoirs (source de pouvoir, reliques) qui viennent de jouer : chacun
@@ -545,12 +558,45 @@ export default function Donjon({ jeu }) {
     if (!liste?.length || !arene()) return;
     for (const ev of liste) if (ev) animRef.current.animerPouvoir?.(ev, { unite: (uid) => parUid(partieRef.current, combatRef.current, uid) });
   };
-  const aTerre = () => new Set(unites(partieRef.current, combatRef.current).filter((x) => x.ko).map((x) => x.uid));
+  /**
+   * Les tombés tels qu'affichés, figés jusqu'à leur animation. Les règles
+   * mettent une unité à terre d'un coup ; sans ce gel, le premier rendu React
+   * qui suit (journal, saignement, renvoi…) posait la carte à terre par la
+   * classe .ko, puis l'animation de chute repartait de debout : la carte
+   * tombait, revenait, et retombait. `aTerre` fige l'affichage de chaque
+   * unité ; `animerChutes` le libère carte par carte.
+   */
+  const aTerre = () => {
+    const s = new Set();
+    for (const x of unites(partieRef.current, combatRef.current)) {
+      const ko = koAffiche(x);
+      koVu.current.set(x.uid, ko);
+      if (ko) s.add(x.uid);
+    }
+    return s;
+  };
 
+  /*
+   * Le sursaut d'une carte touchée ou soignée. En animation Web plutôt qu'en
+   * classe : React réécrit `className` à chaque rendu, et le rendu qui suit un
+   * coup (journal, mise à terre) effaçait la classe en pleine secousse — le
+   * portrait revenait d'un coup en place avant la chute.
+   */
+  const REACTIONS = {
+    touche: [".dj-face", [{ transform: "translate(0)" }, { transform: "translate(-7px, 2px)", offset: 0.2 }, { transform: "translate(6px, -2px)", offset: 0.45 },
+      { transform: "translate(-3px, 0)", offset: 0.7 }, { transform: "translate(0)" }], 380, true],
+    soigne: [".plaque", [{ boxShadow: "0 0 0 4px rgba(127,209,185,.8), 0 0 40px rgba(127,209,185,.6)", offset: 0.4 }], 600, false],
+  };
+  const reagir = (e, anim) => {
+    const R = REACTIONS[anim]; const n = R && e.querySelector(R[0]);
+    if (!n?.animate || (R[3] && reduitRef.current)) return;
+    n.getAnimations().filter((a) => a.id === anim).forEach((a) => a.cancel());
+    n.animate(R[1], { duration: R[2], easing: "ease-out", id: anim });
+  };
   const montrer = (effets) => {
     for (const f of effets) {
       const e = el(f.uid); if (!e) continue;
-      if (f.anim) { e.classList.remove(f.anim); void e.offsetWidth; e.classList.add(f.anim); }
+      if (f.anim) reagir(e, f.anim);
       // Les chiffres d'une même carte s'empilent au lieu de se recouvrir, et
       // durent moins longtemps quand le combat va vite.
       const deja = e.querySelectorAll(".dj-flottant").length;
@@ -604,8 +650,8 @@ export default function Donjon({ jeu }) {
         else if (x && n.evt) await animRef.current.animerEvenement(n.evt, x, {});
         montrer(n.effets);
       }
-      await animerChutes(avant);
     }
+    await animerChutes(avant);
     const fin = issue(p, CC);
     redessiner();
     return fin;
@@ -614,7 +660,9 @@ export default function Donjon({ jeu }) {
     if (fin === "victoire") {
       CC.fini = "victoire";
       p.combat = null;
+      const avant = aTerre();
       const r = victoire(p, CC, rngCombat.current, POOLS.artefacts);
+      animerChutes(avant); // la relève d'après victoire
       animerPouvoirs(r.pouvoirs);
       if (CC.relique) animRef.current.animerRelique?.(CC.relique, { moment: r.relique?.vendue ? "vendue" : "prise", equipe: vivants(p.equipe) });
       setResultat(r);
@@ -1018,7 +1066,7 @@ export default function Donjon({ jeu }) {
       const etiquette = u.boss ? "Gardien · Balayage" : R ? `${R.nom} · ${COMPETENCES[techDe(u)].nom}${u.etoiles?.tech ? " ★" : ""}` : `${u.elite ? "Élite · " : ""}${TRAITS[u.role].nom}`;
       return (
         <div key={u.uid} data-uid={u.uid}
-          className={`dj-u${u.uid === C.actif ? " actif" : ""}${u.ko ? " ko" : ""}${etatsDe(u)}${ciblable ? ` ciblable${u.camp === "a" ? " allie" : ""}` : ""}${u.boss ? " boss" : ""}`}
+          className={`dj-u${u.uid === C.actif ? " actif" : ""}${koAffiche(u) ? " ko" : ""}${etatsDe(u)}${ciblable ? ` ciblable${u.camp === "a" ? " allie" : ""}` : ""}${u.boss ? " boss" : ""}`}
           {...(doigt ? {} : { onMouseEnter: () => setInspecte(u.uid), onMouseLeave: () => setInspecte((x) => (x === u.uid ? null : x)) })}
           {...(ciblable ? { role: "button", tabIndex: 0, "aria-label": `Cibler ${u.nomAffiche || u.c.nom}`,
             onClick: () => cibler(u), onKeyDown: (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); cibler(u); } } }
