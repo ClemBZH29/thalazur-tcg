@@ -9,12 +9,14 @@ import {
   atqDe, cartesDonjon, choixAuto, choixIA, creerPartie, demarrerCombat, descendre, entrer, fuir,
   gestes, graineDuJour, issue, ouverts, parUid, prochain, rapporte, repos, resoudre,
   tresor, victoire, vivants, allie, ciblesPossibles, convalescences, fiche, peutFuir, gainsXP,
-  apprentissage, brume, tirage, BRUME_TOUR, COMPETENCES, techDe,
+  apprentissage, brume, tirage, BRUME_TOUR, COMPETENCES, techDe, unites,
 } from "./regles.js";
 import { etoiles, ficheDe, fichesDe } from "./fiches.js";
 import { Etoile } from "../components/VoletCombat.jsx";
 import { NIVEAU_MAX, PALIER_IRISEE, avancement, xpDe } from "./experience.js";
 import "../styles/donjon.css";
+import "../styles/donjon-animations.css";
+import { creerAnimationsDonjon } from "./animations.js";
 
 /**
  * Le Donjon : l'interface.
@@ -89,6 +91,12 @@ function CarteDJ({ c, u = null, partie = null, cfgImage, fichiers }) {
       {u?.camp === "a" && u.etoiles && <EtoilesCarte n={Object.keys(u.etoiles).length} petit />}
       <div className="dj-face"><FaceCarte c={c} cfgImage={cfg} fichiers={fichiers} vignette /></div>
       {u && (
+        <span className="dj-etats" aria-hidden="true">
+          <i className="e-saigne"><b /><b /><b /></i><i className="e-marque" /><i className="e-piege" /><i className="e-voile" />
+          <i className="e-garde" /><i className="e-pavois" /><i className="e-provoque" /><i className="e-galva" />
+        </span>
+      )}
+      {u && (
         <div className="dj-sur" aria-hidden="true">
           <span className="dj-badges">
             <b className={`atq${u.etoiles?.atq ? " et" : ""}`}>ATQ {atqDe(partie, u)}</b>
@@ -137,11 +145,17 @@ function BoutonRemonter({ sac, onRemonter, className = "btn quiet" }) {
   );
 }
 
+/** Les états d'une unité, en classes pour leurs calques (donjon-animations.css). */
+const etatsDe = (u) => [
+  u.saigne > 0 && "etat-saigne", u.marque > 0 && "etat-marque", u.etourdi > 0 && "etat-piege", u.voile && "etat-voile",
+  u.riposte > 0 && "etat-garde", u.parade > 0 && "etat-bouclier", u.provoque && "etat-provoque", u.galva > 0 && "etat-galva",
+].filter(Boolean).map((x) => ` ${x}`).join("");
+
 function Jeton({ u, cls = "", cfgImage, fichiers }) {
   const src = resoudreImage(u.c, { ...cfgImage, extension: u.c.ext }, fichiers, { vignette: true });
   const [rate, setRate] = useState(false);
   return (
-    <span className={`dj-jeton ${u.camp} ${cls}`} title={`${u.nomAffiche || u.c.nom} — initiative ${u.ini}`}>
+    <span className={`dj-jeton ${u.camp} ${cls}`} data-uid={u.uid} data-camp={u.camp} title={`${u.nomAffiche || u.c.nom} — initiative ${u.ini}`}>
       {src && !rate ? <img src={src} alt="" onError={() => setRate(true)} /> : initiales(u.c.nom)}
       <span className="ini">{u.ini}</span>
     </span>
@@ -413,133 +427,36 @@ export default function Donjon({ jeu }) {
   /* ── Combat : le fil ─────────────────────────────────────────────── */
   const el = (uid) => zone.current?.querySelector(`.dj-u[data-uid="${uid}"]`);
 
-  const ruer = async (att, cible, { vite = false, lourd = false } = {}) => {
-    const a = el(att.uid), b = el(cible.uid);
-    if (!a || !b || mouvementReduit) return;
-    const ra = a.getBoundingClientRect(), rb = b.getBoundingClientRect();
-    const dx = rb.left + rb.width / 2 - (ra.left + ra.width / 2), dy = rb.top + rb.height / 2 - (ra.top + ra.height / 2);
-    const t = (vite ? 300 : 460) / vitesseRef.current;
-    a.style.zIndex = 10;
-    const anim = a.animate([
-      { transform: "translate(0,0) rotate(0) scale(1)" },
-      { transform: `translate(${-dx * 0.06}px, ${-dy * 0.06}px) rotate(${dx > 0 ? -4 : 4}deg) scale(1.02)`, offset: 0.25 },
-      { transform: `translate(${dx * 0.62}px, ${dy * 0.62}px) rotate(${dx > 0 ? 6 : -6}deg) scale(1.08)`, offset: 0.52 },
-      { transform: "translate(0,0) rotate(0) scale(1)" },
-    ], { duration: t, easing: "cubic-bezier(.35,.1,.3,1)" });
-    setTimeout(() => {
-      eclater(b, lourd ? "lourd" : "");
-    }, t * 0.5);
-    await anim.finished.catch(() => {});
-    a.style.zIndex = "";
-  };
-  const pulser = async (u) => {
-    const a = el(u.uid);
-    if (!a || mouvementReduit) return;
-    await a.animate([{ transform: "scale(1)" }, { transform: "translateY(-8px) scale(1.07)" }, { transform: "scale(1)" }],
-      { duration: 380 / vitesseRef.current, easing: "ease-out" }).finished.catch(() => {});
-  };
-  /* Chaque capacité a son geste : la frappe de base fond sur la cible, les
-     autres se distinguent au premier coup d'œil. Tout passe par l'API Web
-     Animations et des éléments posés le temps de l'effet dans l'arène. */
+  /* Les animations : src/donjon/animations.js (Claude Design). Le module lit
+     l'arène, la vitesse et le mouvement réduit au moment de jouer. */
   const arene = () => zone.current?.querySelector(".dj-arene");
-  const centre = (e) => {
-    const a = arene().getBoundingClientRect(), r = e.getBoundingClientRect();
-    return { x: r.left - a.left + r.width / 2, y: r.top - a.top + r.height * 0.4 };
-  };
-  const poser = (cls, style = {}) => {
-    const d = document.createElement("span");
-    d.className = cls; Object.assign(d.style, style);
-    arene().appendChild(d);
-    return d;
-  };
-  const secouer = (force = 6) => arene()?.animate(
-    [{ transform: "translate(0,0)" }, { transform: `translate(${-force}px, ${force / 2}px)` }, { transform: `translate(${force}px, ${-force / 2}px)` },
-      { transform: `translate(${-force / 2}px, 0)` }, { transform: "translate(0,0)" }], { duration: 320 / vitesseRef.current });
-  const eclater = (b, cls = "") => {
-    b.classList.remove("touche"); void b.offsetWidth; b.classList.add("touche");
-    const e = document.createElement("span"); e.className = `dj-eclat ${cls}`; b.appendChild(e);
-    setTimeout(() => e.remove(), 450);
-  };
-  const projectile = async (de, vers, cls, { arc = 0, duree = 380 } = {}) => {
-    const a = centre(de), b = centre(vers);
-    const ang = (Math.atan2(b.y - a.y, b.x - a.x) * 180) / Math.PI;
-    const p = poser(`dj-proj ${cls}`, { left: `${a.x}px`, top: `${a.y}px` });
-    const mx = (b.x - a.x) / 2, my = (b.y - a.y) / 2 - arc;
-    await p.animate([
-      { transform: `translate(-50%,-50%) rotate(${ang}deg)`, opacity: 0.2 },
-      { transform: `translate(calc(-50% + ${mx}px), calc(-50% + ${my}px)) rotate(${ang}deg)`, opacity: 1, offset: 0.5 },
-      { transform: `translate(calc(-50% + ${b.x - a.x}px), calc(-50% + ${b.y - a.y}px)) rotate(${ang}deg)`, opacity: 1 },
-    ], { duration: duree / vitesseRef.current, easing: "ease-in" }).finished.catch(() => {});
-    p.remove();
-  };
-  const balayer = async (rang, cls) => {
-    const r = rang.getBoundingClientRect(), a = arene().getBoundingClientRect();
-    const v = poser(`dj-vague ${cls}`, { left: `${r.left - a.left}px`, top: `${r.top - a.top}px`, width: `${r.width}px`, height: `${r.height}px` });
-    await v.animate([{ backgroundPosition: "-120% 0", opacity: 0 }, { opacity: 1, offset: 0.3 }, { backgroundPosition: "220% 0", opacity: 0 }],
-      { duration: 620 / vitesseRef.current, easing: "ease-in-out" }).finished.catch(() => {});
-    v.remove();
-  };
-  const anneau = (e, cls) => {
-    const c = centre(e);
-    const d = poser(`dj-anneau ${cls}`, { left: `${c.x}px`, top: `${c.y}px` });
-    return d.animate([{ transform: "translate(-50%,-50%) scale(.3)", opacity: 1 }, { transform: "translate(-50%,-50%) scale(1.6)", opacity: 0 }],
-      { duration: 620 / vitesseRef.current, easing: "ease-out" }).finished.catch(() => {}).then(() => d.remove());
-  };
+  const reduitRef = useRef(mouvementReduit); reduitRef.current = mouvementReduit;
+  const animRef = useRef(null);
+  if (!animRef.current) {
+    animRef.current = creerAnimationsDonjon({
+      arene, el, vitesse: () => vitesseRef.current, reduit: () => reduitRef.current,
+      unites: () => (partieRef.current && combatRef.current ? unites(partieRef.current, combatRef.current) : []),
+      flottants: false,
+    });
+  }
+  useEffect(() => () => animRef.current?.nettoyer(), []);
   const animerGeste = async (u, g, cible) => {
-    const a = el(u.uid), b = cible ? el(cible.uid) : null;
-    if (!a || mouvementReduit || !arene()) return;
-    const t = (ms) => ms / vitesseRef.current;
-    const rangEnFace = zone.current.querySelector(u.camp === "a" ? ".dj-rang.ennemis" : ".dj-rang.equipe");
-    if (g === "attaque" && b) return ruer(u, cible);
-    if (g === "lourde" && b) {
-      // Il prend son élan, lève haut, et abat : l'arène tremble.
-      await a.animate([{ transform: "translateY(-10px)" }, { transform: "translateY(-30px) rotate(-6deg) scale(1.1)" }],
-        { duration: t(260), easing: "ease-out", fill: "forwards" }).finished.catch(() => {});
-      a.getAnimations().forEach((x) => x.cancel());
-      await ruer(u, cible, { vite: true, lourd: true });
-      secouer(9);
-      return;
-    }
-    if (g === "coupbas" && b) { await ruer(u, cible, { vite: true }); return; }
-    if (g === "vise" && b) {
-      a.animate([{ transform: "translateY(-10px)" }, { transform: "translateY(-6px) scale(.96)" }, { transform: "translateY(-10px)" }], { duration: t(240) });
-      await projectile(a, b, "fleche", { duree: 300 });
-      eclater(b);
-      return;
-    }
-    if (g === "soin" && b) {
-      a.animate([{ filter: "none" }, { filter: "drop-shadow(0 0 14px rgba(127,209,185,.9))" }, { filter: "none" }], { duration: t(420) });
-      await projectile(a, b, "orbe", { arc: 70, duree: 480 });
-      anneau(b, "soin");
-      return;
-    }
-    if (g === "vague") {
-      await pulser(u);
-      if (rangEnFace) await balayer(rangEnFace, "brume");
-      secouer(4);
-      return;
-    }
-    if (g === "balayage") {
-      await a.animate([{ transform: "scale(1)" }, { transform: "translateY(10px) scale(1.12)" }, { transform: "scale(1)" }], { duration: t(360) }).finished.catch(() => {});
-      if (rangEnFace) await balayer(rangEnFace, "sang");
-      secouer(11);
-      return;
-    }
-    if (g === "provoc") { anneau(a, "garde"); await pulser(u); return; }
-    if (g === "rempart" || g === "ravit") {
-      const siens = zone.current.querySelectorAll(u.camp === "a" ? ".dj-rang.equipe .dj-u:not(.ko)" : ".dj-rang.ennemis .dj-u:not(.ko)");
-      siens.forEach((x) => anneau(x, g === "rempart" ? "garde" : "soin"));
-      await pulser(u);
-      return;
-    }
-    if (g === "galva") {
-      const siens = zone.current.querySelectorAll(u.camp === "a" ? ".dj-rang.equipe .dj-u:not(.ko)" : ".dj-rang.ennemis .dj-u:not(.ko)");
-      siens.forEach((x) => anneau(x, "galva"));
-      await pulser(u);
-      return;
-    }
-    await pulser(u);
+    if (!arene()) return;
+    // Un coup sur un allié voilé traverse la brume : l'esquive remplace le geste.
+    if (cible && cible.camp !== u.camp && cible.voile) return animRef.current.animerEvenement("esquive", cible, { attaquant: u });
+    return animRef.current.animerGeste(u, g, cible);
   };
+  /** Les mises à terre et relèves d'une action, animées avant que l'état ne les fige. */
+  const animerChutes = (avant) => {
+    const p = partieRef.current, CC = combatRef.current;
+    if (!p || !CC || !arene()) return Promise.resolve();
+    return Promise.all(unites(p, CC).flatMap((x) => {
+      if (x.ko && !avant.has(x.uid)) return [animRef.current.animerEvenement("ko", x, { appliquer: () => el(x.uid)?.classList.add("ko") })];
+      if (!x.ko && avant.has(x.uid)) return [animRef.current.animerEvenement("releve", x, { appliquer: () => el(x.uid)?.classList.remove("ko") })];
+      return [];
+    }));
+  };
+  const aTerre = () => new Set(unites(partieRef.current, combatRef.current).filter((x) => x.ko).map((x) => x.uid));
 
   const montrer = (effets) => {
     for (const f of effets) {
@@ -557,21 +474,31 @@ export default function Donjon({ jeu }) {
     if (!p || !CC || CC.fini) return;
     setOccupe(true); setGeste(null);
     await animerGeste(u, g, cible);
+    const avant = aTerre();
     const res = resoudre(p, CC, u, g, cible, rngCombat.current);
     setJournal((j) => [res.note, ...j].slice(0, 12));
+    montrer(res.effets);
+    if (res.renvoi && cible) await animRef.current.animerEvenement("renvoi", cible, { attaquant: u });
+    await animerChutes(avant);
     redessiner();
-    requestAnimationFrame(() => montrer(res.effets));
     await new Promise((ok) => setTimeout(ok, 560 / vitesseRef.current));
     if (combatRef.current !== CC) return;
     let fin = issue(p, CC);
     if (!fin) {
       // La main passe. Un saignement ou un piège joue entre deux mains : il
       // part au journal, et peut clore le combat.
+      const avant2 = aTerre();
       prochain(p, CC);
       const notes = CC.notes || [];
       if (notes.length) {
         setJournal((j) => [...notes.map((n) => n.note).reverse(), ...j].slice(0, 12));
-        requestAnimationFrame(() => montrer(notes.flatMap((n) => n.effets)));
+        // Saignement qui mord, piège qui tient : chacun son animation, puis ses chiffres.
+        for (const n of notes) {
+          const x = n.uid ? parUid(p, CC, n.uid) : null;
+          if (x && n.evt) await animRef.current.animerEvenement(n.evt, x, {});
+          montrer(n.effets);
+        }
+        await animerChutes(avant2);
       }
       fin = issue(p, CC);
       if (!fin) { setOccupe(false); redessiner(); return; }
@@ -947,7 +874,7 @@ export default function Donjon({ jeu }) {
       const etiquette = u.boss ? "Gardien · Balayage" : R ? `${R.nom} · ${COMPETENCES[techDe(u)].nom}${u.etoiles?.tech ? " ★" : ""}` : `${u.elite ? "Élite · " : ""}${TRAITS[u.role].nom}`;
       return (
         <div key={u.uid} data-uid={u.uid}
-          className={`dj-u${u.uid === C.actif ? " actif" : ""}${u.ko ? " ko" : ""}${ciblable ? ` ciblable${u.camp === "a" ? " allie" : ""}` : ""}${u.boss ? " boss" : ""}`}
+          className={`dj-u${u.uid === C.actif ? " actif" : ""}${u.ko ? " ko" : ""}${etatsDe(u)}${ciblable ? ` ciblable${u.camp === "a" ? " allie" : ""}` : ""}${u.boss ? " boss" : ""}`}
           {...(doigt ? {} : { onMouseEnter: () => setInspecte(u.uid), onMouseLeave: () => setInspecte((x) => (x === u.uid ? null : x)) })}
           {...(ciblable ? { role: "button", tabIndex: 0, "aria-label": `Cibler ${u.nomAffiche || u.c.nom}`,
             onClick: () => cibler(u), onKeyDown: (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); cibler(u); } } }
@@ -975,7 +902,7 @@ export default function Donjon({ jeu }) {
     return (
       <div className="dj" ref={zone}>
         {entete}
-        <div className="dj-arene">
+        <div className={`dj-arene${doigt ? " telephone" : ""}`}>
           <div className="dj-coeur">
           <div className="dj-frise" aria-label="Ordre d'initiative du tour">
             <span className="tour">Tour {C.round}</span>
@@ -984,7 +911,7 @@ export default function Donjon({ jeu }) {
               <Jeton key={`${u.uid}-${i}`} u={u} cls={u.uid === C.actif ? "actif" : i < C.idx ? "passe" : ""} cfgImage={cfgImage} fichiers={fichiers} />
             ))}
           </div>
-          <div className="dj-rang ennemis">{C.ennemis.map(unite)}</div>
+          <div className={`dj-rang ennemis${C.ennemis.some((x) => !x.ko && x.rempart > 0) ? " etat-rempart" : ""}`}><span className="dj-rempart" aria-hidden="true" />{C.ennemis.map(unite)}</div>
           <div className="dj-milieu">
             <div className="dj-consigne" aria-live="polite">{consigne}
               <div className="dj-journal">{journal.slice(0, 3).map((t, i) => <div key={i}>{t}</div>)}</div>
@@ -997,7 +924,7 @@ export default function Donjon({ jeu }) {
               ))}
             </div>
           </div>
-          <div className="dj-rang equipe">{partie.equipe.map(unite)}</div>
+          <div className={`dj-rang equipe${partie.equipe.some((x) => !x.ko && x.rempart > 0) ? " etat-rempart" : ""}`}><span className="dj-rempart" aria-hidden="true" />{partie.equipe.map(unite)}</div>
           </div>
           <div className="dj-pilote">
             <div className="groupe"><span className="lib">Combat automatique</span>

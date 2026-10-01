@@ -195,7 +195,7 @@
 .dj-jeton .ini { position: absolute; right: -1px; bottom: -1px; font-family: var(--font-ui); font-size: 9px; font-weight: 700;
   line-height: 14px; padding: 0 4px; border-radius: 100px; background: var(--ground); color: #9fd0ff; }
 
-.dj-rang { display: flex; justify-content: center; gap: 14px; }
+.dj-rang { position: relative; display: flex; justify-content: center; gap: 14px; }
 .dj-rang.ennemis { margin: 6px 0 2px; }
 .dj-u { position: relative; flex: 0 1 150px; min-width: 0; transition: transform .2s, filter .25s, opacity .3s; }
 .dj-u .dj-etiquette { display: block; text-align: center; margin-top: 5px; font-size: 11.5px; color: var(--ink3);
@@ -209,7 +209,10 @@
 .dj-u.ciblable.allie .plaque { box-shadow: 0 0 0 2px var(--dj-soin), 0 0 24px rgba(127,209,185,.4); }
 .dj-u.ciblable:hover { transform: translateY(-4px) scale(1.03); }
 .dj-u.ciblable:focus-visible { outline: 2px solid var(--lamp); outline-offset: 4px; border-radius: 6px; }
-.dj-u.ko { filter: grayscale(1) brightness(.5); opacity: .55; transform: rotate(-3deg) translateY(6px); }
+/* La pose « à terre » est portée par la carte, comme la chute animée qui y
+   mène (animations.js) : la classe prend le relais à l'identique, sans saut. */
+.dj-u.ko { opacity: .55; }
+.dj-u.ko .dj-carte { filter: grayscale(1) brightness(.5); transform: translateY(6px) rotate(-3deg); }
 .dj-u.boss { flex-basis: 170px; }
 .dj-u.touche .dj-face { animation: dj-touche .38s; }
 .dj-u.soigne .plaque { animation: dj-soigne .6s; }
