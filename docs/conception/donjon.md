@@ -237,6 +237,30 @@ Le niveau se lit sous chaque vignette de la préparation, avec une fine barre
 vers le niveau suivant ; le bilan de fin de descente détaille les points
 gagnés, les niveaux franchis et les récompenses.
 
+## Les animations (01/10/2026)
+
+Chaque compétence a son animation, et chaque version étoilée une surcouche
+irisée (`src/donjon/animations.js`, `src/styles/donjon-animations.css`).
+Elles ont été conçues par Claude Design d'après
+[le brief](brief-animations-donjon.md), puis branchées sans réécriture :
+
+- `animerGeste(u, geste, cible)` joue avant que les règles ne tranchent ; un
+  coup sur un allié voilé joue l'esquive à la place ;
+- après les règles : le renvoi de la garde haute (`resoudre` rend
+  `renvoi`), puis les chutes et relèves de l'action (la pose « à terre » est
+  portée par `.dj-carte`, comme la chute animée, pour qu'elle prenne le
+  relais sans saut) ;
+- entre deux mains : le saignement et le piège (`C.notes` porte `evt` et
+  `uid`) ;
+- les états (saignement, marque, piège, voile, garde haute, bouclier,
+  provocation, galvanisé, rempart) ont un calque sur la carte, sans texte,
+  lisible au téléphone : classes `etat-*` sur `.dj-u`, `etat-rempart` sur
+  le rang.
+
+Les chiffres flottants restent ceux des règles (`montrer`) : le module les
+coupe pour ne pas les doubler. En mouvement réduit, un fondu seulement, et
+les états restent immobiles.
+
 ## Les reliques (vérifiées le 01/10/2026)
 
 Une relique trouvée (trésor 35 %, élite 55 %, gardien toujours, l'écho une

@@ -554,12 +554,12 @@ function debutDeTour(partie, C, u) {
     const d = Math.max(1, u.saigneD || 1);
     u.pv = Math.max(0, u.pv - d);
     if (u.pv === 0) u.ko = true;
-    (C.notes ||= []).push({ note: `${nom} saigne : −${d}${u.ko ? " — à terre" : ""}`, effets: [{ uid: u.uid, txt: `−${d}`, anim: "touche" }] });
+    (C.notes ||= []).push({ evt: "saignement", uid: u.uid, note: `${nom} saigne : −${d}${u.ko ? " — à terre" : ""}`, effets: [{ uid: u.uid, txt: `−${d}`, anim: "touche" }] });
     if (u.ko) return false;
   }
   if (u.etourdi > 0) {
     u.etourdi--;
-    (C.notes ||= []).push({ note: `${nom} se dégage du piège et perd son tour.`, effets: [{ uid: u.uid, txt: "Étourdi", cls: "info" }] });
+    (C.notes ||= []).push({ evt: "piege", uid: u.uid, note: `${nom} se dégage du piège et perd son tour.`, effets: [{ uid: u.uid, txt: "Étourdi", cls: "info" }] });
     return false;
   }
   return true;
@@ -660,8 +660,10 @@ export function resoudre(partie, C, u, geste, cible, r) {
   const p = etoile ? ETOILE.puissance : 1;
   const siens = vivants(u.camp === "a" ? partie.equipe : C.ennemis);
   const enFace = vivants(u.camp === "a" ? C.ennemis : partie.equipe);
+  let renvoiTotal = 0;
   const coup = (x, mult, perce = false, cls = "") => {
     const { reel, crit, renvoi, voile } = frapper(partie, u, x, mult, r, perce, C);
+    renvoiTotal += renvoi || 0;
     effets.push({ uid: x.uid, txt: voile ? "Esquive" : `−${reel}`, cls: crit ? "crit" : cls, anim: voile ? undefined : "touche" });
     if (renvoi) effets.push({ uid: u.uid, txt: `−${renvoi}`, anim: "touche" });
     return { reel, crit, renvoi, voile };
@@ -757,7 +759,7 @@ export function resoudre(partie, C, u, geste, cible, r) {
   }
   // Recharge : comptée en tours de l'unité, le sien compris, d'où le +1.
   if (K?.place === "tech") { const cd = rechargeDe(u, geste); u.cd = cd ? cd + 1 : 0; }
-  return { anim, cible: cible?.uid ?? null, effets, note };
+  return { anim, cible: cible?.uid ?? null, effets, note, renvoi: renvoiTotal };
 }
 
 export function issue(partie, C) {
