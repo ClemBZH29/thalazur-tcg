@@ -1,11 +1,13 @@
 /** Le format des sauvegardes : lecture, rejet des formats inconnus, relecture de la mine. */
 import { describe, expect, test } from "vitest";
-import { SCHEMA, SCHEMA_MIN, migrer, renumeroter } from "../src/lib/sauvegarde/schema.js";
+import { SCHEMA, SCHEMA_MIN, migrer, renumeroter, RENOMMAGE_FULLART } from "../src/lib/sauvegarde/schema.js";
 import ROSTER from "../src/extensions/troupe-valeran/roster.json";
 import TABLE from "../src/lib/sauvegarde/renumerotation-troupe.json";
 import { slug } from "../src/lib/roster.js";
 import { etatVide, fusionner, relireJeu } from "../src/lib/storage.js";
 import { etatNeuf, relireMine } from "../src/mines/sauvegarde.js";
+import TROUPE from "../src/extensions/troupe-valeran/extension.js";
+import { specialesPour } from "../src/config/speciales.js";
 
 describe("schéma", () => {
   test("une sauvegarde du schéma courant passe telle quelle", () => {
@@ -18,6 +20,44 @@ describe("schéma", () => {
     expect(migrer("jeu", { version: 5 })).toBeNull();
     expect(migrer("jeu", null)).toBeNull();
     expect(migrer("jeu", "texte")).toBeNull();
+  });
+});
+
+describe("schéma 8 : full art renommés", () => {
+  const ancienne = {
+    schema: 7,
+    collections: {
+      "troupe-valeran": {
+        "fa-selssy-sable-chaud": {
+          normale: 1,
+          carte: { id: "fa-selssy-sable-chaud", num: "fa-selssy-sable-chaud", nom: "Selssy", serie: "Sable Chaud", slug: "selssy-sable-chaud" },
+        },
+        "fa-trodonak-passion-ardente": { normale: 1 },
+        "fa-vyrin-maid-cafe": { normale: 1 },
+      },
+    },
+    vitrine: ["fa-nemelye-passion-ardente", "219-hida"],
+  };
+
+  test("identifiant, numéro, nom et série suivent le nouveau nom", () => {
+    const d = migrer("jeu", ancienne);
+    const coll = d.collections["troupe-valeran"];
+    expect(Object.keys(coll).sort()).toEqual(["fa-selsy-sable-chaud", "fa-trodonac-nuit-ecarlate", "fa-vyrin-maid-cafe"]);
+    expect(coll["fa-selsy-sable-chaud"].carte).toEqual({
+      id: "fa-selsy-sable-chaud",
+      num: "fa-selsy-sable-chaud",
+      nom: "Selsy",
+      serie: "Sable Chaud",
+      slug: "selsy-sable-chaud",
+    });
+    expect(d.vitrine).toEqual(["fa-nemelye-nuit-ecarlate", "219-hida"]);
+    expect(d.schema).toBe(8);
+  });
+
+  test("les nouveaux identifiants sont ceux que déclare l'extension", () => {
+    const { fullart } = specialesPour(TROUPE);
+    const ids = new Set(fullart.map((c) => c.id));
+    for (const def of Object.values(RENOMMAGE_FULLART)) expect(ids.has(def.id)).toBe(true);
   });
 });
 
@@ -40,7 +80,7 @@ describe("schéma 7 : renumérotation de La Troupe", () => {
     expect(Object.keys(coll).sort()).toEqual(["001-sacoche-de-bille", "219-hida", "pj-hida"]);
     expect(coll["219-hida"]).toEqual({ normale: 2, rainbow: 1, carte: { id: "219-hida", num: "219", nom: "Hida" } });
     expect(d.expeditions[0].equipe).toEqual(["219-hida", "027-pluie-sur-la-mousse"]);
-    expect(d.schema).toBe(7);
+    expect(d.schema).toBe(SCHEMA);
   });
 
   test("ce qui n'est pas un identifiant de carte ne bouge pas", () => {

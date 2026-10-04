@@ -41,7 +41,7 @@ function normaliser(def, tier, prefixe) {
 export function specialesPour(extension) {
   return {
     // `rang` : place du full art après les légendaires dans l'ordre du set,
-    // dans l'ordre de déclaration. L'identifiant, lui, reste « fa-<nom> ».
+    // dans l'ordre de déclaration. L'identifiant, lui, reste « fa-<nom>-<série> ».
     fullart: (extension?.fullart || []).map((d, i) => ({ ...normaliser(d, "fullart", "fa"), rang: i + 1 })),
     pj: PJ.map((d) => normaliser(d, "pj", "pj")),
   };

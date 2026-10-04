@@ -201,7 +201,7 @@ Base Image/                    à côté de « Base App TCG », hors du dépôt
   troupe-valeran/
     073-Scarabée des ruines.png  numéro en tête, le texte qui suit est libre
     164 - Samurai at dusk.png    (nom de la carte ou description du prompt)
-    fa-vyrin.png                 full art : fa-<nom>
+    fa-vyrin-maid-cafe.png       full art : fa-<nom>-<série>
   pj/
     pj-<nom>.png
 ```
