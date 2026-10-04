@@ -24,9 +24,9 @@ export default {
   fullart: [
     { nom: "Vyrin", serie: "Maid Café" },
     { nom: "Valéran", serie: "Maid Café" },
-    { nom: "Selssy", serie: "Sable Chaud" },
+    { nom: "Selsy", serie: "Sable Chaud" },
     { nom: "Hida", serie: "Sable Chaud" },
-    { nom: "Nemelye", serie: "Passion Ardente" },
-    { nom: "Trodonak", serie: "Passion Ardente" }
+    { nom: "Nemelye", serie: "Nuit Écarlate" },
+    { nom: "Trodonac", serie: "Nuit Écarlate" }
   ]
 };

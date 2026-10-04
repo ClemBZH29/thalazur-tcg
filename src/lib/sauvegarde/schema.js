@@ -29,8 +29,13 @@
  *        L'identifiant d'une carte contient son numéro (« 164-hida » devient
  *        « 219-hida ») : chaque ancien identifiant est remplacé partout où la
  *        sauvegarde le porte, voir `renumeroter()`.
+ * 8      Full art de La Troupe renommés : Selssy devient Selsy, Trodonak
+ *        devient Trodonac, la série Passion Ardente devient Nuit Écarlate.
+ *        Leur identifiant découle du nom et de la série
+ *        (« fa-selssy-sable-chaud » devient « fa-selsy-sable-chaud ») : même
+ *        remplacement partout, et les instantanés reprennent nom et série.
  */
-export const SCHEMA = 7;
+export const SCHEMA = 8;
 
 /** Première version encore lisible. En dessous, on repart d'une partie neuve. */
 export const SCHEMA_MIN = 6;
@@ -64,6 +69,37 @@ export function renumeroter(valeur, table) {
   return sortie;
 }
 
+/** Schéma 8 : ancien identifiant de full art → nouvelle définition. */
+export const RENOMMAGE_FULLART = {
+  "fa-selssy-sable-chaud": { id: "fa-selsy-sable-chaud", nom: "Selsy", serie: "Sable Chaud", slug: "selsy-sable-chaud" },
+  "fa-nemelye-passion-ardente": { id: "fa-nemelye-nuit-ecarlate", nom: "Nemelye", serie: "Nuit Écarlate", slug: "nemelye-nuit-ecarlate" },
+  "fa-trodonak-passion-ardente": { id: "fa-trodonac-nuit-ecarlate", nom: "Trodonac", serie: "Nuit Écarlate", slug: "trodonac-nuit-ecarlate" },
+};
+
+/**
+ * Renomme les full art de `RENOMMAGE_FULLART` dans toute une sauvegarde :
+ * même parcours que `renumeroter()` pour les clés et les valeurs. Dans un
+ * instantané de full art, le numéro est l'identifiant lui-même (« fa-… ») :
+ * il suit l'identifiant, ainsi que le nom, la série et le slug.
+ */
+export function renommerFullart(valeur, table = RENOMMAGE_FULLART) {
+  const ids = Object.fromEntries(Object.entries(table).map(([a, n]) => [a, n.id]));
+  const parcourir = (v) => {
+    if (typeof v === "string") return ids[v] ?? v;
+    if (Array.isArray(v)) return v.map(parcourir);
+    if (!v || typeof v !== "object") return v;
+    const sortie = {};
+    for (const [cle, x] of Object.entries(v)) sortie[ids[cle] ?? cle] = parcourir(x);
+    const def = typeof v.id === "string" ? table[v.id] : null;
+    if (def) {
+      if ("num" in v) sortie.num = def.id;
+      for (const champ of ["nom", "serie", "slug"]) if (champ in v) sortie[champ] = def[champ];
+    }
+    return sortie;
+  };
+  return parcourir(valeur);
+}
+
 /**
  * `MIGRATIONS[n]` fait passer une sauvegarde de n − 1 à n.
  * Exemple pour une future version 7 :
@@ -76,6 +112,10 @@ export const MIGRATIONS = {
   7: {
     jeu: (d) => renumeroter(d, RENUMEROTATION_TROUPE.ids),
     mine: (d) => renumeroter(d, RENUMEROTATION_TROUPE.ids),
+  },
+  8: {
+    jeu: (d) => renommerFullart(d),
+    mine: (d) => renommerFullart(d),
   },
 };
 

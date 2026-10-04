@@ -11,7 +11,7 @@
  *
  *   Base Image/
  *     troupe-valeran/  073-Scarabée des ruines.png   (numéro en tête du nom)
- *                      fa-vyrin.png                  (full art : fa-<nom>)
+ *                      fa-vyrin-maid-cafe.png        (full art : fa-<nom>-<série>)
  *     pj/              pj-<nom>.png
  *
  * Le numéro suffit ; le texte qui suit est libre (nom de la carte, description
@@ -126,7 +126,7 @@ export const slug = (s) =>
 /**
  * Ce qu'un nom de fichier désigne.
  *   « 073-Scarabée des ruines.png » → { num: 73, nom: "scarabee-des-ruines" }
- *   « fa-vyrin.png »                → { special: "fa-vyrin" }
+ *   « fa-Vyrin Maid Café.png »      → { special: "fa-vyrin-maid-cafe" }
  *   « ChatGPT Image….png »          → null
  */
 export function identifier(nomFichier) {
