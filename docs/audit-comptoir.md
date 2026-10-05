@@ -37,7 +37,7 @@ dominent :
 | Articles qui intéressent Lise | 352 | mesure |
 | Part du surplus qui a preneur, selon le jour | de 27 % à 100 % | cycle de 10 jours, pondéré par le tirage |
 | Part du surplus qui a preneur, le jour de la vidéo | 46 % | Sorelle, Nassim, Voren |
-| Une full art PJ rainbow chez Dame Sorelle | jusqu'à 20 023 PO | `audit-marche.mjs` |
+| Articles fantômes (version rainbow d'une full art ou d'une PJ, qui n'existe pas) | 11 | `construireMarche` |
 
 Le cycle de dix jours, pour la part du surplus qui trouve preneur :
 
@@ -132,13 +132,20 @@ Le rayon est pondéré par le stock : il sort surtout des communes. À 202
 cartes possédées, il propose presque toujours des cartes déjà en collection
 (les trois pièces visibles dans la vidéo). Il n'aide plus à compléter.
 
-### C8. Le cas des full art
+### C8. Des rainbow fantômes pour les full art et les PJ
 
-Sorelle et le Conservateur acceptent les full art et les cartes PJ. Une PJ
-rainbow peut se revendre 20 000 PO, soit 167 boosters. Les garde-fous restent
-justes en moyenne (40 % et 88 %), mais la variance est extrême. À trancher :
-les exclure du Comptoir, comme le Reliquaire le fait, ou demander une
-confirmation explicite.
+Full art et cartes PJ sont rainbow par nature : le tirage les range toujours
+en case normale (`lib/draw.js`). Mais `construireMarche` crée deux articles
+par carte, sans exception, donc une « version rainbow » pour chacune des
+11 full art et PJ, cotée jusqu'à 20 000 PO. Ces articles ne peuvent jamais
+être vendus, mais ils encombrent `audit-marche.mjs` (ce sont eux qui
+occupent le haut des listes de Sorelle et de Voren) et entrent, pour une
+part infime, dans les garde-fous. À retirer dans le lot 1.
+
+Le prix réel d'un double : de l'ordre de 800 PO pour une full art et
+1 950 PO pour une PJ à l'échoppe, jusqu'à 1 060 et 2 620 PO chez un acheteur.
+Décision du 05/10/2026 : elles restent au Comptoir, un double est assez rare
+pour se vendre très cher.
 
 ---
 
@@ -163,6 +170,8 @@ repasse par `node scripts/audit-marche.mjs` : `liqMax` doit rester sous 100 %.
    paliers se cochent, et les rainbow n'y entrent qu'avec la mention de leur
    usage au Donjon.
 5. **Des PO entières partout**, et plus de tiret cadratin (charte, chap. 9).
+6. **Pas de version rainbow pour les full art et les PJ** dans
+   `construireMarche` (C8).
 
 ### Lot 2. Des goûts lus sur le roster
 
@@ -306,11 +315,19 @@ Le brief détaillé pour Claude Design est dans
 | 5. Marchandage à manières, gazette | `sujet/comptoir-marchandage` | lot 2 | moyenne |
 | 6. Rayon orienté collection | `sujet/comptoir-rayon` | rien | petite |
 
-## 7. Questions à trancher
+## 7. Décisions et questions
 
-1. Full art et cartes PJ : sortent-elles du Comptoir ?
-2. Les rainbow en trop : vendables au Comptoir, ou réservées au Donjon par
-   défaut ?
+Tranché le 05/10/2026 :
+
+1. **Full art et cartes PJ restent au Comptoir.** Elles n'ont pas de version
+   rainbow : retirer les articles fantômes (C8).
+2. **Les rainbow en trop restent vendables.** Le choix entre le Donjon et la
+   vente appartient au joueur ; l'interface doit seulement le rendre
+   visible (mention « sert au Donjon »), et la vente rapide ne les prend
+   pas sans qu'on les coche.
+
+Ouvert :
+
 3. La faction de coeur de chacun des dix acheteurs.
 4. Les acheteurs restent-ils ces dix personnages, ou certains deviennent-ils
-   des PNJ de la campagne (une carte du roster qui « tient boutique ») ?
+   des PNJ de la campagne ?
