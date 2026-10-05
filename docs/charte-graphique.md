@@ -22,6 +22,15 @@ répliques. Le code garde ses noms (`Sachet.jsx`, la clé de sauvegarde
 `sachets` des boosters offerts) : les renommer casserait des parties
 enregistrées sans rien changer pour le joueur.
 
+Une rainbow en trop sert à **améliorer vos cartes pour le Donjon** : c'est la
+seule formule à l'écran, jamais « étoiler une fiche ». Les mots de mécanique
+interne (fiche, ancrage, plafond, affinité) ne s'affichent pas.
+
+**Les choix sont des puces à bascule**, jamais des cases à cocher natives :
+bordure `--edge-ui`, état actif en lampe, compteur dans la puce
+(« Rainbow · 3 »), 36 px de haut, 44 px au téléphone. Un seul composant par
+page pour tous les choix (`.puce`, voir `src/styles/comptoir.css`).
+
 **Ce qu'il faut éviter.** La première version du projet employait un fond crème
 proche de `#F4F1EA`, un accent turquoise, des micro-libellés en monospace et des
 capitales espacées au-dessus de chaque bloc. Cet assemblage est une signature par

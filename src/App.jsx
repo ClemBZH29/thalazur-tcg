@@ -5,6 +5,7 @@ import Loupe from "./components/Loupe.jsx";
 import { Jeu, useJeu } from "./jeu/Jeu.jsx";
 import { Lien, Routeur, useRoute } from "./lib/routeur.jsx";
 import { ECONOMIE } from "./config/tiers.js";
+import { conservateurPresent, jourCourant } from "./comptoir/jour.js";
 
 import PageAccueil from "./routes/PageAccueil.jsx";
 import PageBoutique from "./routes/PageBoutique.jsx";
@@ -237,8 +238,10 @@ function Coque() {
     return () => cancelAnimationFrame(image);
   }, [chemin]);
 
-  const { bourse, gratuit, collecte, surplusTotal, stockageKo, loupe,
+  const { bourse, gratuit, collecte, stockageKo, loupe,
     setLoupe, cfgImage, fichiers, succes, etat, reliquaireOuvert } = jeu;
+  // Le jour change à minuit ; une page restée ouverte le relit au rendu suivant.
+  const conservateur = conservateurPresent(jourCourant());
   // Le Reliquaire n'entre dans la navigation qu'une fois ouvert (voir AnnonceReliquaire).
   const pages = PAGES.filter((p) => p.vers !== "/reliquaire" || reliquaireOuvert);
 
@@ -314,10 +317,11 @@ function Coque() {
                     {succes.aReclamer.length}
                   </span>
                 )}
-                {p.vers === "/comptoir" && surplusTotal > 0 && (
-                  <span className="count pastille" title={`${surplusTotal} exemplaires en surplus`}>
-                    {surplusTotal}
-                  </span>
+                {/* Le nombre d'exemplaires en trop ne faisait que grossir :
+                    un stock, pas une action. Le point ne s'allume plus que
+                    les jours du Conservateur Royal. */}
+                {p.vers === "/comptoir" && conservateur && (
+                  <span className="point-nav" role="img" aria-label="le Conservateur Royal est là" />
                 )}
               </Lien>
             ))}
@@ -327,7 +331,7 @@ function Coque() {
             aria-expanded={menu} aria-controls="nav-site" aria-label={menu ? "Fermer le menu" : "Ouvrir le menu"}
             onClick={() => setMenu((m) => !m)}>
             <Icone nom={menu ? "fermer" : "menu"} taille={24} />
-            {!menu && succes.aReclamer.length + (surplusTotal > 0 ? 1 : 0) > 0 && (
+            {!menu && succes.aReclamer.length + (conservateur ? 1 : 0) > 0 && (
               <span className="burger-pastille" aria-hidden="true" />
             )}
           </button>
