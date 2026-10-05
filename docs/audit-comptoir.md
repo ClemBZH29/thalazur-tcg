@@ -326,8 +326,37 @@ Tranché le 05/10/2026 :
    visible (mention « sert au Donjon »), et la vente rapide ne les prend
    pas sans qu'on les coche.
 
-Ouvert :
+3. **Les acheteurs restent des personnages propres au jeu**, hors campagne.
+4. **Des goûts mêlés** : certains acheteurs sur la rareté, d'autres sur la
+   faction, d'autres sur le type, un sur les rainbow, un spécialiste du
+   Bestiaire. Répartition proposée ci-dessous, à valider.
 
-3. La faction de coeur de chacun des dix acheteurs.
-4. Les acheteurs restent-ils ces dix personnages, ou certains deviennent-ils
-   des PNJ de la campagne ?
+### Répartition proposée (mesurée sur le roster, 451 articles réels)
+
+| Acheteur | Axe | Porte d'entrée | Cartes | Part du surplus |
+|---|---|---|---:|---:|
+| Lise, l'habituée | rareté basse | communes et peu communes normales | 176 | 91 % |
+| Dame Sorelle | rareté haute | rares, légendaires, full art, PJ | 55 | 6 % (30 % de la valeur) |
+| Voren | rainbow | toute rainbow | 220 | 3 % (27 % de la valeur) |
+| Maîtresse Oriane | type | artéfacts | 18 | 8 % |
+| Nassim | type | Lieux | 37 | 17 % |
+| Ysée | type | PNJ combattants au Donjon (rôles garde, frappeur, tireur, mage) | 44 | 21 % |
+| Hector | faction | Troupe, GRC, Aventurier | 35 | 17 % |
+| Gaspard | faction | Nakova | 37 | 20 % |
+| Éloi | Bestiaire | faction Bestiaire, archétypes Créature et Animal | 30 | 14 % |
+| Le Conservateur | ensembles | rares et au-delà, puis ensembles complets (lot 6) | | |
+
+Les primes restent secondaires : palier, faction voisine, citation.
+
+**Conséquence de structure.** Les communes et peu communes font 91 % des
+doublons : celui qui les achète porte le Comptoir à lui seul. Dans la
+rotation actuelle de trois acheteurs tirés parmi neuf, les jours sans Lise
+tombent entre 15 % et 42 % de surplus avec preneur. Proposition : **Lise
+est là tous les jours**, avec une prime modeste (×1,14), et **deux
+spécialistes tournent** autour d'elle, plus le Conservateur un jour sur dix.
+Chaque jour couvre alors au moins 91 % du surplus, et l'intérêt d'attendre
+un spécialiste reste entier, puisqu'il paie mieux sur son créneau.
+
+Restent sans acheteur dédié : Pronolo (27 cartes), Säab (23), Cornalie (17),
+Odiana (11). Ils peuvent passer par les commandes du jour et par la gazette
+du quai (lots 4 et 5) plutôt que par un personnage de plus.
