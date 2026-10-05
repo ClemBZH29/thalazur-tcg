@@ -178,11 +178,8 @@ repasse par `node scripts/audit-marche.mjs` : `liqMax` doit rester sous 100 %.
 - Réécrire les familles à partir des valeurs réelles de `rep1`, `rep3` et
   `race` (la liste est dans ce rapport, section C3), et ajouter un **axe
   faction**.
-- Donner à chaque acheteur **une porte d'archétype et une faction de coeur** :
-  Hector, la GRC et les gens d'armes ; Nassim, Säab et les caravanes ;
-  Oriane, Odiana et le savoir ; Éloi, le Bestiaire ; Gaspard, la Troupe et
-  les métiers, etc. Le rattachement est un choix de Clément ; il ancre les
-  dix personnages dans la campagne.
+- Donner à chaque acheteur **un seul axe lisible** (rareté, type, faction,
+  rainbow ou Bestiaire) : voir la répartition au § 7.
 - Cible mesurable, ajoutée à `audit-marche.mjs` : chaque acheteur regarde
   entre 60 et 160 articles, et chaque trio couvre au moins 65 % du surplus.
 - Ysée lit les statistiques du Donjon. Voren lit la gazette (lot 5).
