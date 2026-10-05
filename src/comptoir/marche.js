@@ -1,5 +1,5 @@
 import { SLOTS, REVENTE, ECONOMIE, TIER_INFO } from "../config/tiers.js";
-import { affinite, norm } from "./acheteurs.js";
+import { affinite, norm, factionDe, roleCarte } from "./acheteurs.js";
 
 /**
  * LE COMPTOIR — marché de l'occasion.
@@ -36,7 +36,10 @@ export const CFG = {
   spreadBase: 0.06,
   spreadIlliquide: 0.30,
   frais: 0.05,         // commission de l'échoppe sur un rachat
-  plafondRachat: 1.80, // ce que l'échoppe accepte de payer, en multiple d'ancrage
+  plafondRachat: 1.80, // ce que l'échoppe accepte de payer, en multiple d'ancrage ;
+                       // un acheteur a le sien, multiplié par son `mult`
+  plafondMult: 1.6,    // … borné ici : sans quoi le Conservateur, à ×1,92, faisait
+                       // passer le pire jour au-dessus de 100 % (voir audit-marche)
   boostersJour: 90,    // boosters ouverts chaque jour dans la province
   partSurplus: 0.42,   // part des cartes tirées qui finissent en surplus
   appetit: 0.09,       // fraction du rayon écoulée chaque jour
@@ -82,22 +85,6 @@ export function esperances(taux) {
   return e;
 }
 
-/** Les mots sur lesquels les acheteurs reconnaissent une carte. */
-function motsDe(carte) {
-  const m = new Set();
-  const ajouter = (v) => {
-    const n = norm(v);
-    if (!n) return;
-    m.add(n);
-    n.split(/[^a-z0-9]+/).forEach((w) => { if (w.length > 2) m.add(w); });
-  };
-  ajouter(carte.rep1);
-  ajouter(carte.rep3);
-  ajouter(carte.race);
-  ajouter(carte.nom);
-  return m;
-}
-
 /**
  * Désirabilité : stable pour une carte donnée, dérivée de son identifiant.
  * Une valeur tirée à chaque chargement ferait danser les prix sans raison.
@@ -128,11 +115,14 @@ export function construireMarche(jeuComplet, taux) {
     const n = parPalier[carte.tier] || 1;
     const espPalier = esp[carte.tier] || 0.001;
     const pPalier = espPalier / n;                 // probabilité de la carte, toutes versions
-    const mots = motsDe(carte);
     const des = desirabilite(carte);
     const socle = REVENTE[carte.tier] || 2;
 
-    for (const version of ["normale", "rainbow"]) {
+    // Full art et cartes PJ sont rainbow par nature : le tirage les range
+    // toujours en case normale. Leur « version rainbow » était un article
+    // fantôme, coté vingt mille PO et jamais vendable.
+    const versions = carte.tier === "fullart" || carte.tier === "pj" ? ["normale"] : ["normale", "rainbow"];
+    for (const version of versions) {
       const estRainbow = version === "rainbow";
       const p = pPalier * (estRainbow ? taux.rainbow : 1 - taux.rainbow);
       const eq = Math.max(0.3, (p * CFG.boostersJour * CFG.partSurplus) / CFG.appetit);
@@ -148,8 +138,9 @@ export function construireMarche(jeuComplet, taux) {
         ancrage,
         plancher: socle,      // l'échoppe ne paiera jamais moins que la revente garantie
         des,
-        mots,
-        meta: des > 1.12,
+        faction: factionDe(carte),
+        role: roleCarte(carte),
+        archetype: norm(carte.rep1),
         // Équilibre du rayon : proportionnel à ce que la province déverse.
         equilibre: eq,
         // Ce que l'échoppe cherche à tenir : une échoppe stocke beaucoup de
@@ -178,8 +169,11 @@ export class Marche {
     this.journal = [];
 
     if (sauve && sauve.jour) {
-      this.stock = sauve.stock || {};
-      this.stockPrec = sauve.stockPrec || {};
+      // Les articles retirés du catalogue (la fausse rainbow d'une full art)
+      // ne traînent pas dans la sauvegarde.
+      const connus = (o) => Object.fromEntries(Object.entries(o || {}).filter(([k]) => k in this.parId));
+      this.stock = connus(sauve.stock);
+      this.stockPrec = connus(sauve.stockPrec);
       this.fonds = typeof sauve.fonds === "number" ? sauve.fonds : this.fonds;
       this.verses = sauve.verses || 0;
       this.encaisses = sauve.encaisses || 0;
@@ -236,9 +230,10 @@ export class Marche {
       // pièces à l'unité est ce qui garde le booster intéressant. Sans elle,
       // cent vingt PO achetaient douze cartes choisies et personne n'ouvrait
       // plus rien.
-      ask: m * (1 + sp / 2) * CFG.margeVente,
+      // Des PO entières : un prix à 8,76 PO ne se compare à rien.
+      ask: Math.round(m * (1 + sp / 2) * CFG.margeVente),
       // Le plancher est une promesse de l'app : la revente garantie du palier.
-      bid: Math.max(a.plancher, brut),
+      bid: Math.round(Math.max(a.plancher, brut)),
     };
   }
 
@@ -251,20 +246,42 @@ export class Marche {
 
   traits(a) {
     return {
-      tier: a.tier, type: a.carte.type, race: a.carte.race, mots: a.mots,
-      meta: a.meta, rainbow: a.rainbow, hausse: this.hausse(a),
+      tier: a.tier, type: a.carte.type, race: a.carte.race,
+      faction: a.faction, role: a.role, archetype: a.archetype,
+      rainbow: a.rainbow, hausse: this.hausse(a),
       citation: !!a.carte.citation,
     };
   }
 
   affinite(a, acheteur) { return affinite(this.traits(a), acheteur); }
 
-  offreUnitaire(a, acheteur, stock) {
+  /**
+   * Le plafond d'un acheteur. Il était le même pour tous, celui de l'échoppe :
+   * or le rachat de l'échoppe monte déjà à 1,71 fois l'ancrage quand le rayon
+   * est maigre — le cas de toutes les rainbow —, et il ne restait que 5 % pour
+   * la prime de l'acheteur. Sorelle et Voren payaient le même prix au
+   * centime. Chacun a maintenant le sien, à proportion de son `mult`.
+   */
+  plafondDe(a, acheteur) {
+    return CFG.plafondRachat * Math.min(acheteur.mult, CFG.plafondMult) * a.ancrage;
+  }
+
+  /**
+   * Ce que l'acheteur paie pour un exemplaire, marchandage compris. Deux
+   * promesses, tenues ici et nulle part ailleurs :
+   * - le prix affiché est le prix payé (le succès d'un marchandage était
+   *   annoncé, puis raboté au paiement par le plafond de l'échoppe) ;
+   * - un acheteur ne paie jamais moins que l'échoppe, même après un échec.
+   */
+  prixAcheteur(a, acheteur, stock, facteur = 1) {
     const aff = this.affinite(a, acheteur);
     if (!aff) return 0;
     const { bid } = this.cotation(a, stock);
-    return Math.min(bid * acheteur.mult * aff, CFG.plafondRachat * a.ancrage);
+    const offre = Math.min(bid * acheteur.mult * aff, this.plafondDe(a, acheteur));
+    return Math.max(bid, Math.round(offre * facteur));
   }
+
+  offreUnitaire(a, acheteur, stock) { return this.prixAcheteur(a, acheteur, stock, 1); }
 
   /**
    * Un lot ne se paie pas au prix unitaire : chaque exemplaire supplémentaire
@@ -273,7 +290,15 @@ export class Marche {
   offreLot(a, acheteur, qte, facteur = 1) {
     const base = this.stock[a.id] ?? a.equilibre;
     let total = 0;
-    for (let k = 0; k < qte; k++) total += this.offreUnitaire(a, acheteur, base + k) * facteur;
+    for (let k = 0; k < qte; k++) total += this.prixAcheteur(a, acheteur, base + k, facteur);
+    return total;
+  }
+
+  /** Ce que l'échoppe paierait pour le même lot, à la même pente. */
+  rachatLot(a, qte) {
+    const base = this.stock[a.id] ?? a.equilibre;
+    let total = 0;
+    for (let k = 0; k < qte; k++) total += this.cotation(a, base + k).bid;
     return total;
   }
 
@@ -285,9 +310,14 @@ export class Marche {
 
   /* ── Transactions ───────────────────────────────────────────────────────── */
 
-  /** L'échoppe paie. Renvoie le montant, ou null si la bourse est à sec. */
+  /**
+   * Le Comptoir paie un montant déjà calculé (`cotation` ou `prixAcheteur`,
+   * qui portent chacun leur plafond). Renvoie le montant, ou null si la
+   * bourse est à sec. Il ne rabote plus rien : c'est ce rabotage qui
+   * faisait mentir l'annonce d'un marchandage réussi.
+   */
   payer(a, prix) {
-    const net = Math.min(prix, CFG.plafondRachat * a.ancrage);
+    const net = Math.round(prix);
     if (this.fonds < net) return null;
     this.fonds -= net;
     this.verses += net;
@@ -333,11 +363,19 @@ export class Marche {
   gardeFous(acheteurs) {
     let liq = 0;
     let liqMax = 0;
-    const meilleurMult = acheteurs.reduce((m, b) => Math.max(m, b.mult * (1 + b.up)), 1) * 1.15;
+    // Pire cas : pour chaque article, le meilleur acheteur présent, affinité
+    // maximale, marchandage réussi. Le plafond de chacun s'applique avant le
+    // marchandage, exactement comme à la vente.
     for (const a of this.articles) {
       const { bid } = this.cotation(a);
       liq += a.p * bid;
-      liqMax += a.p * Math.min(bid * meilleurMult, CFG.plafondRachat * a.ancrage);
+      let meilleur = bid;
+      for (const b of acheteurs) {
+        if (!this.affinite(a, b)) continue;
+        const offre = Math.min(bid * b.mult * 1.15, this.plafondDe(a, b)) * (1 + b.up);
+        if (offre > meilleur) meilleur = offre;
+      }
+      liqMax += a.p * meilleur;
     }
     // Cinq cartes par booster, et l'espérance est déjà par booster : la somme
     // des p vaut le contenu d'un booster, pas d'une carte.

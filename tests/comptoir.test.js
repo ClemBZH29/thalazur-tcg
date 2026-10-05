@@ -1,0 +1,128 @@
+/** Les acheteurs du Comptoir : calendrier, goûts et promesses de prix. */
+import { describe, expect, test } from "vitest";
+import { readFileSync } from "node:fs";
+import extension from "../src/extensions/troupe-valeran/extension.js";
+import { construirePool, deduireGrades } from "../src/lib/roster.js";
+import { specialesPour } from "../src/config/speciales.js";
+import { TAUX_DEFAUT, TIER_ORDER } from "../src/config/tiers.js";
+import { construireMarche, Marche } from "../src/comptoir/marche.js";
+import {
+  CYCLE, PROVINCES, SPECIALISTES, TOUS_ACHETEURS, acheteursDuJour, acheteurDeDemain,
+  passageDeGaspard, specialistesDuJour,
+} from "../src/comptoir/acheteurs.js";
+
+const roster = JSON.parse(readFileSync(new URL("../src/extensions/troupe-valeran/roster.json", import.meta.url), "utf8"));
+const pool = construirePool(roster.lignes, deduireGrades(roster.lignes));
+const speciales = specialesPour(extension);
+const jeu = [...TIER_ORDER.flatMap((t) => pool[t] || []), ...speciales.fullart, ...speciales.pj];
+const articles = construireMarche(jeu, TAUX_DEFAUT);
+const JOUR = 300;
+const M = new Marche(articles, null, JOUR);
+const poids = articles.reduce((s, a) => s + a.p, 0);
+
+describe("le calendrier", () => {
+  test("Lise est là tous les jours, avec deux spécialistes différents", () => {
+    for (let j = JOUR; j < JOUR + 60; j++) {
+      const l = acheteursDuJour(j);
+      expect(l[0].id).toBe("lise");
+      const s = specialistesDuJour(j);
+      expect(s).toHaveLength(2);
+      expect(s[0].id).not.toBe(s[1].id);
+    }
+  });
+
+  test("le cycle passe chaque paire une fois, sans spécialiste deux jours de suite", () => {
+    const n = SPECIALISTES.length;
+    expect(CYCLE).toHaveLength((n * (n - 1)) / 2);
+    expect(new Set(CYCLE.map((p) => p.join("-"))).size).toBe(CYCLE.length);
+    for (let j = JOUR; j < JOUR + CYCLE.length * 2; j++) {
+      const hier = specialistesDuJour(j - 1).map((b) => b.id);
+      specialistesDuJour(j).forEach((b) => expect(hier).not.toContain(b.id));
+    }
+  });
+
+  test("Gaspard change de province à chaque passage", () => {
+    const vus = [];
+    for (let j = JOUR; vus.length < PROVINCES.length * 2; j++) {
+      const g = specialistesDuJour(j).find((b) => b.id === "gaspard");
+      if (g) vus.push({ rang: passageDeGaspard(j), province: g.province.id });
+    }
+    vus.forEach((v, k) => {
+      if (k) expect(v.rang).toBe(vus[k - 1].rang + 1);
+      expect(v.province).toBe(PROVINCES[v.rang % PROVINCES.length].id);
+    });
+  });
+
+  test("l'annonce de demain nomme un spécialiste qui n'est pas déjà là", () => {
+    for (let j = JOUR; j < JOUR + 30; j++) {
+      const ici = specialistesDuJour(j).map((b) => b.id);
+      const d = acheteurDeDemain(j);
+      expect(specialistesDuJour(j + 1).map((b) => b.id)).toContain(d.id);
+      if (specialistesDuJour(j + 1).some((b) => !ici.includes(b.id))) expect(ici).not.toContain(d.id);
+    }
+  });
+});
+
+describe("les goûts", () => {
+  test("chaque spécialiste regarde une part lisible du set", () => {
+    for (const b of TOUS_ACHETEURS().filter((x) => !x.habituee && !x.exceptionnel)) {
+      const n = articles.filter((a) => M.affinite(a, b) > 0).length;
+      expect(n, b.nom).toBeGreaterThanOrEqual(30);
+      expect(n, b.nom).toBeLessThanOrEqual(240);
+    }
+  });
+
+  test("chaque jour, au moins neuf dixièmes du surplus attendu ont preneur", () => {
+    for (let j = JOUR; j < JOUR + CYCLE.length; j++) {
+      const l = acheteursDuJour(j);
+      const ok = articles.filter((a) => l.some((b) => M.affinite(a, b) > 0)).reduce((s, a) => s + a.p, 0);
+      expect(ok / poids).toBeGreaterThanOrEqual(0.9);
+    }
+  });
+});
+
+describe("les prix", () => {
+  const tous = TOUS_ACHETEURS();
+
+  test("un acheteur ne paie jamais moins que l'échoppe, même après un échec", () => {
+    for (const b of tous) {
+      for (const a of articles.filter((x) => M.affinite(x, b) > 0)) {
+        const { bid } = M.cotation(a);
+        expect(M.prixAcheteur(a, b, undefined, 1 - b.down)).toBeGreaterThanOrEqual(bid);
+      }
+    }
+  });
+
+  test("le prix annoncé d'un marchandage réussi est celui qui est payé", () => {
+    const N = new Marche(articles, null, JOUR);
+    const b = tous.find((x) => x.id === "voren");
+    const a = articles.find((x) => x.rainbow && N.affinite(x, b) > 0);
+    const annonce = N.offreLot(a, b, 1, 1 + b.up);
+    expect(annonce).toBeGreaterThan(N.offreUnitaire(a, b));
+    expect(N.payer(a, N.prixAcheteur(a, b, N.stock[a.id], 1 + b.up))).toBe(annonce);
+  });
+
+  test("Sorelle et Voren n'offrent plus le même prix pour une même rainbow", () => {
+    const sorelle = tous.find((x) => x.id === "sorelle");
+    const voren = tous.find((x) => x.id === "voren");
+    const rares = articles.filter((x) => x.rainbow && x.tier === "rare");
+    const ecarts = rares.filter((a) => M.offreUnitaire(a, voren) !== M.offreUnitaire(a, sorelle));
+    expect(ecarts.length).toBe(rares.length);
+  });
+
+  test("les prix sont des PO entières", () => {
+    for (const a of articles.slice(0, 80)) {
+      const { ask, bid } = M.cotation(a);
+      expect(Number.isInteger(ask) && Number.isInteger(bid)).toBe(true);
+    }
+  });
+
+  test("le pire jour du cycle ne fait pas du Comptoir une machine à pièces d'or", () => {
+    const conservateur = tous.find((b) => b.exceptionnel);
+    for (let j = JOUR; j < JOUR + CYCLE.length; j++) {
+      const l = acheteursDuJour(j);
+      const avec = l.some((b) => b.exceptionnel) ? l : [...l, conservateur];
+      expect(M.gardeFous(avec).liqMax).toBeLessThan(1);
+    }
+  });
+});

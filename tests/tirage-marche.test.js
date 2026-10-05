@@ -43,8 +43,10 @@ describe("tirage", () => {
 describe("Comptoir", () => {
   const articles = construireMarche(jeuComplet, TAUX_DEFAUT);
 
-  test("chaque carte du set a sa normale et sa rainbow au catalogue", () => {
-    expect(articles.length).toBeGreaterThanOrEqual(jeuComplet.length);
+  test("chaque carte a sa normale, et sa rainbow sauf full art et PJ", () => {
+    const speciales = jeuComplet.filter((c) => c.tier === "fullart" || c.tier === "pj").length;
+    expect(articles.length).toBe(jeuComplet.length * 2 - speciales);
+    expect(articles.some((a) => a.rainbow && (a.tier === "fullart" || a.tier === "pj"))).toBe(false);
   });
 
   test("le même jour donne le même marché", () => {

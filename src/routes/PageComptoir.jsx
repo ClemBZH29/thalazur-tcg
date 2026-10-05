@@ -3,13 +3,17 @@ import { TIER_INFO, TIER_ORDER, REVENTE } from "../config/tiers.js";
 import { useJeu } from "../jeu/Jeu.jsx";
 import { Lien } from "../lib/routeur.jsx";
 import { useMarche } from "../comptoir/useMarche.js";
-import { acheteurDeDemain, conservateurPresent } from "../comptoir/acheteurs.js";
+import { acheteurDeDemain, annonceDe, conservateurPresent } from "../comptoir/acheteurs.js";
 import { dos, encre } from "../comptoir/teintes.js";
 import Negoce from "../comptoir/Negoce.jsx";
 import "../styles/comptoir.css";
 
+// Des PO entières partout : « 8,76 PO » sur une ligne et « 63 PO » dans le
+// négoce, pour la même carte, ne se comparaient pas.
 const fmt = (n) => Math.round(n).toLocaleString("fr-FR");
-const nb = (x) => (x >= 100 ? fmt(x) : x >= 10 ? x.toFixed(1).replace(".", ",") : x.toFixed(2).replace(".", ","));
+
+/** Ce que la vente rapide prend sans qu'on le lui demande. */
+const BAS = new Set(["commun", "peucommun"]);
 
 /** Le portrait d'un acheteur, ou son initiale gravée si l'image manque. */
 function Portrait({ acheteur, classe }) {
@@ -36,6 +40,12 @@ export default function PageComptoir() {
   const [annonce, setAnnonce] = useState(false);
   // La Régie était un dépliant en bas de page ; c'est une bulle d'aide en tête.
   const [regie, setRegie] = useState(false);
+  /* La vente rapide vendait tout, rainbow comprises, au prix de l'échoppe.
+     Or une rainbow en trop étoile une fiche du Donjon, et une rare se vend
+     bien mieux à son acheteur. Par défaut elle ne prend que les normales
+     communes et peu communes ; le reste se coche, en connaissance de cause. */
+  const [liqHaut, setLiqHaut] = useState(false);
+  const [liqRainbow, setLiqRainbow] = useState(false);
 
   const dire = useCallback((m) => setAvis(m), []);
 
@@ -61,7 +71,15 @@ export default function PageComptoir() {
   );
 
   const nSurplus = vendables.reduce((s, v) => s + v.n, 0);
-  const totalRapide = vendables.reduce((s, v) => s + v.n * v.rachat, 0);
+
+  const liquidables = useMemo(
+    () => vendables.filter(({ a }) => (a.rainbow ? liqRainbow : BAS.has(a.tier) || liqHaut)),
+    [vendables, liqHaut, liqRainbow]
+  );
+  const nRapide = liquidables.reduce((s, v) => s + v.n, 0);
+  const totalRapide = liquidables.reduce((s, v) => s + v.n * v.rachat, 0);
+  const nRainbow = vendables.filter((v) => v.a.rainbow).reduce((s, v) => s + v.n, 0);
+  const nHaut = vendables.filter((v) => !v.a.rainbow && !BAS.has(v.a.tier)).reduce((s, v) => s + v.n, 0);
 
   /* ── Le rayon du jour ──────────────────────────────────────────────────── */
 
@@ -78,7 +96,7 @@ export default function PageComptoir() {
     let gain = 0;
     let vendus = 0;
     for (let k = 0; k < q; k++) {
-      const paye = M.payer(a, M.offreUnitaire(a, acheteur, M.stock[a.id]) * facteur);
+      const paye = M.payer(a, M.prixAcheteur(a, acheteur, M.stock[a.id], facteur));
       if (paye === null) { dire("La bourse du Comptoir est vide pour aujourd'hui."); break; }
       gain += paye;
       vendus++;
@@ -95,7 +113,7 @@ export default function PageComptoir() {
   const liquider = () => {
     let gain = 0;
     let n = 0;
-    for (const v of vendables) {
+    for (const v of liquidables) {
       for (let k = 0; k < v.n; k++) {
         const paye = M.payer(v.a, M.cotation(v.a).bid);
         if (paye === null) break;
@@ -173,8 +191,8 @@ export default function PageComptoir() {
               <p className="bulle-titre">Comment ça marche</p>
               <ul className="bulle-liste">
                 <li>
-                  <b>Trois acheteurs passent chaque jour</b>, et changent à
-                  minuit. Chacun n'achète que ce qui l'intéresse.
+                  <b>Lise passe tous les jours</b>, avec deux spécialistes qui
+                  changent à minuit. Chacun n'achète que ce qui l'intéresse.
                 </li>
                 <li>
                   <b>Ils paient mieux que l'échoppe</b>, mais il faut tomber sur
@@ -192,7 +210,7 @@ export default function PageComptoir() {
                 </li>
               </ul>
               <p className="bulle-hors-jeu">
-                Hors jeu — un booster entièrement revendu rapporte{" "}
+                Hors jeu : un booster entièrement revendu rapporte{" "}
                 <b className={garde.liq < 1 ? "ok" : "ko"}>{(garde.liq * 100).toFixed(0)} %</b> de
                 son prix à l'échoppe, <b className={garde.liqMax < 1 ? "ok" : "ko"}>{(garde.liqMax * 100).toFixed(0)} %</b>{" "}
                 au meilleur acheteur. Au-dessus de 100 %, l'économie se casse.
@@ -213,7 +231,7 @@ export default function PageComptoir() {
           {annonce && (
             <div className="annonce-bulle" role="status">
               <p className="annonce-nom">{demain.nom}</p>
-              <p className="muted">{demain.sub}</p>
+              <p className="muted">{annonceDe(demain)}</p>
               {conservateurPresent(jour + 1) && (
                 <p className="annonce-rare">Le Conservateur Royal passera.</p>
               )}
@@ -272,8 +290,9 @@ export default function PageComptoir() {
                   <span className="acheteur-quote">{b.quote}</span>
                   <span className="acheteur-pied">
                     {actif ? (
-                      <>Votre <b>{interesse[0].carte.nom}</b>{interesse[0].rainbow ? " rainbow" : ""} l'intéresse
-                        {" "}— <b className="or">{nb(M.offreUnitaire(interesse[0], b))} PO</b></>
+                      <>Votre <b>{interesse[0].carte.nom}</b>{interesse[0].rainbow ? " rainbow" : ""} l'intéresse :{" "}
+                        <b className="or">{fmt(M.offreUnitaire(interesse[0], b))} PO</b>
+                        {interesse.length > 1 && <span className="muted">, et {interesse.length - 1} autre{interesse.length > 2 ? "s" : ""}</span>}</>
                     ) : (
                       <span className="muted">Aucun de vos surplus ne l'intéresse aujourd'hui.</span>
                     )}
@@ -336,12 +355,28 @@ export default function PageComptoir() {
           <h2 id="t-rapide">Vente rapide</h2>
           <p className="rapide-montant">{fmt(totalRapide)} PO</p>
           <p className="muted">
-            {nSurplus} exemplaire{nSurplus > 1 ? "s" : ""} au prix de rachat garanti
+            {nRapide} exemplaire{nRapide > 1 ? "s" : ""} au prix de rachat garanti
             ({TIER_ORDER.filter((t) => REVENTE[t]).slice(0, 4).map((t) => `${REVENTE[t]}`).join(" / ")} PO
-            par palier) — moins qu'un bon acheteur, sans attendre le bon jour.
+            par palier) : moins qu'un bon acheteur, sans attendre le bon jour.
           </p>
-          <button type="button" className="btn" onClick={liquider} disabled={nSurplus === 0}>
-            {nSurplus === 0 ? "Rien à liquider" : "Liquider mes doublons"}
+          {(nHaut > 0 || nRainbow > 0) && (
+            <div className="rapide-options">
+              {nHaut > 0 && (
+                <label>
+                  <input type="checkbox" checked={liqHaut} onChange={(e) => setLiqHaut(e.target.checked)} />
+                  Rares et au-delà ({nHaut})
+                </label>
+              )}
+              {nRainbow > 0 && (
+                <label>
+                  <input type="checkbox" checked={liqRainbow} onChange={(e) => setLiqRainbow(e.target.checked)} />
+                  Rainbow ({nRainbow}), qui étoilent aussi les fiches du Donjon
+                </label>
+              )}
+            </div>
+          )}
+          <button type="button" className="btn" onClick={liquider} disabled={nRapide === 0}>
+            {nRapide === 0 ? "Rien à liquider" : "Liquider ces doublons"}
           </button>
           <p className="muted fine">
             Bourse du Comptoir : {fmt(M.fonds)} PO, renflouée chaque nuit.
@@ -363,7 +398,10 @@ export default function PageComptoir() {
           </p>
         ) : (
           <ul className="lignes">
-            {vendables.slice(0, 60).map(({ a, acheteur, offre, rachat, n }) => (
+            {/* Toutes les lignes : la liste s'arrêtait à soixante sans le
+                dire, sur un surplus qui en compte plusieurs centaines. Le
+                regroupement par acheteur viendra avec la refonte de la page. */}
+            {vendables.map(({ a, acheteur, offre, rachat, n }) => (
               <li key={a.id}>
                 <div className="ligne-carte">
                   <span className="cp-dos" aria-hidden="true" style={dos(a.tier)} />
@@ -381,8 +419,8 @@ export default function PageComptoir() {
                 <dl className="ligne-chiffres">
                   <div><dt>Surplus</dt><dd>×{n}</dd></div>
                   <div><dt>Acheteur</dt><dd>{acheteur ? acheteur.nom : <span className="muted">aucun</span>}</dd></div>
-                  <div><dt>Son offre</dt><dd className={acheteur ? "or" : "sans-offre"}>{acheteur ? `${nb(offre)} PO` : "—"}</dd></div>
-                  <div><dt>Échoppe</dt><dd>{nb(rachat)} PO</dd></div>
+                  <div><dt>Son offre</dt><dd className={acheteur ? "or" : "sans-offre"}>{acheteur ? `${fmt(offre)} PO` : "aucune"}</dd></div>
+                  <div><dt>Échoppe</dt><dd>{fmt(rachat)} PO</dd></div>
                 </dl>
                 {acheteur ? (
                   <button type="button" className="btn quiet sm" onClick={() => ouvrirNegoce(acheteur, a)}>

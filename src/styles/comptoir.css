@@ -692,3 +692,10 @@
 
 [data-mouvement="reduit"] .neg-verdict,
 [data-mouvement="reduit"] .neg-chiffres .montant { animation: none; }
+
+/* Ce que la vente rapide prend en plus des normales communes et peu
+   communes. Deux cases, cochées à la main : une rainbow en trop étoile une
+   fiche du Donjon, une rare se vend mieux à son acheteur. */
+.rapide .rapide-options { display: grid; gap: 8px; margin-top: 14px; font-size: 12.5px; color: var(--ink2); }
+.rapide .rapide-options label { display: flex; gap: 8px; align-items: flex-start; line-height: 1.4; cursor: pointer; min-height: 24px; }
+.rapide .rapide-options input { margin-top: 2px; accent-color: var(--lamp); }
