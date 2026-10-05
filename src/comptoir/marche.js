@@ -1,5 +1,6 @@
 import { SLOTS, REVENTE, ECONOMIE, TIER_INFO } from "../config/tiers.js";
 import { affinite, norm, factionDe, roleCarte } from "./acheteurs.js";
+import { chanceDe } from "./voix.js";
 
 /**
  * LE COMPTOIR — marché de l'occasion.
@@ -32,7 +33,8 @@ export const CFG = {
   tension: 0.75,       // rayon visé, en fraction du rayon d'équilibre
   plafond: 3,          // prix maximal, en multiple de l'ancrage
   margeVente: 2.6,     // marge de l'échoppe quand c'est elle qui vend
-  rayon: 6,            // cartes proposées à la vente chaque jour
+  rayon: 5,            // cartes courantes du rayon, en plus de la pièce du jour
+  poidsManque: 4,      // une carte qui manque au joueur se présente quatre fois plus
   spreadBase: 0.06,
   spreadIlliquide: 0.30,
   frais: 0.05,         // commission de l'échoppe sur un rachat
@@ -49,21 +51,8 @@ export const CFG = {
   fondsMax: 26000,
 };
 
-/** Journée de référence. Le jour 14 du module reste le premier jour du site. */
-const EPOCH = Date.UTC(2026, 0, 1);
-const JOUR_UN = 14;
-
-/**
- * Le jour, indexé sur la date réelle et non sur un bouton. Les acheteurs
- * tournent avec le calendrier : on revient demain, on ne rejoue pas la journée.
- * Minuit local plutôt qu'UTC, parce qu'un joueur change de jour quand il
- * change de jour.
- */
-export function jourCourant(maintenant = new Date()) {
-  const minuit = new Date(maintenant.getFullYear(), maintenant.getMonth(), maintenant.getDate());
-  const decalage = minuit.getTimezoneOffset() * 60000;
-  return JOUR_UN + Math.floor((minuit.getTime() - decalage - EPOCH) / 86400000);
-}
+// Le jour vit dans jour.js, que le bandeau du site lit sans charger le marché.
+export { jourCourant } from "./jour.js";
 
 /** Générateur à graine : deux visiteurs du même jour voient le même marché. */
 function alea(graine) {
@@ -166,6 +155,9 @@ export class Marche {
     this.verses = 0;
     this.encaisses = 0;
     this.marchandages = {};
+    this.achats = {};       // acheteurId -> exemplaires rachetés aujourd'hui
+    this.achatsJoueur = {}; // articleId -> true, ce que le joueur a pris au rayon aujourd'hui
+    this.vitrine = null;    // { jour, rayon: [ids], piece: id } : la vitrine figée du jour
     this.journal = [];
 
     if (sauve && sauve.jour) {
@@ -178,6 +170,9 @@ export class Marche {
       this.verses = sauve.verses || 0;
       this.encaisses = sauve.encaisses || 0;
       this.marchandages = sauve.marchandages || {};
+      this.achats = sauve.achats || {};
+      this.achatsJoueur = sauve.achatsJoueur || {};
+      this.vitrine = sauve.vitrine || null;
       this.journal = sauve.journal || [];
       const ecoules = jour - sauve.jour;
       if (ecoules > 0) this.avancer(sauve.jour, Math.min(ecoules, 21));
@@ -209,6 +204,9 @@ export class Marche {
       // Un marchandage ne survit pas à la nuit : c'est ce qui empêche de
       // relancer un dé jusqu'à obtenir la bonne offre.
       this.marchandages = {};
+      // Le quota repart à zéro avec les acheteurs du lendemain.
+      this.achats = {};
+      this.achatsJoueur = {};
     }
   }
 
@@ -325,12 +323,16 @@ export class Marche {
     return net;
   }
 
-  /** L'échoppe vend. Renvoie le prix, ou null si le rayon est vide. */
+  /**
+   * L'échoppe vend une case du rayon ou la pièce du jour. Une case ne se
+   * vend qu'une fois par jour : c'est une vitrine, pas un stock à vider.
+   * Renvoie le prix, ou null si la pièce est déjà partie.
+   */
   vendreAuJoueur(a) {
-    const s = this.stock[a.id] ?? a.equilibre;
-    if (s < 1) return null;
+    if (this.achatsJoueur[a.id]) return null;
     const { ask } = this.cotation(a);
-    this.stock[a.id] = s - 1;
+    this.stock[a.id] = Math.max(0, (this.stock[a.id] ?? a.equilibre) - 1);
+    this.achatsJoueur[a.id] = true;
     this.fonds += ask;
     this.encaisses += ask;
     return ask;
@@ -342,12 +344,30 @@ export class Marche {
     return this.marchandages[this.cleMarchandage(acheteurId, articleId)] || null;
   }
 
-  marchander(acheteur, a, tirage = Math.random()) {
+  /**
+   * Un marchandage, un seul par carte et par acheteur dans la journée. La
+   * manière de présenter la carte fait la chance (voir `chanceDe`) : c'est
+   * ce qui en fait une décision et non plus un pile ou face à espérance
+   * connue d'avance.
+   */
+  marchander(acheteur, a, maniere = null, tirage = Math.random()) {
     const cle = this.cleMarchandage(acheteur.id, a.id);
     if (this.marchandages[cle]) return this.marchandages[cle];
-    const ok = tirage < acheteur.chance;
-    this.marchandages[cle] = { ok, facteur: ok ? 1 + acheteur.up : 1 - acheteur.down };
+    const ok = tirage < chanceDe(acheteur, maniere);
+    this.marchandages[cle] = { ok, maniere, facteur: ok ? 1 + acheteur.up : 1 - acheteur.down };
     return this.marchandages[cle];
+  }
+
+  /* ── Le quota du jour ───────────────────────────────────────────────────── */
+
+  /** Exemplaires que l'acheteur rachète encore aujourd'hui. */
+  restant(acheteur) {
+    return Math.max(0, (acheteur.quota ?? Infinity) - (this.achats[acheteur.id] || 0));
+  }
+
+  /** Note une vente sur le quota de l'acheteur. */
+  compterAchat(acheteur, n) {
+    this.achats[acheteur.id] = (this.achats[acheteur.id] || 0) + n;
   }
 
   noter(texte, po = 0) {
@@ -392,14 +412,16 @@ export class Marche {
    * commune à vingt-huit PO signifiait quatre cartes choisies pour le prix
    * d'un booster, et plus personne n'ouvrait de sachet.
    */
-  rayonDuJour() {
+  rayonDuJour(manque = () => false) {
     const r = alea(((this.jour + 1) * 40503) >>> 0);
     const dispo = this.articles.filter((a) => (this.stock[a.id] ?? 0) >= 1);
     if (!dispo.length) return [];
     // Tirage sans remise, pondéré par le rayon : ce qui abonde se présente
-    // souvent, ce qui manque presque jamais.
+    // souvent, ce qui manque presque jamais. Une carte qui manque au joueur
+    // pèse quatre fois plus : à deux cents cartes possédées, le rayon ne
+    // montrait plus que des cartes déjà en collection.
     const restants = dispo.slice();
-    const poids = restants.map((a) => Math.pow(this.stock[a.id], 0.6));
+    const poids = restants.map((a) => Math.pow(this.stock[a.id], 0.6) * (manque(a) ? CFG.poidsManque : 1));
     const sortie = [];
     let total = poids.reduce((s, p) => s + p, 0);
     while (sortie.length < Math.min(CFG.rayon, restants.length) && total > 0) {
@@ -413,6 +435,50 @@ export class Marche {
     }
     return sortie;
   }
+
+  /**
+   * La pièce du jour : une rare, une légendaire ou une rainbow, tirée de la
+   * graine du jour et pondérée par sa rareté, qui ne passerait jamais par le
+   * rayon ordinaire (une rainbow n'a qu'un tiers d'exemplaire en rayon). Elle
+   * se vend à son prix de marché, sans remise : une rare rainbow vaut une
+   * dizaine de boosters, et c'est ce qui en fait une pièce qu'on guette.
+   */
+  pieceDuJour(manque = () => false) {
+    const r = alea(((this.jour + 7) * 2246822519) >>> 0);
+    const eligibles = this.articles.filter((a) =>
+      (a.rainbow && a.tier !== "fullart" && a.tier !== "pj") || (!a.rainbow && (a.tier === "rare" || a.tier === "legendaire")));
+    if (!eligibles.length) return null;
+    const poids = eligibles.map((a) => Math.sqrt(a.p) * (manque(a) ? CFG.poidsManque : 1));
+    let seuil = r() * poids.reduce((s, p) => s + p, 0);
+    let i = 0;
+    while (i < eligibles.length - 1 && (seuil -= poids[i]) > 0) i++;
+    return eligibles[i];
+  }
+
+  /**
+   * La vitrine du jour, figée à la première visite : une vente au Comptoir
+   * garnit le rayon et un achat complète la collection, et sans ce gel les
+   * cases changeaient sous les doigts du joueur. Elle se renouvelle avec le
+   * jour.
+   */
+  vitrineDuJour(manque = () => false) {
+    if (!this.vitrine || this.vitrine.jour !== this.jour
+        || !this.vitrine.rayon.every((id) => this.parId[id])) {
+      const piece = this.pieceDuJour(manque);
+      this.vitrine = {
+        jour: this.jour,
+        rayon: this.rayonDuJour(manque).filter((a) => a !== piece).map((a) => a.id),
+        piece: piece ? piece.id : null,
+      };
+    }
+    return {
+      piece: this.vitrine.piece ? this.parId[this.vitrine.piece] || null : null,
+      rayon: this.vitrine.rayon.map((id) => this.parId[id]).filter(Boolean),
+    };
+  }
+
+  /** Ce que le joueur a déjà acheté au rayon aujourd'hui : une pièce par case. */
+  dejaAchete(a) { return !!this.achatsJoueur[a.id]; }
 
   medianeAsk(tier) {
     const v = this.articles.filter((a) => a.tier === tier && !a.rainbow)
@@ -435,6 +501,9 @@ export class Marche {
       verses: Math.round(this.verses),
       encaisses: Math.round(this.encaisses),
       marchandages: this.marchandages,
+      achats: this.achats,
+      achatsJoueur: this.achatsJoueur,
+      vitrine: this.vitrine,
       journal: this.journal,
     };
   }

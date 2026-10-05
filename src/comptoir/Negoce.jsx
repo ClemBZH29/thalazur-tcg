@@ -1,66 +1,70 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { TIER_INFO } from "../config/tiers.js";
-import { dos, encre } from "./teintes.js";
+import { encre } from "./teintes.js";
+import { MANIERES, FIN_DE_JOURNEE, replique } from "./voix.js";
+import Carte from "../components/Carte.jsx";
 
 const fmt = (n) => Math.round(n).toLocaleString("fr-FR");
+const PO = (n) => `${fmt(n)} PO`;
+const pli = (t) => String(t || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
 /**
- * La fenêtre de négoce.
- *
- * Un dialogue complet, comme le plein écran d'une carte : `aria-modal`, piège
- * à focus, focus rendu à l'appelant, fermeture par Échap. Le module d'origine
- * n'avait qu'un fond cliquable et l'écoute d'Échap ; sans piège, la tabulation
- * sortait derrière la fenêtre et on marchandait à l'aveugle.
+ * La jauge du quota : un rail et ce qu'il reste à racheter aujourd'hui.
+ * Épuisée, elle s'efface et laisse la phrase.
  */
-export default function Negoce({ M, acheteur, article, articles, surplus, onArticle, onVendre, onFermer }) {
-  const [qte, setQte] = useState(1);
-  /**
-   * Le marchandage se jouait sans rien annoncer : l'offre changeait de chiffre,
-   * le verdict s'ajoutait en bas et la fenêtre grandissait d'un coup. Deux
-   * corrections : une brève pesée avant le résultat, puis un éclat sur le
-   * montant — vert s'il monte, ambre-brûlé s'il tombe. `pese` porte l'attente,
-   * `eclat` porte l'issue le temps de l'animation.
-   */
-  const [pese, setPese] = useState(false);
-  const [aide, setAide] = useState(false);
-  /**
-   * Filtre de la liste des cartes.
-   *
-   * La liste était une seule rangée qui défilait à l'horizontale. Passé une
-   * dizaine de doublons, choisir revenait à tirer un tapis roulant sans savoir
-   * ce qui restait derrière le bord — et une collection avancée en propose
-   * cinquante. Elle passe en grille de pastilles, sur trois rangs au plus, avec
-   * un champ de filtre et le prix unitaire écrit sur chaque pastille : la liste
-   * devient un tarif trié, pas un tourniquet.
-   */
-  const [filtre, setFiltre] = useState("");
-  const [eclat, setEclat] = useState(null);
-  const chrono = useRef([]);
-  const boite = useRef(null);
-  const rendu = useRef(null);
-  const choisi = useRef(null);
+export function Jauge({ restant, quota, large = false }) {
+  if (!quota || !Number.isFinite(quota)) return null;
+  return (
+    <div className={`jauge${large ? " large" : ""}`}>
+      {restant > 0 && (
+        <span className="jauge-rail" aria-hidden="true">
+          <span style={{ width: `${(restant / quota) * 100}%` }} />
+        </span>
+      )}
+      <span className={restant > 0 ? "jauge-texte" : "jauge-texte fini"}>
+        {restant > 0
+          ? `Encore ${restant} achat${restant > 1 ? "s" : ""} aujourd'hui`
+          : "Il a fini sa journée. Revenez demain."}
+      </span>
+    </div>
+  );
+}
 
-  useEffect(() => { setQte(1); setPese(false); setEclat(null); setAide(false); }, [article?.id]);
-  // Le filtre se vide quand on change d'acheteur, pas quand on change de carte.
-  useEffect(() => { setFiltre(""); }, [acheteur?.id]);
+/**
+ * Le négoce, en deux écrans.
+ *
+ * L'ancienne fenêtre mêlait le choix de la carte (des pastilles tronquées) et
+ * le marchandage, et faisait doublon avec le tableau du surplus. L'écran A
+ * montre les cartes qui intéressent l'acheteur, en vraies vignettes avec leur
+ * prix ; l'écran B marchande une carte. « Retour à ses cartes » ramène de B à
+ * A sans fermer.
+ *
+ * Un dialogue complet : `aria-modal`, piège à focus, fermeture par Échap,
+ * focus rendu à l'appelant par la page.
+ */
+export default function Negoce({ M, acheteur, articles, surplus, cfgImage, fichiers, onVendre, onMarchander, onFermer }) {
+  const [carte, setCarte] = useState(null);      // id de l'article en marchandage (écran B)
+  const [recherche, setRecherche] = useState("");
+  const [tri, setTri] = useState("prix");
+  const [qte, setQte] = useState(1);
+  const [maniere, setManiere] = useState(null);
+  const [pese, setPese] = useState(false);
+  const [eclat, setEclat] = useState(null);
+  const [conclue, setConclue] = useState(null);  // { vendus, gain } après une vente
+  const boite = useRef(null);
+  const chrono = useRef([]);
+  const venteRef = useRef(null);
+
   useEffect(() => () => chrono.current.forEach(clearTimeout), []);
 
-  /* La liste des cartes qui l'intéressent défile : sans ceci, ouvrir un négoce
-     depuis une ligne du tableau montrait le début de la liste et pas la carte
-     sur laquelle on venait de cliquer. */
+  /* Piège à focus et Échap. */
   useEffect(() => {
-    choisi.current?.scrollIntoView({ block: "nearest", inline: "nearest" });
-  }, [article?.id]);
-
-  useEffect(() => {
-    rendu.current = document.activeElement;
-    const premier = boite.current?.querySelector("button, input");
-    premier?.focus();
+    boite.current?.querySelector("button, input")?.focus();
     const surTouche = (e) => {
       if (e.key === "Escape") { e.stopPropagation(); onFermer(); return; }
       if (e.key !== "Tab") return;
       const cibles = boite.current?.querySelectorAll(
-        'button:not([disabled]), input:not([disabled]), [href], [tabindex]:not([tabindex="-1"])'
+        'button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])'
       );
       if (!cibles || !cibles.length) return;
       const debut = cibles[0];
@@ -69,237 +73,259 @@ export default function Negoce({ M, acheteur, article, articles, surplus, onArti
       else if (!e.shiftKey && document.activeElement === fin) { e.preventDefault(); debut.focus(); }
     };
     document.addEventListener("keydown", surTouche, true);
-    const rendre = rendu.current;
-    return () => {
-      document.removeEventListener("keydown", surTouche, true);
-      if (rendre && rendre.focus) rendre.focus();
-    };
+    return () => document.removeEventListener("keydown", surTouche, true);
   }, [onFermer]);
 
-  if (!article || !acheteur) return null;
+  const restant = M.restant(acheteur);
+  const prenom = acheteur.nom.split(" ").pop();
 
-  const dispo = surplus(article);
-  const q = Math.max(1, Math.min(Math.max(dispo, 1), parseInt(qte, 10) || 1));
-  const marche = M.marchandage(acheteur.id, article.id);
-  const facteur = marche ? marche.facteur : 1;
-  const total = M.offreLot(article, acheteur, q, facteur);
-  const rapide = M.rachatLot(article, q);
-  const aff = M.affinite(article, acheteur);
-  const palier = TIER_INFO[article.tier]?.nom || article.tier;
+  const visibles = useMemo(() => {
+    const q = pli(recherche).trim();
+    const l = q ? articles.filter((a) => pli(a.carte.nom).includes(q)) : articles.slice();
+    if (tri === "nom") l.sort((x, y) => x.carte.nom.localeCompare(y.carte.nom, "fr"));
+    return l;
+  }, [articles, recherche, tri]);
 
-  /** Les cartes retenues par le filtre. Accents et casse ignorés. */
-  const pli = (t) => String(t || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-  const q_filtre = pli(filtre).trim();
-  const visibles = q_filtre
-    ? articles.filter((a) => pli(a.carte.nom).includes(q_filtre))
-    : articles;
+  const article = carte ? M.parId[carte] : null;
 
-  const marchander = () => {
-    if (marche || pese) return;
-    setPese(true);
-    // Une demi-seconde de pesée : le temps que la proposition soit examinée.
-    // Sans elle, le chiffre changeait dans le même souffle que le clic et rien
-    // ne signalait qu'un dé venait d'être jeté.
-    chrono.current.push(setTimeout(() => {
-      const r = M.marchander(acheteur, article);
-      setPese(false);
-      setEclat(r.ok ? "ok" : "ko");
-      chrono.current.push(setTimeout(() => setEclat(null), 900));
-      onArticle(article, { rafraichir: true });
-    }, 520));
+  const ouvrirCarte = (a) => {
+    if (restant === 0) return;
+    setCarte(a.id);
+    setQte(Math.max(1, Math.min(surplus(a), restant)));
+    setManiere(M.marchandage(acheteur.id, a.id)?.maniere || null);
+    setPese(false); setEclat(null); setConclue(null);
   };
+  const retourA = () => { setCarte(null); setConclue(null); };
+
+  /* ── La réplique de la colonne du portrait ─────────────────────────── */
+  const marche = article ? M.marchandage(acheteur.id, article.id) : null;
+  const voix = conclue ? replique(acheteur, "merci")
+    : restant === 0 ? FIN_DE_JOURNEE
+      : !article ? acheteur.quote
+        : marche ? replique(acheteur, marche.ok ? "ok" : "ko")
+          : replique(acheteur, "indice");
+  const humeur = conclue || marche?.ok ? "content" : marche && !marche.ok ? "decu" : "";
 
   return (
-    <div
-      className="neg-fond"
-      onClick={(e) => { if (e.target === e.currentTarget) onFermer(); }}
-    >
-      <section
-        className="neg"
-        role="dialog"
-        aria-modal="true"
-        aria-label={`Négoce avec ${acheteur.nom}`}
-        ref={boite}
-      >
-        <div className="neg-scene">
-          <div className="neg-halo" aria-hidden="true" />
-          <img
-            className="neg-portrait"
-            src={`${import.meta.env.BASE_URL}comptoir/${acheteur.portrait}.webp`}
-            alt=""
-            loading="lazy"
-          />
-          <div className="neg-identite">
-            <h2>{acheteur.nom}</h2>
-            <p className="neg-sub">{acheteur.sub}</p>
-            <p className="neg-spec">
-              <span aria-hidden="true">{acheteur.icon}</span> {acheteur.spec}
-            </p>
-          </div>
-          <blockquote className="neg-quote">{acheteur.quote}</blockquote>
+    <div className="neg-fond" onClick={(e) => { if (e.target === e.currentTarget) onFermer(); }}>
+      <section className={`neg${article ? " ecran-b" : " ecran-a"}`} role="dialog" aria-modal="true"
+               aria-labelledby="neg-titre" ref={boite}>
+        <div className={`neg-scene ${humeur}`}>
+          <span className="neg-lueur" aria-hidden="true" />
+          <img className="neg-portrait" alt=""
+               src={`${import.meta.env.BASE_URL}comptoir/${acheteur.portrait}.webp`} />
+        </div>
+        {/* Hors de la scène : au bureau elle se pose par-dessus le haut du
+            portrait, au téléphone elle passe sous le bandeau du portrait. */}
+        <div className="neg-identite">
+          <p className="neg-nom">{acheteur.nom}</p>
+          <p className="neg-sub">{acheteur.sub}, {acheteur.spec.charAt(0).toLowerCase() + acheteur.spec.slice(1)}</p>
+          <p className="neg-voix" aria-live="polite">{voix}</p>
         </div>
 
         <div className="neg-panneau">
           <div className="neg-tete">
-            {/* « Proposez un exemplaire en trop à X » : le titre le dit, le
-                portrait le montre, et la grille juste dessous ne laisse aucun
-                doute. */}
-            <h3>Négoce</h3>
+            {article ? (
+              <button type="button" className="neg-retour" onClick={retourA}>
+                <span aria-hidden="true">←</span> <span id="neg-titre">Retour à ses cartes</span>
+              </button>
+            ) : (
+              <h2 id="neg-titre">Ce qui intéresse {prenom}</h2>
+            )}
             <button type="button" className="neg-fermer" onClick={onFermer} aria-label="Fermer le négoce">×</button>
           </div>
+          <Jauge restant={restant} quota={acheteur.quota} large />
 
-          {articles.length > 1 && (
-            <div className="neg-liste">
-              {articles.length > 8 && (
-                <div className="neg-liste-tete">
-                  <input
-                    type="search"
-                    className="neg-filtre"
-                    value={filtre}
-                    onChange={(e) => setFiltre(e.target.value)}
-                    placeholder="Filtrer par nom…"
-                    aria-label="Filtrer les cartes qui l'intéressent"
-                  />
-                  <span className="neg-compte">
-                    {visibles.length === articles.length
-                      ? `${articles.length} cartes`
-                      : `${visibles.length} sur ${articles.length}`}
-                  </span>
-                </div>
-              )}
-              <div className="neg-choix" role="group" aria-label="Cartes qui l'intéressent">
-                {visibles.map((a) => (
-                  <button
-                    key={a.id}
-                    ref={a.id === article.id ? choisi : null}
-                    type="button"
-                    className={a.id === article.id ? "on" : ""}
-                    aria-pressed={a.id === article.id}
-                    onClick={() => onArticle(a)}
-                  >
-                    <span className="neg-puce-nom">
-                      {a.carte.nom}
-                      {a.rainbow && <span className="marque-rainbow" title="Version rainbow"> ✦</span>}
-                    </span>
-                    <b>×{surplus(a)}</b>
-                    {/* Le prix sur la pastille : c'est lui qu'on cherche en
-                        parcourant la liste, et la liste est triée dessus. */}
-                    <em>{fmt(M.offreUnitaire(a, acheteur))} PO</em>
-                  </button>
-                ))}
-                {visibles.length === 0 && (
-                  <p className="neg-rien">Aucune de ces cartes ne porte ce nom.</p>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* La carte et la quantité sur un rang : c'était une boîte de plus. */}
-          <div className="neg-carte">
-            <span className="cp-dos" aria-hidden="true" style={dos(article.tier)} />
-            <div className="neg-carte-nom">
-              <p className="neg-nom">
-                {article.carte.nom}
-                {article.rainbow && <span className="marque-rainbow" title="Version rainbow"> ✦</span>}
-              </p>
-              <p className="neg-palier" style={{ color: encre(article.tier) }}>
-                {palier}
-                {aff > 1 && " · double affinité"}
-                {M.hausse(article) && " · en hausse"}
-                {` · ${dispo} en surplus`}
-              </p>
-            </div>
-            <div className="pas">
-              <button type="button" onClick={() => setQte(Math.max(1, q - 1))} aria-label="Réduire la quantité">−</button>
-              <input
-                value={q}
-                onChange={(e) => setQte(e.target.value)}
-                inputMode="numeric"
-                aria-label="Quantité à vendre"
-              />
-              <button type="button" onClick={() => setQte(Math.min(Math.max(dispo, 1), q + 1))} aria-label="Augmenter la quantité">+</button>
-            </div>
-          </div>
-
-          {/* Trois chiffres sur un rang, séparés par des filets — le séparateur
-              est celui de la ligne de repères des cartes. Ils vivaient dans
-              quatre encadrés dont deux ne servaient qu'à border un nombre. */}
-          <dl className="neg-chiffres">
-            <div>
-              <dt>Offre de {acheteur.nom.split(" ").pop()}</dt>
-              <dd>
-                <b className={`montant${eclat ? " eclat-" + eclat : ""}`}>
-                  {pese ? "…" : `${fmt(total)} PO`}
-                </b>
-              </dd>
-            </div>
-            <div>
-              <dt>Échoppe</dt>
-              <dd><span className="second">{fmt(rapide)} PO</span></dd>
-            </div>
-            <div>
-              <dt>Chance</dt>
-              <dd><span className="second">{Math.round(acheteur.chance * 100)} %</span></dd>
-            </div>
-          </dl>
-
-          <div className="neg-actions">
-            <button type="button" className="btn" onClick={() => onVendre(article, acheteur, q, facteur)}>
-              Vendre
-            </button>
-            {marche ? (
-              <span className="neg-fait">Déjà marchandé</span>
-            ) : (
-              <button type="button" className="btn quiet" onClick={marchander} disabled={pese}>
-                {pese ? "Il examine…" : "Marchander"}
-              </button>
-            )}
-          </div>
-
-          {/* Emplacement réservé : la fenêtre ne doit pas grandir au moment où
-              le verdict tombe. */}
-          <div className="neg-issue" aria-live="polite">
-            {marche && (
-              <p className={`neg-verdict ${marche.ok ? "ok" : "ko"}`}>
-                {marche.ok
-                  ? `Marchandage réussi : ${acheteur.nom} monte à ${fmt(total)} PO.`
-                  : total <= rapide
-                    ? `Échec : ${acheteur.nom} ne paiera pas plus que l'échoppe aujourd'hui. Revenez demain, ou vendez au même prix.`
-                    : `Échec : ${acheteur.nom} a revu son offre à la baisse. Vous pouvez vendre quand même, ou revenir demain.`}
-              </p>
-            )}
-          </div>
-
-          <p className="neg-pied">
-            {/* Les deux issues ne se lisent qu'avant le jet : après, l'offre
-                affichée est l'issue, et « réussite 15 PO » sous un échec
-                annonçait un second jet qui n'existe pas. */}
-            {!marche && <>
-              Réussite {fmt(M.offreLot(article, acheteur, q, 1 + acheteur.up))} PO ·
-              échec {fmt(M.offreLot(article, acheteur, q, 1 - acheteur.down))} PO ·{" "}
-            </>}
-            un jet par jour et par carte
-            <button
-              type="button"
-              className="neg-aide"
-              aria-expanded={aide}
-              aria-label="Comment fonctionne le marchandage"
-              onClick={() => setAide((v) => !v)}
-            >?</button>
-          </p>
-          {aide && (
-            <div className="neg-bulle" role="status">
-              Un seul marchandage par acheteur et par carte dans la journée. En cas
-              d'échec l'offre baisse réellement, sans jamais tomber sous le prix de
-              l'échoppe, et le résultat reste verrouillé jusqu'à demain même si vous
-              fermez la fenêtre. Le montant annoncé est celui qui sera payé. La bourse
-              du Comptoir n'est pas sans fond.
-              <button type="button" className="neg-bulle-fermer" onClick={() => setAide(false)}
-                      aria-label="Fermer l'aide">×</button>
-            </div>
+          {!article ? (
+            <EcranA
+              visibles={visibles} total={articles.length} M={M} acheteur={acheteur} surplus={surplus}
+              restant={restant} recherche={recherche} setRecherche={setRecherche} tri={tri} setTri={setTri}
+              cfgImage={cfgImage} fichiers={fichiers} onOuvrir={ouvrirCarte} prenom={prenom}
+            />
+          ) : (
+            <EcranB
+              M={M} acheteur={acheteur} article={article} surplus={surplus} restant={restant}
+              qte={qte} setQte={setQte} maniere={maniere} setManiere={setManiere}
+              pese={pese} eclat={eclat} conclue={conclue} venteRef={venteRef}
+              cfgImage={cfgImage} fichiers={fichiers} prenom={prenom}
+              onRetour={retourA}
+              onMarchander={() => {
+                if (marche || pese || !maniere) return;
+                setPese(true);
+                // Une demi-seconde de pesée : le temps que la proposition soit
+                // examinée. Sans elle, rien ne signalait qu'un dé était jeté.
+                chrono.current.push(setTimeout(() => {
+                  const r = M.marchander(acheteur, article, maniere);
+                  setPese(false);
+                  setEclat(r.ok ? "ok" : "ko");
+                  chrono.current.push(setTimeout(() => setEclat(null), 900));
+                  onMarchander();
+                }, 520));
+              }}
+              onVendre={(q, facteur) => {
+                const r = onVendre(article, acheteur, q, facteur, venteRef.current);
+                if (r) setConclue(r);
+              }}
+            />
           )}
         </div>
       </section>
     </div>
+  );
+}
+
+function EcranA({ visibles, total, M, acheteur, surplus, restant, recherche, setRecherche, tri, setTri, cfgImage, fichiers, onOuvrir, prenom }) {
+  return (
+    <>
+      <div className="neg-outils">
+        <input type="search" className="neg-recherche" value={recherche}
+               onChange={(e) => setRecherche(e.target.value)}
+               placeholder="Chercher parmi ses cartes" aria-label="Chercher parmi ses cartes" />
+        <div className="cmp-puces" role="group" aria-label="Trier">
+          {[["prix", "Par prix"], ["nom", "Par nom"]].map(([k, nom]) => (
+            <button key={k} type="button" className="puce" aria-pressed={tri === k} onClick={() => setTri(k)}>{nom}</button>
+          ))}
+        </div>
+      </div>
+      <div className="neg-grille-zone">
+        <div className={`neg-grille${restant === 0 ? " eteinte" : ""}`}>
+          {visibles.map((a) => {
+            const n = surplus(a);
+            const prix = M.offreUnitaire(a, acheteur);
+            return (
+              <div key={a.id} className="neg-case">
+                <div className="cmp-vignette">
+                  <Carte
+                    c={{ ...a.carte, rainbow: a.rainbow }} taille="petit" cfgImage={cfgImage} fichiers={fichiers}
+                    vivant={restant > 0}
+                    onToucher={restant > 0 ? () => onOuvrir(a) : undefined}
+                    etiquette={`${a.carte.nom}${a.rainbow ? " rainbow" : ""}, ${n} en trop, ${PO(prix)} l'unité. Marchander`}
+                  />
+                  <span className="cmp-nb">×{n}</span>
+                </div>
+                <span className="cmp-prix">{PO(prix)} <span className="muted">l'unité</span></span>
+              </div>
+            );
+          })}
+        </div>
+        {visibles.length === 0 && <p className="muted">Aucune de ses cartes ne porte ce nom.</p>}
+      </div>
+      <p className="neg-pied">
+        {restant === 0
+          ? `${prenom} a fini sa journée : ses cartes restent ici jusqu'à demain.`
+          : `${total} carte${total > 1 ? "s" : ""}, triée${total > 1 ? "s" : ""} par ${tri === "prix" ? "prix" : "nom"}. Touchez une carte pour la marchander.`}
+      </p>
+    </>
+  );
+}
+
+function EcranB({ M, acheteur, article, surplus, restant, qte, setQte, maniere, setManiere, pese, eclat, conclue, venteRef, cfgImage, fichiers, prenom, onRetour, onMarchander, onVendre }) {
+  const dispo = surplus(article);
+  const max = Math.max(0, Math.min(dispo, restant));
+  const q = Math.max(1, Math.min(qte, max || 1));
+  const marche = M.marchandage(acheteur.id, article.id);
+  const facteur = marche ? marche.facteur : 1;
+  const total = M.offreLot(article, acheteur, q, facteur);
+  const base = M.offreLot(article, acheteur, q, 1);
+  const echoppe = M.rachatLot(article, q);
+  const borne = restant < dispo ? `au plus ${max}, son quota du jour` : `au plus ${max}, vos exemplaires en trop`;
+  const palier = TIER_INFO[article.tier]?.nom || article.tier;
+
+  let verdict = "Choisissez comment présenter la carte, puis marchandez. Ou vendez au prix affiché.";
+  let ton = "";
+  if (pese) { verdict = `${prenom} réfléchit…`; ton = "pese"; }
+  else if (conclue) { verdict = `Vente conclue : +${PO(conclue.gain)}.`; ton = "conclue"; }
+  else if (marche?.ok) { verdict = `Offre relevée : ${PO(total)} au lieu de ${PO(base)}.`; ton = "ok"; }
+  else if (marche && total <= echoppe) { verdict = `${prenom} ne paiera pas plus que l'échoppe aujourd'hui.`; ton = "ko"; }
+  else if (marche) { verdict = `Offre baissée jusqu'à demain : ${PO(total)} au lieu de ${PO(base)}.`; ton = "ko"; }
+
+  const fini = !!conclue || max === 0;
+
+  return (
+    <>
+      <div className="neg-carte">
+        <div className="cmp-vignette neg-carte-vignette">
+          <Carte c={{ ...article.carte, rainbow: article.rainbow }} taille="petit" cfgImage={cfgImage} fichiers={fichiers} />
+        </div>
+        <div className="neg-carte-infos">
+          <div>
+            <p className="neg-carte-nom">{article.carte.nom}</p>
+            <p style={{ color: article.rainbow ? "var(--m-rainbow)" : encre(article.tier) }}>
+              {palier}{article.rainbow ? " · Rainbow" : ""}
+            </p>
+            <p className="muted">
+              {dispo > 0 ? `Vous en avez ${dispo} en trop.` : "Vous n'en avez plus en trop."}
+            </p>
+            {article.rainbow && <p className="cmp-mention-rainbow">✦ Une rainbow en trop améliore vos cartes pour le Donjon.</p>}
+          </div>
+          <dl className="neg-chiffres">
+            {/* Après une vente, les chiffres sont ceux de la vente : l'offre
+                recalculée sur le stock suivant affichait un autre montant que
+                celui qu'on venait d'encaisser. */}
+            <div>
+              <dt>Son offre</dt>
+              <dd className={`neg-offre${eclat ? " eclat-" + eclat : ""}`}>
+                {pese ? "…" : PO(conclue ? conclue.gain : total)}
+              </dd>
+              <dd className="muted">
+                {conclue
+                  ? `${conclue.vendus} vendue${conclue.vendus > 1 ? "s" : ""}, ${PO(conclue.gain / conclue.vendus)} l'unité`
+                  : `${PO(total / q)} l'unité`}
+              </dd>
+            </div>
+            {!conclue && (
+              <div>
+                <dt>L'échoppe paie</dt>
+                <dd className="neg-echoppe">{PO(echoppe)}</dd>
+              </div>
+            )}
+          </dl>
+          {!fini && (
+            <div className="neg-quantite">
+              <span className="muted">Quantité</span>
+              <button type="button" onClick={() => setQte(Math.max(1, q - 1))} disabled={q <= 1} aria-label="Une de moins">−</button>
+              <span className="neg-qte" aria-live="polite">{q}</span>
+              <button type="button" onClick={() => setQte(Math.min(max, q + 1))} disabled={q >= max} aria-label="Une de plus">+</button>
+              <span className="muted">{borne}</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="neg-actions-zone">
+        {!fini && (
+          <div className="cmp-puces" role="radiogroup" aria-label="Présenter la carte">
+            <span className="muted">Présenter</span>
+            {MANIERES.map((m) => (
+              <button key={m.id} type="button" role="radio" className="puce"
+                      aria-checked={maniere === m.id} disabled={!!marche || pese}
+                      onClick={() => setManiere(m.id)}>
+                {m.nom}
+              </button>
+            ))}
+          </div>
+        )}
+        <div className="neg-actions">
+          {fini ? (
+            <button type="button" className="btn neg-vendre" onClick={onRetour} ref={venteRef}>Retour à ses cartes</button>
+          ) : (
+            <>
+              <button type="button" className="btn neg-vendre" ref={venteRef} disabled={pese}
+                      onClick={() => onVendre(q, facteur)}>
+                Vendre {q} à {acheteur.nom.startsWith("Le ") ? "au " + acheteur.nom.slice(3) : acheteur.nom}, {PO(total)}
+              </button>
+              <button type="button" className="neg-marchander" onClick={onMarchander}
+                      disabled={!!marche || pese || !maniere}>
+                {marche ? "Essai utilisé" : pese ? `${prenom} réfléchit…` : "Marchander"}
+              </button>
+            </>
+          )}
+        </div>
+        <p className={`neg-verdict ${ton}`} aria-live="polite">{verdict}</p>
+      </div>
+      <p className="neg-pied" title="Chaque acheteur préfère une manière de présenter la carte, et sa réplique le laisse deviner. Bien présentée, la carte se paie plus cher ; mal présentée, l'offre baisse jusqu'à demain, sans jamais passer sous le prix de l'échoppe. Un essai par carte et par jour. Chaque acheteur rachète un nombre limité d'exemplaires par jour.">
+        Un essai par carte et par jour. Survolez pour la règle complète.
+      </p>
+    </>
   );
 }

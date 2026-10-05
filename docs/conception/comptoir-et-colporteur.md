@@ -12,33 +12,60 @@ Conservateur une fois sur dix. Ce sont des personnages propres au jeu, hors
 campagne. L'audit du 05/10/2026 (`docs/audit-comptoir.md`) a fixé leurs goûts
 et ce calendrier.
 
-**L'ordre de la page suit l'argent.** Les acheteurs du jour, puis les deux
-mouvements immédiats côte à côte — le rayon et la vente rapide, alignés sur la
-même ligne — et enfin le tri du surplus, carte par carte, qui demande de la
-lecture. Le Registre a disparu : vingt lignes d'historique qu'on ne relit pas.
-La Régie, elle, est passée derrière le point d'interrogation du titre.
+**L'ordre de la page suit l'argent.** Les acheteurs du jour, puis le rayon
+et l'échoppe côte à côte. Le Registre a disparu : vingt lignes d'historique
+qu'on ne relit pas. La Régie, elle, est passée derrière le point d'interrogation du titre.
 
-### Au téléphone
+### La page, depuis la refonte d'octobre 2026
 
-Pleine largeur, chaque fiche d'acheteur prenait un écran entier, portrait
-compris, et le rayon n'arrivait qu'après trois écrans (à 2 400 px sur un écran
-de 844). Deux changements, mesurés à l'audit mobile du 28/09/2026 :
+La page suivait un tableur : trois portraits-affiches, un tableau de
+soixante lignes de surplus, une fenêtre de négoce à pastilles tronquées, et
+aucune carte montrée. À 884 doublons, elle était fade et la vente une corvée.
+La refonte suit la maquette Claude Design « Comptoir de Thalazur » v2, après
+une première version corrigée (`docs/audit-comptoir.md`, et les corrections 1
+du dossier de brief).
 
-- **La fiche passe en rangée quand sa colonne est étroite** : vignette de
-  96 px cadrée sur le visage, nom, métier, spécialité, et ce que l'acheteur veut
-  de vous en pied. La réplique se retire : toucher la fiche ouvre le négoce, où
-  elle a toute sa place. La règle est une requête de conteneur sur la colonne
-  des acheteurs, pas sur l'écran ; en paysage bas, une requête média applique
-  la même fiche, trois de front. Le rayon arrive à 865 px en portrait, 486 en
-  paysage.
-- **Ceux qui veulent quelque chose passent devant.** Un acheteur sans intérêt
-  pour vos surplus n'a rien à faire en tête d'une pile. Le tri est stable :
-  l'ordre du jour tient à l'intérieur de chaque groupe.
+- **Le bandeau du jour** : le titre, la date, la caisse du Comptoir, et
+  l'acheteur de demain avec sa vignette.
+- **La scène** : les acheteurs du jour debout derrière une planche de
+  comptoir. Une bulle ne porte que **la réplique**, à la voix du personnage ;
+  les faits (ce qu'il achète, combien de vos cartes l'intéressent, son
+  quota) se lisent sous son nom. Un acheteur sans intérêt pour vos cartes
+  passe en retrait, désaturé, et sa réplique dit pourquoi. Bulle, portrait et
+  plaque ont chacun leur hauteur réservée : rien ne bouge quand une réplique
+  change. Au téléphone, une rangée d'onglets-visages, et la bulle et la
+  plaque de l'acheteur choisi dessous.
+- **Le rayon** et **l'échoppe**, côte à côte au bureau.
 
-Des onglets « Vendre / Acheter » avaient été envisagés. Ils ne sont pas venus :
-une fois les fiches compactes, le rayon est à un défilement, et des onglets
-auraient séparé ce que la page montre ensemble — qui achète quoi aujourd'hui,
-et ce que l'échoppe vend.
+**On vend à l'unité, avec un quota.** Les lots (« Tout lui vendre », « 147
+autres cartes, comprises dans… ») ont été abandonnés : personne ne lisait ces
+phrases et l'écran ne pouvait pas les montrer. Chaque acheteur rachète un
+nombre limité d'exemplaires par jour (Lise 20, un spécialiste 10, le
+Conservateur 3), puis il a fini sa journée. Le quota se lit sur une jauge et
+repart à zéro avec les acheteurs du lendemain (`achats`, dans la sauvegarde
+du marché).
+
+**Le négoce a deux écrans.** A, « Ce qui intéresse Lise » : ses cartes en
+vraies vignettes, avec le nombre en trop et le prix à l'unité, une recherche
+et un tri. B, le marchandage d'une carte, ouvert d'un toucher sur une
+vignette : la carte, son offre, ce que paie l'échoppe, la quantité bornée par
+le surplus et par le quota, et « Retour à ses cartes ». Après une vente, les
+chiffres sont ceux de la vente, et le bouton principal ramène à A.
+
+**Le marchandage se lit.** Le pile ou face a laissé place à trois manières de
+présenter la carte : le prix ferme, l'histoire de la carte, sa rareté. Chaque
+acheteur en préfère une et en déteste une (`src/comptoir/voix.js`), et sa
+réplique d'indice le laisse deviner (« Dites-moi votre prix, franchement »).
+Bien choisie, la chance monte à 80 à 90 % ; mal choisie, elle tombe au tiers
+de son tempérament ; sinon, c'est son tempérament. Les garde-fous supposaient
+déjà un marchandage réussi : mieux réussir ne casse pas l'économie.
+
+**Le point de navigation** ne s'allume plus que les jours du Conservateur
+Royal. Le nombre d'exemplaires en trop ne faisait que grossir : un stock, pas
+une action.
+
+**Les pièces filent vers la bourse** après une vente, en arc, puis la bourse
+pulse. Avec le mouvement réduit du profil, rien ne vole.
 
 ### Le jour est la date réelle
 
@@ -166,41 +193,48 @@ prix qui montent, des rayons qui se vident, une bourse qui s'épuise.
 
 ### Le rayon du jour
 
-L'échoppe vend aussi. Elle ne déballe pas ses huit cents cases : elle sort six
-pièces, tirées de la graine du jour et pondérées par le rayon — donc surtout des
-cartes courantes et une légendaire de loin en loin. Six et non huit : deux rangs
-de trois tiennent exactement la hauteur de la vente rapide, à côté, et un rang
-orphelin de deux se voyait.
+L'échoppe vend aussi. Elle ne déballe pas ses huit cents cases : elle sort
+cinq cartes courantes, tirées de la graine du jour et pondérées par le rayon,
+et une **pièce du jour**.
 
-Sans cette limite, le marché complet cassait la collection : une peu commune à
+- **Les cartes qui vous manquent pèsent quatre fois plus** et passent devant,
+  marquées « Manquante ». À deux cents cartes possédées, le rayon ne montrait
+  plus que des cartes déjà en collection.
+- **La pièce du jour** est une rare, une légendaire ou une rainbow, tirée de
+  la graine du jour et pondérée par sa rareté. Elle ne passerait jamais par
+  le rayon ordinaire : une rainbow n'a qu'un tiers d'exemplaire en rayon. Elle
+  se vend à son prix de marché, sans remise. Une rare rainbow vaut environ
+  1 230 PO, une dizaine de boosters, et c'est voulu : la valeur d'une rainbow
+  se voit à l'achat comme à la revente.
+- **La vitrine est figée pour la journée** (`vitrineDuJour`) : une vente
+  garnit le rayon et un achat complète la collection, et sans ce gel les
+  cases changeaient sous les doigts. **Chaque case ne se vend qu'une fois**
+  dans la journée.
+
+Sans ces limites, le marché complet cassait la collection : une peu commune à
 vingt-huit PO signifiait quatre cartes choisies pour le prix d'un booster, et
-plus personne n'ouvrait de sachet. L'échoppe vend par ailleurs 2,6 fois ce
-qu'elle rachète ; c'est sa marge sur les pièces à l'unité qui garde le booster
-intéressant.
+plus personne n'ouvrait de booster. L'échoppe vend par ailleurs 2,6 fois ce
+qu'elle rachète ; c'est sa marge sur les pièces à l'unité qui garde le
+booster intéressant.
+
+### L'échoppe
+
+La sortie pour tout ce que les acheteurs n'ont pas pris : elle rachète tout,
+tout de suite, au prix de rachat. Trois puces disent ce que la vente inclut :
+les communes et peu communes, actives par défaut ; les rares et au-delà ; les
+rainbow, qui améliorent vos cartes pour le Donjon. Les deux dernières
+commencent éteintes. Le premier appui arme la vente (« Confirmer : 3 463
+PO »), le second la fait.
 
 ### La fenêtre de négoce
 
-Le portrait fixe la hauteur du cadre. Les onze portraits sont des **découpes à
-fond transparent** : le personnage est posé au bas de la scène, entier, sans
-recadrage — ni ici, ni sur les fiches d'acheteur. Voir la charte graphique,
-« Les portraits sont des découpes, pas des photographies ». Le panneau tient en trois zones — la carte et sa
-quantité, les trois chiffres sur un rang séparé par des filets, les actions — et
-la règle du marchandage vit dans une bulle d'aide.
-
-**La liste des cartes qui l'intéressent est une grille, pas un tapis roulant.**
-C'était une rangée unique défilant à l'horizontale sous un fondu : le fondu
-disait bien qu'il y avait autre chose derrière le bord, mais avec cinquante
-doublons il fallait le faire glisser à l'aveugle. Elle montre maintenant trois
-rangs de pastilles à la fois, se filtre par le nom — accents et casse ignorés —
-et **chaque pastille porte son prix unitaire**, l'information sur laquelle la
-liste est triée. Le cadre prend les quelques dizaines de pixels que la grille
-demande plutôt que de comprimer ses trois zones. Le
-marchandage annonce son résultat : une demi-seconde de pesée pendant laquelle le
-montant devient « … » et le bouton dit « Il examine… », puis le montant éclate
-en vert ou tressaille en ambre brûlé, et le verdict s'ouvre dans un encadré de
-la couleur de l'issue — le tout à place réservée, pour que la fenêtre ne
-grandisse pas au moment du résultat. Les mesures et le raisonnement sont dans la charte
-graphique.
+Le portrait fixe la hauteur du cadre (`--neg-h`, voir la charte). Les onze
+portraits sont des **découpes à fond transparent**, posées au bas de la
+scène, sans recadrage. Le nom et la réplique se posent par-dessus le haut du
+portrait au bureau, et passent sous son bandeau au téléphone, où le négoce
+occupe tout l'écran. Le marchandage annonce son résultat : une demi-seconde
+de pesée (« Lise réfléchit… »), puis le montant éclate en vert ou tressaille
+en ambre brûlé, et la réplique et l'expression du portrait suivent l'issue.
 
 ### Les garde-fous
 

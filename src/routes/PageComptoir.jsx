@@ -1,21 +1,45 @@
-import { useCallback, useMemo, useState } from "react";
-import { TIER_INFO, TIER_ORDER, REVENTE } from "../config/tiers.js";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { TIER_INFO } from "../config/tiers.js";
 import { useJeu } from "../jeu/Jeu.jsx";
-import { Lien } from "../lib/routeur.jsx";
 import { useMarche } from "../comptoir/useMarche.js";
 import { acheteurDeDemain, annonceDe, conservateurPresent } from "../comptoir/acheteurs.js";
-import { dos, encre } from "../comptoir/teintes.js";
-import Negoce from "../comptoir/Negoce.jsx";
+import { replique, FIN_DE_JOURNEE } from "../comptoir/voix.js";
+import { encre } from "../comptoir/teintes.js";
+import { volerVersBourse } from "../comptoir/pieces.js";
+import Carte from "../components/Carte.jsx";
+import Negoce, { Jauge } from "../comptoir/Negoce.jsx";
 import "../styles/comptoir.css";
 
-// Des PO entières partout : « 8,76 PO » sur une ligne et « 63 PO » dans le
-// négoce, pour la même carte, ne se comparaient pas.
-const fmt = (n) => Math.round(n).toLocaleString("fr-FR");
+/* ------------------------------------------------------------------
+   LE COMPTOIR — la page.
 
-/** Ce que la vente rapide prend sans qu'on le lui demande. */
+   Refonte d'octobre 2026 (docs/audit-comptoir.md, maquette Claude Design
+   « Comptoir de Thalazur » v2). Trois parties : le bandeau du jour, la scène
+   où les acheteurs se tiennent derrière le comptoir, puis le rayon et
+   l'échoppe. Le tableau du surplus a disparu : chaque acheteur montre
+   lui-même, dans le négoce, les cartes qui l'intéressent.
+   ------------------------------------------------------------------ */
+
+const fmt = (n) => Math.round(n).toLocaleString("fr-FR");
+const PO = (n) => `${fmt(n)} PO`;
+
+/** Ce que l'échoppe prend sans qu'on le lui demande. */
 const BAS = new Set(["commun", "peucommun"]);
 
-/** Le portrait d'un acheteur, ou son initiale gravée si l'image manque. */
+/** Le palier de téléphone de la charte. */
+function useTelephone() {
+  const q = "(max-width: 720px)";
+  const [tel, setTel] = useState(() => typeof window !== "undefined" && window.matchMedia(q).matches);
+  useEffect(() => {
+    const mq = window.matchMedia(q);
+    const f = () => setTel(mq.matches);
+    mq.addEventListener("change", f);
+    return () => mq.removeEventListener("change", f);
+  }, []);
+  return tel;
+}
+
+/** Un portrait détouré, posé sur l'interface. Son initiale si l'image manque. */
 function Portrait({ acheteur, classe }) {
   const [rate, setRate] = useState(false);
   if (rate) return <span className={`${classe} sans-image`} aria-hidden="true">{acheteur.nom[0]}</span>;
@@ -30,426 +54,394 @@ function Portrait({ acheteur, classe }) {
   );
 }
 
+/** La date au format de la charte : « lundi 05/10/2026 ». */
+const dateDuJour = (tel) => {
+  const d = new Date();
+  const jour = d.toLocaleDateString("fr-FR", { weekday: tel ? "short" : "long" });
+  const jj = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  return tel ? `${jour} ${jj}/${mm}` : `${jour} ${jj}/${mm}/${d.getFullYear()}`;
+};
+
 export default function PageComptoir() {
   const jeu = useJeu();
   const { M, jour, acheteurs, articles, rafraichir } = useMarche();
-  const { bourse, surplus: surplusJeu, vendreExemplaires, acheterExemplaire } = jeu;
+  const { bourse, surplus: surplusJeu, vendreExemplaires, acheterExemplaire, cfgImage, fichiers } = jeu;
+  const tel = useTelephone();
 
-  const [neg, setNeg] = useState(null);   // { acheteurId, articleId }
-  const [avis, setAvis] = useState("");
-  const [annonce, setAnnonce] = useState(false);
-  // La Régie était un dépliant en bas de page ; c'est une bulle d'aide en tête.
-  const [regie, setRegie] = useState(false);
-  /* La vente rapide vendait tout, rainbow comprises, au prix de l'échoppe.
-     Or une rainbow en trop étoile une fiche du Donjon, et une rare se vend
-     bien mieux à son acheteur. Par défaut elle ne prend que les normales
-     communes et peu communes ; le reste se coche, en connaissance de cause. */
-  const [liqHaut, setLiqHaut] = useState(false);
-  const [liqRainbow, setLiqRainbow] = useState(false);
+  const [neg, setNeg] = useState(null);          // id de l'acheteur dont le négoce est ouvert
+  const [onglet, setOnglet] = useState(null);    // acheteur affiché au téléphone
+  const [merci, setMerci] = useState({});        // acheteurId -> vrai après une vente
+  const [aide, setAide] = useState(false);
+  const retour = useRef(null);
 
-  const dire = useCallback((m) => setAvis(m), []);
-
-  /** Le surplus d'un article, lu sur la collection réelle. */
   const surplus = useCallback((a) => surplusJeu(a.carteId, a.version), [surplusJeu]);
+  const manque = useCallback((a) => jeu.exemplaires(a.carteId, a.version) === 0, [jeu]);
 
-  /* ── Ce que le joueur peut vendre ──────────────────────────────────────── */
+  /* ── Les acheteurs, et ce qui les intéresse ──────────────────────────── */
 
-  const vendables = useMemo(
-    () => articles
-      .filter((a) => surplus(a) > 0)
-      .map((a) => {
-        const acheteur = M.meilleurAcheteur(a, acheteurs);
-        return {
-          a, acheteur,
-          offre: acheteur ? M.offreUnitaire(a, acheteur) : 0,
-          rachat: M.cotation(a).bid,
-          n: surplus(a),
-        };
-      })
-      .sort((x, y) => (y.offre || y.rachat) * y.n - (x.offre || x.rachat) * x.n),
-    [articles, surplus, M, acheteurs]
-  );
+  // Recalculé à chaque rendu : `M` est mutable, et le rendu suit déjà le
+  // jour, les ventes et la collection. Quatre acheteurs sur quatre cent
+  // cinquante articles, c'est peu.
+  const postes = acheteurs.map((b) => {
+    const interesse = articles
+      .filter((a) => surplus(a) > 0 && M.affinite(a, b) > 0)
+      .sort((x, y) => M.offreUnitaire(y, b) - M.offreUnitaire(x, b));
+    const restant = M.restant(b);
+    const etat = !interesse.length ? "inerte" : restant === 0 ? "fini" : "actif";
+    const voix = merci[b.id] ? replique(b, "merci")
+      : etat === "fini" ? FIN_DE_JOURNEE
+        : etat === "inerte" ? replique(b, "refus")
+          : b.quote;
+    return { b, interesse, restant, etat, voix };
+  });
 
-  const nSurplus = vendables.reduce((s, v) => s + v.n, 0);
+  const ouvrir = (b, el) => { retour.current = el || null; setNeg(b.id); };
+  const fermer = () => {
+    setNeg(null);
+    setTimeout(() => retour.current?.focus?.(), 0);
+  };
 
-  const liquidables = useMemo(
-    () => vendables.filter(({ a }) => (a.rainbow ? liqRainbow : BAS.has(a.tier) || liqHaut)),
-    [vendables, liqHaut, liqRainbow]
-  );
-  const nRapide = liquidables.reduce((s, v) => s + v.n, 0);
-  const totalRapide = liquidables.reduce((s, v) => s + v.n * v.rachat, 0);
-  const nRainbow = vendables.filter((v) => v.a.rainbow).reduce((s, v) => s + v.n, 0);
-  const nHaut = vendables.filter((v) => !v.a.rainbow && !BAS.has(v.a.tier)).reduce((s, v) => s + v.n, 0);
-
-  /* ── Le rayon du jour ──────────────────────────────────────────────────── */
-
-  const rayon = useMemo(() => M.rayonDuJour().map((a) => ({
-    a,
-    prix: M.cotation(a).ask,
-    possede: jeu.exemplaires(a.carteId, a.version) > 0,
-  })), [M, jour, jeu.collection]);
-
-  /* ── Actions ───────────────────────────────────────────────────────────── */
-
-  const vendre = (a, acheteur, qte, facteur) => {
-    const q = Math.min(qte, surplus(a));
+  /** La vente, à l'unité, bornée par le surplus et par le quota du jour. */
+  const vendre = (a, b, qte, facteur, depuis) => {
+    const q = Math.min(qte, surplus(a), M.restant(b));
     let gain = 0;
     let vendus = 0;
     for (let k = 0; k < q; k++) {
-      const paye = M.payer(a, M.prixAcheteur(a, acheteur, M.stock[a.id], facteur));
-      if (paye === null) { dire("La bourse du Comptoir est vide pour aujourd'hui."); break; }
+      const paye = M.payer(a, M.prixAcheteur(a, b, M.stock[a.id], facteur));
+      if (paye === null) break;
       gain += paye;
       vendus++;
     }
-    if (vendus) {
-      vendreExemplaires(a.carteId, a.version, vendus, gain);
-      M.noter(`${vendus} × ${a.carte.nom}${a.rainbow ? " (rainbow)" : ""} vendu${vendus > 1 ? "s" : ""} à ${acheteur.nom}`, gain);
-      dire(`Marché conclu : +${fmt(gain)} PO.`);
-    }
+    if (!vendus) return null;
+    M.compterAchat(b, vendus);
+    vendreExemplaires(a.carteId, a.version, vendus, gain);
+    M.noter(`${vendus} × ${a.carte.nom}${a.rainbow ? " (rainbow)" : ""} vendu${vendus > 1 ? "s" : ""} à ${b.nom}`, gain);
+    volerVersBourse(depuis);
+    setMerci((m) => ({ ...m, [b.id]: true }));
     rafraichir();
-    if (surplus(a) - vendus < 1) setNeg(null);
+    return { vendus, gain };
   };
 
-  const liquider = () => {
-    let gain = 0;
-    let n = 0;
-    for (const v of liquidables) {
-      for (let k = 0; k < v.n; k++) {
-        const paye = M.payer(v.a, M.cotation(v.a).bid);
-        if (paye === null) break;
-        gain += paye;
-        n++;
-        vendreExemplaires(v.a.carteId, v.a.version, 1, paye);
-      }
-    }
-    if (!n) return dire("La bourse du Comptoir ne peut rien racheter aujourd'hui.");
-    M.noter(`${n} exemplaire${n > 1 ? "s" : ""} liquidé${n > 1 ? "s" : ""} à l'échoppe`, gain);
-    dire(`${n} exemplaire${n > 1 ? "s" : ""} liquidé${n > 1 ? "s" : ""} : +${fmt(gain)} PO.`);
-    rafraichir();
-  };
-
-  const acheter = (a) => {
-    const prix = M.cotation(a).ask;
-    if (bourse.po < prix) return dire(`Il vous manque ${fmt(prix - bourse.po)} PO pour cette carte.`);
-    const paye = M.vendreAuJoueur(a);
-    if (paye === null) return dire("Cette pièce vient de partir.");
-    acheterExemplaire(a.carte, a.version, paye);
-    M.noter(`${a.carte.nom}${a.rainbow ? " (rainbow)" : ""} acheté à l'échoppe`, 0);
-    dire(`${a.carte.nom} rejoint votre collection pour ${fmt(paye)} PO.`);
-    rafraichir();
-  };
-
-  const ouvrirNegoce = (acheteur, article) => {
-    const choix = articles.filter((a) => surplus(a) > 0 && M.affinite(a, acheteur) > 0);
-    if (!choix.length) return dire(`${acheteur.nom} ne recherche aucun de vos surplus aujourd'hui.`);
-    const a = article && choix.some((c) => c.id === article.id) ? article : choix[0];
-    setNeg({ acheteurId: acheteur.id, articleId: a.id });
-  };
-
-  const negActeurs = useMemo(() => {
-    if (!neg) return null;
-    const acheteur = acheteurs.find((b) => b.id === neg.acheteurId);
-    if (!acheteur) return null;
-    const choix = articles.filter((a) => surplus(a) > 0 && M.affinite(a, acheteur) > 0);
-    const article = choix.find((a) => a.id === neg.articleId) || choix[0];
-    if (!article) return null;
-    return { acheteur, article, choix };
-  }, [neg, acheteurs, articles, surplus, M]);
-
+  const posteNeg = postes.find((p) => p.b.id === neg) || null;
   const demain = acheteurDeDemain(jour);
   const garde = M.gardeFous(acheteurs);
-  const dateDuJour = new Date().toLocaleDateString("fr-FR", {
-    weekday: "long", day: "2-digit", month: "long", year: "numeric",
-  });
+  const posteTel = postes.find((p) => p.b.id === onglet) || postes[0];
 
   return (
     <main className="view large comptoir" id="contenu">
-      <div className="section-titre comptoir-tete">
-        <div className="comptoir-hote">
+      {/* ── Bandeau du jour ─────────────────────────────────────────── */}
+      <section className="cmp-bandeau" aria-label="Le jour au Comptoir">
+        <div className="cmp-titre">
           <h1>Le Comptoir</h1>
-          {/* La date, et rien d'autre. « Marché de l'occasion » redisait le
-              titre, « les acheteurs changent à minuit » est une règle : elle
-              est passée dans la bulle, où on la lit une fois. */}
-          <p className="muted">
-            {dateDuJour}
-            <button
-              type="button"
-              className="aide-bouton"
-              aria-expanded={regie}
-              aria-label="Calibration du marché"
-              onClick={() => setRegie((v) => !v)}
-            >?</button>
-          </p>
-          {regie && (
+          <span className="cmp-date">{dateDuJour(tel)}</span>
+          <button type="button" className="aide-bouton" aria-expanded={aide}
+                  aria-label="Comment marche le Comptoir" onClick={() => setAide((v) => !v)}>?</button>
+          {aide && (
             <div className="comptoir-bulle" role="status">
               <button type="button" className="bulle-fermer" aria-label="Fermer"
-                      onClick={() => setRegie(false)}>×</button>
-              {/* Écrit pour quelqu'un qui arrive : quatre phrases, une idée
-                  par phrase, aucun mot de métier. La version précédente
-                  expliquait la calibration du marché avant d'avoir dit ce
-                  qu'on fait ici. */}
+                      onClick={() => setAide(false)}>×</button>
               <p className="bulle-titre">Comment ça marche</p>
               <ul className="bulle-liste">
-                <li>
-                  <b>Lise passe tous les jours</b>, avec deux spécialistes qui
-                  changent à minuit. Chacun n'achète que ce qui l'intéresse.
-                </li>
-                <li>
-                  <b>Ils paient mieux que l'échoppe</b>, mais il faut tomber sur
-                  le bon jour. L'échoppe, elle, rachète tout, tout de suite, à
-                  petit prix.
-                </li>
-                <li>
-                  <b>Marchander est un pari</b> : une seule tentative par carte
-                  et par acheteur. Réussi, il monte son offre ; raté, il la
-                  baisse. Le lendemain remet les compteurs à zéro.
-                </li>
-                <li>
-                  <b>Le rayon du jour</b> est ce que l'échoppe vend. Six pièces,
-                  renouvelées chaque nuit.
-                </li>
+                <li><b>Lise passe tous les jours</b>, avec deux spécialistes qui changent à minuit. Chacun n'achète que ce qui l'intéresse.</li>
+                <li><b>On vend à l'unité.</b> Chaque acheteur rachète un nombre limité d'exemplaires par jour, puis il a fini sa journée.</li>
+                <li><b>Marchander demande de lire le personnage</b> : chacun préfère une manière de présenter la carte, et sa réplique le laisse deviner. Un essai par carte et par jour.</li>
+                <li><b>L'échoppe rachète tout</b>, tout de suite, à petit prix. Son rayon vend cinq cartes et une pièce du jour.</li>
               </ul>
               <p className="bulle-hors-jeu">
                 Hors jeu : un booster entièrement revendu rapporte{" "}
                 <b className={garde.liq < 1 ? "ok" : "ko"}>{(garde.liq * 100).toFixed(0)} %</b> de
                 son prix à l'échoppe, <b className={garde.liqMax < 1 ? "ok" : "ko"}>{(garde.liqMax * 100).toFixed(0)} %</b>{" "}
                 au meilleur acheteur. Au-dessus de 100 %, l'économie se casse.
-                Détail : <code>node scripts/audit-marche.mjs</code>.
               </p>
             </div>
           )}
         </div>
-        <div className="comptoir-annonce">
-          <button
-            type="button"
-            className="btn quiet sm"
-            onClick={() => setAnnonce((v) => !v)}
-            aria-expanded={annonce}
-          >
-            Annonce de demain
-          </button>
-          {annonce && (
-            <div className="annonce-bulle" role="status">
-              <p className="annonce-nom">{demain.nom}</p>
-              <p className="muted">{annonceDe(demain)}</p>
-              {conservateurPresent(jour + 1) && (
-                <p className="annonce-rare">Le Conservateur Royal passera.</p>
-              )}
-            </div>
-          )}
+        <span className="cmp-espace" />
+        <p className="cmp-caisse"><b>{fmt(M.fonds)} PO</b> en caisse</p>
+        <div className="cmp-demain">
+          <span className="cmp-demain-vignette" aria-hidden="true">
+            <Portrait acheteur={demain} classe="cmp-demain-img" />
+          </span>
+          <span className="cmp-demain-texte">
+            <span className="muted">Demain{conservateurPresent(jour + 1) ? ", avec le Conservateur Royal" : ""}</span>
+            <span>{demain.province ? annonceDe(demain) : <><b>{demain.nom}</b> revient</>}</span>
+          </span>
         </div>
-      </div>
+      </section>
 
-      {avis && (
-        <p className="comptoir-avis" role="status" aria-live="polite">{avis}</p>
+      {/* ── La scène ────────────────────────────────────────────────── */}
+      {tel ? (
+        <section className="cmp-scene-tel" aria-label="Les acheteurs du jour">
+          <div className="cmp-onglets" role="tablist" aria-label="Acheteurs">
+            {postes.map((p) => (
+              <button key={p.b.id} type="button" role="tab"
+                      aria-selected={p === posteTel}
+                      className={`cmp-onglet ${p.etat}${p.b.exceptionnel ? " honneur" : ""}`}
+                      onClick={() => setOnglet(p.b.id)}>
+                <span className="cmp-onglet-scene">
+                  <span className="cmp-lueur" aria-hidden="true" />
+                  <Portrait acheteur={p.b} classe="cmp-portrait" />
+                </span>
+                <span className="cmp-onglet-nom">{p.b.nom.split(" ").pop()}</span>
+              </button>
+            ))}
+          </div>
+          <div role="tabpanel" className="cmp-panneau-tel">
+            <p className="cmp-bulle haut">{posteTel.voix}</p>
+            <Plaque poste={posteTel} onProposer={ouvrir} />
+          </div>
+        </section>
+      ) : (
+        <section className="cmp-scene" aria-label="Les acheteurs du jour">
+          <div className="cmp-planche" aria-hidden="true" />
+          <div className="cmp-postes">
+            {postes.map((p) => (
+              <article key={p.b.id} className={`cmp-poste ${p.etat}${p.b.exceptionnel ? " honneur" : ""}${merci[p.b.id] ? " content" : ""}`}
+                       aria-label={p.b.nom}>
+                <p className="cmp-bulle">{p.voix}</p>
+                <div className="cmp-figure" onClick={(e) => p.etat === "actif" && ouvrir(p.b, e.currentTarget)}>
+                  <span className="cmp-lueur" aria-hidden="true" />
+                  <Portrait acheteur={p.b} classe="cmp-portrait" />
+                  {p.b.exceptionnel && <span className="cmp-sceau">Exceptionnel</span>}
+                </div>
+                <Plaque poste={p} onProposer={ouvrir} />
+              </article>
+            ))}
+          </div>
+        </section>
       )}
 
-      {/* ── Acheteurs du jour ─────────────────────────────────────────── */}
-      <section aria-labelledby="t-acheteurs">
-        <div className="section-titre">
-          <h2 id="t-acheteurs">Acheteurs du jour</h2>
-          <span className="jeton">{acheteurs.length} présents</span>
-        </div>
-        <div className="acheteurs">
-          {/* Ceux qui veulent quelque chose d'abord : au téléphone les fiches
-              s'empilent, et un acheteur sans intérêt pour vos surplus n'a
-              rien à faire en tête de liste. L'ordre du jour est gardé entre
-              acheteurs du même groupe (tri stable). */}
-          {acheteurs.map((b) => ({
-            b,
-            interesse: articles.filter((a) => surplus(a) > 0 && M.affinite(a, b) > 0)
-              .sort((x, y) => M.offreUnitaire(y, b) - M.offreUnitaire(x, b)),
-          })).sort((x, y) => Number(y.interesse.length > 0) - Number(x.interesse.length > 0))
-            .map(({ b, interesse }) => {
-            const actif = interesse.length > 0;
-            return (
-              <button
-                key={b.id}
-                type="button"
-                className={`acheteur${b.exceptionnel ? " exceptionnel" : ""}${actif ? "" : " inerte"}`}
-                onClick={() => ouvrirNegoce(b, interesse[0])}
-                aria-label={actif
-                  ? `Négocier avec ${b.nom}, intéressé par ${interesse[0].carte.nom}`
-                  : `${b.nom} ne recherche aucun de vos surplus aujourd'hui`}
-              >
-                {/* Le portrait en bandeau haut, ancré en haut. En colonne
-                    latérale, un carré de 384 pixels rogné dans une boîte deux
-                    fois plus haute que large perdait la moitié du visage.
-                    Ancré en haut sur toute la largeur, il garde le regard. */}
-                <span className="acheteur-vignette">
-                  <Portrait acheteur={b} classe="acheteur-portrait" />
-                  {b.exceptionnel && <span className="acheteur-sceau">Exceptionnel</span>}
-                </span>
-                <span className="acheteur-corps">
-                  <span className="acheteur-nom">{b.nom}</span>
-                  <span className="acheteur-sub">{b.sub}</span>
-                  <span className="acheteur-spec">
-                    <span aria-hidden="true" className="acheteur-ico">{b.icon}</span>
-                    <span>{b.spec}</span>
-                  </span>
-                  <span className="acheteur-quote">{b.quote}</span>
-                  <span className="acheteur-pied">
-                    {actif ? (
-                      <>Votre <b>{interesse[0].carte.nom}</b>{interesse[0].rainbow ? " rainbow" : ""} l'intéresse :{" "}
-                        <b className="or">{fmt(M.offreUnitaire(interesse[0], b))} PO</b>
-                        {interesse.length > 1 && <span className="muted">, et {interesse.length - 1} autre{interesse.length > 2 ? "s" : ""}</span>}</>
-                    ) : (
-                      <span className="muted">Aucun de vos surplus ne l'intéresse aujourd'hui.</span>
-                    )}
-                  </span>
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </section>
-
-      {/* ── Le rayon du jour et la vente rapide ───────────────────────────
-          Les deux mouvements d'argent immédiats, côte à côte et en tête :
-          acheter une pièce, ou liquider tout le surplus. Le rayon passe de huit
-          à six pièces pour tenir sur deux rangs de trois à côté de la vente
-          rapide, alignés sur la même ligne. Le tri du surplus, qui demande de
-          la lecture, vient après. */}
-      <div className="comptoir-colonnes">
-        <section className="panneau" aria-labelledby="t-rayon">
-          <div className="panneau-tete">
-            <h2 id="t-rayon">Le rayon du jour</h2>
-            <span className="jeton">{fmt(bourse.po)} PO en poche</span>
-          </div>
-          {rayon.length === 0 ? (
-            <p className="panneau-vide">Le rayon est vide aujourd'hui.</p>
-          ) : (
-            <div className="rayon">
-              {rayon.map(({ a, prix, possede }) => (
-                <article key={a.id} className={`piece${possede ? " deja" : ""}`}>
-                  <span className="cp-dos" aria-hidden="true" style={dos(a.tier)} />
-                  <div className="piece-corps">
-                    <p className="piece-nom">
-                      {a.carte.nom}
-                      {a.rainbow && <span className="marque-rainbow" title="Version rainbow"> ✦</span>}
-                    </p>
-                    <p className="piece-palier" style={{ color: encre(a.tier) }}>
-                      {TIER_INFO[a.tier]?.nom}
-                      {possede && <span className="muted"> · déjà en collection</span>}
-                    </p>
-                    <p className="piece-repere muted">
-                      {[a.carte.rep1, a.carte.race, a.carte.rep3].filter(Boolean).join(" · ")}
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    className={`btn sm${bourse.po < prix ? " quiet" : ""}`}
-                    onClick={() => acheter(a)}
-                    disabled={bourse.po < prix}
-                    aria-label={`Acheter ${a.carte.nom} pour ${fmt(prix)} pièces d'or`}
-                  >
-                    {fmt(prix)} PO
-                  </button>
-                </article>
-              ))}
-            </div>
-          )}
-        </section>
-
-        <aside className="panneau rapide" aria-labelledby="t-rapide">
-          <h2 id="t-rapide">Vente rapide</h2>
-          <p className="rapide-montant">{fmt(totalRapide)} PO</p>
-          <p className="muted">
-            {nRapide} exemplaire{nRapide > 1 ? "s" : ""} au prix de rachat garanti
-            ({TIER_ORDER.filter((t) => REVENTE[t]).slice(0, 4).map((t) => `${REVENTE[t]}`).join(" / ")} PO
-            par palier) : moins qu'un bon acheteur, sans attendre le bon jour.
-          </p>
-          {(nHaut > 0 || nRainbow > 0) && (
-            <div className="rapide-options">
-              {nHaut > 0 && (
-                <label>
-                  <input type="checkbox" checked={liqHaut} onChange={(e) => setLiqHaut(e.target.checked)} />
-                  Rares et au-delà ({nHaut})
-                </label>
-              )}
-              {nRainbow > 0 && (
-                <label>
-                  <input type="checkbox" checked={liqRainbow} onChange={(e) => setLiqRainbow(e.target.checked)} />
-                  Rainbow ({nRainbow}), qui étoilent aussi les fiches du Donjon
-                </label>
-              )}
-            </div>
-          )}
-          <button type="button" className="btn" onClick={liquider} disabled={nRapide === 0}>
-            {nRapide === 0 ? "Rien à liquider" : "Liquider ces doublons"}
-          </button>
-          <p className="muted fine">
-            Bourse du Comptoir : {fmt(M.fonds)} PO, renflouée chaque nuit.
-          </p>
-        </aside>
+      <div className="cmp-bas">
+        <Rayon M={M} manque={manque} bourse={bourse} cfgImage={cfgImage} fichiers={fichiers}
+               onAcheter={(a, el) => {
+                 const prix = M.cotation(a).ask;
+                 if (bourse.po < prix) return;
+                 const paye = M.vendreAuJoueur(a);
+                 if (paye === null) return;
+                 acheterExemplaire(a.carte, a.version, paye);
+                 M.noter(`${a.carte.nom}${a.rainbow ? " (rainbow)" : ""} acheté à l'échoppe`, 0);
+                 el?.focus?.();
+                 rafraichir();
+               }} />
+        <Echoppe M={M} articles={articles} surplus={surplus}
+                 onVendre={(lignes, depuis) => {
+                   let gain = 0;
+                   let n = 0;
+                   for (const a of lignes) {
+                     for (let k = surplus(a); k > 0; k--) {
+                       const paye = M.payer(a, M.cotation(a).bid);
+                       if (paye === null) break;
+                       gain += paye;
+                       n++;
+                       vendreExemplaires(a.carteId, a.version, 1, paye);
+                     }
+                   }
+                   if (n) {
+                     M.noter(`${n} exemplaire${n > 1 ? "s" : ""} vendu${n > 1 ? "s" : ""} à l'échoppe`, gain);
+                     volerVersBourse(depuis);
+                   }
+                   rafraichir();
+                   return { n, gain };
+                 }} />
       </div>
 
-      {/* ── Le surplus, carte par carte ───────────────────────────────── */}
-      <section className="panneau" aria-labelledby="t-vendre">
-        <div className="panneau-tete">
-          <h2 id="t-vendre">Vos exemplaires en trop</h2>
-          <span className="jeton">{nSurplus} en surplus</span>
-        </div>
-
-        {vendables.length === 0 ? (
-          <p className="panneau-vide">
-            Aucun surplus pour l'instant. Les doublons arrivent vite :{" "}
-            <Lien vers="/boutique" actif={false}>ouvrez un booster</Lien>.
-          </p>
-        ) : (
-          <ul className="lignes">
-            {/* Toutes les lignes : la liste s'arrêtait à soixante sans le
-                dire, sur un surplus qui en compte plusieurs centaines. Le
-                regroupement par acheteur viendra avec la refonte de la page. */}
-            {vendables.map(({ a, acheteur, offre, rachat, n }) => (
-              <li key={a.id}>
-                <div className="ligne-carte">
-                  <span className="cp-dos" aria-hidden="true" style={dos(a.tier)} />
-                  <div>
-                    <p className="ligne-nom">
-                      {a.carte.nom}
-                      {a.rainbow && <span className="marque-rainbow" title="Version rainbow"> ✦</span>}
-                    </p>
-                    <p className="ligne-palier" style={{ color: encre(a.tier) }}>
-                      {TIER_INFO[a.tier]?.nom}
-                      {M.hausse(a) && <span className="hausse"> ↗ en hausse</span>}
-                    </p>
-                  </div>
-                </div>
-                <dl className="ligne-chiffres">
-                  <div><dt>Surplus</dt><dd>×{n}</dd></div>
-                  <div><dt>Acheteur</dt><dd>{acheteur ? acheteur.nom : <span className="muted">aucun</span>}</dd></div>
-                  <div><dt>Son offre</dt><dd className={acheteur ? "or" : "sans-offre"}>{acheteur ? `${fmt(offre)} PO` : "aucune"}</dd></div>
-                  <div><dt>Échoppe</dt><dd>{fmt(rachat)} PO</dd></div>
-                </dl>
-                {acheteur ? (
-                  <button type="button" className="btn quiet sm" onClick={() => ouvrirNegoce(acheteur, a)}>
-                    Négocier
-                  </button>
-                ) : (
-                  <span className="muted attendre">Attendre</span>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      {negActeurs && (
+      {posteNeg && (
         <Negoce
           M={M}
-          acheteur={negActeurs.acheteur}
-          article={negActeurs.article}
-          articles={negActeurs.choix}
+          acheteur={posteNeg.b}
+          articles={posteNeg.interesse}
           surplus={surplus}
-          onArticle={(a, o) => {
-            setNeg({ acheteurId: negActeurs.acheteur.id, articleId: a.id });
-            if (o?.rafraichir) rafraichir();
-          }}
+          cfgImage={cfgImage}
+          fichiers={fichiers}
           onVendre={vendre}
-          onFermer={() => setNeg(null)}
+          onMarchander={() => rafraichir()}
+          onFermer={fermer}
         />
       )}
     </main>
+  );
+}
+
+/** Nom, ce qu'il achète, l'intérêt, le quota, et le bouton. */
+function Plaque({ poste, onProposer }) {
+  const { b, interesse, restant, etat } = poste;
+  return (
+    <div className="cmp-plaque">
+      <div className="cmp-nom">
+        <h3>{b.nom}</h3>
+        <span className="cmp-metier" title={b.sub}>{b.sub}</span>
+      </div>
+      <p className="cmp-critere">{b.spec}</p>
+      <p className="cmp-interet">
+        {interesse.length
+          ? `${interesse.length} de vos cartes l'intéresse${interesse.length > 1 ? "nt" : ""}`
+          : "Aucune de vos cartes ne l'intéresse."}
+      </p>
+      <Jauge restant={restant} quota={b.quota} />
+      <button
+        type="button"
+        className="cmp-proposer"
+        disabled={etat !== "actif"}
+        onClick={(e) => onProposer(b, e.currentTarget)}
+      >
+        {etat === "inerte" ? "Rien à lui proposer" : etat === "fini" ? "Revenez demain" : "Lui proposer"}
+      </button>
+    </div>
+  );
+}
+
+/** Le rayon : la pièce du jour, puis cinq cartes, les manquantes devant. */
+function Rayon({ M, manque, bourse, cfgImage, fichiers, onAcheter }) {
+  const { piece, rayon } = M.vitrineDuJour(manque);
+  const autres = [...rayon].sort((x, y) => Number(manque(y)) - Number(manque(x)));
+  const pieceInfo = piece && infoAchat(M, piece, bourse);
+  return (
+    <section className="cmp-rayon" aria-labelledby="t-rayon">
+      <div className="cmp-section-tete">
+        <h2 id="t-rayon">Le rayon du jour</h2>
+        <span className="muted">Ce que l'échoppe vend aujourd'hui. Les cartes qui vous manquent passent devant.</span>
+      </div>
+      {piece && (
+        <div className="cmp-piece">
+          <div className="cmp-vignette">
+            <Carte c={{ ...piece.carte, rainbow: piece.rainbow }} taille="petit" cfgImage={cfgImage} fichiers={fichiers} />
+            {manque(piece) && <span className="cmp-manquante">Manquante</span>}
+          </div>
+          <div className="cmp-piece-texte">
+            <span className="cmp-piece-sur">Pièce du jour</span>
+            <span className="cmp-piece-nom">{piece.carte.nom}</span>
+            <span style={{ color: piece.rainbow ? "var(--m-rainbow)" : encre(piece.tier) }}>
+              {TIER_INFO[piece.tier]?.nom}{piece.rainbow ? " · Rainbow" : ""}
+            </span>
+            <span className="cmp-piece-prix">{PO(pieceInfo.prix)}</span>
+            <span className="muted">
+              {piece.rainbow
+                ? `Une rainbow sort une fois sur trente-trois : l'échoppe la rachète déjà ${PO(M.cotation(piece).bid)}.`
+                : `L'échoppe la rachète ${PO(M.cotation(piece).bid)}.`}
+            </span>
+            <BoutonAchat info={pieceInfo} onAcheter={(el) => onAcheter(piece, el)} grand />
+          </div>
+        </div>
+      )}
+      <div className="cmp-rayon-grille">
+        {autres.map((a) => {
+          const info = infoAchat(M, a, bourse);
+          return (
+            <div key={a.id} className="cmp-rayon-case">
+              <div className="cmp-vignette">
+                <Carte c={{ ...a.carte, rainbow: a.rainbow }} taille="petit" cfgImage={cfgImage} fichiers={fichiers} />
+                {manque(a) && <span className="cmp-manquante">Manquante</span>}
+              </div>
+              <span className="cmp-prix">{PO(info.prix)}</span>
+              <BoutonAchat info={info} onAcheter={(el) => onAcheter(a, el)} />
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+const infoAchat = (M, a, bourse) => {
+  const prix = M.cotation(a).ask;
+  return { prix, achete: M.dejaAchete(a), manque: Math.max(0, prix - Math.floor(bourse.po)), nom: a.carte.nom };
+};
+
+function BoutonAchat({ info, onAcheter, grand = false }) {
+  const { prix, achete, manque, nom } = info;
+  return (
+    <div className={`cmp-achat${grand ? " grand" : ""}`}>
+      <button
+        type="button"
+        className="cmp-acheter"
+        disabled={achete || manque > 0}
+        onClick={(e) => onAcheter(e.currentTarget)}
+        aria-label={achete ? `${nom} : acheté aujourd'hui` : `Acheter ${nom} pour ${PO(prix)}`}
+      >
+        {achete ? "Acheté" : "Acheter"}
+      </button>
+      <span className="cmp-manque">{!achete && manque > 0 ? `il vous manque ${PO(manque)}` : ""}</span>
+    </div>
+  );
+}
+
+/**
+ * L'échoppe : la sortie pour tout ce que les acheteurs n'ont pas pris.
+ * Trois puces disent ce que la vente inclut ; le premier appui arme la
+ * vente, le second la fait. Les rainbow et le haut de gamme commencent
+ * éteints : une rainbow en trop améliore vos cartes pour le Donjon, et une
+ * rare se vend bien mieux à son acheteur.
+ */
+function Echoppe({ M, articles, surplus, onVendre }) {
+  const [choix, setChoix] = useState({ bas: true, haut: false, rainbow: false });
+  const [arme, setArme] = useState(false);
+  const [note, setNote] = useState("");
+  const bouton = useRef(null);
+
+  const familles = useMemo(() => {
+    const f = { bas: [], haut: [], rainbow: [] };
+    for (const a of articles) {
+      if (surplus(a) < 1) continue;
+      f[a.rainbow ? "rainbow" : BAS.has(a.tier) ? "bas" : "haut"].push(a);
+    }
+    return f;
+  }, [articles, surplus]);
+
+  const compte = (l) => l.reduce((s, a) => s + surplus(a), 0);
+  const valeur = (l) => l.reduce((s, a) => s + M.rachatLot(a, surplus(a)), 0);
+  const retenus = Object.entries(familles).filter(([k]) => choix[k]).flatMap(([, l]) => l);
+  const n = compte(retenus);
+  const total = valeur(retenus);
+
+  useEffect(() => { setArme(false); }, [choix, n]);
+
+  const PUCES = [
+    ["bas", "Communes et peu communes"],
+    ["haut", "Rares et au-delà"],
+    ["rainbow", "Rainbow"],
+  ];
+
+  const agir = () => {
+    if (!n) return;
+    if (!arme) { setArme(true); return; }
+    const r = onVendre(retenus, bouton.current);
+    setArme(false);
+    setNote(r.n ? `+${PO(r.gain)} pour ${fmt(r.n)} carte${r.n > 1 ? "s" : ""}.` : "La caisse du Comptoir est vide pour aujourd'hui.");
+  };
+
+  return (
+    <section className="cmp-echoppe" aria-labelledby="t-echoppe">
+      <div>
+        <h2 id="t-echoppe">L'échoppe</h2>
+        <p className="cmp-echoppe-texte">
+          L'échoppe rachète tout, tout de suite, à petit prix. C'est la sortie pour ce que les acheteurs n'ont pas pris.
+        </p>
+      </div>
+      <div className="cmp-puces colonne" role="group" aria-label="Ce que la vente inclut">
+        {PUCES.map(([k, nom]) => {
+          const nb = compte(familles[k]);
+          return (
+            <div key={k} className="cmp-puce-ligne">
+              <button type="button" className="puce" aria-pressed={choix[k]} disabled={!nb}
+                      onClick={() => setChoix((c) => ({ ...c, [k]: !c[k] }))}>
+                {nom}<span className="puce-n">· {fmt(nb)}</span>
+              </button>
+              {k === "rainbow" && <span className="cmp-mention-rainbow">Améliore vos cartes pour le Donjon</span>}
+            </div>
+          );
+        })}
+      </div>
+      <div className="cmp-echoppe-pied">
+        <button ref={bouton} type="button" className={`cmp-tout-vendre${arme ? " arme" : ""}`}
+                disabled={!n} onClick={agir}>
+          {!n ? "Rien à vendre" : arme ? `Confirmer : ${PO(total)}` : `Tout vendre à l'échoppe, ${PO(total)}`}
+        </button>
+        <div className="cmp-echoppe-note" aria-live="polite">
+          <span>{arme ? `${fmt(n)} cartes quittent votre collection.` : note || `${fmt(n)} carte${n > 1 ? "s" : ""}, payée${n > 1 ? "s" : ""} tout de suite.`}</span>
+          {arme && <button type="button" className="lien" onClick={() => setArme(false)}>Annuler</button>}
+        </div>
+      </div>
+    </section>
   );
 }

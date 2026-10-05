@@ -1,701 +1,457 @@
 /* ------------------------------------------------------------------
    LE COMPTOIR — feuille de style de la page.
-   Le module d'origine portait ses styles en attributs `style` sur chaque
-   balise, contrainte du gabarit Claude Design. Regroupés ici, ils héritent des
-   jetons de tokens.css : une seule valeur à bouger pour changer la charte, et
-   plus une couleur en dur.
+
+   Refonte d'octobre 2026, d'après la maquette Claude Design « Comptoir de
+   Thalazur » v2 (note d'intégration, docs/conception/comptoir-et-colporteur.md).
+   Aucune couleur nouvelle : tout vient de tokens.css. Les prix et les états
+   actifs prennent la lampe, les bordures actionnables --edge-ui, les encres
+   de rareté teintes.js.
    ------------------------------------------------------------------ */
 
 .comptoir, .neg {
   --or: var(--lamp);
-  /* Le vert-de-gris des paliers, --m-chene, tombe à 4,35:1 en texte sur
-     --ground2 : c'est une teinte de cadre, pas une encre, exactement comme
-     l'avertit la charte. Cette variante-ci est celle de teintes.js, vérifiée
-     à 7,4:1 sur --panel et 6,5:1 sur --panel2. */
+  /* Le vert-de-gris des paliers, --m-chene, tombe à 4,35:1 en texte : c'est
+     une teinte de cadre. Cette variante-ci est celle de teintes.js. */
   --vert-encre: #78c2b0;
+  --scene-bulle: 96px;
+  --scene-portrait: 262px;
+  --scene-plaque: 176px;
+  --scene-poste: 300px;
+  --carte-rayon: calc(var(--carte-petit) * .8);
+  --carte-piece: 212px;
+  --carte-negoce: 164px;
+  --echoppe: 380px;
+  --ombre-decoupe: drop-shadow(0 14px 18px rgba(0, 0, 0, .55));
 }
-.comptoir .or { color: var(--or); font-variant-numeric: tabular-nums; }
-.comptoir .marque-rainbow { color: var(--m-rainbow); }
-.comptoir .fine { font-size: 11.5px; line-height: 1.55; }
+.comptoir .muted, .neg .muted { color: var(--ink3); }
 
-.comptoir-tete { align-items: flex-start; }
-.comptoir-annonce { position: relative; }
+/* ── La puce à bascule ──────────────────────────────────────────────────
+   Un seul composant pour tous les choix de la page : tri de l'écran A,
+   trois choix de l'échoppe, trois manières de présenter. Plus de case à
+   cocher native. */
+.cmp-puces { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.cmp-puces.colonne { flex-direction: column; align-items: flex-start; gap: 8px; }
+.puce {
+  display: inline-flex; align-items: center; gap: 6px; flex: 0 0 auto;
+  height: 36px; padding: 0 14px; border-radius: 100px; cursor: pointer;
+  border: 1px solid var(--edge-ui); background: transparent; color: var(--ink2);
+  font: inherit; font-size: 13.5px; font-weight: 500; white-space: nowrap;
+  font-variant-numeric: tabular-nums; transition: border-color .15s, color .15s, background .15s;
+}
+.puce:hover:not(:disabled) { color: var(--ink); }
+.puce[aria-pressed="true"], .puce[aria-checked="true"] {
+  border-color: var(--lamp); color: var(--lamp); background: rgba(232, 163, 61, .1);
+}
+.puce:disabled { border-color: var(--edge-hi); color: var(--ink3); cursor: default; }
+.puce .puce-n { color: var(--ink4); }
+.puce[aria-pressed="true"] .puce-n { color: var(--lamp); }
+@media (max-width: 720px) { .puce { height: 44px; } }
 
-/* La Régie tenait un dépliant en bas de page : trois blocs, deux tableaux et
-   une bascule qui doublait un réglage existant. Elle est devenue ce que sont
-   déjà le cours kobold et le marchandage — une bulle qu'on lit une fois. */
-.comptoir-hote { position: relative; }
+/* ── La jauge du quota ──────────────────────────────────────────────── */
+.jauge { display: flex; align-items: center; gap: 10px; min-height: 18px; }
+.jauge-rail { flex: 0 0 72px; height: 4px; border-radius: 2px; background: var(--edge); overflow: hidden; }
+.jauge.large .jauge-rail { flex-basis: 96px; }
+.jauge-rail > span { display: block; height: 100%; border-radius: 2px; background: var(--ink2);
+  transition: width .4s ease; }
+.jauge-texte { font-size: 12.5px; color: var(--ink3); }
+.jauge.large .jauge-texte { font-size: 13.5px; }
+.jauge-texte.fini { color: var(--ink2); }
+
+/* ── Bandeau du jour ────────────────────────────────────────────────── */
+.cmp-bandeau {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 12px 32px;
+  padding: 4px 0 18px; border-bottom: 1px solid var(--edge);
+}
+.cmp-titre { position: relative; display: flex; align-items: baseline; gap: 14px; }
+.cmp-titre h1 { margin: 0; font-size: 34px; line-height: 1; }
+.cmp-date { font-size: 14px; color: var(--ink3); }
+.cmp-espace { flex: 1 1 0; }
+.cmp-caisse { margin: 0; font-size: 14px; color: var(--ink3); white-space: nowrap; }
+.cmp-caisse b { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+.cmp-demain { display: flex; align-items: center; gap: 10px; }
+.cmp-demain-vignette {
+  position: relative; flex: 0 0 auto; width: 46px; height: 46px; border-radius: 50%;
+  border: 1px solid var(--edge-hi); overflow: hidden;
+  background: radial-gradient(circle at 50% 70%, rgba(232, 163, 61, .18), var(--panel) 70%);
+}
+.cmp-demain-img { position: absolute; inset: 0; width: 100%; height: 100%;
+  object-fit: contain; object-position: 50% 100%;
+  mask-image: linear-gradient(to top, transparent 0, #000 12%); }
+.cmp-demain-texte { display: flex; flex-direction: column; gap: 2px; font-size: 14px; color: var(--ink); }
+.cmp-demain-texte .muted { font-size: 12.5px; }
+.cmp-demain-texte b { font-family: var(--font-display); font-variation-settings: var(--wonk); font-weight: 600; }
+
+/* La bulle d'aide du titre. */
 .comptoir .aide-bouton {
-  width: 18px; height: 18px; margin-left: 8px; padding: 0; cursor: pointer;
-  vertical-align: 1px;
+  position: relative; width: 18px; height: 18px; padding: 0; cursor: pointer; align-self: center;
   border: 1px solid var(--edge-ui); border-radius: 50%;
   background: none; color: var(--ink3); font: inherit; font-size: 11px; line-height: 1;
 }
 .comptoir .aide-bouton:hover { color: var(--ink); border-color: var(--ink3); }
-/* Le rond reste à 18 px, la zone qu'on touche en fait 44 : le bouton se
-   trouve à côté de la date, qu'on ne veut pas grossir. */
-.comptoir .aide-bouton { position: relative; }
+/* Le rond reste à 18 px, la zone qu'on touche en fait 44. */
 .comptoir .aide-bouton::after { content: ""; position: absolute; inset: -13px; }
 .comptoir-bulle {
-  position: absolute; z-index: 20; left: 0; top: 100%; margin-top: 10px;
+  position: absolute; z-index: 20; left: 0; top: 100%; margin-top: 12px;
   width: min(430px, 92vw); padding: 15px 34px 15px 17px;
   border: 1px solid var(--edge-hi); border-radius: var(--r-md);
   background: var(--panel); box-shadow: 0 18px 44px rgba(0, 0, 0, .55);
   font-size: 12.5px; line-height: 1.55; color: var(--ink2);
 }
-.comptoir-bulle .bulle-titre {
-  font-family: var(--font-display); font-variation-settings: var(--wonk);
-  font-size: 15px; font-weight: 600; color: var(--ink);
-}
+.comptoir-bulle .bulle-titre { font-family: var(--font-display); font-variation-settings: var(--wonk);
+  font-size: 15px; font-weight: 600; color: var(--ink); }
 .bulle-liste { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 9px; }
 .bulle-liste li { padding-left: 13px; position: relative; }
-.bulle-liste li::before {
-  content: ""; position: absolute; left: 0; top: .62em; width: 4px; height: 4px;
-  border-radius: 50%; background: var(--lamp);
-}
+.bulle-liste li::before { content: ""; position: absolute; left: 0; top: .62em; width: 4px; height: 4px;
+  border-radius: 50%; background: var(--lamp); }
 .bulle-liste b { color: var(--ink); font-weight: 600; }
-.bulle-hors-jeu {
-  margin-top: 13px; padding-top: 11px; border-top: 1px solid var(--edge);
-  font-size: 11.5px; line-height: 1.5; color: var(--ink3);
-}
+.bulle-hors-jeu { margin-top: 13px; padding-top: 11px; border-top: 1px solid var(--edge);
+  font-size: 11.5px; line-height: 1.5; color: var(--ink3); }
 .bulle-hors-jeu b { font-variant-numeric: tabular-nums; }
 .bulle-hors-jeu b.ok { color: var(--vert-encre); }
 .bulle-hors-jeu b.ko { color: var(--ember); }
-.comptoir-bulle code { font-family: inherit; color: var(--lamp); }
-.bulle-fermer {
-  position: absolute; top: 6px; right: 6px; width: 24px; height: 24px; cursor: pointer;
-  background: none; border: 0; color: var(--ink3); font-size: 16px; line-height: 1;
-}
+.bulle-fermer { position: absolute; top: 6px; right: 6px; width: 24px; height: 24px; cursor: pointer;
+  background: none; border: 0; color: var(--ink3); font-size: 16px; line-height: 1; }
 .bulle-fermer:hover { color: var(--ink); }
-.annonce-bulle {
-  position: absolute; right: 0; top: 44px; z-index: 20; width: 262px;
-  padding: 14px 16px; border: 1px solid var(--edge-hi); border-radius: var(--r-md);
-  background: var(--panel); box-shadow: 0 18px 44px rgba(0, 0, 0, .55);
+
+/* ── La scène ───────────────────────────────────────────────────────────
+   Les acheteurs se tiennent derrière une planche de comptoir. La hauteur
+   est fixe : bulle, portrait et plaque ont chacun leur place réservée, et
+   rien ne bouge quand une réplique change. */
+.cmp-scene {
+  position: relative; margin-top: 14px; border-radius: var(--r-lg);
+  height: calc(var(--scene-bulle) + 12px + 280px + var(--scene-plaque));
+  background:
+    radial-gradient(ellipse 70% 60% at 50% 30%, rgba(120, 150, 160, .07), transparent 70%),
+    linear-gradient(180deg, var(--ground) 0, #111b1f 100%);
 }
-.annonce-nom {
-  font-family: var(--font-display); font-variation-settings: var(--wonk);
-  font-weight: 600; font-size: 17px; color: var(--ink);
+.cmp-planche {
+  position: absolute; left: 0; right: 0; bottom: 0; height: var(--scene-plaque);
+  border-radius: 0 0 var(--r-lg) var(--r-lg);
+  background:
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, .018) 0 1px, transparent 1px 7px),
+    linear-gradient(180deg, #3a4e55 0, #253640 2px, #1c2a30 3px, #141e22 100%);
+  mask-image: linear-gradient(90deg, transparent, #000 5%, #000 95%, transparent);
 }
-.annonce-rare { margin-top: 8px; font-size: 12.5px; color: var(--lamp); }
-/* Au téléphone, l'en-tête s'empile et le bouton se range à gauche : la bulle,
-   calée sur son bord droit et plus large que lui, sortait de l'écran par la
-   gauche. Elle s'aligne à gauche et tient dans la largeur. */
-@media (max-width: 720px) {
-  .annonce-bulle { left: 0; right: auto; width: min(262px, calc(100vw - 36px)); }
+.cmp-postes { position: relative; z-index: 1; height: 100%;
+  display: flex; justify-content: center; align-items: flex-end; gap: 28px; }
+.cmp-poste { display: flex; flex-direction: column; flex: 0 1 var(--scene-poste); min-width: 0; }
+
+.cmp-bulle {
+  position: relative; display: flex; align-items: center; margin: 0;
+  height: var(--scene-bulle); margin-bottom: 12px; padding: 12px 16px; box-sizing: border-box;
+  border-radius: var(--r-lg); background: var(--panel); border: 1px solid var(--edge);
+  font-size: 14.5px; line-height: 1.42; font-style: italic; color: var(--ink); text-wrap: pretty;
+}
+.cmp-bulle::after {
+  content: ""; position: absolute; left: 50%; bottom: -7px; width: 12px; height: 12px;
+  background: var(--panel); border-right: 1px solid var(--edge); border-bottom: 1px solid var(--edge);
+  transform: translateX(-50%) rotate(45deg);
 }
 
-.comptoir-avis {
-  margin: 0 0 20px; padding: 12px 16px; border-radius: var(--r-md);
-  border: 1px solid var(--edge-hi); background: var(--panel);
-  font-size: 13.5px; color: var(--ink);
+.cmp-figure { position: relative; height: 280px; }
+.cmp-poste.actif .cmp-figure { cursor: pointer; }
+.cmp-lueur {
+  position: absolute; left: 50%; bottom: 0; width: 340px; height: 290px; transform: translateX(-50%);
+  background: radial-gradient(closest-side, rgba(232, 163, 61, .16), transparent);
+  transition: background .4s;
 }
-
-/* ── Acheteurs du jour ───────────────────────────────────────────────────── */
-
-/* 220 px et non 268 : sur une tablette en portrait, trois fiches de front au
-   lieu de deux et une orpheline sur un second rang. */
-.acheteurs { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 14px;
-  container: acheteurs / inline-size; }
-.acheteur {
-  position: relative; display: flex; flex-direction: column;
-  text-align: left; cursor: pointer; overflow: hidden;
-  border: 1px solid var(--edge); border-radius: var(--r-lg);
-  background: linear-gradient(180deg, var(--panel), var(--ground2));
-  transition: border-color .18s, transform .18s, box-shadow .18s;
-}
-.acheteur:hover { border-color: var(--edge-ui); transform: translateY(-2px);
-  box-shadow: 0 14px 30px rgba(0, 0, 0, .4); }
-.acheteur.exceptionnel { border-color: var(--m-noyer); }
-.acheteur.inerte { cursor: default; opacity: .78; }
-.acheteur.inerte:hover { transform: none; border-color: var(--edge); box-shadow: none; }
-/* Même survol collant qu'à la boutique : au doigt, pas de soulèvement. */
-@media (hover: none) { .acheteur:hover { transform: none; box-shadow: none; } }
-
-/* ── La scène du portrait ─────────────────────────────────────────────────
-   Les portraits sont des découpes : la planche d'origine est en RVBA et les
-   personnages y sont détourés. Trois versions ont ignoré cette transparence —
-   fenêtre 4:5 centrée sur le visage, image aplatie sur un fond opaque, plafond
-   de hauteur, voile pour masquer la coupe — et le résultat était un buste
-   rogné aux épaules dans une vignette photographique.
-
-   Le personnage se pose maintenant *sur* la fiche : pas de cadre, pas de fond
-   propre, pas de rognage. `contain` le montre entier, `object-position` le fait
-   tenir debout sur le bloc de texte, et la transparence fait le reste. */
-.acheteur-vignette {
-  position: relative; flex: 0 0 auto;
-  aspect-ratio: 1 / 0.86;
-}
-/* La lampe à huile du camp, posée sous le personnage : sans elle, une découpe
-   flotte au-dessus du panneau au lieu de s'y tenir. Elle passe derrière le
-   portrait, pas devant. */
-.acheteur-vignette::after {
-  content: ""; position: absolute; inset: auto 0 0 0; height: 46%; z-index: 0;
-  pointer-events: none;
-  background: radial-gradient(70% 100% at 50% 100%, rgba(232, 163, 61, .16), transparent 72%);
-}
-.acheteur-portrait {
-  position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%;
-  /* `contain` : rien n'est coupé, ni le visage ni les épaules. Le personnage
-     est posé au bas de la scène, d'où il repose sur son nom. */
+.cmp-poste.honneur .cmp-lueur { background: radial-gradient(closest-side, rgba(232, 163, 61, .22), transparent); }
+.cmp-poste.content .cmp-lueur { background: radial-gradient(closest-side, rgba(232, 163, 61, .3), transparent); }
+.cmp-poste.inerte .cmp-lueur, .cmp-poste.fini .cmp-lueur { background: radial-gradient(closest-side, rgba(232, 163, 61, .04), transparent); }
+.cmp-portrait {
+  position: absolute; left: 0; right: 0; bottom: 0; margin: 0 auto; z-index: 1;
+  width: 100%; height: var(--scene-portrait);
   object-fit: contain; object-position: 50% 100%;
-  filter: saturate(.94) drop-shadow(0 8px 22px rgba(0, 0, 0, .45));
-  /* Le personnage s'arrête net au bas de la planche d'origine — un trait
-     horizontal en travers du torse. Sept pour cent de fondu, appliqués à
-     l'image et non au panneau, dissolvent la coupe sans rien voiler d'autre. */
-  -webkit-mask-image: linear-gradient(to top, transparent 0, #000 7%);
+  filter: var(--ombre-decoupe); transition: filter .4s;
   mask-image: linear-gradient(to top, transparent 0, #000 7%);
 }
-/* Plus de voile de bas de vignette : il n'y a plus de coupe à masquer. */
-.acheteur-portrait.sans-image {
-  display: grid; place-items: center;
-  font-family: var(--font-display); font-size: 44px; color: var(--edge-hi);
-}
-.acheteur-sceau {
-  position: absolute; left: 8px; top: 8px; z-index: 2; padding: 3px 9px;
-  border-radius: 100px; background: var(--lamp); color: #241704;
-  font-size: 10.5px; font-weight: 700;
-}
-/* Le bloc de texte remontait de vingt-deux pixels sur la vignette : c'était
-   pour mordre le dégradé d'une image photographique. Avec une découpe posée au
-   bas de la scène, ce chevauchement écrivait le nom dans les mains du
-   personnage. */
-.acheteur-corps { display: flex; flex-direction: column; flex: 1 1 auto;
-  min-width: 0; padding: 6px 17px 15px; z-index: 2; }
-.acheteur-nom {
+.cmp-portrait.sans-image { display: grid; place-items: center; font-family: var(--font-display);
+  font-size: 64px; color: var(--ink3); }
+.cmp-poste.honneur .cmp-portrait { height: 280px; }
+.cmp-poste.content .cmp-portrait { filter: var(--ombre-decoupe) brightness(1.07) saturate(1.1); }
+.cmp-poste.inerte .cmp-portrait, .cmp-poste.fini .cmp-portrait {
+  height: 190px; filter: grayscale(.8) brightness(.62) var(--ombre-decoupe); }
+.cmp-sceau {
+  position: absolute; top: 14px; right: -4px; z-index: 2; width: 76px; height: 76px;
+  display: grid; place-items: center; text-align: center; border-radius: 50%;
+  background: rgba(13, 20, 23, .88); border: 1.5px solid #e3ecf4; color: #e3ecf4;
+  box-shadow: 0 0 0 4px rgba(13, 20, 23, .6), 0 0 22px rgba(227, 236, 244, .18); transform: rotate(-10deg);
   font-family: var(--font-display); font-variation-settings: var(--wonk);
-  font-weight: 600; font-size: 20px; line-height: 1.15; color: var(--ink);
-}
-.acheteur-sub { font-size: 12.5px; color: var(--ink3); margin-top: 2px; }
-.acheteur-spec { display: flex; gap: 9px; margin-top: 11px; font-size: 12.5px;
-  line-height: 1.4; color: var(--ink2); }
-/* La réplique du personnage : c'est elle qui dit son goût mieux qu'une
-   étiquette de spécialité. Elle vivait seulement dans la fenêtre de négoce. */
-.acheteur-quote {
-  margin-top: 11px; font-family: var(--font-display);
-  font-variation-settings: var(--wonk); font-size: 13.5px; font-style: italic;
-  line-height: 1.45; color: var(--ink3);
-}
-.acheteur-ico { color: var(--lamp); font-size: 16px; }
-.acheteur-pied {
-  margin-top: auto; padding-top: 12px; border-top: 1px solid var(--edge);
-  font-size: 12.5px; line-height: 1.45; color: var(--ink2);
-}
-.acheteur-corps > .acheteur-pied { margin-top: 14px; }
-.acheteur-pied b { color: var(--ink); font-weight: 600; }
-.acheteur-pied b.or { color: var(--or); }
-
-/* Fiche compacte, quand la colonne des acheteurs est étroite — au téléphone,
-   mais la règle suit la colonne et non l'écran (requête de conteneur).
-   Pleine largeur, chaque fiche prenait un écran entier, portrait compris, et
-   le rayon n'arrivait qu'après trois écrans. En rangée, la vignette garde le
-   visage (cadrage en haut, rogné : à 96 px le personnage entier serait une
-   silhouette), la réplique se retire — elle ouvre la fenêtre de négoce, où
-   elle a toute sa place — et ce que l'acheteur veut de vous reste en pied. */
-@container acheteurs (max-width: 560px) {
-  .acheteur { flex-direction: row; align-items: stretch; }
-  .acheteur-vignette { flex: 0 0 96px; aspect-ratio: auto; min-height: 118px; }
-  .acheteur-portrait { object-fit: cover; object-position: 50% 8%;
-    -webkit-mask-image: none; mask-image: none; }
-  .acheteur-vignette::after { height: 70%; }
-  .acheteur-sceau { left: 6px; top: 6px; font-size: 9.5px; padding: 2px 7px; }
-  .acheteur-corps { padding: 12px 14px 12px 12px; }
-  .acheteur-nom { font-size: 17px; }
-  .acheteur-spec { margin-top: 6px; }
-  .acheteur-quote { display: none; }
-  .acheteur-corps > .acheteur-pied { margin-top: 10px; padding-top: 9px; }
-}
-/* Téléphone couché : la colonne est large (deux fiches de front) mais l'écran
-   n'a que 390 px de haut, et une fiche pleine en faisait 514. Mêmes fiches
-   compactes, deux par rang. */
-@media (max-width: 860px) and (max-height: 500px) {
-  .acheteur { flex-direction: row; align-items: stretch; }
-  .acheteur-vignette { flex: 0 0 96px; aspect-ratio: auto; min-height: 118px; }
-  .acheteur-portrait { object-fit: cover; object-position: 50% 8%;
-    -webkit-mask-image: none; mask-image: none; }
-  .acheteur-vignette::after { height: 70%; }
-  .acheteur-sceau { left: 6px; top: 6px; font-size: 9.5px; padding: 2px 7px; }
-  .acheteur-corps { padding: 12px 14px 12px 12px; }
-  .acheteur-nom { font-size: 17px; }
-  .acheteur-spec { margin-top: 6px; }
-  .acheteur-quote { display: none; }
-  .acheteur-corps > .acheteur-pied { margin-top: 10px; padding-top: 9px; }
+  font-style: italic; font-weight: 600; font-size: 12px; line-height: 1.1;
 }
 
-/* ── Colonnes vendre / vente rapide ─────────────────────────────────────── */
-
-/* Les noms qui suivent — lignes, piece, rayon, jeton — sont trop génériques
-   pour vivre sans domicile dans une feuille partagée par cinq pages. Ils sont
-   donc cantonnés sous « .comptoir », qui est la racine de la page. */
-
-/* Les deux panneaux de la même rangée finissent à la même ligne : le rayon
-   fixe la hauteur, la vente rapide s'y étire et pousse sa mention de bourse en
-   bas. Alignés en haut seulement, ils laissaient soixante pixels de décalage
-   au pied — ce qui se voit d'autant plus qu'ils sont maintenant côte à côte en
-   tête de page. */
-.comptoir-colonnes { display: flex; flex-wrap: wrap; gap: 16px; align-items: stretch;
-  margin-top: 26px; }
-.comptoir-colonnes > .panneau { margin-bottom: 0; }
-/* La rangée du haut et le tableau du surplus se touchaient : deux panneaux
-   collés lisent comme un seul bloc coupé en deux. */
-.comptoir-colonnes + .panneau { margin-top: 22px; }
-.comptoir-colonnes > section { flex: 999 1 480px; min-width: 0; padding: 0; }
-.comptoir-colonnes > aside { flex: 1 1 276px; min-width: 0; }
-
-.comptoir .panneau { background: var(--ground2); }
-.comptoir .panneau h2 { font-size: 21px; font-weight: 600; }
-.panneau-tete { display: flex; align-items: flex-end; justify-content: space-between;
-  gap: 14px; flex-wrap: wrap; padding: 18px 20px 14px; }
-.comptoir-colonnes > section .panneau-tete { padding: 18px 20px 14px; }
-.panneau-tete p { margin-top: 5px; max-width: 54ch; }
-.comptoir .jeton {
-  padding: 5px 12px; border-radius: 100px; border: 1px solid var(--edge);
-  background: var(--panel); font-size: 12px; color: var(--ink2);
-  white-space: nowrap; font-variant-numeric: tabular-nums;
+.cmp-plaque {
+  display: flex; flex-direction: column; gap: 4px;
+  height: var(--scene-plaque); padding: 14px 4px 12px; box-sizing: border-box;
 }
-.panneau-vide { padding: 20px 20px 26px; font-size: 13px; color: var(--ink3); }
-.panneau-vide a { color: var(--lamp); font-weight: 600; }
-.panneau-vide a:hover { text-decoration: underline; }
-
-.lignes { list-style: none; margin: 0; padding: 0; }
-
-/* Une grille et non un rang qui se replie. Deux raisons : les colonnes de
-   chiffres s'alignaient différemment d'une ligne à l'autre selon la longueur du
-   nom de l'acheteur, ce qu'un tableau de prix ne peut pas se permettre ; et
-   selon que la ligne portait un bouton « Négocier » ou la mention « Attendre »,
-   plus courte, le rang basculait en repliement et la ligne triplait de hauteur. */
-.comptoir .lignes li {
-  display: grid;
-  /* La dernière colonne est fixe : sans cela, une ligne sans acheteur — dont
-     la mention « Attendre » est plus courte qu'un bouton — décalait toute sa
-     rangée de chiffres par rapport aux voisines. */
-  grid-template-columns: minmax(190px, 1fr) auto 108px;
-  align-items: center; gap: 8px 18px;
-  padding: 12px 20px; border-top: 1px solid #22323a;
+.cmp-nom { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.cmp-nom h3 { margin: 0; flex: 0 0 auto; font-size: 20px; letter-spacing: -.015em; white-space: nowrap; }
+.cmp-metier { min-width: 0; font-size: 13px; color: var(--ink3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cmp-critere { margin: 0; font-size: 14px; font-weight: 500; color: var(--ink); }
+.cmp-interet { margin: 0; font-size: 13px; color: var(--ink2); }
+.cmp-poste.inerte .cmp-nom h3, .cmp-poste.inerte .cmp-critere { color: var(--ink2); }
+.cmp-plaque .jauge { margin-top: 4px; }
+.cmp-proposer {
+  align-self: flex-end; margin-top: auto; height: 36px; padding: 0 12px; cursor: pointer;
+  border-radius: var(--r-md); border: 1px solid var(--edge-ui); background: transparent;
+  color: var(--ink); font: inherit; font-size: 13.5px; font-weight: 600; white-space: nowrap;
 }
-.ligne-carte { display: flex; align-items: center; gap: 12px; min-width: 0; }
-/* Nommée « cp-dos » et non « dos » : cards.css emploie déjà « dos » pour la
-   face arrière d'une carte, avec un rapport 2/3, une largeur de 100 % et une
-   rotation de 180 degrés. La vignette du marché héritait de tout cela et
-   sortait de sa case. Deuxième collision de nom global de la journée, après
-   « vide » : les noms génériques d'une feuille partagée sont un piège.
+.cmp-proposer:hover:not(:disabled) { border-color: var(--lamp); color: var(--lamp); }
+.cmp-proposer:disabled { border-color: var(--edge-hi); color: var(--ink3); cursor: default; }
 
-   Le vrai dos de carte, pas un aplat : l'image existe déjà dans public/, et un
-   rectangle vide au bout d'une ligne de prix ne dit rien de ce qu'on vend. La
-   lueur du palier et l'image sont posées en style en ligne — le chemin dépend
-   de la base de publication, que seul JavaScript connaît (voir teintes.js). */
-.comptoir .cp-dos, .comptoir .piece .cp-dos {
-  flex: 0 0 auto; border-radius: var(--r-sm);
-  background-color: #0f1a1e; background-position: center;
-  /* « contain » et non « cover » : le dos porte le nom du jeu en son centre,
-     et un cadrage en cover à trente-deux pixels ne montrait que deux lettres
-     coupées. Le rapport de la boîte est presque celui de la carte, la vignette
-     reste donc pleine. */
-  background-size: contain; background-repeat: no-repeat;
+/* Au téléphone : une rangée d'onglets-visages sur la planche, la bulle et
+   la plaque de l'acheteur choisi dessous. */
+.cmp-scene-tel { margin-top: 12px; }
+.cmp-onglets {
+  position: relative; display: flex; gap: 6px; border-radius: var(--r-lg);
+  background:
+    linear-gradient(180deg, transparent 0, transparent 104px, #2b3d44 104px, #1c2a30 106px, #141e22 100%),
+    radial-gradient(ellipse 80% 60% at 50% 30%, rgba(120, 150, 160, .07), transparent 70%);
 }
-.cp-dos { width: 32px; height: 44px; }
-.comptoir .ligne-nom {
-  font-family: var(--font-display); font-variation-settings: var(--wonk);
-  font-weight: 600; font-size: 15px; line-height: 1.2; color: var(--ink);
+.cmp-onglet {
+  flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center;
+  padding: 0 2px 10px; border: 0; border-bottom: 2px solid transparent; background: transparent;
+  color: var(--ink); cursor: pointer; font: inherit;
 }
-.ligne-palier { font-size: 11.5px; margin-top: 3px; }
-.hausse { color: var(--lamp); }
+.cmp-onglet[aria-selected="true"] { border-bottom-color: var(--lamp); }
+.cmp-onglet-scene { position: relative; display: block; width: 100%; height: 104px; }
+.cmp-onglet .cmp-lueur { width: 120px; height: 100px; }
+.cmp-onglet .cmp-portrait { height: 100px; }
+.cmp-onglet.inerte .cmp-portrait, .cmp-onglet.fini .cmp-portrait { height: 76px;
+  filter: grayscale(.8) brightness(.62) var(--ombre-decoupe); }
+.cmp-onglet-nom { margin-top: 8px; font-family: var(--font-display); font-variation-settings: var(--wonk);
+  font-weight: 700; font-size: 14.5px; line-height: 1.15; text-align: center; }
+.cmp-onglet.inerte .cmp-onglet-nom { color: var(--ink3); }
+.cmp-panneau-tel { margin-top: 12px; display: flex; flex-direction: column; gap: 10px; min-height: 232px; }
+.cmp-bulle.haut { height: auto; min-height: 64px; margin: 0; font-size: 14px; }
+.cmp-bulle.haut::after { display: none; }
+.cmp-panneau-tel .cmp-plaque { height: auto; padding: 0 2px; }
+.cmp-panneau-tel .cmp-proposer { height: 44px; padding: 0 16px; font-size: 14px; }
 
-.comptoir .ligne-chiffres {
-  display: grid; grid-template-columns: 62px 132px 92px 88px; gap: 4px 18px; margin: 0;
-}
-.ligne-chiffres > div { min-width: 0; }
-.ligne-chiffres dt { font-size: 11px; color: var(--ink4); }
-.ligne-chiffres dd { margin: 0; font-size: 14px; color: var(--ink);
-  font-variant-numeric: tabular-nums; }
-/* Pas « .vide » : app.css emploie déjà ce nom pour l'état vide d'une page,
-   avec display:flex et un empilement centré. La classe était héritée par le
-   tiret d'une offre absente, qui prenait cent quarante pixels de haut et
-   triplait la ligne. Un nom de classe global se collisionne en silence. */
-.ligne-chiffres dd.sans-offre { color: var(--ink4); }
-.attendre { font-size: 13px; justify-self: end; }
-.lignes li > .btn { justify-self: end; }
+/* ── Sous la scène : le rayon et l'échoppe ─────────────────────────────── */
+.cmp-bas { display: flex; flex-wrap: wrap; gap: 40px; align-items: flex-start; margin-top: 40px; }
+.cmp-section-tete { display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px 12px; }
+.cmp-section-tete h2 { margin: 0; font-size: 26px; letter-spacing: -.015em; }
+.cmp-section-tete .muted { font-size: 14px; }
 
-/* Préfixées par « .comptoir » comme les règles de base : sans cela, `.comptoir
-   .lignes li` et `.comptoir .ligne-chiffres` l'emportaient par spécificité, ces
-   deux requêtes ne s'appliquaient jamais, et la ligne gardait ses quatre
-   colonnes fixes — elle sortait de l'écran d'un téléphone par la droite. */
-@media (max-width: 1180px) {
-  .comptoir .lignes li { grid-template-columns: minmax(0, 1fr) 108px; }
-  .comptoir .ligne-chiffres { grid-column: 1 / -1; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+/* Une vignette de carte suit sa case : la typographie de carte est en cqw. */
+.cmp-vignette { position: relative; }
+.cmp-vignette .cb-petit { width: 100%; }
+.cmp-manquante, .cmp-nb {
+  position: absolute; z-index: 8; padding: 1px 8px; border-radius: 100px;
+  font-size: 11.5px; font-weight: 700; font-variant-numeric: tabular-nums;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, .45); pointer-events: none;
 }
+.cmp-manquante { top: 6px; left: 6px; background: rgba(13, 20, 23, .9); border: 1px solid #e3ecf4; color: #e3ecf4; }
+.cmp-nb { top: 6px; right: 6px; background: var(--lamp); color: #241704; }
+.cmp-prix { font-size: 15px; font-weight: 600; color: var(--lamp); font-variant-numeric: tabular-nums; }
+.cmp-prix .muted { font-weight: 400; font-size: 12.5px; }
+
+.cmp-rayon { flex: 1 1 640px; min-width: 0; }
+.cmp-piece {
+  display: grid; grid-template-columns: var(--carte-piece) minmax(0, 1fr); gap: 28px; align-items: center;
+  margin-top: 20px; padding-bottom: 24px; border-bottom: 1px solid var(--edge);
+}
+.cmp-piece-texte { display: flex; flex-direction: column; gap: 6px; max-width: 440px; font-size: 14px; }
+.cmp-piece-sur { font-family: var(--font-display); font-variation-settings: var(--wonk);
+  font-style: italic; font-size: 16px; color: var(--ink2); }
+.cmp-piece-nom { font-family: var(--font-display); font-variation-settings: var(--wonk);
+  font-weight: 700; font-size: 28px; line-height: 1.1; letter-spacing: -.015em; color: var(--ink); }
+.cmp-piece-prix { margin-top: 12px; font-size: 36px; font-weight: 700; line-height: 1;
+  color: var(--lamp); font-variant-numeric: tabular-nums; }
+.cmp-piece-texte > .muted { font-size: 13.5px; }
+.cmp-rayon-grille { display: grid; grid-template-columns: repeat(auto-fill, var(--carte-rayon)); gap: 24px; margin-top: 22px; }
+.cmp-rayon-case { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.cmp-rayon-case .cmp-prix { margin-top: 6px; font-size: 16px; }
+
+.cmp-achat { display: flex; flex-direction: column; gap: 6px; }
+.cmp-achat.grand { flex-direction: row; align-items: center; gap: 14px; margin-top: 12px; min-height: 44px; }
+.cmp-acheter {
+  height: 36px; border-radius: var(--r-md); cursor: pointer;
+  border: 1px solid var(--edge-ui); background: transparent; color: var(--ink);
+  font: inherit; font-size: 13.5px; font-weight: 600;
+}
+.cmp-achat.grand .cmp-acheter { height: 44px; padding: 0 20px; font-size: 14.5px; font-weight: 700; }
+.cmp-acheter:hover:not(:disabled) { border-color: var(--lamp); color: var(--lamp); }
+.cmp-acheter:disabled { border-color: var(--edge-hi); color: var(--ink3); cursor: default; }
+.cmp-manque { min-height: 17px; font-size: 12.5px; color: var(--ink3); font-variant-numeric: tabular-nums; }
+.cmp-achat.grand .cmp-manque { font-size: 14px; color: var(--ink2); min-height: 0; }
+
+.cmp-echoppe {
+  flex: 0 1 var(--echoppe); min-width: 0; box-sizing: border-box; padding: 20px;
+  display: flex; flex-direction: column; gap: 14px;
+  border-radius: var(--r-lg); background: var(--panel); border: 1px solid var(--edge);
+}
+.cmp-echoppe h2 { margin: 0 0 4px; font-size: 22px; letter-spacing: -.01em; }
+.cmp-echoppe-texte { margin: 0; font-size: 14px; line-height: 1.45; color: var(--ink2); }
+.cmp-puce-ligne { display: flex; flex-direction: column; gap: 4px; }
+.cmp-mention-rainbow { padding-left: 14px; font-size: 12.5px; color: var(--m-rainbow); margin: 0; }
+.neg .cmp-mention-rainbow { padding-left: 0; }
+.cmp-echoppe-pied { display: flex; flex-direction: column; gap: 8px; padding-top: 14px; border-top: 1px solid var(--edge); }
+.cmp-tout-vendre {
+  height: 48px; padding: 0 18px; border-radius: var(--r-md); cursor: pointer;
+  border: 1px solid var(--lamp); background: transparent; color: var(--lamp);
+  font: inherit; font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums;
+}
+.cmp-tout-vendre.arme { background: var(--lamp); color: #241704; }
+.cmp-tout-vendre:disabled { border-color: var(--edge-hi); color: var(--ink3); cursor: default; }
+.cmp-echoppe-note { min-height: 32px; display: flex; align-items: center; justify-content: space-between;
+  gap: 8px; font-size: 13px; color: var(--ink3); }
+.comptoir .lien { height: 32px; padding: 0 4px; border: 0; background: transparent; cursor: pointer;
+  color: var(--ink2); font: inherit; font-size: 13px; text-decoration: underline; text-underline-offset: 3px; }
+
+@media (max-width: 1180px) { .cmp-echoppe { flex: 1 1 100%; } }
 @media (max-width: 720px) {
-  /* La carte et son action sur la première ligne, les chiffres dessous : le
-     bouton « Négocier » tombait seul au milieu d'une troisième ligne. */
-  .comptoir .lignes li { grid-template-columns: minmax(0, 1fr) auto; padding: 12px 14px; gap: 10px 12px; }
-  .comptoir .lignes li > .ligne-carte { grid-column: 1; grid-row: 1; }
-  .comptoir .ligne-carte > div { min-width: 0; }
-  .comptoir .ligne-nom { overflow-wrap: break-word; hyphens: auto; }
-  .comptoir .lignes li > .btn, .comptoir .lignes li > .attendre { grid-column: 2; grid-row: 1; }
-  .comptoir .ligne-chiffres { grid-column: 1 / -1; grid-row: 2;
-    grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 12px; }
+  .cmp-bandeau { gap: 8px 16px; padding-top: 0; }
+  .cmp-titre h1 { font-size: 26px; }
+  .cmp-espace { display: none; }
+  .cmp-bas { margin-top: 28px; gap: 28px; }
+  .cmp-section-tete h2 { font-size: 22px; }
+  .cmp-piece { grid-template-columns: 156px minmax(0, 1fr); gap: 16px; }
+  .cmp-piece-nom { font-size: 22px; }
+  .cmp-piece-prix { font-size: 28px; margin-top: 6px; }
+  .cmp-achat.grand { flex-direction: column; align-items: stretch; gap: 6px; }
+  .cmp-rayon-grille { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px 10px; }
+  .cmp-acheter { height: 44px; }
+  .cmp-tout-vendre { height: 52px; }
 }
 
-.rapide { padding: 20px; background: linear-gradient(180deg, var(--panel), var(--ground2)) !important;
-  display: flex; flex-direction: column; }
-.rapide h2 { margin-bottom: 8px; }
-/* Le sélecteur générique du panneau battait la classe du montant en
-   spécificité — même poids, mais « .rapide p » compte un élément de plus. Le
-   chiffre de trente pixels s'affichait donc à douze. */
-.rapide p:not(.rapide-montant) { font-size: 12.5px; line-height: 1.55; }
-.comptoir .rapide .rapide-montant {
-  margin: 18px 0 4px !important; font-family: var(--font-display);
-  font-variation-settings: var(--wonk); font-weight: 600; font-size: 31px;
-  color: var(--or); font-variant-numeric: tabular-nums;
+/* ── Les pièces qui filent vers la bourse ─────────────────────────────── */
+.piece-volante {
+  position: fixed; z-index: 200; width: 10px; height: 10px; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle at 35% 35%, #ffd98a, var(--lamp) 60%, #b97c26);
+  box-shadow: 0 0 8px rgba(232, 163, 61, .7);
 }
-.rapide .btn { width: 100%; margin-top: 16px; }
-.rapide .fine { margin-top: auto !important; padding-top: 14px; }
 
-/* ── Le rayon du jour ───────────────────────────────────────────────────── */
-
-/* Six pièces, trois par rang. `auto-fill` sur 252 px donnait quatre colonnes
-   sur un large écran et un rang orphelin de deux ; un compte fixe de trois
-   garde les deux rangs pleins et la hauteur de la colonne alignée sur celle de
-   la vente rapide, à côté. */
-.rayon { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 11px; padding: 0 20px 22px; }
-@media (max-width: 1180px) { .rayon { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (max-width: 720px) { .rayon { grid-template-columns: 1fr; } }
-.comptoir .piece {
-  display: grid; grid-template-columns: 32px minmax(0, 1fr); gap: 12px; align-items: start;
-  padding: 13px 14px; border: 1px solid var(--edge); border-radius: var(--r-md);
-  background: var(--panel);
-}
-.piece.deja { opacity: .74; }
-.piece-corps { min-width: 0; }
-.comptoir .piece-nom {
-  font-family: var(--font-display); font-variation-settings: var(--wonk);
-  font-weight: 600; font-size: 15px; line-height: 1.2; color: var(--ink);
-}
-.piece-palier { font-size: 11.5px; margin-top: 4px; }
-.piece-repere { font-size: 11.5px; margin-top: 3px; line-height: 1.4; }
-.piece .btn { grid-column: 1 / -1; margin-top: 11px; }
-
-/* Les mesures de calibration, désormais dans la bulle de l'en-tête. */
-.mesures { margin: 12px 0 0; }
-.mesures > div { display: flex; justify-content: space-between; gap: 14px;
-  padding: 8px 0; border-top: 1px solid #22323a; font-size: 13px; }
-.mesures dt { color: var(--ink2); }
-.mesures dd { margin: 0; color: var(--ink); font-variant-numeric: tabular-nums;
-  white-space: nowrap; }
-.mesures dd.ok { color: var(--vert-encre); }
-.mesures dd.ko { color: var(--ember); }
-
-/* ── Négoce ─────────────────────────────────────────────────────────────────
-   Piste A. Le panneau empilait sept conteneurs pour trois informations : les
-   puces, la carte, l'offre, les actions, l'encadré du pari, ses deux issues et
-   deux paragraphes de mentions. Il en reste trois zones — la carte et sa
-   quantité sur un rang, les trois chiffres sur un rang séparé par des filets,
-   les actions — et une ligne de pied derrière laquelle une bulle porte la règle
-   complète.
-
-   La hauteur du cadre est celle du portrait. C'est le portrait qui commande :
-   sa colonne fait quatre cinquièmes de la hauteur, la planche d'origine étant
-   découpée en 4:5, donc l'image remplit sa colonne au pixel sans aucun
-   recadrage. Le cadre passe d'un carré de 1040 × 811, où le portrait mangeait
-   52 % de la largeur, à un paysage de 968 × 560 où il en occupe 46 %.          */
-
+/* ── Le négoce ──────────────────────────────────────────────────────────
+   Le portrait fixe la hauteur du cadre (voir la charte, « La fenêtre de
+   négoce se mesure sur son portrait »). Deux écrans dans le même cadre :
+   A, ses cartes ; B, le marchandage d'une carte. */
 .neg-fond {
-  position: fixed; inset: 0; z-index: 60; display: flex; align-items: center;
-  justify-content: center; padding: clamp(8px, 2.5vw, 26px);
-  /* La fenêtre a un plancher de hauteur : sur un écran très court elle le
-     dépasse, et c'est le fond qui doit défiler plutôt que couper. */
-  overflow: auto;
-  background: rgba(6, 11, 13, .74);
-  backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
-  animation: pose .18s cubic-bezier(.2, .8, .3, 1) both;
+  position: fixed; inset: 0; z-index: 100; display: grid; place-items: center;
+  padding: 24px; box-sizing: border-box; overflow: auto;
+  background: rgba(6, 11, 13, .76);
 }
-@keyframes pose { from { opacity: 0; transform: translateY(9px); } to { opacity: 1; transform: none; } }
-
 .neg {
-  /* La hauteur, d'où tout découle. Un plancher, pour que le panneau ait
-     toujours de quoi tenir ses trois zones ; un plafond, pour qu'un grand
-     écran ne transforme pas le portrait en affiche. */
   --neg-h: clamp(452px, 74vh, 588px);
-  --neg-ratio: 0.8;
-  position: relative; display: grid;
-  grid-template-columns: calc(var(--neg-h) * var(--neg-ratio)) minmax(0, 1fr);
-  width: min(calc(var(--neg-h) * var(--neg-ratio) + 612px), 96vw);
-  /* Un plancher, et non une hauteur fixe : la grille des cartes ajoute jusqu'à
-     trois rangs de pastilles et un champ de filtre, que la fenêtre doit
-     pouvoir prendre plutôt que de comprimer ses trois zones. Le portrait
-     remplit sa colonne au cadrage près, donc rien ne se lettreboxe. */
-  min-height: var(--neg-h);
-  max-height: 92vh;
-  border: 1px solid var(--edge-hi); border-radius: 12px; background: var(--ground2);
-  box-shadow: 0 34px 90px rgba(0, 0, 0, .7); overflow: hidden;
+  --neg-ratio: .8;
+  position: relative; display: flex; height: var(--neg-h); max-width: 100%;
+  border-radius: var(--r-lg); background: var(--panel); border: 1px solid var(--edge-hi);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, .7); overflow: hidden;
 }
+.neg-scene { position: relative; flex: 0 0 auto; width: calc(var(--neg-h) * var(--neg-ratio)); height: 100%;
+  background: var(--ground2); }
+.neg-lueur { position: absolute; left: 50%; bottom: 0; width: 90%; height: 80%; transform: translateX(-50%);
+  background: radial-gradient(closest-side, rgba(232, 163, 61, .18), transparent); transition: background .4s; }
+.neg-scene.content .neg-lueur { background: radial-gradient(closest-side, rgba(232, 163, 61, .3), transparent); }
+.neg-scene.decu .neg-lueur { background: radial-gradient(closest-side, rgba(232, 163, 61, .08), transparent); }
+.neg-portrait {
+  position: absolute; left: 0; right: 0; bottom: 0; top: 150px; width: 100%; height: calc(100% - 150px);
+  object-fit: contain; object-position: 50% 100%; filter: var(--ombre-decoupe); transition: filter .4s;
+  mask-image: linear-gradient(to top, transparent 0, #000 7%);
+}
+.neg-scene.content .neg-portrait { filter: var(--ombre-decoupe) brightness(1.07) saturate(1.1); }
+.neg-scene.decu .neg-portrait { filter: var(--ombre-decoupe) saturate(.72) brightness(.86); }
+.neg-identite { position: absolute; left: 22px; top: 22px; z-index: 2;
+  width: calc(var(--neg-h) * var(--neg-ratio) - 44px); display: flex; flex-direction: column; gap: 3px; }
+.neg-nom { margin: 0; font-family: var(--font-display); font-variation-settings: var(--wonk);
+  font-weight: 700; font-size: 26px; letter-spacing: -.015em; color: var(--ink); }
+.neg-sub { margin: 0 0 9px; font-size: 13.5px; color: var(--ink3); }
+.neg-voix {
+  position: relative; margin: 0; min-height: 44px; padding: 12px 14px;
+  border-radius: var(--r-lg); background: var(--panel); border: 1px solid var(--edge-hi);
+  font-size: 15px; line-height: 1.42; font-style: italic; color: var(--ink); text-wrap: pretty;
+}
+.neg-voix::after { content: ""; position: absolute; left: 50%; bottom: -7px; width: 12px; height: 12px;
+  background: var(--panel); border-right: 1px solid var(--edge-hi); border-bottom: 1px solid var(--edge-hi);
+  transform: translateX(-50%) rotate(45deg); }
 
-/* ── La scène ─────────────────────────────────────────────────────────────── */
+.neg-panneau { flex: 0 1 580px; width: 580px; min-width: 0; display: flex; flex-direction: column;
+  padding: 22px 26px 16px; box-sizing: border-box; overflow-y: auto; overflow-x: hidden; }
+.neg-tete { display: flex; justify-content: space-between; align-items: center; gap: 12px; min-height: 40px; }
+.neg-tete h2 { margin: 0; font-size: 23px; letter-spacing: -.01em; }
+.neg-retour { height: 40px; padding: 0; border: 0; background: transparent; cursor: pointer;
+  color: var(--ink2); font: inherit; font-size: 14px; display: inline-flex; align-items: center; gap: 8px; }
+.neg-retour #neg-titre { text-decoration: underline; text-underline-offset: 3px; }
+.neg-retour:hover { color: var(--ink); }
+.neg-fermer { width: 40px; height: 40px; flex: 0 0 auto; border-radius: var(--r-md); cursor: pointer;
+  border: 1px solid var(--edge-ui); background: transparent; color: var(--ink2); font-size: 20px; line-height: 1; }
+.neg-panneau > .jauge { margin-top: 8px; }
 
-.neg-scene {
-  position: relative; display: flex; flex-direction: column; overflow: hidden;
-  background: linear-gradient(180deg, #1d2c33 0%, #101a1e 72%);
-}
-.neg-halo { position: absolute; inset: auto 0 0 0; height: 74%; z-index: 0;
-  background: radial-gradient(70% 100% at 50% 102%, rgba(232, 163, 61, .26), transparent 70%); }
-/* Le portrait est une découpe carrée, la colonne est plus haute que large :
-   `contain` le montre entier et `object-position` le pose au bas de la scène,
-   sous le voile du nom et derrière la réplique. */
-.neg-portrait { position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%;
-  object-fit: contain; object-position: 50% 100%;
-  filter: drop-shadow(0 10px 26px rgba(0, 0, 0, .5));
-  -webkit-mask-image: linear-gradient(to top, transparent 0, #000 6%);
-  mask-image: linear-gradient(to top, transparent 0, #000 6%); }
-/* Voile du haut : le nom se posait dans les cheveux. */
-.neg-scene::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 42%; z-index: 2;
-  background: linear-gradient(180deg, rgba(13, 20, 23, .82), transparent);
-  pointer-events: none; }
+/* Écran A */
+.neg-outils { display: flex; gap: 8px; align-items: center; margin-top: 14px; }
+.neg-recherche { flex: 1 1 auto; min-width: 0; height: 36px; padding: 0 12px; box-sizing: border-box;
+  border-radius: var(--r-md); border: 1px solid var(--edge-ui); background: var(--ground2);
+  color: var(--ink); font: inherit; font-size: 13.5px; }
+.neg-recherche::placeholder { color: var(--ink3); }
+.neg-grille-zone { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; margin: 14px -8px 0; padding: 6px 8px 12px; }
+.neg-grille { display: grid; grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 20px 14px; }
+.neg-grille.eteinte .neg-case { opacity: .45; }
+.neg-case { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.neg-case .cmp-prix { margin-top: 2px; font-size: 14px; }
+.neg-pied { margin: 10px 0 0; padding-top: 10px; border-top: 1px solid var(--edge); font-size: 12.5px; color: var(--ink3); }
 
-.neg-identite { position: relative; z-index: 3; padding: 20px 22px 0; }
-.neg-identite h2 { font-size: clamp(22px, 2.4vw, 28px); line-height: 1.08;
-  text-shadow: 0 2px 14px rgba(13, 20, 23, .9); }
-.neg-sub { font-size: 13px; color: var(--ink2); margin-top: 3px;
-  text-shadow: 0 1px 8px rgba(13, 20, 23, .9); }
-.neg-spec {
-  display: inline-flex; align-items: center; gap: 8px; margin-top: 11px;
-  padding: 5px 11px; border-radius: 100px; border: 1px solid var(--edge-hi);
-  background: rgba(13, 20, 23, .72); font-size: 12.5px; color: var(--ink2);
-}
-.neg-spec span[aria-hidden] { color: var(--lamp); font-size: 14px; }
-.neg-quote {
-  position: relative; z-index: 3; margin: auto 16px 16px; padding: 11px 15px;
-  border: 1px solid var(--edge-hi); border-radius: var(--r-md);
-  background: rgba(13, 20, 23, .86);
-  font-family: var(--font-display); font-variation-settings: var(--wonk);
-  font-size: 14.5px; font-style: italic; line-height: 1.45; color: var(--ink);
-  text-align: center; text-wrap: pretty;
-}
-
-/* ── Le panneau ───────────────────────────────────────────────────────────── */
-
-.neg-panneau {
-  display: flex; flex-direction: column; gap: 15px; min-width: 0;
-  border-left: 1px solid var(--edge); background: #162327;
-  padding: 20px clamp(18px, 2.2vw, 24px) 22px;
-}
-.neg-tete { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }
-.neg-tete h3 { font-size: 22px; font-weight: 600; }
-.neg-tete .muted { font-size: 12.5px; margin-top: 3px; }
-.neg-fermer {
-  flex: 0 0 auto; width: 34px; height: 34px; cursor: pointer;
-  border-radius: var(--r-md); border: 1px solid var(--edge-ui);
-  background: rgba(13, 20, 23, .7); color: var(--ink); font-size: 17px; line-height: 1;
-}
-.neg-fermer:hover { background: var(--panel2); }
-
-/* Les cartes qui l'intéressent, en grille de pastilles.
-   ------------------------------------------------------------------
-   C'était une rangée unique qui défilait à l'horizontale sous un fondu. Le
-   fondu disait bien qu'il y avait autre chose derrière le bord, mais avec
-   cinquante doublons il fallait faire glisser un tapis roulant à l'aveugle
-   pour trouver une carte. La grille montre trois rangs à la fois, se filtre
-   par le nom, et chaque pastille porte son prix — l'information sur laquelle
-   la liste est triée. */
-.neg-liste { display: grid; gap: 7px; min-width: 0; }
-.neg-liste-tete { display: flex; align-items: center; gap: 10px; }
-.neg-filtre {
-  flex: 1 1 auto; min-width: 0; height: 30px; padding: 0 10px;
-  font: inherit; font-size: 12.5px; color: var(--ink);
-  background: #0f1a1e; border: 1px solid var(--edge-ui); border-radius: var(--r-md);
-}
-.neg-filtre::placeholder { color: var(--ink4); }
-.neg-compte { flex: 0 0 auto; font-size: 11.5px; color: var(--ink3);
-  font-variant-numeric: tabular-nums; }
-
-.neg-choix {
-  display: flex; flex-wrap: wrap; gap: 6px; min-width: 0;
-  /* Trois rangs de pastilles, puis on défile — mais verticalement, ce qui se
-     voit et se manipule à la molette. */
-  /* 114 px, soit exactement trois rangs de trente-quatre plus deux gouttières
-     de six : un rang coupé en deux ressemble à un défaut d'affichage. */
-  max-height: 114px; overflow-y: auto; scrollbar-width: thin;
-  padding-right: 2px;
-}
-.neg-choix button {
-  /* Un plafond de largeur : sans lui un nom long fait une pastille de trois
-     cents pixels et le rang n'en tient plus que deux. */
-  flex: 0 1 auto; min-width: 0; max-width: 192px;
-  display: inline-flex; align-items: center; gap: 7px;
-  height: 34px; padding: 0 10px; cursor: pointer;
-  border: 1px solid var(--edge-ui); border-radius: var(--r-md);
-  background: var(--panel); color: var(--ink2); font-size: 12.5px; white-space: nowrap;
-}
-.neg-puce-nom { overflow: hidden; text-overflow: ellipsis; }
-.neg-choix button b { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
-.neg-choix button em {
-  font-style: normal; font-size: 11.5px; font-weight: 600; color: var(--or);
-  font-variant-numeric: tabular-nums;
-  padding-left: 7px; border-left: 1px solid var(--edge);
-}
-.neg-choix button:hover { border-color: var(--ink3); color: var(--ink); }
-.neg-choix button.on { border-color: var(--lamp); color: var(--lamp);
-  background: rgba(232, 163, 61, .12); }
-.neg-choix button.on b, .neg-choix button.on em { color: var(--lamp); }
-.neg-rien { font-size: 12px; color: var(--ink3); padding: 6px 2px; }
-
-.neg-carte { display: grid; grid-template-columns: 46px minmax(0, 1fr) auto;
-  gap: 14px; align-items: center; }
-.neg-carte .cp-dos { width: 46px; height: 66px; }
-.neg-carte-nom { min-width: 0; }
-.neg-nom {
-  font-family: var(--font-display); font-variation-settings: var(--wonk);
-  font-weight: 600; font-size: 17px; line-height: 1.2; color: var(--ink);
-}
-.neg-palier { margin-top: 3px; font-size: 12px; }
-
-.pas { display: inline-flex; }
-.pas button {
-  width: 34px; height: 34px; cursor: pointer; background: var(--panel2);
-  border: 1px solid var(--edge-ui); color: var(--ink); font-size: 16px;
-}
-.pas button:first-child { border-radius: var(--r-md) 0 0 var(--r-md); }
-.pas button:last-child { border-radius: 0 var(--r-md) var(--r-md) 0; }
-.pas input {
-  width: 46px; height: 34px; text-align: center; background: #0f1a1e; color: var(--ink);
-  border: 1px solid var(--edge-ui); border-inline: 0; font-family: inherit;
-  font-size: 14px; font-variant-numeric: tabular-nums;
-}
-
-/* Les trois chiffres : un rang, deux filets, aucune boîte. */
-.neg-chiffres {
-  /* C'est le portrait qui fixe la hauteur du cadre, le panneau a donc du mou.
-     `margin-block: auto` le répartit également au-dessus et au-dessous des
-     chiffres : l'argent se centre dans la colonne au lieu de laisser un trou
-     entre les boutons et le pied de page. */
-  display: grid; grid-template-columns: 1.45fr 1fr 1fr; margin-block: auto;
-  border-top: 1px solid var(--edge); border-bottom: 1px solid var(--edge);
-}
-.neg-chiffres > div { padding: 14px 0 13px; min-width: 0; }
-.neg-chiffres > div + div { border-left: 1px solid var(--edge); padding-left: 17px; }
-.neg-chiffres dt { font-size: 11.5px; color: var(--ink4); white-space: nowrap;
-  overflow: hidden; text-overflow: ellipsis; }
-.neg-chiffres dd { margin: 5px 0 0; }
-.neg-chiffres .montant {
-  font-family: var(--font-display); font-variation-settings: var(--wonk);
-  font-weight: 600; font-size: clamp(26px, 2.8vw, 31px); color: var(--lamp);
-  font-variant-numeric: tabular-nums; letter-spacing: -.01em; line-height: 1;
-}
-.neg-chiffres .second {
-  font-family: var(--font-display); font-variation-settings: var(--wonk);
-  font-weight: 600; font-size: 19px; color: var(--ink);
-  font-variant-numeric: tabular-nums; line-height: 1;
-}
-
-.neg-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.neg-actions .btn { padding: 12px 10px; }
-.neg-fait {
-  display: flex; align-items: center; justify-content: center; border-radius: var(--r-md);
-  border: 1px solid var(--edge); color: var(--ink4); font-size: 13.5px;
-}
-
-/* Une ligne de pied, et la règle complète derrière un point d'interrogation :
-   deux paragraphes de mentions y tenaient la moitié de la colonne. */
-.neg-pied { font-size: 11.5px; line-height: 1.55; color: var(--ink4); }
-.neg-aide {
-  width: 19px; height: 19px; margin-left: 7px; padding: 0; cursor: pointer;
-  border: 1px solid var(--edge-ui); border-radius: 50%; background: none;
-  color: var(--ink3); font: inherit; font-size: 11px; line-height: 1; vertical-align: 1px;
-}
-.neg-aide:hover { color: var(--ink); background: var(--panel2); }
-.neg-bulle {
-  position: absolute; z-index: 8; right: clamp(18px, 2.2vw, 24px);
-  bottom: 54px; width: min(320px, 68%); padding: 13px 34px 13px 15px;
-  border: 1px solid var(--edge-hi); border-radius: var(--r-md);
-  background: var(--panel); box-shadow: 0 18px 40px rgba(0, 0, 0, .6);
-  font-size: 12.5px; line-height: 1.55; color: var(--ink2);
-}
-.neg-bulle-fermer {
-  position: absolute; top: 6px; right: 6px; width: 24px; height: 24px; cursor: pointer;
-  background: none; border: 0; color: var(--ink3); font-size: 16px; line-height: 1;
-}
-.neg-bulle-fermer:hover { color: var(--ink); }
-
-/* ── Au doigt ─────────────────────────────────────────────────────────────── */
-
-@media (max-width: 900px) {
-  .neg {
-    --neg-h: auto;
-    grid-template-columns: minmax(0, 1fr); width: min(520px, 96vw);
-    height: auto; max-height: 94vh; overflow: auto;
-  }
-  /* Le portrait entier ferait cinq cents pixels de haut sur un téléphone : on
-     n'en garde que le buste. Un cadre en 4:3 et non en 3:2 — assez haut pour
-     que le visage tienne entier sous le voile du nom, et que la réplique se
-     pose sur le buste plutôt qu'en travers du menton. */
-  .neg-scene { aspect-ratio: 4 / 3; min-height: 0; }
-  .neg-panneau { border-left: 0; border-top: 1px solid var(--edge); }
-  .neg-quote { font-size: 13px; margin: auto 12px 12px; padding: 9px 13px; }
-  .neg-chiffres { grid-template-columns: 1fr 1fr; margin-block: 0; }
-  /* Le pas de quantité passe sous le nom : « Peu commun · double affinité ·
-     4 en surplus » se pliait en trois lignes à côté de lui. */
-  .neg-carte { grid-template-columns: 46px minmax(0, 1fr); }
-  .neg-carte .pas { grid-column: 2; margin-top: 4px; }
-  .neg-chiffres > div:nth-child(3) { grid-column: 1 / -1; border-left: 0; padding-left: 0;
-    border-top: 1px solid var(--edge); }
-  .neg-bulle { position: static; width: auto; margin-top: 10px; }
-}
-
-/* ── Le verdict du marchandage ───────────────────────────────────────────── */
-
-/* Hauteur réservée : le verdict et la règle qu'il remplace n'ont pas le même
-   nombre de lignes, et la fenêtre grandissait au moment précis du résultat. */
-.neg-issue { min-height: 62px; display: flex; align-items: flex-start; }
-.neg-issue > p { margin: 0; }
-
-/* Le verdict portait `border: 1px solid` sans couleur, et ses deux variantes
-   — réussite, échec — n'existaient nulle part : les deux issues s'affichaient
-   dans le même encadré gris, la phrase seule les distinguait. Le cadre prend
-   maintenant la couleur de l'issue, comme le montant juste au-dessus. */
-.neg-verdict { margin: 0; padding: 12px 14px; border-radius: var(--r-md);
-  font-size: 13px; line-height: 1.45; border: 1px solid var(--edge);
-  animation: neg-verdict-entree .34s cubic-bezier(.2, .8, .3, 1) both; }
-.neg-verdict.ok {
-  color: var(--vert-encre); border-color: rgba(120, 194, 176, .45);
-  background: rgba(120, 194, 176, .07);
-}
-.neg-verdict.ko {
-  color: var(--ember); border-color: rgba(229, 119, 75, .45);
-  background: rgba(229, 119, 75, .07);
-}
-@keyframes neg-verdict-entree {
-  from { opacity: 0; transform: translateY(-6px); }
-  to { opacity: 1; transform: none; }
-}
-
-/* L'éclat sur le montant : le chiffre change, et on le voit changer.
-   ------------------------------------------------------------------
-   Ces trois règles visaient `.neg-offre`, le nom qu'avait l'encadré du montant
-   avant que le panneau ne passe en trois zones. La classe a disparu du rendu,
-   les sélecteurs sont restés : l'animation ne s'est plus jouée une seule fois
-   depuis, en silence — le pire des bogues de feuille de style, puisque rien ne
-   casse. Un sélecteur orphelin ne lève aucune erreur ; il faut le chercher. */
-.neg-chiffres .montant { transition: color .2s; }
-.neg-chiffres .montant.eclat-ok { animation: eclat-ok 1.05s cubic-bezier(.2, .8, .3, 1) both; }
-.neg-chiffres .montant.eclat-ko { animation: eclat-ko 1.05s cubic-bezier(.2, .8, .3, 1) both; }
+/* Écran B */
+.neg-carte { margin-block: auto; display: grid; grid-template-columns: var(--carte-negoce) minmax(0, 1fr);
+  gap: 24px; align-items: center; padding: 12px 0; }
+.neg-carte-infos { display: flex; flex-direction: column; gap: 14px; min-width: 0; font-size: 13px; }
+.neg-carte-infos p { margin: 0 0 3px; }
+.neg-carte-nom { font-family: var(--font-display); font-variation-settings: var(--wonk);
+  font-weight: 700; font-size: 20px; line-height: 1.15; color: var(--ink); }
+.neg-chiffres { display: grid; grid-template-columns: auto auto; justify-content: start; margin: 0; }
+.neg-chiffres > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.neg-chiffres > div:first-child { padding-right: 18px; }
+.neg-chiffres > div + div { padding-left: 18px; border-left: 1px solid var(--edge-hi); }
+.neg-chiffres dt { font-size: 12.5px; color: var(--ink3); white-space: nowrap; }
+.neg-chiffres dd { margin: 0; font-variant-numeric: tabular-nums; }
+.neg-offre { display: inline-block; transform-origin: 0 60%; font-size: 30px; font-weight: 700; line-height: 1.1; color: var(--lamp); }
+.neg-echoppe { font-size: 20px; font-weight: 600; line-height: 1.6; color: var(--ink2); }
+.neg-offre.eclat-ok { animation: eclat-ok 1s cubic-bezier(.2, .8, .3, 1) both; }
+.neg-offre.eclat-ko { animation: eclat-ko 1s cubic-bezier(.2, .8, .3, 1) both; }
 @keyframes eclat-ok {
-  0%   { color: var(--vert-encre); transform: scale(1); }
-  22%  { color: var(--vert-encre); transform: scale(1.14); text-shadow: 0 0 22px rgba(120, 194, 176, .6); }
-  100% { color: var(--lamp); transform: scale(1); text-shadow: none; }
+  0% { color: var(--vert-encre); transform: scale(1); }
+  30% { color: var(--vert-encre); transform: scale(1.18); }
+  100% { color: var(--lamp); transform: scale(1); }
 }
 @keyframes eclat-ko {
-  0%   { color: var(--ember); transform: translateX(0); }
-  18%  { color: var(--ember); transform: translateX(-5px); }
-  34%  { color: var(--ember); transform: translateX(4px); }
-  50%  { color: var(--ember); transform: translateX(-2px); }
+  0% { color: var(--ember); transform: translateX(0); }
+  20% { color: var(--ember); transform: translateX(-6px); }
+  40% { transform: translateX(5px); }
+  60% { transform: translateX(-3px); }
   100% { color: var(--lamp); transform: none; }
 }
+[data-mouvement="reduit"] .neg-offre { animation: none !important; }
+.neg-quantite { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; padding-top: 12px; border-top: 1px solid var(--edge-hi); }
+.neg-quantite button { width: 32px; height: 32px; border-radius: var(--r-md); cursor: pointer;
+  border: 1px solid var(--edge-ui); background: transparent; color: var(--ink); font-size: 16px; }
+.neg-quantite button:disabled { opacity: .4; cursor: default; }
+.neg-qte { min-width: 24px; text-align: center; font-size: 18px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.neg-actions-zone { display: flex; flex-direction: column; gap: 12px; }
+.neg-actions { display: flex; gap: 10px; }
+.neg-vendre { flex: 1 1 auto; height: 48px; font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.neg-marchander { flex: 0 0 auto; height: 48px; padding: 0 18px; border-radius: var(--r-md); cursor: pointer;
+  border: 1px solid var(--edge-ui); background: transparent; color: var(--ink); font: inherit; font-size: 14.5px; font-weight: 600; }
+.neg-marchander:disabled { border-color: var(--edge-hi); color: var(--ink3); cursor: default; }
+.neg-verdict { margin: 0; min-height: 20px; font-size: 14px; font-weight: 500; color: var(--ink3); font-variant-numeric: tabular-nums; }
+.neg-verdict.pese { color: var(--ink2); }
+.neg-verdict.ok { color: var(--vert-encre); }
+.neg-verdict.ko { color: var(--ember); }
+.neg-verdict.conclue { color: var(--lamp); }
 
-[data-mouvement="reduit"] .neg-verdict,
-[data-mouvement="reduit"] .neg-chiffres .montant { animation: none; }
-
-/* Ce que la vente rapide prend en plus des normales communes et peu
-   communes. Deux cases, cochées à la main : une rainbow en trop étoile une
-   fiche du Donjon, une rare se vend mieux à son acheteur. */
-.rapide .rapide-options { display: grid; gap: 8px; margin-top: 14px; font-size: 12.5px; color: var(--ink2); }
-.rapide .rapide-options label { display: flex; gap: 8px; align-items: flex-start; line-height: 1.4; cursor: pointer; min-height: 24px; }
-.rapide .rapide-options input { margin-top: 2px; accent-color: var(--lamp); }
+/* Sous le palier Tablette, le négoce passe en une colonne : le portrait en
+   bandeau, le panneau dessous, en plein écran au téléphone. */
+@media (max-width: 900px) {
+  .neg-fond { padding: 0; place-items: stretch; }
+  .neg { flex-direction: column; height: auto; min-height: 100%; width: 100%; border-radius: 0; border: 0; overflow: visible; }
+  .neg-scene { width: 100%; height: 200px; flex: 0 0 auto; }
+  .neg-portrait { top: 0; height: 100%; }
+  .neg-identite { position: static; width: auto; padding: 14px 16px 0; }
+  .neg-panneau { width: auto; flex: 1 1 auto; padding: 14px 16px 28px; overflow: visible; }
+  .neg-grille-zone { overflow: visible; }
+  .neg-grille { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px 10px; }
+  .neg-carte { grid-template-columns: 112px minmax(0, 1fr); gap: 14px; }
+  .neg-actions { flex-direction: column; }
+  .neg-fermer, .neg-retour { height: 44px; }
+  .neg-fermer { width: 44px; }
+  .neg-quantite button { width: 44px; height: 44px; }
+}

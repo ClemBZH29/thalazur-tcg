@@ -19,6 +19,8 @@
  * `down`   pénalité en cas d'échec, réellement appliquée jusqu'au lendemain
  */
 import { roleDe } from "../donjon/regles.js";
+import { VOIX } from "./voix.js";
+import { conservateurPresent, JOUR_UN } from "./jour.js";
 
 /** Un mot de repère, sans accent ni ponctuation. */
 export const norm = (s) =>
@@ -65,10 +67,14 @@ export const HABITUEE = {
   id: "lise", portrait: "lise",
   nom: "Lise", sub: "Collectionneuse débutante",
   spec: "Communes et peu communes",
-  icon: "▤", quote: "« Je cherche surtout les cartes qui me manquent encore. »",
+  icon: "▤", quote: VOIX.lise.quote,
   entree: [normale(palier("commun", "peucommun"))],
   primes: [genre("pnj"), cite],
   mult: 1.14, chance: 0.82, up: 0.13, down: 0.08,
+  // Exemplaires rachetés par jour. On vend à l'unité, et chacun a fini sa
+  // journée une fois son quota atteint : c'est ce qui remplace les lots, que
+  // personne ne lisait (« 147 autres cartes, comprises dans… »).
+  quota: 20,
   habituee: true,
 };
 
@@ -90,74 +96,82 @@ export const SPECIALISTES = [
     id: "sorelle", portrait: "sorelle",
     nom: "Dame Sorelle", sub: "Noble collectionneuse",
     spec: "Rares, légendaires, full art et cartes PJ",
-    icon: "◆", quote: "« L'exceptionnel m'intéresse toujours. »",
+    icon: "◆", quote: VOIX.sorelle.quote,
     entree: [palier("rare", "legendaire", "fullart", "pj")],
     primes: [rainbow, genre("artefact")],
     mult: 1.55, chance: 0.49, up: 0.39, down: 0.27,
+    quota: 10,
   },
   {
     id: "hector", portrait: "hector",
     nom: "Hector", sub: "Vétéran de la garde",
     spec: "La Troupe, la GRC et les aventuriers",
-    icon: "⚔", quote: "« Une bonne carte doit être aussi fiable qu'une bonne lame. »",
+    icon: "⚔", quote: VOIX.hector.quote,
     entree: [faction("troupe", "grc", "aventurier")],
     primes: [combattant, palier("peucommun", "rare")],
     mult: 1.34, chance: 0.68, up: 0.23, down: 0.18,
+    quota: 10,
   },
   {
     id: "oriane", portrait: "oriane",
     nom: "Maîtresse Oriane", sub: "Érudite de Soldestin",
     spec: "Artéfacts",
-    icon: "✦", quote: "« La rareté n'est rien sans l'intérêt de la pièce. »",
+    icon: "✦", quote: VOIX.oriane.quote,
     entree: [genre("artefact")],
     primes: [palier("rare", "legendaire"), rainbow],
     mult: 1.42, chance: 0.57, up: 0.31, down: 0.16,
+    quota: 10,
   },
   {
     id: "gaspard", portrait: "gaspard",
     nom: "Gaspard", sub: "Brocanteur du quai",
     // Spécialité, entrée et annonce sont posées par `gaspardDuJour`.
     spec: "Une province à chaque passage",
-    icon: "▥", quote: "« Des cartes en trop ? J'en fais mon affaire ! »",
+    icon: "▥", quote: VOIX.gaspard.quote,
     entree: [],
     primes: [genre("pnj"), palier("commun")],
     mult: 1.18, chance: 0.77, up: 0.16, down: 0.12,
+    quota: 10,
   },
   {
     id: "ysee", portrait: "ysee",
     nom: "Ysée", sub: "Joueuse compétitive",
     spec: "PNJ combattants du Donjon",
-    icon: "♜", quote: "« Je paie pour ce qui gagne, pas pour ce qui brille. »",
+    icon: "♜", quote: VOIX.ysee.quote,
     entree: [(t) => t.type === "pnj" && combattant(t)],
     primes: [palier("rare", "legendaire"), hausse],
     mult: 1.48, chance: 0.61, up: 0.28, down: 0.22,
+    quota: 10,
   },
   {
     id: "nassim", portrait: "nassim",
     nom: "Nassim", sub: "Marchand étranger",
     spec: "Lieux de toutes les provinces",
-    icon: "◈", quote: "« Chaque province a ses trésors. Il suffit de savoir lesquels. »",
+    icon: "◈", quote: VOIX.nassim.quote,
     entree: [genre("lieu")],
     primes: [palier("peucommun", "rare"), faction("saab", "caravane")],
     mult: 1.37, chance: 0.64, up: 0.25, down: 0.19,
+    quota: 10,
   },
   {
     id: "eloi", portrait: "eloi",
     nom: "Éloi", sub: "Enfant de bonne famille",
     spec: "Le Bestiaire, créatures et animaux",
-    icon: "♢", quote: "« J'aime surtout les cartes qui racontent une histoire ! »",
+    icon: "♢", quote: VOIX.eloi.quote,
     entree: [bestiaire],
     primes: [exotique, cite],
     mult: 1.30, chance: 0.85, up: 0.12, down: 0.07,
+    quota: 10,
   },
   {
     id: "voren", portrait: "voren",
     nom: "Voren", sub: "Spéculateur",
     spec: "Toutes les rainbow",
-    icon: "↗", quote: "« Je n'achète pas une carte. J'achète ce qu'elle vaudra demain. »",
+    icon: "↗", quote: VOIX.voren.quote,
     entree: [rainbow],
     primes: [palier("rare", "legendaire"), hausse],
     mult: 1.68, chance: 0.41, up: 0.48, down: 0.36,
+    quota: 10,
   },
 ];
 
@@ -170,13 +184,14 @@ export const CONSERVATEUR = {
   nom: "Le Conservateur Royal", sub: "Conservateur des Archives royales",
   spec: "Pièces d'archive, rares et au-delà",
   icon: "♛",
-  quote: "« Une collection n'a de valeur que lorsqu'elle raconte quelque chose de complet. »",
+  quote: VOIX.conservateur.quote,
   entree: [palier("rare", "legendaire", "fullart", "pj"), genre("artefact", "lieu"), rainbow],
   primes: [palier("legendaire", "fullart", "pj")],
   // ×1,92 tant qu'un plafond commun rabotait tout le monde ; avec un plafond
   // par acheteur, ce multiple faisait passer le pire jour au-dessus de 100 %
   // (scripts/audit-marche.mjs). Il reste celui qui paie le mieux.
   mult: 1.80, chance: 0.43, up: 0.36, down: 0.30,
+  quota: 3,
   exceptionnel: true,
 };
 
@@ -219,8 +234,6 @@ export const CYCLE = (() => {
   return cycle;
 })();
 
-/** Journée de référence du calendrier : le jour un du site (voir marche.js). */
-const JOUR_UN = 14;
 const indice = (jour) => {
   const L = CYCLE.length;
   return (((jour - JOUR_UN) % L) + L) % L;
@@ -254,6 +267,7 @@ export function gaspardEn(rang) {
     ...base,
     province,
     spec: `Chargement de ${province.nom}`,
+    quote: base.quote.replace("{province}", province.nom),
     entree: [faction(...province.factions)],
   };
 }
@@ -262,7 +276,7 @@ const specialiste = (i, jour) => (i === ID_GASPARD ? gaspardEn(passageDeGaspard(
 
 export const specialistesDuJour = (jour) => paireDuJour(jour).map((i) => specialiste(i, jour));
 
-export const conservateurPresent = (jour) => (((jour * 29) % 100) + 100) % 100 < 10;
+export { conservateurPresent };
 
 /** Lise, deux spécialistes, et le Conservateur un jour sur dix. */
 export const acheteursDuJour = (jour) => {

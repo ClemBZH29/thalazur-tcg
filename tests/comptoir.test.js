@@ -126,3 +126,63 @@ describe("les prix", () => {
     }
   });
 });
+
+describe("la refonte : quota, manières, vitrine", () => {
+  const tous = TOUS_ACHETEURS();
+
+  test("chaque acheteur a sa voix complète et un quota", async () => {
+    const { VOIX, MANIERES } = await import("../src/comptoir/voix.js");
+    const ids = MANIERES.map((m) => m.id);
+    for (const b of tous) {
+      const v = VOIX[b.id];
+      for (const cle of ["quote", "refus", "indice", "ok", "ko", "merci"]) expect(v[cle], `${b.id}.${cle}`).toBeTruthy();
+      expect(ids).toContain(v.prefere);
+      expect(ids).toContain(v.deteste);
+      expect(v.prefere).not.toBe(v.deteste);
+      expect(b.quota).toBeGreaterThan(0);
+      expect(v.quote).not.toMatch(/—/);
+    }
+  });
+
+  test("la bonne manière convainc plus que la mauvaise", async () => {
+    const { VOIX, chanceDe } = await import("../src/comptoir/voix.js");
+    for (const b of tous) {
+      const v = VOIX[b.id];
+      expect(chanceDe(b, v.prefere)).toBeGreaterThan(chanceDe(b, null));
+      expect(chanceDe(b, v.deteste)).toBeLessThan(chanceDe(b, null));
+    }
+  });
+
+  test("le quota se consomme et repart à zéro le lendemain", () => {
+    const lise = tous.find((b) => b.id === "lise");
+    const N = new Marche(articles, null, JOUR);
+    expect(N.restant(lise)).toBe(lise.quota);
+    N.compterAchat(lise, 5);
+    expect(N.restant(lise)).toBe(lise.quota - 5);
+    const R = new Marche(articles, N.serialiser(), JOUR + 1);
+    expect(R.restant(lise)).toBe(lise.quota);
+  });
+
+  test("la vitrine est figée pour la journée et chaque case ne se vend qu'une fois", () => {
+    const N = new Marche(articles, null, JOUR);
+    const v1 = N.vitrineDuJour(() => false);
+    expect(v1.rayon.length).toBe(5);
+    expect(v1.piece).toBeTruthy();
+    // Un autre regard sur la collection ne rebat pas la vitrine du jour.
+    const v2 = N.vitrineDuJour(() => true);
+    expect(v2.rayon.map((a) => a.id)).toEqual(v1.rayon.map((a) => a.id));
+    const a = v1.rayon[0];
+    expect(N.vendreAuJoueur(a)).toBeGreaterThan(0);
+    expect(N.vendreAuJoueur(a)).toBeNull();
+    const R = new Marche(articles, N.serialiser(), JOUR);
+    expect(R.dejaAchete(a)).toBe(true);
+  });
+
+  test("la pièce du jour est une rare, une légendaire ou une rainbow", () => {
+    for (let j = JOUR; j < JOUR + 30; j++) {
+      const p = new Marche(articles, null, j).pieceDuJour();
+      expect(p.rainbow || p.tier === "rare" || p.tier === "legendaire").toBe(true);
+      expect(p.tier === "fullart" || p.tier === "pj").toBe(false);
+    }
+  });
+});
