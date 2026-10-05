@@ -15,8 +15,8 @@ export const TIERS = [
 
   // Hors roster, hors tables d'emplacement : tirées pour le booster entier.
   // Elles portent le cadre pleine illustration et n'affichent aucun texte.
-  { id: "fullart",    nom: "Full art", encoches: 0, lueur: "#b33049", teinte: "#b33049", teinteA: 0.74, tele: 1150, flip: 1000, motes: 42, ombre: 0.72, pleine: true },
-  { id: "pj",         nom: "Carte PJ", encoches: 0, lueur: "#e3ecf4", teinte: null,      teinteA: 0,    tele: 1550, flip: 1150, motes: 58, ombre: 0.84, pleine: true, noir: true },
+  { id: "fullart",    nom: "Full art", encoches: 0, lueur: "#b33049", teinte: "#b33049", teinteA: 0.74, tele: 1700, flip: 1000, motes: 42, ombre: 0.72, pleine: true },
+  { id: "pj",         nom: "Carte PJ", encoches: 0, lueur: "#e3ecf4", teinte: null,      teinteA: 0,    tele: 2300, flip: 1250, motes: 58, ombre: 0.84, pleine: true, noir: true },
 ];
 
 export const TIER_ORDER = TIERS.map((t) => t.id);

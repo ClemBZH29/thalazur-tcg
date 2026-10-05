@@ -12,6 +12,7 @@ import "./styles/base.css";
 import "./styles/site.css";
 import "./styles/cards.css";
 import "./styles/app.css";
+import "./styles/ceremonies.css";
 import "./styles/colporteur.css";
 import "./styles/compte.css";
 import "./styles/succes.css";

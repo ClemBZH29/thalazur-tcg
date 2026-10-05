@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Sachet from "./Sachet.jsx";
 import Colporteur from "./Colporteur.jsx";
 import Carte from "./Carte.jsx";
@@ -8,6 +8,7 @@ import { TIER_INFO, TIER_ORDER, ECONOMIE } from "../config/tiers.js";
 import { ouvrirBooster } from "../lib/draw.js";
 import { meilleur } from "../lib/roster.js";
 import { attenteAvantAchat, formatDuree } from "../lib/economie.js";
+import { creerCeremonie } from "../ouverture/ceremonies.js";
 
 export default function Ouverture({
   booster, pool, speciales, taux, test, gratuit, bourse, garantirLegendaire,
@@ -69,6 +70,18 @@ export default function Ouverture({
    * déjà entière à l'écran, pour ne pas secouer un écran d'ordinateur.
    */
   const cadre = useRef(null);
+
+  /* La cérémonie des full art et des cartes PJ (Claude Design, voir
+     docs/conception/boutique-et-tirage.md) : elle remplace, pour ces deux
+     paliers, la lueur, les particules et l'assombrissement des autres. */
+  const reduitRef = useRef(mouvementReduit);
+  reduitRef.current = mouvementReduit;
+  const cer = useMemo(() => creerCeremonie({
+    scene: () => cadre.current?.querySelector(".scene"),
+    carte: () => cadre.current?.querySelector(".avance"),
+    reduit: () => !!reduitRef.current,
+  }), []);
+  useEffect(() => () => cer.nettoyer(), [cer]);
   useEffect(() => {
     const vue = cadre.current;
     if (!vue || (phase !== "revelation" && phase !== "bilan")) return;
@@ -154,22 +167,27 @@ export default function Ouverture({
   const reveler = useCallback(() => {
     if (etat !== "dos" || !courant) return;
     const t = TIER_INFO[courant.tier];
+    const pleine = !!t.pleine;
     setEtat("montee");
     sfx.touche();
     sfx.montee(courant.tier);
+    if (pleine) cer.montee(courant, t.tele);
     differer(() => {
       setEtat("retournement");
       sfx.retourne();
+      if (pleine) cer.retournement(courant, t.flip * 0.55);
       differer(() => {
         setEtat("face");
         sfx.revele(courant.tier);
         if (courant.rainbow) sfx.rainbow();
+        if (pleine) cer.face(courant);
       }, t.flip * 0.55);
     }, t.tele);
-  }, [etat, courant, sfx]);
+  }, [etat, courant, sfx, cer]);
 
   const degager = useCallback(() => {
     if (!tirage) return;
+    cer.degager();
     sfx.glisse();
     differer(() => {
       if (index < tirage.cards.length - 1) {
@@ -181,7 +199,7 @@ export default function Ouverture({
         onFini();
       }
     }, 240);
-  }, [tirage, index, sfx, onProgres, onFini]);
+  }, [tirage, index, sfx, onProgres, onFini, cer]);
 
   /**
    * Sauter la révélation en cours. Les cartes sont déjà acquises et débitées
@@ -192,6 +210,7 @@ export default function Ouverture({
   const toutReveler = useCallback(() => {
     if (!tirage) return;
     purger();
+    cer.nettoyer();
     const top = meilleur(tirage.cards);
     sfx.revele(top.tier);
     if (top.rainbow) sfx.rainbow();
@@ -199,10 +218,11 @@ export default function Ouverture({
     setEtat("face");
     setPhase("bilan");
     onFini();
-  }, [tirage, sfx, onFini]);
+  }, [tirage, sfx, onFini, cer]);
 
   const relancer = () => {
     purger();
+    cer.nettoyer();
     onFini();
     setTirage(null);
     setNouvelles(new Set());
@@ -322,7 +342,7 @@ export default function Ouverture({
 
       {phase === "revelation" && courant && (
         <div className="scene">
-          {info.ombre > 0 && (etat === "montee" || etat === "retournement") && (
+          {info.ombre > 0 && !info.pleine && (etat === "montee" || etat === "retournement") && (
             <div className="ombre-scene" style={{ "--d": info.ombre, "--gd": `${info.tele}ms` }} aria-hidden="true" />
           )}
           <p className="bandeau-appel">
@@ -336,14 +356,14 @@ export default function Ouverture({
               </div>
             ))}
 
-            {etat !== "dos" && (
+            {etat !== "dos" && !info.pleine && (
               <div
                 className={`lueur ${etat === "montee" ? "monte" : "retombe"}`}
                 style={{ "--gc": info.lueur, "--gd": `${info.tele}ms` }}
                 aria-hidden="true"
               />
             )}
-            {info.motes > 0 && etat === "montee" && (
+            {info.motes > 0 && !info.pleine && etat === "montee" && (
               <div className="motes" aria-hidden="true">
                 {Array.from({ length: info.motes }, (_, i) => (
                   <span key={i} style={{

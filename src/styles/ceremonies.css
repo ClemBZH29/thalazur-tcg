@@ -1,0 +1,115 @@
+/* ------------------------------------------------------------------
+   Cérémonies des full art et des cartes PJ (src/ouverture/ceremonies.js).
+   Tous les calques sont décoratifs : aucun ne prend le pointeur.
+   Les calques de la pile se centrent sur la carte comme .lueur : enfants
+   absolus d'une grille `place-items: center`.
+   ------------------------------------------------------------------ */
+
+.cer-voile, .cer-aura, .cer-trace, .cer-fentes, .cer-debord, .cer-eclat,
+.cer-cartouche, .cer-cartouche * { pointer-events: none; }
+
+/* --- Palettes --- */
+.cer-fullart {
+  --cer-t1: #ffe6ae; --cer-t2: #e8a33d;                       /* contour */
+  --cer-f1: rgba(255, 226, 163, .95); --cer-f2: rgba(232, 163, 61, .6);
+  --cer-f3: rgba(179, 48, 73, .32);                           /* fentes */
+  --cer-e: rgba(255, 238, 200, .55);                          /* éclat */
+  --cer-v1: rgba(46, 7, 17, .8); --cer-v2: rgba(24, 3, 9, .95); /* voile du cartouche */
+  --cer-encre: #f4c974; --cer-encre2: #f3e4cf; --cer-filet: #e8a33d;
+}
+.cer-pj {
+  --cer-t1: #f6f9fc; --cer-t2: #a8c4e6;
+  --cer-f1: rgba(255, 255, 255, .92); --cer-f2: rgba(188, 214, 242, .5);
+  --cer-f3: rgba(110, 140, 185, .2);
+  --cer-e: rgba(225, 238, 252, .4);
+  --cer-v1: rgba(3, 5, 8, .84); --cer-v2: rgba(1, 2, 4, .96);
+  --cer-encre: #e6edf5; --cer-encre2: #b9cde3; --cer-filet: #a9c3e0;
+}
+
+/* --- Assombrissement : remplace .ombre-scene pour ces deux paliers --- */
+.cer-voile { position: fixed; inset: 0; z-index: 1; opacity: 0;
+  background: radial-gradient(ellipse at 50% 42%, #1c060c 0%, #0a0305 55%, #050102 100%); }
+.cer-voile.cer-pj { background: #010203; }
+
+/* --- Calques posés sur la pile, à la taille de la carte --- */
+.cer-aura, .cer-trace, .cer-fentes, .cer-debord, .cer-eclat {
+  position: absolute; width: var(--carte-plein); aspect-ratio: 2 / 3; }
+
+/* Halo qui reste sous la carte de face. Plus large qu'elle, jamais au point de
+   déborder un écran de 360 px. */
+.cer-aura { z-index: 1; width: calc(var(--carte-plein) * 1.6); opacity: 0;
+  background: radial-gradient(ellipse closest-side, rgba(232, 163, 61, .36) 0%,
+    rgba(179, 48, 73, .26) 45%, transparent 100%); }
+.cer-aura.cer-pj { background: radial-gradient(ellipse closest-side, rgba(205, 224, 248, .2) 0%,
+    rgba(120, 150, 200, .1) 50%, transparent 100%); }
+
+/* Le contour de lumière. Une moitié par côté, longueur normalisée à 1. */
+.cer-trace { z-index: 7; }
+.cer-trace svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.cer-trace path { fill: none; stroke-linecap: round; stroke-dasharray: 1 1; stroke-dashoffset: 1; }
+.cer-trace .halo { stroke: var(--cer-t2); stroke-width: 4.5; opacity: .42; }
+.cer-trace .coeur { stroke: var(--cer-t1); stroke-width: 1.1; }
+.cer-trace.cer-reduit path { stroke-dashoffset: 0; }
+
+/* La lumière qui fuit par les bords, sous la carte. */
+.cer-fentes { z-index: 5; }
+.cer-fentes i { position: absolute; display: block; opacity: 0; }
+.cer-fentes .h, .cer-fentes .b { left: 4%; width: 92%; height: 22%; }
+.cer-fentes .g, .cer-fentes .d { top: 4%; height: 92%; width: 26%; }
+.cer-fentes .h { bottom: 100%; transform-origin: 50% 100%;
+  background: radial-gradient(ellipse 50% 100% at 50% 100%, var(--cer-f1), var(--cer-f2) 30%, var(--cer-f3) 58%, transparent 80%); }
+.cer-fentes .b { top: 100%; transform-origin: 50% 0;
+  background: radial-gradient(ellipse 50% 100% at 50% 0, var(--cer-f1), var(--cer-f2) 30%, var(--cer-f3) 58%, transparent 80%); }
+.cer-fentes .g { right: 100%; transform-origin: 100% 50%;
+  background: radial-gradient(ellipse 100% 50% at 100% 50%, var(--cer-f1), var(--cer-f2) 30%, var(--cer-f3) 58%, transparent 80%); }
+.cer-fentes .d { left: 100%; transform-origin: 0 50%;
+  background: radial-gradient(ellipse 100% 50% at 0 50%, var(--cer-f1), var(--cer-f2) 30%, var(--cer-f3) 58%, transparent 80%); }
+
+/* L'illustration qui déborde derrière la carte au retournement. */
+.cer-debord { z-index: 5; opacity: 0; border-radius: 4% / 2.7%; overflow: hidden;
+  -webkit-mask-image: radial-gradient(ellipse closest-side, #000 55%, transparent 100%);
+          mask-image: radial-gradient(ellipse closest-side, #000 55%, transparent 100%); }
+.cer-debord img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+/* Un seul passage de lumière sur la face. */
+.cer-eclat { z-index: 7; overflow: hidden; border-radius: 3.7% / 2.47%; }
+.cer-eclat i { position: absolute; top: -10%; bottom: -10%; left: 0; width: 42%;
+  transform: translateX(-130%) skewX(-16deg);
+  background: linear-gradient(90deg, transparent, var(--cer-e) 50%, transparent); }
+.cer-arc .cer-eclat i, .cer-eclat.cer-arc i {
+  background: linear-gradient(90deg, transparent, hsla(340, 90%, 72%, .32) 22%, hsla(48, 95%, 70%, .38) 38%,
+    hsla(150, 80%, 66%, .32) 54%, hsla(200, 90%, 70%, .32) 70%, hsla(266, 86%, 74%, .26) 84%, transparent); }
+
+/* --- Le cartouche du nom ---
+   Posé dans la .cardbox, comme le badge « New » : il hérite de --swipe et
+   s'efface au même rythme que la carte s'en va. Les tailles sont en cqw (la
+   boîte est un conteneur), bornées pour rester lisibles de 140 à 306 px. */
+.cer-cartouche { position: absolute; inset: 0; z-index: 12; overflow: hidden;
+  border-radius: 3.7% / 2.47%;
+  opacity: calc(1 - var(--swipe, 0)); transition: opacity var(--swipe-t, 0s) ease; }
+.cer-cart-corps { position: absolute; inset: 0; }
+.cer-cart-voile { position: absolute; left: 0; right: 0; bottom: 0; height: 48%;
+  background: linear-gradient(to bottom, transparent 0%, var(--cer-v1) 42%, var(--cer-v2) 100%); }
+.cer-cart-texte { position: absolute; left: 7%; right: 7%; bottom: 10%;
+  display: flex; flex-direction: column; align-items: center; gap: 1.4cqw; text-align: center; }
+.cer-nom { margin: 0; max-width: 100%;
+  font-family: var(--font-display); font-variation-settings: var(--wonk); font-weight: 700;
+  font-size: clamp(17px, 12cqw, 38px); line-height: 1.02; letter-spacing: -.02em;
+  color: var(--cer-encre); text-wrap: balance; text-shadow: 0 1px 2px rgba(0, 0, 0, .6); }
+.cer-mot { display: inline-block; white-space: nowrap; }
+.cer-l { display: inline-block; }
+.cer-serie { margin: 0; max-width: 100%;
+  font-family: var(--font-display); font-variation-settings: var(--wonk); font-weight: 500;
+  font-size: clamp(12.5px, 5.6cqw, 18px); line-height: 1.15;
+  color: var(--cer-encre2); text-wrap: balance; text-shadow: 0 1px 2px rgba(0, 0, 0, .6); }
+/* Petites capitales : capitales réduites et espacées, Archivo n'ayant pas de
+   vraies petites capitales. */
+.cer-palier { margin: .8cqw 0 0; display: flex; align-items: center; gap: 2.4cqw;
+  font-family: var(--font-ui); font-weight: 700; font-size: clamp(9.5px, 3.2cqw, 11.5px);
+  letter-spacing: .22em; text-transform: uppercase; color: var(--cer-filet); white-space: nowrap; }
+.cer-palier span { margin-right: -.22em; }
+.cer-palier i { display: block; width: 7cqw; height: 1px; background: currentColor; }
+.cer-palier i:first-child { transform-origin: 100% 50%; }
+.cer-palier i:last-child { transform-origin: 0 50%; }
+.cer-arc .cer-palier i { height: 1.5px;
+  background: linear-gradient(90deg, #f0567f, #f0b447, #58d39a, #4fb6f0, #a583f5); }
