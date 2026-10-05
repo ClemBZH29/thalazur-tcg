@@ -166,6 +166,34 @@ pouvoir lire quoi que ce soit.
 
 Ces valeurs sont dans `src/config/tiers.js`.
 
+### Full art et carte PJ : la cérémonie (05/10/2026)
+
+Au-delà du légendaire, la lueur ronde et les particules ne suffisaient plus :
+une full art s'ouvrait comme une légendaire, et rien ne disait son nom (la
+carte ne porte aucun texte). Ces deux paliers ont leur propre cérémonie,
+conçue par Claude Design d'après [le brief](brief-animation-fullart.md)
+(`src/ouverture/ceremonies.js`, `src/styles/ceremonies.css`) :
+
+- **montée** : un trait de lumière dessine le contour de la carte du losange
+  du haut à celui du bas, puis la lumière fuit par les quatre bords ;
+- **retournement** : l'illustration apparaît sans cadre et déborde derrière
+  la carte, puis le cadre se referme dessus ;
+- **face** : le nom s'écrit lettre à lettre, puis la série (full art) ou la
+  mention « Carte PJ ». Le cartouche reste tant que la carte est de face et
+  s'efface au balayage.
+
+La full art joue en or sur cramoisi ; la PJ, plus lente, en argent et lune
+dans un noir presque total. Pour elles, Ouverture.jsx ne pose plus la lueur,
+les particules ni l'assombrissement : la cérémonie les remplace. En
+mouvement réduit, des fondus seulement, et le nom apparaît quand même.
+
+| Palier | Montée | Retournement | Nom lisible |
+|--------|--------|--------------|-------------|
+| Full art | 1700 ms | 1000 ms | ≈ 2,7 s |
+| Carte PJ | 2300 ms | 1250 ms | ≈ 3,7 s |
+
+Les deux ont aussi leur son, à la montée et à la révélation (`audio.js`).
+
 ## Gestes
 
 La déchirure suivait le doigt jusqu'au bout — 230 px de trajet cumulé. Au

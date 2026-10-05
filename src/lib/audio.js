@@ -95,6 +95,19 @@ export function useAudio(actifRef) {
           ton(180, 0.82, { gain: 0.07, type: "sine", vers: 470 });
           bruit(0.82, { f0: 400, f1: 4200, q: 0.4, gain: 0.05, type: "lowpass" });
         }
+        // Full art et PJ (Claude Design) : la montée suit leur `tele`.
+        if (tier === "fullart") {
+          ton(147, 1.7, { gain: 0.06, type: "sine", vers: 294 });
+          ton(220, 1.55, { gain: 0.035, type: "sine", vers: 440, delai: 0.15 });
+          bruit(1.7, { f0: 300, f1: 3600, q: 0.5, gain: 0.045, type: "lowpass" });
+          bruit(0.85, { f0: 7000, f1: 3800, q: 3, gain: 0.018, delai: 0.17 }); // le trait qui court
+        }
+        if (tier === "pj") {
+          ton(55, 2.3, { gain: 0.11, type: "sine", vers: 82.4 });
+          ton(110, 1.8, { gain: 0.04, type: "sine", vers: 164.8, delai: 0.5 });
+          bruit(2.3, { f0: 180, f1: 1100, q: 0.6, gain: 0.04, type: "lowpass" });
+          bruit(1.1, { f0: 5200, f1: 2600, q: 3, gain: 0.014, delai: 0.6 });
+        }
       },
       revele: (tier) => {
         if (tier === "peucommun") ton(784, 0.3, { gain: 0.07 });
@@ -107,6 +120,21 @@ export function useAudio(actifRef) {
             ton(f, 1.5 - i * 0.16, { gain: 0.075, delai: i * 0.075 })
           );
           bruit(1.1, { f0: 5200, f1: 2200, q: 0.6, gain: 0.05, delai: 0.1 });
+        }
+        // Full art en ré majeur, plus clair que la légendaire ; PJ en la
+        // mineur, plus lente, avec une cloche lointaine.
+        if (tier === "fullart") {
+          ton(147, 1.6, { gain: 0.08, type: "sine" });
+          [587.3, 880, 1174.7, 1480, 1760].forEach((f, i) =>
+            ton(f, 2.1 - i * 0.18, { gain: 0.07, delai: 0.05 + i * 0.06 }));
+          bruit(1.4, { f0: 7000, f1: 2600, q: 0.6, gain: 0.045, delai: 0.12 });
+        }
+        if (tier === "pj") {
+          ton(110, 2.4, { gain: 0.09, type: "sine" });
+          [220, 329.6, 440, 523.3, 659.3].forEach((f, i) =>
+            ton(f, 2.8 - i * 0.2, { gain: 0.06, type: "sine", delai: i * 0.13 }));
+          ton(1318.5, 1.6, { gain: 0.025, type: "sine", delai: 0.7 });
+          bruit(1.8, { f0: 4200, f1: 1400, q: 0.7, gain: 0.03, delai: 0.2 });
         }
       },
       rainbow: () => {
