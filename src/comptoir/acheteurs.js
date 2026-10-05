@@ -1,213 +1,285 @@
 /**
  * Les acheteurs du Comptoir.
  *
- * Les onze personnages, leurs portraits, leurs répliques et leurs coefficients
- * de marchandage viennent du module d'origine et sont conservés tels quels :
- * ce sont eux qui donnent au marché son visage. Ce qui change, c'est ce à quoi
- * ils s'intéressent. Le module travaillait sur un set inventé et des étiquettes
- * abstraites ; ici les affinités se lisent sur les vrais repères du roster —
- * archétype, race, faction, province, palier — donc Hector reconnaît un
- * sergent d'infanterie et Nassim un lieu de Thalazur.
+ * Les dix personnages, leurs portraits, leurs répliques et leurs coefficients
+ * de marchandage viennent du module d'origine. Ce sont des figures propres
+ * au jeu, hors campagne : c'est un choix, pas un oubli.
+ *
+ * Ce qui a changé, c'est ce qui les intéresse. Le module d'origine les
+ * faisait choisir par familles de mots (« soldat », « mage », « camp »…) :
+ * le vocabulaire réel du roster passait au travers, Hector ne reconnaissait
+ * que onze cartes et aucune faction n'intéressait personne. Chacun regarde
+ * maintenant **un seul axe**, lisible sur la carte elle-même : la rareté, le
+ * type, la faction, la version rainbow ou le Bestiaire. Voir
+ * docs/audit-comptoir.md, § 7, pour les mesures qui ont fixé la répartition.
  *
  * `mult`   multiplicateur appliqué au prix de rachat de l'échoppe
  * `chance` probabilité de réussite d'un marchandage
  * `up`     bonification en cas de réussite
  * `down`   pénalité en cas d'échec, réellement appliquée jusqu'au lendemain
  */
+import { roleDe } from "../donjon/regles.js";
 
-/** Un mot-clé de repère, sans accent ni ponctuation. */
+/** Un mot de repère, sans accent ni ponctuation. */
 export const norm = (s) =>
-  String(s ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+  String(s ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
 
-/* ── Familles lexicales ────────────────────────────────────────────────────
-   Volontairement large : un roster de campagne n'a pas de vocabulaire imposé,
-   et une famille qui ne reconnaît rien vaut un acheteur inutile. Les mots sont
-   comparés au repère entier et à chacun de ses mots, ce qui rattrape
-   « Sergente » comme « Camp de Thalazur ». */
+/**
+ * La faction d'une carte. Un Lieu porte sa province en premier repère, un
+ * PNJ ou un artéfact en troisième. La comparaison se fait sans accents, ce
+ * qui réunit « Säab » (PNJ) et « Saäb » (artéfacts) du classeur.
+ */
+export const factionDe = (carte) => norm(carte.type === "lieu" ? carte.rep1 : carte.rep3);
 
-const MARTIAL = ["soldat", "soldate", "sergent", "sergente", "caporal", "caporale",
-  "veteran", "veterane", "lieutenant", "lieutenante", "officier", "officiere",
-  "capitaine", "commandant", "commandante", "garde", "sentinelle", "milicien",
-  "infanterie", "archer", "archers", "cavalerie", "eclaireur", "eclaireurs",
-  "etat-major", "major", "arme", "armes", "lame", "epee", "bouclier", "arc",
-  "dague", "hallebarde", "banniere", "rempart", "mercenaire", "chasseur"];
-
-const ARCANE = ["mage", "magicien", "magicienne", "sorcier", "sorciere", "ensorceleur",
-  "pretre", "pretresse", "clerc", "druide", "barde", "guerisseur", "guerisseuse",
-  "infirmerie", "conseiller", "conseillere", "erudit", "erudite", "savant", "savante",
-  "scribe", "arcane", "arcanique", "relique", "reliquaire", "sceau", "grimoire",
-  "litanie", "prisme", "amulette", "talisman", "artefact", "baguette", "anneau"];
-
-const LABEUR = ["cuisinier", "cuisiniere", "intendance", "intendant", "intendante",
-  "genie", "batisseur", "batisseuse", "aide", "camp", "forge", "forgeron", "charpentier",
-  "vivres", "grain", "quartier-maitre", "palefrenier", "messager", "porteur",
-  "tavernier", "aubergiste", "marchand", "marchande", "artisan"];
-
-const REGION = ["thalazur", "eleon", "nakova", "krapecaas", "odiana", "mugania",
-  "region", "province", "camp", "batiment", "ville", "cite", "bourg", "port",
-  "col", "vallee", "foret", "marais", "tour", "fort", "donjon", "route", "gue",
-  "halte", "faubourg", "quai", "temple", "ruine", "ruines", "lieu"];
-
-const SAUVAGE = ["bete", "fauve", "loup", "ours", "dragon", "dragonne", "gobelin",
-  "kobold", "orc", "troll", "geant", "geante", "araignee", "meute", "croc", "couvee",
-  "esprit", "spectre", "elementaire", "golem", "monstre", "creature", "familier"];
-
-/** Toute race qui n'est pas humaine : ce qui fascine un enfant de la capitale. */
-const estExotique = (t) => !!t.race && !norm(t.race).startsWith("humain");
+/** Les rôles du Donjon qui se battent en première ligne ou à distance. */
+const ROLES_COMBAT = new Set(["garde", "frappeur", "tireur", "mage"]);
+export const roleCarte = (carte) => (carte.type === "pnj" ? roleDe(carte.rep1) : null);
 
 /* ── Fabriques de prédicats ───────────────────────────────────────────────── */
 
-const mot = (liste) => (t) => liste.some((m) => t.mots.has(m));
 const palier = (...l) => (t) => l.includes(t.tier);
 const genre = (...l) => (t) => l.includes(t.type);
-const meta = (t) => t.meta;
-const hausse = (t) => t.hausse;
+const faction = (...l) => (t) => l.includes(t.faction);
+const normale = (f) => (t) => !t.rainbow && f(t);
 const rainbow = (t) => t.rainbow;
+const hausse = (t) => t.hausse;
 const cite = (t) => t.citation;
+const combattant = (t) => ROLES_COMBAT.has(t.role);
+const bestiaire = (t) => t.faction === "bestiaire" || ["creature", "animal"].includes(t.archetype);
+const exotique = (t) => !!t.race && !norm(t.race).startsWith("humain");
 
 /**
  * Affinité à deux étages.
  *
  * `entree` : au moins une doit passer, sinon l'acheteur ne regarde pas la
- *            carte. C'est là que se joue le caractère du personnage.
+ *            carte. C'est son axe, et il n'en a qu'un.
  * `primes` : chacune ajoute une prime, jamais l'entrée.
  *
- * La distinction est venue d'un essai raté. Avec une seule liste mise en OU,
- * un palier suffisait à ouvrir la porte : « rare ou légendaire » cumulé à
- * « désirable » faisait qu'Ysée s'intéressait à trois quarts du set et que
- * plus aucun acheteur n'avait de goût. Les paliers et la cote sont des
- * modulateurs, pas des portes d'entrée.
+ * Les paliers et la cote restent des modulateurs pour tous ceux dont
+ * l'axe n'est pas la rareté : mis en OU avec l'axe, ils ouvraient la porte à
+ * trois quarts du set et effaçaient le goût de chacun.
  */
-export const ACHETEURS = [
+
+/** Lise tient le comptoir tous les jours : voir `acheteursDuJour`. */
+export const HABITUEE = {
+  id: "lise", portrait: "lise",
+  nom: "Lise", sub: "Collectionneuse débutante",
+  spec: "Communes et peu communes",
+  icon: "▤", quote: "« Je cherche surtout les cartes qui me manquent encore. »",
+  entree: [normale(palier("commun", "peucommun"))],
+  primes: [genre("pnj"), cite],
+  mult: 1.14, chance: 0.82, up: 0.13, down: 0.08,
+  habituee: true,
+};
+
+/**
+ * Les provinces de Gaspard, une par passage, dans cet ordre. Les plus petites
+ * sont regroupées pour qu'aucun passage ne tombe sous une quinzaine de cartes.
+ */
+export const PROVINCES = [
+  { id: "nakova", nom: "Nakova", factions: ["nakova"] },
+  { id: "pronolo", nom: "Pronolo", factions: ["pronolo"] },
+  { id: "saab", nom: "Säab et la Caravane", factions: ["saab", "caravane"] },
+  { id: "cornalie", nom: "Cornalie", factions: ["cornalie"] },
+  { id: "odiana", nom: "Odiana, Éléon et Inarva", factions: ["odiana", "eleon", "inarva"] },
+];
+
+/** Les spécialistes : deux d'entre eux passent chaque jour. */
+export const SPECIALISTES = [
   {
-    id: "lise", portrait: "lise",
-    nom: "Lise", sub: "Collectionneuse débutante",
-    spec: "Cartes courantes de la Troupe",
-    icon: "▤", quote: "« Je cherche surtout les cartes qui me manquent encore. »",
-    entree: [palier("commun", "peucommun")],
-    primes: [genre("pnj"), mot(LABEUR)],
-    mult: 1.14, chance: 0.82, up: 0.13, down: 0.08,
+    id: "sorelle", portrait: "sorelle",
+    nom: "Dame Sorelle", sub: "Noble collectionneuse",
+    spec: "Rares, légendaires, full art et cartes PJ",
+    icon: "◆", quote: "« L'exceptionnel m'intéresse toujours. »",
+    entree: [palier("rare", "legendaire", "fullart", "pj")],
+    primes: [rainbow, genre("artefact")],
+    mult: 1.55, chance: 0.49, up: 0.39, down: 0.27,
   },
   {
     id: "hector", portrait: "hector",
     nom: "Hector", sub: "Vétéran de la garde",
-    spec: "Gradés, troupe et pièces d'armement",
+    spec: "La Troupe, la GRC et les aventuriers",
     icon: "⚔", quote: "« Une bonne carte doit être aussi fiable qu'une bonne lame. »",
-    entree: [mot(MARTIAL)],
-    primes: [genre("pnj"), palier("peucommun", "rare")],
+    entree: [faction("troupe", "grc", "aventurier")],
+    primes: [combattant, palier("peucommun", "rare")],
     mult: 1.34, chance: 0.68, up: 0.23, down: 0.18,
   },
   {
     id: "oriane", portrait: "oriane",
     nom: "Maîtresse Oriane", sub: "Érudite de Soldestin",
-    spec: "Magie, savoir et artéfacts",
+    spec: "Artéfacts",
     icon: "✦", quote: "« La rareté n'est rien sans l'intérêt de la pièce. »",
-    entree: [mot(ARCANE), genre("artefact")],
+    entree: [genre("artefact")],
     primes: [palier("rare", "legendaire"), rainbow],
     mult: 1.42, chance: 0.57, up: 0.31, down: 0.16,
   },
   {
-    id: "sorelle", portrait: "sorelle",
-    nom: "Dame Sorelle", sub: "Noble collectionneuse",
-    spec: "Rares, légendaires et rainbow",
-    icon: "◆", quote: "« L'exceptionnel m'intéresse toujours. »",
-    entree: [palier("rare", "legendaire", "fullart", "pj"), rainbow],
-    primes: [mot(ARCANE), genre("artefact")],
-    mult: 1.55, chance: 0.49, up: 0.39, down: 0.27,
-  },
-  {
     id: "gaspard", portrait: "gaspard",
     nom: "Gaspard", sub: "Brocanteur du quai",
-    spec: "Lots communs et gens de métier",
+    // Spécialité, entrée et annonce sont posées par `gaspardDuJour`.
+    spec: "Une province à chaque passage",
     icon: "▥", quote: "« Des cartes en trop ? J'en fais mon affaire ! »",
-    entree: [palier("commun"), mot(LABEUR)],
-    primes: [genre("pnj", "artefact")],
+    entree: [],
+    primes: [genre("pnj"), palier("commun")],
     mult: 1.18, chance: 0.77, up: 0.16, down: 0.12,
   },
   {
     id: "ysee", portrait: "ysee",
     nom: "Ysée", sub: "Joueuse compétitive",
-    spec: "Cartes recherchées et pièces de tête",
+    spec: "PNJ combattants du Donjon",
     icon: "♜", quote: "« Je paie pour ce qui gagne, pas pour ce qui brille. »",
-    entree: [meta],
-    primes: [palier("rare", "legendaire"), mot(MARTIAL), hausse],
+    entree: [(t) => t.type === "pnj" && combattant(t)],
+    primes: [palier("rare", "legendaire"), hausse],
     mult: 1.48, chance: 0.61, up: 0.28, down: 0.22,
   },
   {
     id: "nassim", portrait: "nassim",
     nom: "Nassim", sub: "Marchand étranger",
-    spec: "Lieux, provinces et pièces de région",
+    spec: "Lieux de toutes les provinces",
     icon: "◈", quote: "« Chaque province a ses trésors. Il suffit de savoir lesquels. »",
-    entree: [genre("lieu"), mot(REGION)],
-    primes: [palier("peucommun", "rare"), estExotique],
+    entree: [genre("lieu")],
+    primes: [palier("peucommun", "rare"), faction("saab", "caravane")],
     mult: 1.37, chance: 0.64, up: 0.25, down: 0.19,
   },
   {
     id: "eloi", portrait: "eloi",
     nom: "Éloi", sub: "Enfant de bonne famille",
-    spec: "Créatures, peuples et cartes qui racontent",
+    spec: "Le Bestiaire, créatures et animaux",
     icon: "♢", quote: "« J'aime surtout les cartes qui racontent une histoire ! »",
-    entree: [mot(SAUVAGE), estExotique],
-    primes: [palier("commun", "peucommun"), cite],
+    entree: [bestiaire],
+    primes: [exotique, cite],
     mult: 1.30, chance: 0.85, up: 0.12, down: 0.07,
   },
   {
     id: "voren", portrait: "voren",
     nom: "Voren", sub: "Spéculateur",
-    spec: "Cartes dont la cote monte",
+    spec: "Toutes les rainbow",
     icon: "↗", quote: "« Je n'achète pas une carte. J'achète ce qu'elle vaudra demain. »",
-    entree: [hausse, rainbow],
-    primes: [meta, palier("rare", "legendaire")],
+    entree: [rainbow],
+    primes: [palier("rare", "legendaire"), hausse],
     mult: 1.68, chance: 0.41, up: 0.48, down: 0.36,
   },
 ];
 
-/* Mirko a quitté ce tableau. Il tenait la onzième ligne des acheteurs, ce qui
-   en faisait un habitué du Comptoir un jour sur trois — or c'est un colporteur.
-   Il apparaît désormais au bilan d'une ouverture, rarement, avec ses propres
-   affaires : voir src/config/colporteur.js. Le pas de 7 du trio du jour porte
-   de nouveau sur dix acheteurs, comme son commentaire l'a toujours dit. */
+/* Mirko a quitté ce tableau : c'est un colporteur, il apparaît au bilan d'une
+   ouverture avec ses propres affaires. Voir src/config/colporteur.js. */
 
 /** Il ne passe qu'un jour sur dix, et il paie ce que personne ne paie. */
 export const CONSERVATEUR = {
   id: "conservateur", portrait: "conservateur",
   nom: "Le Conservateur Royal", sub: "Conservateur des Archives royales",
-  spec: "Pièces d'archive, rares et ensembles thématiques",
+  spec: "Pièces d'archive, rares et au-delà",
   icon: "♛",
   quote: "« Une collection n'a de valeur que lorsqu'elle raconte quelque chose de complet. »",
   entree: [palier("rare", "legendaire", "fullart", "pj"), genre("artefact", "lieu"), rainbow],
-  primes: [mot(ARCANE), meta],
-  mult: 1.92, chance: 0.43, up: 0.36, down: 0.30,
+  primes: [palier("legendaire", "fullart", "pj")],
+  // ×1,92 tant qu'un plafond commun rabotait tout le monde ; avec un plafond
+  // par acheteur, ce multiple faisait passer le pire jour au-dessus de 100 %
+  // (scripts/audit-marche.mjs). Il reste celui qui paie le mieux.
+  mult: 1.80, chance: 0.43, up: 0.36, down: 0.30,
   exceptionnel: true,
 };
 
-export const ACHETEUR_PAR_ID = Object.fromEntries(
-  [...ACHETEURS, CONSERVATEUR].map((b) => [b.id, b])
-);
+/** Tous les personnages, pour le calibrage : Gaspard y figure avec sa première province. */
+export const TOUS_ACHETEURS = () => [HABITUEE, ...SPECIALISTES.map((b) => (b.id === "gaspard" ? gaspardEn(0) : b)), CONSERVATEUR];
+
+/* ── Le calendrier ────────────────────────────────────────────────────────── */
 
 /**
- * Le trio du jour. Le pas de 7 sur dix acheteurs fait un cycle de dix jours
- * sans répétition immédiate, et les décalages de 3 et 5 évitent que deux
- * voisins du tableau se présentent toujours ensemble.
+ * Les paires de spécialistes, toutes, dans un ordre fixe. Huit spécialistes
+ * font vingt-huit paires : un cycle de vingt-huit jours où chaque paire passe
+ * une fois et chacun revient tous les quatre jours en moyenne. L'ordre est
+ * tiré une fois, sans hasard : à chaque jour, la paire disponible dont les
+ * deux membres sont absents depuis le plus longtemps, jamais un acheteur deux
+ * jours de suite. L'ancien trio, un pas de 7 sur dix, ne garantissait pas la
+ * présence de qui achète les communes, soit 91 % des doublons.
  */
-export const trioDuJour = (jour) => {
-  const n = ACHETEURS.length;
-  const d = ((jour % n) + n) % n;
-  const s = (d * 7) % n;
-  return [s, (s + 3) % n, (s + 5) % n].map((i) => ACHETEURS[i]);
+export const CYCLE = (() => {
+  const n = SPECIALISTES.length;
+  const restantes = [];
+  for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) restantes.push([i, j]);
+  const vu = Array(n).fill(-99);
+  const cycle = [];
+  let veille = [];
+  for (let jour = 0; restantes.length; jour++) {
+    let meilleure = -1;
+    let score = -Infinity;
+    restantes.forEach(([i, j], k) => {
+      if (veille.includes(i) || veille.includes(j)) return;
+      const s = Math.min(jour - vu[i], jour - vu[j]) * 100 + (jour - vu[i]) + (jour - vu[j]);
+      if (s > score) { score = s; meilleure = k; }
+    });
+    // Les dernières paires peuvent toutes croiser la veille : on prend la plus ancienne.
+    if (meilleure < 0) meilleure = 0;
+    const [i, j] = restantes.splice(meilleure, 1)[0];
+    vu[i] = vu[j] = jour;
+    veille = [i, j];
+    cycle.push([i, j]);
+  }
+  return cycle;
+})();
+
+/** Journée de référence du calendrier : le jour un du site (voir marche.js). */
+const JOUR_UN = 14;
+const indice = (jour) => {
+  const L = CYCLE.length;
+  return (((jour - JOUR_UN) % L) + L) % L;
 };
+const paireDuJour = (jour) => CYCLE[indice(jour)];
+
+const ID_GASPARD = SPECIALISTES.findIndex((b) => b.id === "gaspard");
+
+/**
+ * Le rang du passage de Gaspard ce jour-là, compté depuis le jour un. Le même
+ * pour tous les joueurs, et rien ne le relance : sa province suit le
+ * calendrier, comme le reste du Comptoir.
+ */
+export function passageDeGaspard(jour) {
+  const L = CYCLE.length;
+  const parCycle = CYCLE.filter((p) => p.includes(ID_GASPARD)).length;
+  const d = jour - JOUR_UN;
+  const tours = Math.floor(d / L);
+  const reste = indice(jour);
+  let n = tours * parCycle;
+  for (let k = 0; k < reste; k++) if (CYCLE[k].includes(ID_GASPARD)) n++;
+  return n;
+}
+
+/** Gaspard et le chargement de son passage n° `rang`. */
+export function gaspardEn(rang) {
+  const base = SPECIALISTES[ID_GASPARD];
+  const P = PROVINCES.length;
+  const province = PROVINCES[((rang % P) + P) % P];
+  return {
+    ...base,
+    province,
+    spec: `Chargement de ${province.nom}`,
+    entree: [faction(...province.factions)],
+  };
+}
+
+const specialiste = (i, jour) => (i === ID_GASPARD ? gaspardEn(passageDeGaspard(jour)) : SPECIALISTES[i]);
+
+export const specialistesDuJour = (jour) => paireDuJour(jour).map((i) => specialiste(i, jour));
 
 export const conservateurPresent = (jour) => (((jour * 29) % 100) + 100) % 100 < 10;
 
-export const acheteursDuJour = (jour) =>
-  conservateurPresent(jour) ? [...trioDuJour(jour), CONSERVATEUR] : trioDuJour(jour);
+/** Lise, deux spécialistes, et le Conservateur un jour sur dix. */
+export const acheteursDuJour = (jour) => {
+  const l = [HABITUEE, ...specialistesDuJour(jour)];
+  return conservateurPresent(jour) ? [...l, CONSERVATEUR] : l;
+};
 
 /** Celui de demain qui n'est pas déjà là : l'annonce n'a d'intérêt que neuve. */
 export function acheteurDeDemain(jour) {
-  const aujourdhui = trioDuJour(jour);
-  const demain = trioDuJour(jour + 1);
-  return demain.find((b) => !aujourdhui.some((a) => a.id === b.id)) || demain[0];
+  const ici = specialistesDuJour(jour).map((b) => b.id);
+  const demain = specialistesDuJour(jour + 1);
+  return demain.find((b) => !ici.includes(b.id)) || demain[0];
 }
+
+/** La phrase de l'annonce : Gaspard dit ce qu'il apporte. */
+export const annonceDe = (b) =>
+  b.province ? `Gaspard revient, avec un chargement de ${b.province.nom}.` : `${b.nom}, ${b.sub.toLowerCase()}.`;
 
 /**
  * Affinité : 0 quand l'acheteur ne regarde pas la carte, puis une prime

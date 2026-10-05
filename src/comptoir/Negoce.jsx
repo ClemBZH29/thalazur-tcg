@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import { TIER_INFO } from "../config/tiers.js";
-import { CFG } from "./marche.js";
 import { dos, encre } from "./teintes.js";
 
 const fmt = (n) => Math.round(n).toLocaleString("fr-FR");
@@ -84,7 +83,7 @@ export default function Negoce({ M, acheteur, article, articles, surplus, onArti
   const marche = M.marchandage(acheteur.id, article.id);
   const facteur = marche ? marche.facteur : 1;
   const total = M.offreLot(article, acheteur, q, facteur);
-  const rapide = q * M.cotation(article).bid;
+  const rapide = M.rachatLot(article, q);
   const aff = M.affinite(article, acheteur);
   const palier = TIER_INFO[article.tier]?.nom || article.tier;
 
@@ -264,14 +263,21 @@ export default function Negoce({ M, acheteur, article, articles, surplus, onArti
               <p className={`neg-verdict ${marche.ok ? "ok" : "ko"}`}>
                 {marche.ok
                   ? `Marchandage réussi : ${acheteur.nom} monte à ${fmt(total)} PO.`
-                  : `Échec : ${acheteur.nom} a revu son offre à la baisse. Vous pouvez vendre quand même, ou revenir demain.`}
+                  : total <= rapide
+                    ? `Échec : ${acheteur.nom} ne paiera pas plus que l'échoppe aujourd'hui. Revenez demain, ou vendez au même prix.`
+                    : `Échec : ${acheteur.nom} a revu son offre à la baisse. Vous pouvez vendre quand même, ou revenir demain.`}
               </p>
             )}
           </div>
 
           <p className="neg-pied">
-            Réussite {fmt(M.offreLot(article, acheteur, q, facteur * (1 + acheteur.up)))} PO ·
-            échec {fmt(M.offreLot(article, acheteur, q, facteur * (1 - acheteur.down)))} PO ·
+            {/* Les deux issues ne se lisent qu'avant le jet : après, l'offre
+                affichée est l'issue, et « réussite 15 PO » sous un échec
+                annonçait un second jet qui n'existe pas. */}
+            {!marche && <>
+              Réussite {fmt(M.offreLot(article, acheteur, q, 1 + acheteur.up))} PO ·
+              échec {fmt(M.offreLot(article, acheteur, q, 1 - acheteur.down))} PO ·{" "}
+            </>}
             un jet par jour et par carte
             <button
               type="button"
@@ -284,11 +290,10 @@ export default function Negoce({ M, acheteur, article, articles, surplus, onArti
           {aide && (
             <div className="neg-bulle" role="status">
               Un seul marchandage par acheteur et par carte dans la journée. En cas
-              d'échec l'offre baisse réellement, et le résultat reste verrouillé
-              jusqu'à demain même si vous fermez la fenêtre. L'échoppe ne paie jamais
-              plus de{" "}
-              {CFG.plafondRachat.toLocaleString("fr-FR", { minimumFractionDigits: 2 })} fois
-              l'ancrage d'une carte, et sa bourse du jour n'est pas sans fond.
+              d'échec l'offre baisse réellement, sans jamais tomber sous le prix de
+              l'échoppe, et le résultat reste verrouillé jusqu'à demain même si vous
+              fermez la fenêtre. Le montant annoncé est celui qui sera payé. La bourse
+              du Comptoir n'est pas sans fond.
               <button type="button" className="neg-bulle-fermer" onClick={() => setAide(false)}
                       aria-label="Fermer l'aide">×</button>
             </div>
