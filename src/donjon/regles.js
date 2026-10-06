@@ -1049,7 +1049,6 @@ export function victoire(partie, C, r, _artefacts) {
     ? { titre: `Étage ${partie.etage} nettoyé`, texte: "Le gardien tombe. Plus bas, la brume est plus épaisse — et les bourses plus lourdes.", po, relique, pouvoirs }
     : { titre: "Victoire", texte: `${C.ennemis.length} adversaires à terre.`, po, relique, pouvoirs };
 }
-/** On ne fuit pas seul : il faut quelqu'un pour couvrir la retraite. */
 /** On ne fuit ni un gardien, ni seul, ni au donjon infini : là, on tient jusqu'au bout. */
 export const peutFuir = (partie, C) => partie.mode !== "infini" && C.genre !== "boss" && vivants(partie.equipe).length >= 2;
 

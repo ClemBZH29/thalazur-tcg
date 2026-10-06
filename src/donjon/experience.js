@@ -97,6 +97,7 @@ export function crediterXP(etat, gains) {
       ligne.sachet = true;
     }
     xp[cle] = apres;
+    ligne.xp = apres.xp; // pour la jauge du bilan
     bilan.push(ligne);
   }
   return { etat: { ...etat, xp, collections, sachets }, bilan, po };
