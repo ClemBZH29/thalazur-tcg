@@ -68,6 +68,9 @@ const vide = () => ({
   // Fiches de combat : "extension:carte" -> { atq, ini, geste, tech, etoiles }
   // (voir src/donjon/fiches.js).
   fiches: {},
+  // Missions de Bodégué : { jour, remplacees, quotidiennes, semaine, hebdo }
+  // (voir src/missions/regles.js).
+  missions: null,
 });
 
 export const etatVide = vide;

@@ -18,6 +18,7 @@ import { Compte } from "./jeu/Compte.jsx";
 import BandeauCookies from "./components/BandeauCookies.jsx";
 import ChoixPseudo from "./components/ChoixPseudo.jsx";
 import PageSucces from "./routes/PageSucces.jsx";
+import PageMissions from "./routes/PageMissions.jsx";
 import RetourExpeditions from "./components/RetourExpeditions.jsx";
 import AnnonceReliquaire from "./components/AnnonceReliquaire.jsx";
 import { demarrerMesure, mesureDisponible, pageVue, rouvrirBandeau } from "./lib/mesure.js";
@@ -60,6 +61,8 @@ const PAGES = [
   { vers: "/donjon", nom: "Donjon", court: "Donjon", ico: "donjon" },
   { vers: "/expeditions", nom: "Expéditions", court: "Routes", ico: "expeditions" },
   { vers: "/reliquaire", nom: "Reliquaire", court: "Reliques", ico: "reliquaire" },
+  // Les missions de Bodégué : le rendez-vous du jour, à côté des succès.
+  { vers: "/missions", nom: "Missions", court: "Missions", ico: "missions" },
   { vers: "/succes", nom: "Succès", court: "Succès", ico: "succes" },
   ...(import.meta.env.DEV ? [{ vers: "/reglages", nom: "Réglages MJ", court: "MJ", ico: "reglages" }] : []),
 ];
@@ -99,6 +102,7 @@ function Route() {
     case "expeditions": return <Suspense fallback={<Attente />}><PageExpeditions /></Suspense>;
     case "reliquaire": return <Suspense fallback={<Attente />}><PageReliquaire /></Suspense>;
     case "succes": return <PageSucces onglet={segments[1]} />;
+    case "missions": return <PageMissions />;
     case "profil": return <PageProfil />;
     case "confidentialite": return <PageConfidentialite />;
     default: return <Introuvable chemin={chemin} />;
@@ -239,7 +243,7 @@ function Coque() {
   }, [chemin]);
 
   const { bourse, gratuit, collecte, stockageKo, loupe,
-    setLoupe, cfgImage, fichiers, succes, etat, reliquaireOuvert } = jeu;
+    setLoupe, cfgImage, fichiers, succes, missions, etat, reliquaireOuvert } = jeu;
   // Le jour change à minuit ; une page restée ouverte le relit au rendu suivant.
   const conservateur = conservateurPresent(jourCourant());
   // Le Reliquaire n'entre dans la navigation qu'une fois ouvert (voir AnnonceReliquaire).
@@ -312,6 +316,11 @@ function Coque() {
                 {p.vers === "/bibliotheque" && collecte > 0 && (
                   <span className="count">{collecte}</span>
                 )}
+                {p.vers === "/missions" && missions.aReclamer > 0 && (
+                  <span className="count pastille" title={`${missions.aReclamer} mission${missions.aReclamer > 1 ? "s" : ""} à réclamer`}>
+                    {missions.aReclamer}
+                  </span>
+                )}
                 {p.vers === "/succes" && succes.aReclamer.length > 0 && (
                   <span className="count pastille" title={`${succes.aReclamer.length} succès à réclamer`}>
                     {succes.aReclamer.length}
@@ -331,7 +340,7 @@ function Coque() {
             aria-expanded={menu} aria-controls="nav-site" aria-label={menu ? "Fermer le menu" : "Ouvrir le menu"}
             onClick={() => setMenu((m) => !m)}>
             <Icone nom={menu ? "fermer" : "menu"} taille={24} />
-            {!menu && succes.aReclamer.length + (conservateur ? 1 : 0) > 0 && (
+            {!menu && succes.aReclamer.length + missions.aReclamer + (conservateur ? 1 : 0) > 0 && (
               <span className="burger-pastille" aria-hidden="true" />
             )}
           </button>

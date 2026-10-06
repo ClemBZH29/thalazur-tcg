@@ -13,6 +13,7 @@ import { useInventaire } from "./portraits.js";
 import { useSucces } from "./succes.js";
 import { useDonjon } from "./donjon.js";
 import { useExpeditions } from "./expeditions.js";
+import { useMissions } from "./missions.js";
 const DEFAUT = BOOSTER_DEFAUT;
 
 
@@ -237,6 +238,7 @@ export function Jeu({ children }) {
   const succes = useSucces(etat, setEtat, versionMine);
   const donjon = useDonjon(etat, setEtat, test);
   const expeditions = useExpeditions(etat, setEtat);
+  const missions = useMissions(etat, setEtat);
 
   /**
    * Le sachet offert que l'ouverture de cette extension consommerait : un
@@ -265,7 +267,7 @@ export function Jeu({ children }) {
     bourse: etat.bourse, achetable, prixBooster: ECONOMIE.prix,
     recolter, majProgres, finirOuverture,
     vendreExemplaires, acheterExemplaire, appliquerMarche, compter, crediterMine, mineJour,
-    succes, sachetOffert, ...donjon, ...expeditions,
+    succes, missions, sachetOffert, ...donjon, ...expeditions,
     tirerVisiteColporteur,
     comptoirSauve: (etat.comptoir || {})[boosterId] || null, majComptoir,
     sfx, fichiers, setFichiers, nbImages, setNbImages,

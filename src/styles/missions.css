@@ -1,0 +1,115 @@
+/* ------------------------------------------------------------------
+   Missions de Bodégué. Mise en page provisoire, en attendant la
+   maquette de Claude Design (docs/conception/brief-missions-design.md) :
+   la scène du personnage à gauche, le tableau des missions à droite ;
+   au doigt, la scène se resserre au-dessus du tableau.
+   ------------------------------------------------------------------ */
+
+.missions {
+  display: grid;
+  grid-template-columns: minmax(260px, 340px) minmax(0, 1fr);
+  gap: 32px;
+  align-items: start;
+  max-width: 1080px;
+}
+
+/* ── La scène ───────────────────────────────────────────────────────── */
+
+.msn-scene {
+  position: sticky; top: calc(var(--tete-h, 0px) + 16px);
+  display: grid; justify-items: center; gap: 10px;
+}
+.msn-personnage { position: relative; width: 100%; height: 380px; }
+.msn-lueur {
+  position: absolute; inset: 12% 6% 0; z-index: 0;
+  background: radial-gradient(closest-side, rgba(232, 163, 61, .16), transparent);
+}
+.msn-portrait {
+  position: absolute; left: 0; right: 0; bottom: 0; margin: 0 auto; z-index: 1;
+  width: 100%; height: 100%;
+  object-fit: contain; object-position: 50% 100%;
+  filter: drop-shadow(0 14px 18px rgba(0, 0, 0, .55));
+  mask-image: linear-gradient(to top, transparent 0, #000 7%);
+}
+.msn-bulle {
+  position: relative; margin: 0; padding: 12px 16px;
+  background: var(--panel); border: 1px solid var(--edge-hi); border-radius: 10px;
+  color: var(--ink); font-size: 15px; line-height: 1.45; text-align: center;
+  min-height: 3.4em; max-width: 320px;
+}
+.msn-bulle::before {
+  content: ""; position: absolute; top: -7px; left: 50%; width: 12px; height: 12px;
+  background: var(--panel); border-left: 1px solid var(--edge-hi); border-top: 1px solid var(--edge-hi);
+  transform: translateX(-50%) rotate(45deg);
+}
+.msn-nom { margin: 0; font-family: var(--font-display); font-variation-settings: var(--wonk);
+  font-size: 20px; color: var(--ink2); }
+
+/* ── Le tableau ─────────────────────────────────────────────────────── */
+
+.msn-tete { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.msn-tete h1 { margin: 0; }
+.msn-tete.sous { margin-top: 28px; }
+.msn-tete.sous h2 { margin: 0; font-size: 22px; font-weight: 600; }
+.msn-echeance { display: inline-flex; align-items: center; gap: 6px; color: var(--ink3);
+  font-size: 13px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+.msn-liste { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+
+.msn-carte {
+  display: grid; grid-template-columns: 44px minmax(0, 1fr) auto auto;
+  align-items: center; gap: 14px;
+  padding: 14px 16px; border-radius: 10px;
+  background: var(--panel); border: 1px solid var(--edge);
+  transition: border-color .3s, background .3s;
+}
+.msn-carte.prete { border-color: var(--lamp); }
+.msn-carte.faite { background: var(--ground2); }
+.msn-carte.faite .msn-quoi, .msn-carte.faite .msn-gain { color: var(--ink3); }
+.msn-carte.hebdo { border-style: solid; border-width: 1px 1px 1px 3px; border-left-color: var(--m-rainbow); }
+
+.msn-mode {
+  display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%;
+  background: var(--ground2); color: var(--ink2); border: 1px solid var(--edge-hi);
+}
+.msn-carte.prete .msn-mode { color: var(--lamp); border-color: var(--lamp-lo); }
+
+.msn-corps { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 10px; align-items: center; }
+.msn-quoi { grid-column: 1 / -1; margin: 0; color: var(--ink); font-size: 15px; }
+.msn-jauge { height: 6px; border-radius: 3px; background: var(--ground2); overflow: hidden; }
+.msn-jauge span { display: block; height: 100%; background: var(--m-chene); border-radius: 3px; transition: width .5s; }
+.msn-carte.prete .msn-jauge span { background: var(--lamp); }
+.msn-carte.faite .msn-jauge span { background: var(--edge-hi); }
+.msn-compte { color: var(--ink2); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+
+.msn-gain { color: var(--lamp); font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.msn-carte.hebdo .msn-gain { color: var(--m-rainbow); }
+
+.msn-actions { display: flex; align-items: center; gap: 6px; justify-content: flex-end; min-width: 104px; }
+.msn-fait { color: var(--m-chene); font-size: 18px; padding: 0 12px; }
+.msn-remplacer {
+  display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%;
+  background: transparent; color: var(--ink3); border: 1px solid transparent; cursor: pointer;
+}
+.msn-remplacer:hover, .msn-remplacer:focus-visible { color: var(--ink); border-color: var(--edge-ui); }
+
+.msn-regles { margin-top: 24px; color: var(--ink2); font-size: 14px; }
+.msn-regles summary { cursor: pointer; color: var(--ink3); }
+
+/* ── Au doigt ───────────────────────────────────────────────────────── */
+
+@media (max-width: 720px) {
+  .missions { grid-template-columns: 1fr; gap: 16px; }
+  .msn-scene { position: static; grid-template-columns: 112px minmax(0, 1fr); align-items: end; justify-items: start; }
+  .msn-personnage { height: 150px; grid-row: 1 / span 2; }
+  .msn-bulle { text-align: left; max-width: none; font-size: 14px; }
+  .msn-bulle::before { top: auto; bottom: 14px; left: -7px; transform: rotate(-45deg); }
+  .msn-nom { font-size: 16px; }
+  .msn-carte { grid-template-columns: 36px minmax(0, 1fr) auto; gap: 10px; padding: 12px; }
+  .msn-mode { width: 36px; height: 36px; }
+  .msn-actions { grid-column: 2 / -1; justify-content: space-between; min-width: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .msn-carte, .msn-jauge span { transition: none; }
+}

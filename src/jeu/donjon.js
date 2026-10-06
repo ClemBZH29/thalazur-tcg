@@ -2,7 +2,7 @@ import { useCallback } from "react";
 import { DONJON, poDuButin } from "../config/tiers.js";
 import { crediterGain, debiterLibre } from "../lib/economie.js";
 import { crediterXP, niveauDe } from "../donjon/experience.js";
-import { descentesJouees } from "../donjon/regles.js";
+import { descentesJouees } from "../lib/compteurs.js";
 
 const aujourdhui = () => new Date().toLocaleDateString("sv"); // AAAA-MM-JJ, local
 
