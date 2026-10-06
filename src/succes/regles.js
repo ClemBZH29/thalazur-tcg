@@ -67,9 +67,12 @@ export function construireCatalogue(extensions) {
       for (const [type, def] of Object.entries(C.type.types)) {
         const n = roster.filter((c) => c.type === type).length;
         if (!n) continue;
-        const paliers = C.type.seuils.filter((s) => s < n).map((s) => ({
-          seuil: s, recompense: { po: C.type.po[s] }, quoi: avecN(def.quoi, s),
-        }));
+        // Des parts du type, ramenées à un nombre de cartes ; deux parts qui
+        // tombent sur le même nombre n'en font qu'un palier.
+        const vus = new Set();
+        const paliers = C.type.parts.map((part, i) => ({ s: Math.max(1, Math.round(n * part)), r: C.type.recompenses[i] }))
+          .filter(({ s }) => s < n && !vus.has(s) && vus.add(s))
+          .map(({ s, r }) => ({ seuil: s, recompense: r, quoi: avecN(def.quoi, s) }));
         paliers.push({ seuil: n, recompense: C.type.tous, quoi: `Posséder ${def.tous}`, titre: def.titre });
         ajouter(`type-${type}`, { nom: def.nom, mesure: `type.${type}` }, paliers);
       }
@@ -161,6 +164,23 @@ export function mesuresExtension(ext, collection = {}) {
   };
 }
 
+/**
+ * Pour chaque famille, le plus haut seuil déjà réclamé. Quand le barème
+ * déplace ses seuils (07/10/2026 : les types passent de 5, 10, 25… à des
+ * parts du roster), un palier nouveau sous un seuil déjà payé compte comme
+ * réclamé : on ne repaie pas un chemin déjà fait sous un autre nom.
+ */
+function seuilsReclames(reclames) {
+  const m = new Map();
+  for (const id of Object.keys(reclames)) {
+    const i = id.lastIndexOf("@");
+    if (i < 0) continue;
+    const fam = id.slice(0, i), seuil = Number(id.slice(i + 1));
+    if (Number.isFinite(seuil) && seuil > (m.get(fam) || 0)) m.set(fam, seuil);
+  }
+  return m;
+}
+
 const lire = (mesures, chemin) => chemin.split(".").reduce((o, k) => (o ? o[k] : 0), mesures) || 0;
 
 /**
@@ -170,11 +190,15 @@ const lire = (mesures, chemin) => chemin.split(".").reduce((o, k) => (o ? o[k] :
 export function evaluer(catalogue, etat, mine) {
   const reclames = etat.succes || {};
   const g = mesuresGlobales(etat, mine);
+  const plafonds = seuilsReclames(reclames);
   const juger = (f, mesures) => {
     const valeur = lire(mesures, f.mesure);
+    const deja = plafonds.get(f.id) || 0;
     return {
       ...f, valeur,
-      paliers: f.paliers.map((p) => ({ ...p, atteint: valeur >= p.seuil, reclame: Boolean(reclames[p.id]) })),
+      paliers: f.paliers.map((p) => ({
+        ...p, atteint: valeur >= p.seuil, reclame: Boolean(reclames[p.id]) || p.seuil <= deja,
+      })),
     };
   };
   const global = catalogue.global.map((f) => juger(f, g));

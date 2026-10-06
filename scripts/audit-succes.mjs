@@ -107,9 +107,17 @@ for (const j of JALONS) {
   console.log(`| ${j} % | ${f1(o)} | ${f1(p)} | ${f1(f)} | ${f1((f / o) * 100)} % |`);
 }
 console.log(`
-La part remboursée doit rester nettement sous 100 % à chaque jalon et
-décroître à mesure qu'on avance : c'est ce qui éteint la boucle. Elle est
-forte au début — les premiers paliers de chaque famille tombent ensemble —
-et c'est voulu : c'est la prise en main.
-Les succès des Mines, du Comptoir et du colporteur s'ajoutent à ce tableau,
-au rythme où l'on joue ces modules : voir la ligne « Global » ci-dessus.`);
+La part remboursée doit rester nettement sous 100 % à chaque jalon : c'est ce
+qui éteint la boucle. Depuis le retour bêta (07/10/2026), elle doit aussi
+rester sous un tiers dès le premier jalon — l'accueil ne paie pas une semaine
+d'avance. Les succès des Mines, du Donjon, du Comptoir et du colporteur
+s'ajoutent à ce tableau, au rythme où l'on joue ces modules : voir la ligne
+« Global » ci-dessus.`);
+
+/* Garde-fou : un barème qui rembourse plus d'un tiers des boosters à un
+   jalon quelconque redonne le premier jour du bêta-testeur. */
+const tropGenereux = JALONS.filter((j) => moyenne(j, "offerts") / moyenne(j, "ouverts") > 1 / 3);
+if (tropGenereux.length) {
+  console.log(`\nÉCHEC : plus d'un tiers des boosters offerts à ${tropGenereux.join(", ")} %.\n`);
+  process.exit(1);
+}

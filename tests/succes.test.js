@@ -64,20 +64,20 @@ describe("mesures", () => {
 
 describe("réclamation", () => {
   test("un palier atteint se réclame une fois, et paie", () => {
-    const e = partie(0, { boosters: { [TROUPE.id]: 12 } });
+    const e = partie(0, { boosters: { [TROUPE.id]: 27 } });
     const ev = evaluer(CAT, e, null);
-    expect(ev.aReclamer).toContain("boosters@10");
-    const r = reclamer(CAT, e, ["boosters@10", "boosters@10"], null, 1000);
-    expect(r.gagnes).toEqual(["boosters@10"]);
+    expect(ev.aReclamer).toContain("boosters@25");
+    const r = reclamer(CAT, e, ["boosters@25", "boosters@25"], null, 1000);
+    expect(r.gagnes).toEqual(["boosters@25"]);
     expect(r.etat.sachets["*"]).toBe(1);
-    expect(r.etat.succes["boosters@10"]).toEqual({ t: 1000, po: 0, n: 1, cle: "*" });
+    expect(r.etat.succes["boosters@25"]).toEqual({ t: 1000, po: 0, n: 1, cle: "*" });
     // Réclamé : plus rien à réclamer, un second passage ne paie rien.
-    expect(reclamer(CAT, r.etat, ["boosters@10"], null).gagnes).toEqual([]);
+    expect(reclamer(CAT, r.etat, ["boosters@25"], null).gagnes).toEqual([]);
   });
 
   test("un palier non atteint ou inconnu est ignoré", () => {
     const e = partie(0);
-    expect(reclamer(CAT, e, ["boosters@10", "rien@1"], null).gagnes).toEqual([]);
+    expect(reclamer(CAT, e, ["boosters@25", "rien@1"], null).gagnes).toEqual([]);
   });
 
   test("les PO passent hors plafond, les sachets de collection vont à l'extension", () => {
@@ -85,13 +85,22 @@ describe("réclamation", () => {
     const e = partie(n, { stats: { ventes: 10 } });
     const r = reclamer(CAT, e, [`${TROUPE.id}:completion@25`, "ventes@10"], null);
     expect(r.etat.sachets[TROUPE.id]).toBe(1);
-    expect(r.po).toBe(60);
-    expect(r.etat.bourse.po).toBe(e.bourse.po + 60);
+    expect(r.po).toBe(30);
+    expect(r.etat.bourse.po).toBe(e.bourse.po + 30);
   });
 
   test("les mesures de la mine viennent de sa sauvegarde", () => {
     const ev = evaluer(CAT, partie(0), { profondeurMax: 5, effondrements: 1 });
-    expect(ev.aReclamer).toEqual(expect.arrayContaining(["strate@3", "strate@5", "effondrements@1"]));
+    expect(ev.aReclamer).toEqual(expect.arrayContaining(["strate@5", "effondrements@1"]));
+  });
+
+  test("un seuil déplacé sous un palier déjà payé ne se repaie pas", () => {
+    // Réclamé sous l'ancien barème : la strate 12 couvre les nouveaux 5, 8 et 12.
+    const e = partie(0, { succes: { "strate@12": { t: 1, po: 720, n: 0, cle: "*" } } });
+    const ev = evaluer(CAT, e, { profondeurMax: 16 });
+    expect(ev.aReclamer).toContain("strate@16");
+    expect(ev.aReclamer).not.toContain("strate@8");
+    expect(ev.aReclamer).not.toContain("strate@5");
   });
 
   test("un titre se gagne en réclamant son palier", () => {

@@ -27,6 +27,14 @@
  * d'elle-même. `node scripts/audit-succes.mjs` le vérifie ; le relancer après
  * toute retouche de ce fichier.
  *
+ * Barème refait le 07/10/2026 sur le retour bêta, à la manière des TCG en
+ * ligne (Hearthstone, Pokémon TCG Pocket, Marvel Snap) : les premiers paliers
+ * accueillent sans payer une semaine d'avance — un bêta-testeur avait touché
+ * l'équivalent de 33 boosters dans sa première heure —, la récompense grossit
+ * avec la difficulté du palier, les sachets vont aux paliers durs et les PO
+ * aux premiers, et la collection se mesure en part de l'extension. Le
+ * raisonnement est dans docs/conception/succes-et-classement.md.
+ *
  * Les titres sont provisoires : ce sont des noms de travail, à remplacer par
  * ceux de la campagne. Un titre se gagne en réclamant le palier qui le porte.
  */
@@ -42,11 +50,10 @@ export const GLOBAL = [
     quoi: "Ouvrir {n} boosters, toutes extensions confondues",
     mesure: "boosters",
     paliers: [
-      { seuil: 10, recompense: { sachets: 1 } },
-      { seuil: 30, recompense: { sachets: 2 } },
-      { seuil: 100, recompense: { sachets: 5 }, titre: "Habitué de la boutique" },
-      { seuil: 300, recompense: { sachets: 10 } },
-      { seuil: 1000, recompense: { sachets: 25 }, titre: "Déchireur de boosters" },
+      { seuil: 25, recompense: { sachets: 1 } },
+      { seuil: 100, recompense: { sachets: 3 }, titre: "Habitué de la boutique" },
+      { seuil: 300, recompense: { sachets: 6 } },
+      { seuil: 1000, recompense: { sachets: 15 }, titre: "Déchireur de boosters" },
     ],
   },
   {
@@ -55,11 +62,10 @@ export const GLOBAL = [
     quoi: "Atteindre la strate {n} des Mines de Kazim",
     mesure: "strate",
     paliers: [
-      { seuil: 3, recompense: { po: 120 } },
-      { seuil: 5, recompense: { po: 240 } },
-      { seuil: 8, recompense: { po: 480 }, titre: "Descendu à l'Abîme" },
-      { seuil: 12, recompense: { po: 720 } },
-      { seuil: 20, recompense: { sachets: 10 }, titre: "Ami des kobolds" },
+      { seuil: 5, recompense: { po: 120 } },
+      { seuil: 8, recompense: { sachets: 1 }, titre: "Descendu à l'Abîme" },
+      { seuil: 12, recompense: { sachets: 2 } },
+      { seuil: 16, recompense: { sachets: 4 }, titre: "Ami des kobolds" },
     ],
   },
   {
@@ -68,10 +74,10 @@ export const GLOBAL = [
     quoi: "Provoquer {n} effondrement{s} dans les Mines",
     mesure: "effondrements",
     paliers: [
-      { seuil: 1, recompense: { po: 120 } },
-      { seuil: 5, recompense: { po: 360 } },
-      { seuil: 20, recompense: { sachets: 5 }, titre: "Fossoyeur de galeries" },
-      { seuil: 50, recompense: { sachets: 10 } },
+      { seuil: 1, recompense: { po: 60 } },
+      { seuil: 5, recompense: { po: 180 } },
+      { seuil: 20, recompense: { sachets: 3 }, titre: "Fossoyeur de galeries" },
+      { seuil: 50, recompense: { sachets: 6 } },
     ],
   },
   {
@@ -80,9 +86,9 @@ export const GLOBAL = [
     quoi: "Vendre {n} exemplaire{s} au Comptoir",
     mesure: "ventes",
     paliers: [
-      { seuil: 10, recompense: { po: 60 } },
-      { seuil: 50, recompense: { po: 180 } },
-      { seuil: 200, recompense: { po: 480 }, titre: "Habitué du Comptoir" },
+      { seuil: 10, recompense: { po: 30 } },
+      { seuil: 50, recompense: { po: 120 } },
+      { seuil: 200, recompense: { sachets: 2 }, titre: "Habitué du Comptoir" },
       { seuil: 500, recompense: { sachets: 5 } },
     ],
   },
@@ -92,8 +98,8 @@ export const GLOBAL = [
     quoi: "Conclure {n} affaire{s} avec le colporteur",
     mesure: "affaires",
     paliers: [
-      { seuil: 1, recompense: { po: 60 } },
-      { seuil: 10, recompense: { po: 240 } },
+      { seuil: 1, recompense: { po: 30 } },
+      { seuil: 10, recompense: { po: 120 } },
       { seuil: 30, recompense: { sachets: 3 }, titre: "Compère de Mirko" },
     ],
   },
@@ -103,10 +109,11 @@ export const GLOBAL = [
     quoi: "Vaincre {n} gardien{s} du Donjon",
     mesure: "gardiens",
     paliers: [
-      { seuil: 1, recompense: { po: 120 } },
-      { seuil: 5, recompense: { po: 360 } },
-      { seuil: 15, recompense: { sachets: 3 }, titre: "Pourfendeur de gardiens" },
-      { seuil: 45, recompense: { sachets: 8 } },
+      { seuil: 1, recompense: { po: 60 } },
+      { seuil: 5, recompense: { po: 180 } },
+      { seuil: 15, recompense: { sachets: 2 }, titre: "Pourfendeur de gardiens" },
+      { seuil: 45, recompense: { sachets: 5 } },
+      { seuil: 100, recompense: { sachets: 8 } },
     ],
   },
   {
@@ -115,8 +122,9 @@ export const GLOBAL = [
     quoi: "Remonter {n} fois du troisième étage du Donjon",
     mesure: "remontees",
     paliers: [
-      { seuil: 1, recompense: { sachets: 2 }, titre: "Revenu du Donjon" },
-      { seuil: 10, recompense: { sachets: 5 } },
+      { seuil: 1, recompense: { sachets: 1 }, titre: "Revenu du Donjon" },
+      { seuil: 10, recompense: { sachets: 3 } },
+      { seuil: 30, recompense: { sachets: 6 } },
     ],
   },
   {
@@ -125,8 +133,8 @@ export const GLOBAL = [
     quoi: "Accueillir {n} expédition{s}",
     mesure: "expeditions",
     paliers: [
-      { seuil: 1, recompense: { po: 60 } },
-      { seuil: 10, recompense: { po: 180 } },
+      { seuil: 1, recompense: { po: 30 } },
+      { seuil: 10, recompense: { po: 120 } },
       { seuil: 50, recompense: { sachets: 2 }, titre: "Maître des routes" },
       { seuil: 200, recompense: { sachets: 5 } },
     ],
@@ -148,8 +156,8 @@ export const GLOBAL = [
     quoi: "Dissoudre {n} exemplaire{s} au Reliquaire",
     mesure: "dissous",
     paliers: [
-      { seuil: 25, recompense: { po: 60 } },
-      { seuil: 100, recompense: { po: 180 } },
+      { seuil: 25, recompense: { po: 30 } },
+      { seuil: 100, recompense: { po: 120 } },
       { seuil: 500, recompense: { sachets: 3 }, titre: "Gardien des cendres" },
     ],
   },
@@ -159,8 +167,8 @@ export const GLOBAL = [
     quoi: "Forger {n} carte{s} au Reliquaire",
     mesure: "forges",
     paliers: [
-      { seuil: 1, recompense: { po: 60 } },
-      { seuil: 10, recompense: { po: 240 } },
+      { seuil: 1, recompense: { po: 30 } },
+      { seuil: 10, recompense: { po: 120 } },
       { seuil: 30, recompense: { sachets: 3 }, titre: "Artisan du Reliquaire" },
       { seuil: 60, recompense: { sachets: 5 } },
     ],
@@ -171,8 +179,8 @@ export const GLOBAL = [
     quoi: "Mener une carte au niveau {n}",
     mesure: "niveauMax",
     paliers: [
-      { seuil: 10, recompense: { po: 60 } },
-      { seuil: 25, recompense: { po: 180 } },
+      { seuil: 10, recompense: { po: 30 } },
+      { seuil: 25, recompense: { po: 120 } },
       { seuil: 50, recompense: { sachets: 2 }, titre: "Vétéran" },
       { seuil: 100, recompense: { sachets: 5 }, titre: "Légende vivante" },
     ],
@@ -183,7 +191,7 @@ export const GLOBAL = [
     quoi: "Atteindre le palier rainbow de {n} carte{s} par l'expérience",
     mesure: "rainbowXP",
     paliers: [
-      { seuil: 1, recompense: { po: 120 } },
+      { seuil: 1, recompense: { po: 60 } },
       { seuil: 5, recompense: { sachets: 1 } },
       { seuil: 15, recompense: { sachets: 3 }, titre: "Forgé par l'épreuve" },
       { seuil: 40, recompense: { sachets: 6 } },
@@ -222,18 +230,20 @@ export const COLLECTION = {
     paliers: [
       { seuil: 25, recompense: { sachets: 1 } },
       { seuil: 50, recompense: { sachets: 2 } },
-      { seuil: 75, recompense: { sachets: 3 } },
-      { seuil: 90, recompense: { sachets: 5, po: 240 } },
-      { seuil: 100, recompense: { sachets: 10, po: 600 }, titre: "Archiviste de {ext}" },
+      { seuil: 75, recompense: { sachets: 4 } },
+      { seuil: 90, recompense: { sachets: 6, po: 240 } },
+      { seuil: 100, recompense: { sachets: 12, po: 600 }, titre: "Archiviste de {ext}" },
     ],
   },
   /**
-   * Par type de carte. Les seuils au-delà du nombre de cartes du type sont
-   * écartés, et le dernier palier est toujours « toutes ».
+   * Par type de carte, en part du type et non en nombre de cartes : 10, 25,
+   * 50 et 75 %, puis « tous ». En nombre fixe (5, 10, 25, 50, 100), les PNJ
+   * — trois quarts du roster — tombaient quatre paliers dans la première
+   * heure ; une extension de quarante cartes n'en aurait eu que deux.
    */
   type: {
-    seuils: [5, 10, 25, 50, 100],
-    po: { 5: 60, 10: 120, 25: 240, 50: 360, 100: 480 },
+    parts: [0.1, 0.25, 0.5, 0.75],
+    recompenses: [{ po: 30 }, { po: 60 }, { po: 120 }, { sachets: 1 }],
     tous: { sachets: 3 },
     types: {
       pnj: { nom: "Rencontres", quoi: "Posséder {n} PNJ de {ext}", tous: "tous les PNJ de {ext}", titre: "Physionomiste de {ext}" },
@@ -245,15 +255,15 @@ export const COLLECTION = {
     nom: "Légendes",
     quoi: "Posséder {n} légendaire{s} de {ext}",
     /** Une, la moitié, toutes : les seuils suivent le roster. */
-    recompenses: [{ po: 120 }, { sachets: 2 }, { sachets: 5 }],
+    recompenses: [{ po: 60 }, { sachets: 2 }, { sachets: 5 }],
     titre: "Chasseur de légendes de {ext}",
   },
   irisees: {
     nom: "Rainbow",
     quoi: "Posséder {n} carte{s} rainbow de {ext}",
     paliers: [
-      { seuil: 1, recompense: { po: 60 } },
-      { seuil: 5, recompense: { po: 180 } },
+      { seuil: 1, recompense: { po: 30 } },
+      { seuil: 5, recompense: { po: 120 } },
       { seuil: 10, recompense: { sachets: 2 } },
       { seuil: 25, recompense: { sachets: 5 }, titre: "Chasseur de rainbow de {ext}" },
     ],
