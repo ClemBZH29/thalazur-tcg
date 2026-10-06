@@ -410,11 +410,14 @@ export default function Donjon({ jeu }) {
   /* Le donjon du jour impose quatre rôles et sa source : tirés à la première
      visite du jour parmi les cartes disponibles, puis figés (jeu/donjon.js). */
   const disponible = (c) => !enExpedition?.(c) && (illimite || !convalescence(c));
+  // Sans lieu, pas de donjon du jour : sa source est imposée parmi les lieux.
+  const sansLieu = collection.lieux.length === 0;
+  useEffect(() => { if (sansLieu && mode === "jour") setMode("infini"); }, [sansLieu, mode]);
   useEffect(() => {
-    if (imposition || partieRef.current || tentativesRestantes <= 0) return;
+    if (sansLieu || imposition || partieRef.current || tentativesRestantes <= 0) return;
     const i = compositionDuJour(aujourdhui(), collection.allies.filter(disponible), collection.lieux.filter((l) => !enExpedition?.(l)));
     if (i) fixerImposition(i);
-  }, [imposition, tentativesRestantes, collection]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [sansLieu, imposition, tentativesRestantes, collection]); // eslint-disable-line react-hooks/exhaustive-deps
   const impose = mode === "jour" ? imposition : null;
   const quota = impose?.roles || null;
   const parRoleChoisi = (ids) => {
@@ -444,7 +447,7 @@ export default function Donjon({ jeu }) {
 
   const partir = () => {
     const equipe = choix.map((id) => collection.allies.find((c) => c.id === id)).filter((c) => c && !enExpedition?.(c));
-    if (equipe.length !== TAILLE_EQUIPE || (mode === "jour" && (tentativesRestantes <= 0 || !impose || !compoFaite))) return;
+    if (equipe.length !== TAILLE_EQUIPE || (mode === "jour" && (sansLieu || tentativesRestantes <= 0 || !impose || !compoFaite))) return;
     if (mode === "infini" && !peutPayerInfini) return;
     const jour = aujourdhui();
     const niveaux = Object.fromEntries(equipe.map((c) => [`${c.ext}:${c.id}`, niveauCarte(c)]));
@@ -830,12 +833,13 @@ export default function Donjon({ jeu }) {
         {/* Deux donjons. Le choix se fait avant l'équipe : il change ce que
             rapporte la descente et combien de fois on peut la tenter. */}
         <div className="dj-modes" role="radiogroup" aria-label="Quel donjon">
-          <button type="button" role="radio" aria-checked={mode === "jour"} className={`dj-mode${mode === "jour" ? " on" : ""}`}
-            onClick={() => choisirMode("jour")}>
+          <button type="button" role="radio" aria-checked={mode === "jour"} className={`dj-mode${mode === "jour" ? " on" : ""}${sansLieu ? " ferme" : ""}`}
+            disabled={sansLieu} onClick={() => choisirMode("jour")}>
             <b>{MODES.jour.nom}</b>
             <span>Trois étages, la même carte pour tous le {dateFr(aujourdhui())}, une équipe et une source imposées. Une descente par jour, butin ×{String(MJ.gain).replace(".", ",")}. Remonter garde tout ; tomber n'en laisse qu'un quart.</span>
             <span className="dj-mode-etat">
-              {illimite ? "Mode test : illimité" : tentativesRestantes > 0 ? (texteQuota || (imposition ? "Descente disponible" : "Pas assez de compagnons disponibles")) : "Déjà tentée aujourd'hui"}
+              {sansLieu ? "Découvrez un lieu dans un booster pour profiter du donjon du jour"
+                : illimite ? "Mode test : illimité" : tentativesRestantes > 0 ? (texteQuota || (imposition ? "Descente disponible" : "Pas assez de compagnons disponibles")) : "Déjà tentée aujourd'hui"}
             </span>
           </button>
           <button type="button" role="radio" aria-checked={mode === "infini"} className={`dj-mode${mode === "infini" ? " on" : ""}`}

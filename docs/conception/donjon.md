@@ -28,6 +28,9 @@ le résultat dépend de la collection, il est donc toujours faisable. Il est
 figé dans `donjon.imposition` jusqu'au lendemain : envoyer des cartes en
 expédition ne le fait pas changer. La préparation n'affiche que les rangées
 des rôles imposés, chacune avec son quota, et la source est posée d'office.
+Sans aucun lieu dans la collection, le donjon du jour est grisé (« Découvrez
+un lieu dans un booster pour profiter du donjon du jour ») et l'infini est
+choisi d'office.
 
 Une équipe imposée est plus faible que celle qu'on aurait choisie : sur
 300 descentes, trois gardiens 15 % au lieu de 30 % et butin divisé par deux
