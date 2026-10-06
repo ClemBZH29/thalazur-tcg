@@ -15,11 +15,11 @@ import { readFileSync } from "node:fs";
 import extension from "../src/extensions/troupe-valeran/extension.js";
 import {
   ETAGES, RENCONTRES, etagesDe, ROLES, COMPETENCES, cartesDonjon, choixAuto, choixIA, convalescences, creerPartie, demarrerCombat,
-  apprentissage, descendre, entrer, gainsXP, issue, ouverts, prochain, rapporte, repos, resoudre, roleDe, tirage, tresor, victoire,
+  apprentissage, compositionDuJour, descendre, entrer, gainsXP, issue, ouverts, prochain, rapporte, repos, resoudre, roleCarte, tirage, tresor, victoire,
 } from "../src/donjon/regles.js";
 import { PALIER_IRISEE, xpPourNiveau } from "../src/donjon/experience.js";
 import { sourceDe } from "../src/donjon/pouvoirs.js";
-import { DONJON, ECONOMIE } from "../src/config/tiers.js";
+import { DONJON, ECONOMIE, poDuButin } from "../src/config/tiers.js";
 
 const BLOCAGES = [];
 const N = Number(process.argv[2]) || 2000;
@@ -49,7 +49,7 @@ const auPalier = (r, tier, n = 4) => {
   return Array.from({ length: n }, () => l[Math.floor(r() * l.length)]);
 };
 const duRole = (r, role, tier) => {
-  const l = POOLS.allies.filter((c) => roleDe(c.rep1) === role && (!tier || c.tier === tier));
+  const l = POOLS.allies.filter((c) => roleCarte(c) === role && (!tier || c.tier === tier));
   return l.length ? l[Math.floor(r() * l.length)] : null;
 };
 
@@ -136,11 +136,11 @@ console.log(`# Audit du Donjon — ${N} descentes par cas\n`);
 
 /* 1. Rôles des alliés dans le roster */
 const roles = {};
-for (const c of POOLS.allies) roles[roleDe(c.rep1)] = (roles[roleDe(c.rep1)] || 0) + 1;
+for (const c of POOLS.allies) roles[roleCarte(c)] = (roles[roleCarte(c)] || 0) + 1;
 console.log("## Rôles des alliés du roster\n");
 console.log("| Rôle | Cartes |\n|---|---:|");
 for (const [k, v] of Object.entries(roles).sort((a, b) => b[1] - a[1])) console.log(`| ${ROLES[k].nom} | ${v} |`);
-const repDebrouillard = [...new Set(POOLS.allies.filter((c) => roleDe(c.rep1) === "debrouillard").map((c) => c.rep1))];
+const repDebrouillard = [...new Set(POOLS.allies.filter((c) => roleCarte(c) === "debrouillard").map((c) => c.rep1))];
 console.log(`\nArchétypes tombés dans « Débrouillard » par défaut : ${repDebrouillard.join(", ")}`);
 console.log(`\nAlliés ${POOLS.allies.length}, bestiaire ${POOLS.monstres.length}, rivaux ${POOLS.rivaux.length}, lieux ${POOLS.lieux.length}, artéfacts ${POOLS.artefacts.length}\n`);
 
@@ -216,28 +216,52 @@ console.log(`\nPar descente : ${f1(salles)} salles, ${f1(combats)} combats, ${f1
 const sec = (v) => (actions * 0.95) / v + salles * 3;
 console.log(`Durée estimée : ${f1(sec(1) / 60)} min au pilote ×1, ${f1(sec(4) / 60)} min au pilote ×4 (3 s de lecture par salle).`);
 
-/* 9. Le donjon infini */
-console.log("\n## Donjon infini (collection de 18, Concentrer, on descend tant qu'on tient)\n");
-const inf = Array.from({ length: N }, (_, i) => descente(i + 1, { equipe: typique, mode: "infini" }));
-const gard = inf.map((x) => x.partie.stats.gardiens);
+/* 9. Le donjon infini : 100 PO l'entrée, jusqu'à la chute, tout le sac converti par une courbe concave */
+const MI = DONJON.modes.infini;
+console.log(`\n## Donjon infini (entrée ${MI.entree} PO, Concentrer, jusqu'à la chute)\n`);
 const quant = (l, q) => [...l].sort((a, b) => a - b)[Math.floor(q * (l.length - 1))];
-console.log("| Mesure | Valeur |\n|---|---:|");
-console.log(`| Gardiens vaincus, médiane | ${quant(gard, 0.5)} |`);
-console.log(`| Gardiens vaincus, 9 descentes sur 10 sous | ${quant(gard, 0.9)} |`);
-console.log(`| Record sur ${N} descentes | ${Math.max(...gard)} |`);
-console.log(`| Pièces rapportées (butin de base, défaite = quart du sac) | ${f1(moy(inf.map((x) => x.butin)))} |`);
-console.log(`| PO par descente au taux de l'infini (×${f1(DONJON.modes.infini.gain)}) | ${f1(moy(inf.map((x) => x.butin * DONJON.multiplicateur * DONJON.modes.infini.gain)))} |`);
-console.log(`| XP par carte (×${f1(DONJON.modes.infini.xp)}) | ${f1(moy(inf.map((x) => moy(x.xp.map((y) => y.xp)) || 0)))} |`);
+const lieuxLeg = POOLS.lieux.filter((l) => l.tier === "legendaire");
+const PROFILS = {
+  "Débutant (18 cartes, niv. 1)": { equipe: (r) => collectionTiree(r, 18).slice(0, 4), niveau: 1 },
+  "Moyen (45 cartes, niv. 25)": { equipe: (r) => collectionTiree(r, 45).slice(0, 4), niveau: 25 },
+  "Avancé (45 cartes, niv. 60)": { equipe: (r) => collectionTiree(r, 45).slice(0, 4), niveau: 60 },
+  "Fort (4 légendaires niv. 100, source légendaire étoilée)": { equipe: (r) => auPalier(r, "legendaire"), niveau: 100, source: lieuxLeg[0], niveauSource: 100, etoileSource: true },
+};
+console.log("| Profil | Gardiens, médiane · 9/10 sous | Sac moyen | PO moyennes · médiane | Net après l'entrée | XP par carte |\n|---|---|---:|---:|---:|---:|");
+let inf = [];
+for (const [nom, cas] of Object.entries(PROFILS)) {
+  const res = Array.from({ length: N }, (_, i) => descente(i + 1, { ...cas, mode: "infini" }));
+  if (!inf.length) inf = res;
+  const g = res.map((x) => x.partie.stats.gardiens), po = res.map((x) => poDuButin(x.butin, "infini"));
+  console.log(`| ${nom} | ${quant(g, 0.5)} · ${quant(g, 0.9)} | ${f1(moy(res.map((x) => x.butin)))} | ${f1(moy(po))} · ${quant(po, 0.5)} | ${f1(moy(po) - MI.entree)} | ${f1(moy(res.map((x) => moy(x.xp.map((y) => y.xp)) || 0)))} |`);
+}
+
+/* 9 bis. Le donjon du jour, composition imposée */
+console.log("\n## Donjon du jour : équipe libre ou composition imposée (meilleures cartes de chaque rôle imposé)\n");
+console.log("| Collection | Libre : trois gardiens · butin | Imposée : trois gardiens · butin |\n|---|---|---|");
+for (const [taille, niv] of [[18, 1], [45, 25]]) {
+  const st = (l) => `${pct(l.filter((x) => x.iss === "sortie" && x.partie.stats.gardiens >= ETAGES).length / N)} · ${f1(moy(l.map((x) => x.butin)))}`;
+  const libre = [], impose = [];
+  for (let i = 1; i <= N; i++) {
+    const coll = collectionTiree(tirage(i * 31 + 5), taille);
+    const comp = compositionDuJour(`2026-10-${String(1 + (i % 28)).padStart(2, "0")}`, coll, []);
+    const eq = Object.entries(comp.roles).flatMap(([k, n]) => coll.filter((c) => roleCarte(c) === k).slice(0, n));
+    libre.push(descente(i, { equipe: coll.slice(0, 4), niveau: niv }));
+    impose.push(descente(i, { equipe: eq, niveau: niv }));
+  }
+  console.log(`| ${taille} cartes, niv. ${niv} | ${st(libre)} | ${st(impose)} |`);
+}
 
 /* 10. Économie */
-const MJ = DONJON.modes.jour, MI = DONJON.modes.infini;
+const MJ = DONJON.modes.jour;
 const poJourMode = m0.po * MJ.gain * MJ.tentatives;
-const poInf = Math.min(MI.plafondPOJour, moy(inf.map((x) => x.butin * DONJON.multiplicateur * MI.gain)) * 3);
+// Trois descentes infinies d'un débutant, entrée déduite.
+const poInf = 3 * (moy(inf.map((x) => poDuButin(x.butin, "infini"))) - MI.entree);
 console.log("\n## Économie\n");
 console.log(`| Grandeur | Valeur |\n|---|---:|`);
 console.log(`| PO de base par descente (moyenne, sans le multiplicateur du mode) | ${f1(m0.po)} |`);
 console.log(`| Donjon du jour : ${MJ.tentatives} descente, butin ×${MJ.gain} | ${f1(poJourMode)} |`);
-console.log(`| Donjon infini : trois descentes, plafonné à ${MI.plafondPOJour} | ${f1(poInf)} |`);
+console.log(`| Donjon infini : trois descentes d'un débutant, entrée déduite | ${f1(poInf)} |`);
 console.log(`| Par jour, les deux | ${f1(poJourMode + poInf)} |`);
 console.log(`| En boosters par jour | ${f1((poJourMode + poInf) / ECONOMIE.prix)} |`);
 console.log(`| Rapporté au gain passif (${ECONOMIE.parHeure * 24} PO/j) | ×${f1(1 + (poJourMode + poInf) / (ECONOMIE.parHeure * 24))} |`);

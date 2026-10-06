@@ -2,14 +2,14 @@ import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "r
 import FaceCarte from "../components/FaceCarte.jsx";
 import Icone from "../components/Icone.jsx";
 import { BOOSTERS } from "../extensions/index.js";
-import { DONJON, TIER_INFO } from "../config/tiers.js";
+import { DONJON, TIER_INFO, poDuButin } from "../config/tiers.js";
 import { resoudreImage } from "../lib/images.js";
 import {
   BONUS_ARTEFACT, bonusEquipe, GENRES, MODES, etagesDe, graineInfinie, RANGS, RENCONTRES, ROLES, STRATEGIES, TRAITS,
   atqDe, cartesDonjon, choixAuto, choixIA, creerPartie, demarrerCombat, descendre, entrer, fuir,
   gestes, graineDuJour, issue, ouverts, parUid, prochain, rapporte, repos, resoudre,
-  tresor, victoire, vivants, allie, ciblesPossibles, convalescences, fiche, peutFuir, gainsXP,
-  apprentissage, brume, tirage, BRUME_TOUR, COMPETENCES, techDe, unites, roleDe, RELIQUES_MAX,
+  tresor, victoire, vivants, allie, compositionDuJour, ciblesPossibles, convalescences, fiche, peutFuir, gainsXP,
+  apprentissage, brume, tirage, BRUME_TOUR, COMPETENCES, techDe, unites, roleCarte, RELIQUES_MAX,
 } from "./regles.js";
 import { etoiles, ficheDe, fichesDe } from "./fiches.js";
 import { effetsArtefact, effetsSource, sourceDe, texteEffets } from "./pouvoirs.js";
@@ -338,7 +338,8 @@ function Plan({ partie, onEntrer, onSurvol, doigt, bulle, onBulle }) {
 
 export default function Donjon({ jeu }) {
   const { etat, cfgImage, fichiers, mouvementReduit, donjon, tentativesRestantes, illimite,
-    poInfiniRestant, recordInfini, commencerDonjon, sauverPartie, terminerDonjon, convalescence, niveauCarte, enExpedition } = jeu;
+    entreeInfini, peutPayerInfini, imposition, fixerImposition, recordInfini, commencerDonjon, sauverPartie, terminerDonjon,
+    convalescence, niveauCarte, enExpedition } = jeu;
 
   const partieRef = useRef(donjon.partie ? structuredClone(donjon.partie) : null);
   const combatRef = useRef(null);
@@ -405,18 +406,61 @@ export default function Donjon({ jeu }) {
   /* ── Déroulé ─────────────────────────────────────────────────────── */
   const ouvertsTotal = Object.values(etat.boosters || {}).reduce((s, n) => s + (n || 0), 0);
   const apprenti = apprentissage(ouvertsTotal, DONJON.apprentissage);
+
+  /* Le donjon du jour impose quatre rôles et sa source : tirés à la première
+     visite du jour parmi les cartes disponibles, puis figés (jeu/donjon.js). */
+  const disponible = (c) => !enExpedition?.(c) && (illimite || !convalescence(c));
+  // Sans lieu, pas de donjon du jour : sa source est imposée parmi les lieux.
+  const sansLieu = collection.lieux.length === 0;
+  useEffect(() => { if (sansLieu && mode === "jour") setMode("infini"); }, [sansLieu, mode]);
+  useEffect(() => {
+    if (sansLieu || imposition || partieRef.current || tentativesRestantes <= 0) return;
+    const i = compositionDuJour(aujourdhui(), collection.allies.filter(disponible), collection.lieux.filter((l) => !enExpedition?.(l)));
+    if (i) fixerImposition(i);
+  }, [sansLieu, imposition, tentativesRestantes, collection]); // eslint-disable-line react-hooks/exhaustive-deps
+  const impose = mode === "jour" ? imposition : null;
+  const quota = impose?.roles || null;
+  const parRoleChoisi = (ids) => {
+    const m = {};
+    for (const id of ids) { const c = collection.allies.find((x) => x.id === id); if (c) m[roleCarte(c)] = (m[roleCarte(c)] || 0) + 1; }
+    return m;
+  };
+  const composition = parRoleChoisi(choix);
+  const peutPrendre = (c) => !quota || (composition[roleCarte(c)] || 0) < (quota[roleCarte(c)] || 0);
+  const compoFaite = !quota || Object.entries(quota).every(([r, k]) => (composition[r] || 0) === k);
+  // La source : imposée au donjon du jour, choisie à l'infini.
+  const cleSource = impose ? impose.lieu : sourceCle;
+  const choisirMode = (m) => {
+    setMode(m);
+    const q = m === "jour" ? imposition?.roles : null;
+    if (!q) return;
+    // On garde ce qui entre dans la composition du jour, dans l'ordre du choix.
+    setChoix((l) => {
+      const k = {};
+      return l.filter((id) => {
+        const c = collection.allies.find((x) => x.id === id), r = c && roleCarte(c);
+        if (!r || (k[r] || 0) >= (q[r] || 0)) return false;
+        k[r] = (k[r] || 0) + 1; return true;
+      });
+    });
+  };
+
   const partir = () => {
     const equipe = choix.map((id) => collection.allies.find((c) => c.id === id)).filter((c) => c && !enExpedition?.(c));
-    if (equipe.length !== TAILLE_EQUIPE || (mode === "jour" && tentativesRestantes <= 0)) return;
+    if (equipe.length !== TAILLE_EQUIPE || (mode === "jour" && (sansLieu || tentativesRestantes <= 0 || !impose || !compoFaite))) return;
+    if (mode === "infini" && !peutPayerInfini) return;
     const jour = aujourdhui();
     const niveaux = Object.fromEntries(equipe.map((c) => [`${c.ext}:${c.id}`, niveauCarte(c)]));
     const fiches = fichesDe(etat, equipe);
     const M = DONJON.modes[mode];
     const graine = mode === "infini" ? graineInfinie() : graineDuJour(jour);
-    const lieu = sourceCle ? collection.lieux.find((l) => `${l.ext}:${l.id}` === sourceCle && !enExpedition?.(l)) : null;
-    if (collection.lieux.length && !lieu) return;
+    const lieu = cleSource ? collection.lieux.find((l) => `${l.ext}:${l.id}` === cleSource && !enExpedition?.(l)) : null;
+    if ((impose ? impose.lieu : collection.lieux.length) && !lieu) return;
     const source = lieu ? { c: lieu, niveau: niveauCarte(lieu), etoile: !!ficheDe(etat, lieu).etoiles?.source } : null;
-    const p = creerPartie({ equipe, source, graine, jour, pools: POOLS, niveaux, fiches, apprenti, mode, gainMode: M.gain, xpMode: M.xp });
+    // L'apprentissage adoucit les adversaires partout, mais ne rogne le butin qu'au
+    // donjon du jour : l'infini se paie à l'entrée.
+    const ap = mode === "infini" ? { ...apprenti, gain: 1 } : apprenti;
+    const p = creerPartie({ equipe, source, graine, jour, pools: POOLS, niveaux, fiches, apprenti: ap, mode, gainMode: M.gain, xpMode: M.xp });
     partieRef.current = p;
     commencerDonjon(structuredClone(p));
     setEcran("carte");
@@ -450,6 +494,9 @@ export default function Donjon({ jeu }) {
     rngCombat.current = tirage(p.combat.graine);
     combatRef.current = demarrerCombat(p, p.combat.genre, rngCombat.current, POOLS);
     const CC = combatRef.current;
+    // La première salve a pu en abattre : debout à l'écran jusqu'à ce qu'elle les touche.
+    koVu.current.clear();
+    for (const x of CC.ennemis) if (x.ko) koVu.current.set(x.uid, false);
     setJournal([
       ...CC.ouverture.map((o) => o.note).reverse(),
       ...(CC.relique ? [`Ils portent ${CC.relique.nom} : battez-les pour la prendre.`] : []),
@@ -464,7 +511,11 @@ export default function Donjon({ jeu }) {
       animRef.current.animerSource?.(p.source ? { ...p.source, pouvoir: sourceDe(p.source.c).nom } : null, CC);
       if (CC.relique) animRef.current.animerRelique?.(CC.relique, { moment: "porte", porteurs: CC.ennemis.filter((x) => !x.ko) });
       animerPouvoirs(CC.ouverture.map((o) => o.pouvoir));
-      if (CC.ouverture.length) requestAnimationFrame(() => montrer(CC.ouverture.flatMap((o) => o.effets)));
+      if (CC.ouverture.length) {
+        requestAnimationFrame(() => montrer(CC.ouverture.flatMap((o) => o.effets)));
+        // Les tombés de la salve chutent quand elle arrive, pas avant.
+        if (CC.ennemis.some((x) => x.ko)) await new Promise((ok) => setTimeout(ok, 480 / vitesseRef.current));
+      }
       const fin = await passerLaMain(p, CC);
       if (fin) return conclure(fin, p, CC);
       setOccupe(false); redessiner();
@@ -494,7 +545,7 @@ export default function Donjon({ jeu }) {
     const { po, bilan } = terminerDonjon(butin, { issue: iss, etage: p.etage, gardiens: p.stats.gardiens, complete, mode: p.mode || "jour" }, repos, gainsXP(p, iss));
     const noms = new Map([...p.equipe.map((u) => u.c), ...p.perdus].map((c) => [`${c.ext}:${c.id}`, c.nom]));
     setFin({ issue: iss, butin, perdu: p.sac - butin, po, stats: { ...p.stats }, etage: p.etage, debout: vivants(p.equipe).length,
-      mode: p.mode || "jour", record, plafonne: infini && po < Math.round(butin * DONJON.multiplicateur),
+      mode: p.mode || "jour", record,
       total: p.equipe.length, reliques: p.reliques.map((a) => a.nom), repos: repos.map((x) => ({ nom: noms.get(x.cle), jours: x.jours })), xp: bilan });
     combatRef.current = null;
     partieRef.current = null;
@@ -510,6 +561,8 @@ export default function Donjon({ jeu }) {
   const arene = () => zone.current?.querySelector(".dj-arene");
   const reduitRef = useRef(mouvementReduit); reduitRef.current = mouvementReduit;
   const animRef = useRef(null);
+  const koVu = useRef(new Map());
+  const koAffiche = (x) => (koVu.current.has(x.uid) ? koVu.current.get(x.uid) : x.ko);
   if (!animRef.current) {
     animRef.current = creerAnimationsDonjon({
       arene, el, vitesse: () => vitesseRef.current, reduit: () => reduitRef.current,
@@ -529,12 +582,16 @@ export default function Donjon({ jeu }) {
   /** Les mises à terre et relèves d'une action, animées avant que l'état ne les fige. */
   const animerChutes = (avant) => {
     const p = partieRef.current, CC = combatRef.current;
-    if (!p || !CC || !arene()) return Promise.resolve();
+    const liberer = () => { koVu.current.clear(); };
+    if (!p || !CC || !arene()) { liberer(); return Promise.resolve(); }
+    // `appliquer` : la pose à terre (ou debout) passe à l'affichage au moment
+    // précis où l'animation la rejoint, ni avant ni après.
+    const poser = (x) => () => { koVu.current.set(x.uid, x.ko); el(x.uid)?.classList.toggle("ko", x.ko); };
     return Promise.all(unites(p, CC).flatMap((x) => {
-      if (x.ko && !avant.has(x.uid)) return [animRef.current.animerEvenement("ko", x, { appliquer: () => el(x.uid)?.classList.add("ko") })];
-      if (!x.ko && avant.has(x.uid)) return [animRef.current.animerEvenement("releve", x, { appliquer: () => el(x.uid)?.classList.remove("ko") })];
+      if (x.ko && !avant.has(x.uid)) return [animRef.current.animerEvenement("ko", x, { appliquer: poser(x) })];
+      if (!x.ko && avant.has(x.uid)) return [animRef.current.animerEvenement("releve", x, { appliquer: poser(x) })];
       return [];
-    }));
+    })).then(liberer, liberer);
   };
   /**
    * Les pouvoirs (source de pouvoir, reliques) qui viennent de jouer : chacun
@@ -545,12 +602,45 @@ export default function Donjon({ jeu }) {
     if (!liste?.length || !arene()) return;
     for (const ev of liste) if (ev) animRef.current.animerPouvoir?.(ev, { unite: (uid) => parUid(partieRef.current, combatRef.current, uid) });
   };
-  const aTerre = () => new Set(unites(partieRef.current, combatRef.current).filter((x) => x.ko).map((x) => x.uid));
+  /**
+   * Les tombés tels qu'affichés, figés jusqu'à leur animation. Les règles
+   * mettent une unité à terre d'un coup ; sans ce gel, le premier rendu React
+   * qui suit (journal, saignement, renvoi…) posait la carte à terre par la
+   * classe .ko, puis l'animation de chute repartait de debout : la carte
+   * tombait, revenait, et retombait. `aTerre` fige l'affichage de chaque
+   * unité ; `animerChutes` le libère carte par carte.
+   */
+  const aTerre = () => {
+    const s = new Set();
+    for (const x of unites(partieRef.current, combatRef.current)) {
+      const ko = koAffiche(x);
+      koVu.current.set(x.uid, ko);
+      if (ko) s.add(x.uid);
+    }
+    return s;
+  };
 
+  /*
+   * Le sursaut d'une carte touchée ou soignée. En animation Web plutôt qu'en
+   * classe : React réécrit `className` à chaque rendu, et le rendu qui suit un
+   * coup (journal, mise à terre) effaçait la classe en pleine secousse — le
+   * portrait revenait d'un coup en place avant la chute.
+   */
+  const REACTIONS = {
+    touche: [".dj-face", [{ transform: "translate(0)" }, { transform: "translate(-7px, 2px)", offset: 0.2 }, { transform: "translate(6px, -2px)", offset: 0.45 },
+      { transform: "translate(-3px, 0)", offset: 0.7 }, { transform: "translate(0)" }], 380, true],
+    soigne: [".plaque", [{ boxShadow: "0 0 0 4px rgba(127,209,185,.8), 0 0 40px rgba(127,209,185,.6)", offset: 0.4 }], 600, false],
+  };
+  const reagir = (e, anim) => {
+    const R = REACTIONS[anim]; const n = R && e.querySelector(R[0]);
+    if (!n?.animate || (R[3] && reduitRef.current)) return;
+    n.getAnimations().filter((a) => a.id === anim).forEach((a) => a.cancel());
+    n.animate(R[1], { duration: R[2], easing: "ease-out", id: anim });
+  };
   const montrer = (effets) => {
     for (const f of effets) {
       const e = el(f.uid); if (!e) continue;
-      if (f.anim) { e.classList.remove(f.anim); void e.offsetWidth; e.classList.add(f.anim); }
+      if (f.anim) reagir(e, f.anim);
       // Les chiffres d'une même carte s'empilent au lieu de se recouvrir, et
       // durent moins longtemps quand le combat va vite.
       const deja = e.querySelectorAll(".dj-flottant").length;
@@ -604,8 +694,8 @@ export default function Donjon({ jeu }) {
         else if (x && n.evt) await animRef.current.animerEvenement(n.evt, x, {});
         montrer(n.effets);
       }
-      await animerChutes(avant);
     }
+    await animerChutes(avant);
     const fin = issue(p, CC);
     redessiner();
     return fin;
@@ -614,7 +704,9 @@ export default function Donjon({ jeu }) {
     if (fin === "victoire") {
       CC.fini = "victoire";
       p.combat = null;
+      const avant = aTerre();
       const r = victoire(p, CC, rngCombat.current, POOLS.artefacts);
+      animerChutes(avant); // la relève d'après victoire
       animerPouvoirs(r.pouvoirs);
       if (CC.relique) animRef.current.animerRelique?.(CC.relique, { moment: r.relique?.vendue ? "vendue" : "prise", equipe: vivants(p.equipe) });
       setResultat(r);
@@ -699,7 +791,7 @@ export default function Donjon({ jeu }) {
       <span className="pastille">{partie.mode === "infini"
         ? <>Infini · étage <b>{partie.etage}</b></>
         : <>Étage <b>{partie.etage}</b> / {etagesDe(partie)}</>}</span>
-      <span className="pastille or">Sac <b>{pieces(partie.sac)}</b> <span className="muted">≈ {Math.round(partie.sac * DONJON.multiplicateur)} PO</span></span>
+      <span className="pastille or">Sac <b>{pieces(partie.sac)}</b> <span className="muted">≈ {poDuButin(partie.sac, partie.mode)} PO</span></span>
       {partie.source && (
         <span className={`pastille dj-source-pastille${partie.source.etoile ? " star" : ""}`} title={texteEffets(partie.source.effets)}>
           {partie.source.etoile && <Etoile taille={11} />} {sourceDe(partie.source.c).nom} <span className="muted">· {partie.source.c.nom}, niv. {partie.source.niveau}</span>
@@ -715,49 +807,55 @@ export default function Donjon({ jeu }) {
 
   if (ecran === "preparation" || (!partie && ecran !== "fin")) {
     const n = choix.length;
-    const plus = mode === "infini" || tentativesRestantes > 0;
-    const sourceManque = collection.lieux.length > 0 && !collection.lieux.some((l) => `${l.ext}:${l.id}` === sourceCle && !enExpedition?.(l));
+    const plus = mode === "infini" ? peutPayerInfini : tentativesRestantes > 0 && !!impose;
+    const sourceManque = (impose ? !!impose.lieu : collection.lieux.length > 0) && !collection.lieux.some((l) => `${l.ext}:${l.id}` === cleSource && !enExpedition?.(l));
     // Les cartes indisponibles (en expédition, au repos) passent en fin de
     // rangée, toujours grisées : on ne fait pas défiler pour trouver qui peut descendre.
     // Une carte déjà choisie reste à sa place, même si elle est indisponible (mode test).
     const indispo = (c) => !choix.includes(c.id) && (!!enExpedition?.(c) || (!!convalescence(c) && !illimite));
     const enFin = (l) => [...l.filter((c) => !indispo(c)), ...l.filter(indispo)];
-    const parRole = Object.keys(ROLES).map((r) => [r, enFin(collection.allies.filter((c) => roleDe(c.rep1) === r))]).filter(([, l]) => l.length);
-    const lieuxRangee = [...collection.lieux.filter((l) => !enExpedition?.(l)), ...collection.lieux.filter((l) => enExpedition?.(l))];
+    // Au donjon du jour, seules les rangées des rôles imposés.
+    const parRole = Object.keys(ROLES).filter((r) => !quota || quota[r])
+      .map((r) => [r, enFin(collection.allies.filter((c) => roleCarte(c) === r))]).filter(([, l]) => l.length);
+    const lieuxRangee = impose
+      ? collection.lieux.filter((l) => `${l.ext}:${l.id}` === impose.lieu)
+      : [...collection.lieux.filter((l) => !enExpedition?.(l)), ...collection.lieux.filter((l) => enExpedition?.(l))];
+    const texteQuota = quota && Object.entries(quota).map(([r, k]) => `${k} ${ROLES[r].nom.toLowerCase()}${k > 1 ? "s" : ""}`).join(", ");
     const MJ = DONJON.modes.jour, MI = DONJON.modes.infini;
     return (
       <div className="dj">
         <p className="dj-intro">
-          Choisissez quatre compagnons de votre collection et une source de pouvoir, l'un de vos lieux. Les artéfacts,
-          eux, se gagnent en bas : les élites et les gardiens les portent. Chaque étage est une carte : vous tracez
-          votre chemin, salle après salle, jusqu'au gardien. Vaincu, il vous laisse remonter avec le butin — ou
-          descendre, là où il pèse plus lourd. Si l'équipe tombe, il ne reste qu'un quart du sac, et les
-          compagnons restent au repos.
+          Quatre compagnons de votre collection et une source de pouvoir, l'un de vos lieux. Les artéfacts, eux, se
+          gagnent en bas : les élites et les gardiens les portent. Chaque étage est une carte : vous tracez votre
+          chemin, salle après salle, jusqu'au gardien. Si l'équipe tombe, les compagnons restent au repos.
         </p>
 
         {/* Deux donjons. Le choix se fait avant l'équipe : il change ce que
             rapporte la descente et combien de fois on peut la tenter. */}
         <div className="dj-modes" role="radiogroup" aria-label="Quel donjon">
-          <button type="button" role="radio" aria-checked={mode === "jour"} className={`dj-mode${mode === "jour" ? " on" : ""}`}
-            onClick={() => setMode("jour")}>
+          <button type="button" role="radio" aria-checked={mode === "jour"} className={`dj-mode${mode === "jour" ? " on" : ""}${sansLieu ? " ferme" : ""}`}
+            disabled={sansLieu} onClick={() => choisirMode("jour")}>
             <b>{MODES.jour.nom}</b>
-            <span>Trois étages, la même carte pour tous le {dateFr(aujourdhui())}. Une descente par jour, butin ×{MJ.gain}.</span>
+            <span>Trois étages, la même carte pour tous le {dateFr(aujourdhui())}, une équipe et une source imposées. Une descente par jour, butin ×{String(MJ.gain).replace(".", ",")}. Remonter garde tout ; tomber n'en laisse qu'un quart.</span>
             <span className="dj-mode-etat">
-              {illimite ? "Mode test : illimité" : tentativesRestantes > 0 ? "Descente disponible" : "Déjà tentée aujourd'hui"}
+              {sansLieu ? "Découvrez un lieu dans un booster pour profiter du donjon du jour"
+                : illimite ? "Mode test : illimité" : tentativesRestantes > 0 ? (texteQuota || (imposition ? "Descente disponible" : "Pas assez de compagnons disponibles")) : "Déjà tentée aujourd'hui"}
             </span>
           </button>
           <button type="button" role="radio" aria-checked={mode === "infini"} className={`dj-mode${mode === "infini" ? " on" : ""}`}
-            onClick={() => setMode("infini")}>
+            onClick={() => choisirMode("infini")}>
             <b>{MODES.infini.nom}</b>
-            <span>Des étages sans fin, de plus en plus durs, une carte neuve à chaque descente. Autant de descentes qu'on veut ; butin et expérience réduits, un jour de repos en cas de défaite.</span>
+            <span>Des étages sans fin, de plus en plus durs. {MI.entree} PO l'entrée ; ni fuite ni remontée : l'équipe descend jusqu'à tomber et rapporte tout le sac, sans plafond. Un jour de repos ensuite ; expérience réduite.</span>
             <span className="dj-mode-etat">
               {recordInfini > 0 ? `Record : ${recordInfini} gardien${recordInfini > 1 ? "s" : ""}` : "Pas encore de record"}
-              {" · "}{poInfiniRestant > 0 ? `encore ${poInfiniRestant} PO aujourd'hui` : "PO du jour versées"}
+              {" · "}{entreeInfini ? `entrée ${entreeInfini} PO` : "entrée offerte (mode test)"}
             </span>
           </button>
         </div>
         <p className="muted petit">
-          Le butin rapporté est versé à la bourse ({String(DONJON.multiplicateur).replace(".", ",")} PO par pièce{mode === "infini" ? `, ${MI.plafondPOJour} PO par jour au plus pour le donjon infini` : ""}).
+          {mode === "infini"
+            ? "Le sac est converti en PO à la remontée : plus il est lourd, plus il rapporte, mais chaque pièce vaut un peu moins que la précédente."
+            : `Le butin rapporté est versé à la bourse (${String(DONJON.multiplicateur).replace(".", ",")} PO par pièce).`}
         </p>
         {apprenti.avance < 1 && (
           <p className="avis dj-apprenti">
@@ -777,14 +875,14 @@ export default function Donjon({ jeu }) {
         ) : (
           <>
             <div className="section-titre sous-titre">
-              <h2>Vos compagnons <span className="muted petit">({n} / {TAILLE_EQUIPE})</span></h2>
+              <h2>Vos compagnons <span className="muted petit">({n} / {TAILLE_EQUIPE}{texteQuota ? ` · imposés aujourd'hui : ${texteQuota}` : ""})</span></h2>
               <button type="button" className="dj-lex-bouton" onClick={() => setLexique("")}><Icone nom="lexique" taille={16} /> Lexique</button>
             </div>
             <p className="muted petit dj-aide">Le rôle vient de l'archétype de la carte ; l'initiative, du rôle et du palier. Le détail des rôles est au lexique.</p>
             {/* Une rangée par rôle, qui défile à l'horizontale : au doigt, on la
                 fait glisser ; à la souris, on survole son bord. */}
             {parRole.map(([role, cartes]) => (
-              <Rangee key={role} titre={ROLES[role].nom} nb={cartes.length} pris={cartes.filter((c) => choix.includes(c.id)).length}
+              <Rangee key={role} titre={quota ? `${ROLES[role].nom} · ${quota[role]} à choisir` : ROLES[role].nom} nb={cartes.length} pris={cartes.filter((c) => choix.includes(c.id)).length}
                 aide={`${ROLES[role].passif ? `${ROLES[role].passif} · ` : ""}${COMPETENCES[ROLES[role].tech].nom}`} classe={`r-${role}`}>
                 {cartes.map((c) => {
                 const pris = choix.includes(c.id);
@@ -802,10 +900,10 @@ export default function Donjon({ jeu }) {
                 // des capacités, variable d'une carte à l'autre, désalignait la grille.
                 return (
                   <div key={`${c.ext}:${c.id}`}
-                    className={`dj-choix${nEt ? " star" : ""}${nEt === 4 ? " star-pleine" : ""}${pris ? " pris" : ""}${(n >= TAILLE_EQUIPE && !pris) || bloque ? " grise" : ""}${repos || partie ? " repos" : ""}`}>
+                    className={`dj-choix${nEt ? " star" : ""}${nEt === 4 ? " star-pleine" : ""}${pris ? " pris" : ""}${((n >= TAILLE_EQUIPE || !peutPrendre(c)) && !pris) || bloque ? " grise" : ""}${repos || partie ? " repos" : ""}`}>
                     <button type="button" className="dj-choix-carte" aria-pressed={pris} disabled={bloque && !pris}
                       aria-label={`${c.nom}, ${R.nom}${nEt ? `, ${nEt === 4 ? "STAR" : `${nEt} ligne${nEt > 1 ? "s" : ""} étoilée${nEt > 1 ? "s" : ""}`}` : ""}${partie ? ", en expédition" : repos ? `, au repos jusqu'au ${dateFr(repos)}` : ""}`}
-                      onClick={() => setChoix((l) => (l.includes(c.id) ? l.filter((x) => x !== c.id) : l.length < TAILLE_EQUIPE ? [...l, c.id] : l))}>
+                      onClick={() => setChoix((l) => (l.includes(c.id) ? l.filter((x) => x !== c.id) : l.length < TAILLE_EQUIPE && peutPrendre(c) ? [...l, c.id] : l))}>
                       {pris && <span className="dj-coche" aria-hidden="true">✓</span>}
                       {/* La carte STAR se voit de loin : pastille irisée et cadre irisé. */}
                       {nEt > 0 && <EtoilesCarte n={nEt} />}
@@ -829,22 +927,23 @@ export default function Donjon({ jeu }) {
               </Rangee>
             ))}
             <div className="section-titre sous-titre">
-              <h2>Source de pouvoir <span className="muted petit">{collection.lieux.length ? "(un de vos lieux)" : ""}</span></h2>
+              <h2>Source de pouvoir <span className="muted petit">{impose?.lieu ? "(imposée aujourd'hui)" : collection.lieux.length ? "(un de vos lieux)" : ""}</span></h2>
             </div>
             <p className="muted petit dj-aide">
               Chaque lieu donne à toute l'équipe un pouvoir qui n'est qu'à lui, plus fort selon sa rareté, son niveau et son
               étoile. Les lieux gagnent de l'expérience avec l'équipe, et s'entraînent comme les autres cartes.
             </p>
-            {collection.lieux.length === 0 ? <p className="muted petit">Aucun lieu dans votre collection : l'équipe descend sans source de pouvoir.</p> : (
-              <Rangee titre="Lieux" nb={collection.lieux.length} pris={sourceCle ? 1 : 0} classe="r-lieu">
+            {collection.lieux.length === 0 ? <p className="muted petit">Aucun lieu dans votre collection : l'équipe descend sans source de pouvoir.</p>
+              : impose && !impose.lieu ? <p className="muted petit">Aucun de vos lieux n'était disponible ce matin : l'équipe descend sans source de pouvoir.</p> : (
+              <Rangee titre="Lieux" nb={lieuxRangee.length} pris={cleSource ? 1 : 0} classe="r-lieu">
                 {lieuxRangee.map((l) => {
-                  const cle = `${l.ext}:${l.id}`, pris = sourceCle === cle;
+                  const cle = `${l.ext}:${l.id}`, pris = cleSource === cle;
                   const niv = niveauCarte(l), et = !!ficheDe(etat, l).etoiles?.source;
                   const S = sourceDe(l), eff = effetsSource(l, niv, et);
                   const route = enExpedition?.(l);
                   return (
                     <div key={cle} className={`dj-choix dj-source${et ? " star star-pleine" : ""}${pris ? " pris" : ""}${route ? " grise repos" : ""}`}>
-                      <button type="button" className="dj-choix-carte" aria-pressed={pris} disabled={route && !pris}
+                      <button type="button" className="dj-choix-carte" aria-pressed={pris} disabled={(route && !pris) || !!impose}
                         aria-label={`${l.nom} : ${S.nom}, ${texteEffets(eff)}${route ? ", en expédition" : ""}`}
                         onClick={() => setSourceCle((x) => (x === cle ? null : cle))}>
                         {pris && <span className="dj-coche" aria-hidden="true">✓</span>}
@@ -862,9 +961,12 @@ export default function Donjon({ jeu }) {
               </Rangee>
             )}
             <div className="actions gauche dj-partir">
-              <button className="btn" type="button" onClick={partir} disabled={n !== TAILLE_EQUIPE || !plus || sourceManque}>
-                {!plus ? "Donjon du jour déjà tenté" : n !== TAILLE_EQUIPE ? `Choisissez ${TAILLE_EQUIPE} compagnons` : sourceManque ? "Choisissez une source de pouvoir"
-                  : mode === "infini" ? "Descendre dans l'infini" : "Descendre avec cette équipe"}
+              <button className="btn" type="button" onClick={partir} disabled={n !== TAILLE_EQUIPE || !plus || sourceManque || !compoFaite}>
+                {mode === "infini" && !peutPayerInfini ? `Il faut ${entreeInfini} PO pour entrer`
+                  : !plus ? (tentativesRestantes > 0 ? "Pas assez de compagnons disponibles" : "Donjon du jour déjà tenté")
+                  : n !== TAILLE_EQUIPE ? `Choisissez ${TAILLE_EQUIPE} compagnons`
+                  : sourceManque ? (impose ? "Le lieu imposé est en expédition" : "Choisissez une source de pouvoir")
+                  : mode === "infini" ? `Descendre dans l'infini (${entreeInfini} PO)` : "Descendre avec cette équipe"}
               </button>
             </div>
           </>
@@ -881,10 +983,10 @@ export default function Donjon({ jeu }) {
       <div className="dj">
         <section className="panneau dj-panneau">
           <h2>{echec ? "L'équipe est tombée" : "De retour à la surface"}</h2>
-          <p>{echec ? "Les derniers compagnons sont ramenés au camp par des mains inconnues. Du sac, il ne reste que ce qui tenait dans les poches."
+          <p>{echec && fin.mode === "infini" ? "Jusqu'au bout. Les derniers compagnons sont ramenés au camp, le sac serré contre eux : rien ne s'est perdu en route."
+            : echec ? "Les derniers compagnons sont ramenés au camp par des mains inconnues. Du sac, il ne reste que ce qui tenait dans les poches."
             : "La brume se referme derrière vous. Au camp, on compte les pièces."}</p>
-          <p><span className="dj-butin">+{fin.po} PO</span> <span className="muted">versées à la bourse ({fin.butin} pièces rapportées{echec ? `, ${fin.perdu} perdues en bas` : ""})</span></p>
-          {fin.plafonne && <p className="muted petit">Le donjon infini a versé ses {DONJON.modes.infini.plafondPOJour} PO du jour : le reste du butin ne va pas à la bourse. L'expérience, elle, est acquise.</p>}
+          <p><span className="dj-butin">+{fin.po} PO</span> <span className="muted">versées à la bourse ({fin.butin} pièces rapportées{fin.perdu > 0 ? `, ${fin.perdu} perdues en bas` : ""}{fin.mode === "infini" ? `, ${DONJON.modes.infini.entree} PO d'entrée` : ""})</span></p>
           {fin.record && <p className="avis">Nouveau record du donjon infini : {fin.stats.gardiens} gardien{fin.stats.gardiens > 1 ? "s" : ""} vaincu{fin.stats.gardiens > 1 ? "s" : ""}.</p>}
           <table className="dj-tableau"><tbody>
             <tr><td>Étage atteint</td><td>{fin.mode === "infini" ? fin.etage : `${fin.etage} / ${MODES.jour.etages}`}</td></tr>
@@ -949,8 +1051,9 @@ export default function Donjon({ jeu }) {
                     Équipe {debout} / {partie.equipe.length}{partie.reliques.length + (partie.artefact ? 1 : 0) > 0 ? ` · ${partie.reliques.length + (partie.artefact ? 1 : 0)} relique${partie.reliques.length + (partie.artefact ? 1 : 0) > 1 ? "s" : ""}` : ""}
                   </button>
                 )}
-                {/* On peut toujours sortir : même revenu d'un rechargement, même chez un gardien. */}
-                {partie.plan.pos && <BoutonRemonter sac={partie.sac} onRemonter={() => terminer("sortie")} className="btn quiet sm" />}
+                {/* On peut toujours sortir : même revenu d'un rechargement, même chez un
+                    gardien. Sauf au donjon infini : on y descend jusqu'à la chute. */}
+                {partie.plan.pos && partie.mode !== "infini" && <BoutonRemonter sac={partie.sac} onRemonter={() => terminer("sortie")} className="btn quiet sm" />}
               </div>
             )}
             <div className="dj-plan-zone" onClick={() => setBulle(null)}>
@@ -1018,7 +1121,7 @@ export default function Donjon({ jeu }) {
       const etiquette = u.boss ? "Gardien · Balayage" : R ? `${R.nom} · ${COMPETENCES[techDe(u)].nom}${u.etoiles?.tech ? " ★" : ""}` : `${u.elite ? "Élite · " : ""}${TRAITS[u.role].nom}`;
       return (
         <div key={u.uid} data-uid={u.uid}
-          className={`dj-u${u.uid === C.actif ? " actif" : ""}${u.ko ? " ko" : ""}${etatsDe(u)}${ciblable ? ` ciblable${u.camp === "a" ? " allie" : ""}` : ""}${u.boss ? " boss" : ""}`}
+          className={`dj-u${u.uid === C.actif ? " actif" : ""}${koAffiche(u) ? " ko" : ""}${etatsDe(u)}${ciblable ? ` ciblable${u.camp === "a" ? " allie" : ""}` : ""}${u.boss ? " boss" : ""}`}
           {...(doigt ? {} : { onMouseEnter: () => setInspecte(u.uid), onMouseLeave: () => setInspecte((x) => (x === u.uid ? null : x)) })}
           {...(ciblable ? { role: "button", tabIndex: 0, "aria-label": `Cibler ${u.nomAffiche || u.c.nom}`,
             onClick: () => cibler(u), onKeyDown: (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); cibler(u); } } }
@@ -1088,7 +1191,7 @@ export default function Donjon({ jeu }) {
                 {[1, 2, 4].map((v) => <button key={v} type="button" className={vitesse === v ? "on" : ""} aria-pressed={vitesse === v} onClick={() => setVitesse(v)}>×{v}</button>)}
               </span>
               <button type="button" className="dj-lex-bouton" onClick={() => setLexique("")}><Icone nom="lexique" taille={16} /> Lexique</button>
-              {C.genre !== "boss" && (
+              {C.genre !== "boss" && partie.mode !== "infini" && (
                 <button className="btn quiet sm" type="button" onClick={seReplier} disabled={occupe || !!C.fini || !peutFuir(partie, C)}
                   title="Deux cinquièmes du sac perdus, chacun blessé, et le compagnon le plus mal en point reste derrière : absent jusqu'à demain.">
                   Fuir
@@ -1131,6 +1234,7 @@ export default function Donjon({ jeu }) {
 
   if (ecran === "sortie" || (ecran === "resultat" && resultat)) {
     const dernier = partie.etage >= etagesDe(partie);
+    const infini = partie.mode === "infini";
     const R = resultat || { titre: `Étage ${partie.etage} nettoyé`, texte: "Le gardien est tombé." };
     return (
       <div className="dj">
@@ -1145,19 +1249,20 @@ export default function Donjon({ jeu }) {
             {R.relique && <ReliqueTrouvee a={R.relique} partie={partie} cfgImage={cfgImage} fichiers={fichiers} />}
             {ecran === "sortie" && (
               <p>{dernier ? "C'était le dernier étage. Il ne reste qu'à remonter."
+                : infini ? "Au donjon infini, on ne remonte pas : l'équipe descend jusqu'à tomber, et le sac entier revient à la surface avec elle. Les tombés se relèvent à peine avant de descendre ; les autres gardent leurs blessures."
                 : "Remonter maintenant, c'est tout garder. Descendre, c'est des adversaires plus durs et des bourses plus lourdes — mais si l'équipe tombe, il ne restera qu'un quart du sac. Les tombés se relèvent à peine avant de descendre ; les autres gardent leurs blessures."}</p>
             )}
             <MiniEquipe partie={partie} />
             <div className="actions gauche dj-actions-bas">
               {ecran === "sortie" ? (
                 <>
-                  <button className="btn" type="button" onClick={() => terminer("sortie")}>Remonter avec {pieces(partie.sac)}</button>
-                  {!dernier && <button className="btn quiet" type="button" onClick={() => { descendre(partie, POOLS); setSurvol(null); setResultat(null); aller("carte"); }}>Descendre à l'étage {partie.etage + 1}</button>}
+                  {!infini && <button className="btn" type="button" onClick={() => terminer("sortie")}>Remonter avec {pieces(partie.sac)}</button>}
+                  {!dernier && <button className={infini ? "btn" : "btn quiet"} type="button" onClick={() => { descendre(partie, POOLS); setSurvol(null); setResultat(null); aller("carte"); }}>Descendre à l'étage {partie.etage + 1}</button>}
                 </>
               ) : (
                 <>
                   <button className="btn" type="button" onClick={() => aller("carte")}>Retour à la carte</button>
-                  <BoutonRemonter sac={partie.sac} onRemonter={() => terminer("sortie")} />
+                  {!infini && <BoutonRemonter sac={partie.sac} onRemonter={() => terminer("sortie")} />}
                 </>
               )}
             </div>
@@ -1265,9 +1370,11 @@ function Regles() {
         <li><b>L'initiative</b> : chaque carte et chaque adversaire a la sienne. La frise du combat donne l'ordre du tour.</li>
         <li><b>À votre tour</b> : un geste — attaquer, ou la capacité du rôle — puis sa cible. Les capacités se rechargent en quelques tours.</li>
         <li><b>Combat automatique</b> : une stratégie, et l'équipe joue seule. Repassez en Manuel à tout moment.</li>
+        <li><b>Donjon du jour</b> : la composition de l'équipe (quatre rôles) et la source de pouvoir sont imposées, tirées chaque jour parmi vos cartes disponibles.</li>
         <li><b>Gardien</b> : vaincu, il donne une relique, et le choix de remonter avec tout ou de descendre. On peut aussi remonter après n'importe quelle salle.</li>
         <li><b>Fuir</b> : deux cinquièmes du sac tombent, chacun est blessé, et le compagnon le plus mal en point reste derrière pour couvrir la retraite — il quitte l'expédition et reste au repos jusqu'au lendemain. On ne fuit pas un gardien, ni seul.</li>
-        <li><b>Défaite</b> : il ne reste qu'un quart du sac, et les compagnons restent au repos un jour par étage atteint (un jour au donjon infini).</li>
+        <li><b>Défaite</b> : il ne reste qu'un quart du sac, et les compagnons restent au repos un jour par étage atteint.</li>
+        <li><b>Donjon infini</b> : {DONJON.modes.infini.entree} PO l'entrée. On n'y fuit pas et on n'en remonte pas : l'équipe descend jusqu'à tomber, rapporte tout le sac, et reste au repos un jour.</li>
         <li><b>Soins</b> : le repos avant chaque gardien rend 30 % des PV et relève les tombés ; les autres repos sont rares. Entre deux étages, seuls les tombés se relèvent.</li>
         <li><b>Fiches</b> : survolez ou touchez une carte en combat pour lire son rôle, sa capacité et son état.</li>
       </ul>
