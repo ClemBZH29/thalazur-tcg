@@ -154,7 +154,7 @@ Les PNJ rivaux ont les mêmes rôles et s'en servent contre l'équipe.
 
 Une collection jeune n'a que des communes, et quatre communes tombaient une
 fois sur deux dès l'étage 1 : le pire accueil possible. Tant que le joueur a
-ouvert moins de `DONJON.apprentissage.jusqua` boosters (30), la descente est
+joué moins de `DONJON.apprentissage.jusqua` descentes (5), la descente est
 adoucie : adversaires à 75 % de leurs PV et de leur ATQ, butin à 40 %. Les
 deux remontent en ligne droite jusqu'au jeu normal (`apprentissage` dans
 `regles.js`). Le facteur est figé à la descente, et l'expérience des cartes
@@ -162,12 +162,22 @@ n'est pas réduite : c'est le moment où une commune s'irise le plus vite.
 
 | Collection de 8 cartes | Trois gardiens | PO créditées | XP par carte |
 |---|---:|---:|---:|
-| 0 booster (apprentissage) | 66 % | 57 | 76 |
-| 30 boosters (normal) | 29 % | 73 | 42 |
+| 0 descente (apprentissage) | 66 % | 57 | 76 |
+| 5 descentes (normal) | 29 % | 73 | 42 |
 
 Le butin reste sous le jeu normal malgré des descentes deux fois plus souvent
 menées au bout : on apprend, on ne s'enrichit pas. L'écran de préparation
-le dit, avec le nombre de boosters restant ; l'en-tête de la descente aussi.
+le dit, avec le nombre de descentes restant ; l'en-tête de la descente aussi.
+
+**Compté en descentes, plus en boosters (07/10/2026).** Indexé sur les
+boosters ouverts, l'apprentissage s'effaçait avant même la première descente :
+le premier bêta-testeur en avait ouvert quarante dans sa première heure, gavé
+par les succès, et a découvert le Donjon au niveau normal — défaite à l'étage 2
+de l'infini, 100 PO d'entrée pour 18 rapportées, quatre cartes au repos.
+Désormais chaque descente jouée, victoire ou chute, compte
+(`stats.descentes`, `descentesJouees`), et le jeu normal arrive à la
+cinquième. Une partie antérieure au compteur part de ses remontées : qui n'a
+jamais remonté rejoue l'apprentissage.
 
 ### Au téléphone
 

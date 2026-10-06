@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import extension from "../src/extensions/troupe-valeran/extension.js";
 import {
   RANGS, RENCONTRES, cartesDonjon, choixAuto, choixIA, ciblesPossibles, convalescences, creerPartie, demarrerCombat,
-  descendre, entrer, fuir, gainsXP, genererEtage, monstre, peutFuir, apprentissage, brume, BRUME_TOUR, atqDe, allie,
+  descendre, entrer, fuir, gainsXP, genererEtage, monstre, peutFuir, apprentissage, descentesJouees, brume, BRUME_TOUR, atqDe, allie,
   graineDuJour, issue, ouverts, parUid, prochain, rapporte, repos, resoudre, roleDe, tirage, tresor, trouverRelique, victoire,
 } from "../src/donjon/regles.js";
 
@@ -213,13 +213,19 @@ describe("rôles et états", () => {
 });
 
 describe("apprentissage", () => {
-  const cfg = { jusqua: 30, difficulte: 0.75, gain: 0.5 };
+  const cfg = { jusqua: 4, difficulte: 0.75, gain: 0.5 };
   test("adouci au départ, normal au bout, en ligne droite", () => {
-    expect(apprentissage(0, cfg)).toMatchObject({ difficulte: 0.75, gain: 0.5, restant: 30 });
-    expect(apprentissage(15, cfg)).toMatchObject({ difficulte: 0.88, gain: 0.75, restant: 15 });
-    expect(apprentissage(30, cfg)).toMatchObject({ difficulte: 1, gain: 1, restant: 0 });
+    expect(apprentissage(0, cfg)).toMatchObject({ difficulte: 0.75, gain: 0.5, restant: 4 });
+    expect(apprentissage(2, cfg)).toMatchObject({ difficulte: 0.88, gain: 0.75, restant: 2 });
+    expect(apprentissage(4, cfg)).toMatchObject({ difficulte: 1, gain: 1, restant: 0 });
     expect(apprentissage(500, cfg).difficulte).toBe(1);
     expect(apprentissage(0, null).difficulte).toBe(1);
+  });
+  test("il se compte en descentes, et une partie ancienne part de ses remontées", () => {
+    expect(descentesJouees({ descentes: 3, remontees: 9 })).toBe(3);
+    expect(descentesJouees({ remontees: 8 })).toBe(8);
+    expect(descentesJouees({ gardiens: 2 })).toBe(0);
+    expect(descentesJouees(undefined)).toBe(0);
   });
   test("il affaiblit les adversaires et réduit le butin de la descente", () => {
     const c = POOLS.monstres.find((x) => x.tier === "rare");
