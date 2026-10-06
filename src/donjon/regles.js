@@ -814,7 +814,8 @@ function frapper(partie, att, cible, mult, r, perce = false, C = null) {
     cible.marque = Math.max(cible.marque || 0, 2); cible.marqueVal = Math.max(cible.marqueVal || 0, ma.marque);
     signaler(partie, C, att.camp, "marque", { uid: att.uid, cible: cible.uid });
   }
-  return { reel, crit, renvoi, draine };
+  // `amorti` : ce que l'armure a arrêté (le son de la maille, voir src/son/).
+  return { reel, crit, renvoi, draine, amorti: Math.min(armure, Math.max(0, Math.round(d) - 1)) };
 }
 
 /** Les compétences qui frappent une cible : multiplicateur, et l'armure qu'elles ignorent. */
@@ -842,9 +843,10 @@ export function resoudre(partie, C, u, geste, cible, r) {
   const enFace = vivants(u.camp === "a" ? C.ennemis : partie.equipe);
   let renvoiTotal = 0;
   const coup = (x, mult, perce = false, cls = "") => {
-    const { reel, crit, renvoi, voile, draine } = frapper(partie, u, x, mult, r, perce, C);
+    const { reel, crit, renvoi, voile, draine, amorti } = frapper(partie, u, x, mult, r, perce, C);
     renvoiTotal += renvoi || 0;
-    effets.push({ uid: x.uid, txt: voile ? "Esquive" : `−${reel}`, cls: crit ? "crit" : cls, anim: voile ? undefined : "touche" });
+    effets.push({ uid: x.uid, txt: voile ? "Esquive" : `−${reel}`, cls: crit ? "crit" : cls, anim: voile ? undefined : "touche",
+      ...(voile ? {} : { degats: reel, amorti: amorti || 0, par: u.camp }) });
     if (renvoi) effets.push({ uid: u.uid, txt: `−${renvoi}`, anim: "touche" });
     if (draine) effets.push({ uid: u.uid, txt: `+${draine}`, cls: "soin" });
     return { reel, crit, renvoi, voile };

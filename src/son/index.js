@@ -79,3 +79,33 @@ export function temoinEffets() { arme = true; return sur(() => m()?.jouer("donjo
 export const forceDe = (degats) => (degats <= 2 ? "legere" : degats <= 4 ? "moyenne" : "lourde");
 /** La couche de rareté d'un palier de carte. */
 export const rareteDe = (tier) => (tier === "legendaire" ? "legendaire" : tier === "rare" ? "rare" : "commune");
+
+/**
+ * La famille sonore d'un artéfact, d'après la mécanique de son premier
+ * effet (voir pouvoirs.js) : offensif, protecteur, soin ou utilitaire.
+ */
+const FAMILLES = {
+  offensif: ["atq", "crit", "execution", "chasseur", "ouverture", "saignement", "marque", "epines", "vengeance", "tempo"],
+  protecteur: ["pv", "armure", "rempartDebut", "esquive", "gardien", "dernierRempart"],
+  soin: ["soin", "drain", "regen", "finCombat", "releve"],
+};
+export function familleArtefact(effets = []) {
+  const mec = effets[0]?.mec;
+  return Object.keys(FAMILLES).find((f) => FAMILLES[f].includes(mec)) || "utilitaire";
+}
+
+/**
+ * Le milieu d'un lieu, pour sa nappe : lu dans son type (troisième repère)
+ * et son nom. Ce que les données ne disent pas reste « neutre ».
+ */
+export function milieuDe(lieu) {
+  if (!lieu) return "neutre";
+  const s = (x) => String(x || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+  const type = s(lieu.rep3), nom = s(lieu.nom);
+  if (/mine|grotte|caverne|gouffre|prison|cachot|souterrain|crypte/.test(nom)) return "souterrain";
+  if (/port|plage|lac|riviere|fleuve|mer\b|cote|rivage|quai|anse/.test(nom) || type.includes("cotier")) return "cote";
+  if (/desert|steppe|dune|sable/.test(nom)) return "desert";
+  if (/foret|bois|marais|jungle|sylve|bosquet/.test(nom)) return "foret";
+  if (/capitale|palais|temple|village|verne|militaire|service|cite|ville/.test(type)) return "cite";
+  return "neutre";
+}
