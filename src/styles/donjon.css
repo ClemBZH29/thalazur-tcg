@@ -517,3 +517,143 @@
 @media (max-width: 860px) and (max-height: 500px) {
   .dj-actions-bas { bottom: calc(46px + env(safe-area-inset-bottom)); }
 }
+
+/* ══ Lisibilité (06/10/2026) : des données, pas des phrases ══════════════
+   Voir claude/audit-lisibilite-donjon.md (projet) et la maquette. */
+
+/* Pastilles et stats à icône */
+.dj-puces { display: flex; flex-wrap: wrap; gap: 5px; }
+.dj-puce { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; line-height: 1; padding: 4px 9px;
+  border-radius: 100px; background: var(--panel2); border: 1px solid var(--edge); color: var(--ink2); white-space: nowrap; }
+.dj-puce.or { color: var(--lamp); border-color: rgba(232, 163, 61, .4); }
+.dj-stat { display: inline-flex; align-items: center; gap: 3px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.dj-stat .icone { opacity: .8; }
+.dj-stat.s-pv .icone { color: #6fbea4; }
+.dj-stat.s-atq .icone { color: var(--ember); }
+.dj-stat.s-ini .icone { color: var(--lamp); }
+
+/* Modes : un titre, un état, des pastilles */
+.dj-prep .dj-mode { gap: 8px; }
+.dj-mode-tete { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.dj-mode-tete .dj-mode-etat { font-size: 12px; }
+.dj-mode.on .dj-mode-tete .dj-mode-etat { color: var(--ink2); }
+.dj-mode.ferme > .dj-mode-tete b { opacity: .45; }
+.dj-bandeau { font-size: 12.5px; color: var(--ink2); margin: 0 0 8px; padding: 6px 12px; border-radius: 8px;
+  background: var(--panel); border: 1px solid var(--edge); width: fit-content; max-width: 100%; }
+.dj-bandeau b { color: var(--lamp); font-weight: 600; }
+
+/* Rangées : icône du rôle, quota, et la base commune lue une fois */
+.dj-rangee-tete h3 { display: inline-flex; align-items: center; gap: 7px; }
+.dj-rangee-icone { color: var(--ember); }
+.dj-rangee.r-lieu .dj-rangee-icone { color: var(--lamp); }
+.dj-quota { font: 600 11.5px/1 var(--font-ui); padding: 3px 8px; border-radius: 100px;
+  background: rgba(232, 163, 61, .14); color: var(--lamp); font-variant-numeric: tabular-nums; }
+.dj-quota.ok { background: rgba(95, 168, 148, .18); color: #8fd6bf; }
+.dj-rangee-aide { display: inline-flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.dj-stats-base { display: inline-flex; gap: 9px; color: var(--ink2); }
+.dj-prep .dj-rangee-piste { grid-auto-columns: 116px; gap: 10px; }
+@media (max-width: 720px) { .dj-prep .dj-rangee-piste { grid-auto-columns: 100px; gap: 8px; } }
+.dj-prep .dj-rangee.r-lieu .dj-rangee-piste { grid-auto-columns: 150px; }
+.dj-prep .dj-choix-pied { grid-template-rows: 18px 3px; }
+.dj-ecarts { display: inline-flex; gap: 7px; font-size: 11px; color: var(--ink); }
+.dj-repos .icone { vertical-align: -2px; }
+
+/* La barre d'équipe, collée en bas de l'écran */
+.dj-barre-equipe { position: sticky; bottom: 0; z-index: 30; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  margin: 18px -12px 0; padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+  background: linear-gradient(to bottom, rgba(26, 39, 44, .92), var(--panel) 40%); border-top: 1px solid var(--edge-hi);
+  border-radius: 12px 12px 0 0; box-shadow: 0 -10px 30px rgba(0, 0, 0, .45); backdrop-filter: blur(4px); }
+.dj-emplacements { display: flex; gap: 7px; }
+.dj-emp { width: 48px; aspect-ratio: 2 / 3; border-radius: 6px; border: 1.5px dashed var(--edge-hi); display: grid; place-items: center;
+  color: var(--ink4); background: rgba(13, 20, 23, .5); padding: 0; overflow: hidden; }
+.dj-emp.plein { border: 0; cursor: pointer; background: none; }
+.dj-emp.plein .dj-carte { width: 48px; pointer-events: none; }
+.dj-emp.plein:hover { outline: 2px solid var(--ember); outline-offset: 1px; }
+.dj-barre-source { display: inline-flex; align-items: center; gap: 7px; padding: 5px 10px; border-radius: 9px; min-width: 0;
+  background: rgba(232, 163, 61, .08); border: 1px solid rgba(232, 163, 61, .35); color: var(--lamp); font-size: 12px; }
+.dj-barre-source > span { display: flex; flex-direction: column; min-width: 0; line-height: 1.25; }
+.dj-barre-source b { font-weight: 600; white-space: nowrap; }
+.dj-barre-source small { color: var(--ink2); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 220px; }
+.dj-barre-source.vide { border-style: dashed; background: none; color: var(--ink4); }
+.dj-descendre { margin-left: auto; min-width: 140px; }
+@media (max-width: 720px), (max-width: 860px) and (max-height: 500px) {
+  /* Au téléphone, au-dessus du bouton du menu. */
+  .dj-barre-equipe { bottom: calc(72px + env(safe-area-inset-bottom)); gap: 8px; margin: 14px -16px 0; padding: 8px 12px; border-radius: 12px; }
+  .dj-emp, .dj-emp.plein .dj-carte { width: 40px; }
+  .dj-barre-source { order: 3; flex: 1 1 100%; }
+  .dj-descendre { min-width: 0; flex: 1; }
+}
+
+/* En-tête : icônes, et le bandeau qui remplace les écrans sans décision */
+.dj-entete .pastille { display: inline-flex; align-items: center; gap: 5px; }
+.dj-toast { position: absolute; left: 50%; top: 58px; z-index: 20; transform: translateX(-50%); margin: 0;
+  display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; padding: 6px 15px; border-radius: 100px;
+  background: var(--panel); border: 1px solid var(--lamp); color: var(--ink2); font-size: 13px;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, .5); pointer-events: none; animation: dj-toast 2.8s ease-out both; }
+.dj-toast b { color: var(--lamp); }
+.dj-toast .icone { color: var(--lamp); }
+@keyframes dj-toast { 0% { opacity: 0; transform: translate(-50%, -8px); } 10%, 80% { opacity: 1; transform: translate(-50%, 0); } 100% { opacity: 0; } }
+[data-mouvement="reduit"] .dj-toast { animation: dj-toast-fixe 2.8s linear both; }
+@keyframes dj-toast-fixe { 0%, 85% { opacity: 1; } 100% { opacity: 0; } }
+
+/* Combat : gestes en icône et chiffre, pilotage sur une ligne */
+.dj-a-vous { display: inline-block; margin-left: 4px; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 100px;
+  background: rgba(232, 163, 61, .14); color: var(--lamp); vertical-align: 1px; }
+.dj-milieu { height: 84px; }
+.dj-consigne > :first-child { min-height: 1.5em; }
+.dj-journal { height: 34px; }
+.dj-geste { min-width: 0; display: inline-flex; align-items: center; gap: 7px; padding: 9px 13px; }
+.dj-geste b { display: inline; font-size: 13.5px; }
+.dj-geste .icone { color: var(--ember); flex: 0 0 auto; }
+.dj-geste.on .icone { color: var(--lamp); }
+.dj-geste:disabled .icone { color: var(--ink3); }
+.dj-geste-n { display: inline-block !important; font: 600 13px var(--font-ui); color: var(--ink) !important; padding-left: 7px;
+  border-left: 1px solid var(--edge-hi); font-variant-numeric: tabular-nums; }
+.dj-pilote { flex-wrap: nowrap; justify-content: flex-start; gap: 8px; }
+.dj-pilote-fin { margin-left: auto; display: inline-flex; gap: 8px; }
+.dj-rond { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 12px; border-radius: 100px;
+  border: 1px solid var(--edge-hi); background: var(--panel); color: var(--ink2); font: 600 12.5px var(--font-ui); cursor: pointer; white-space: nowrap; }
+.dj-rond:hover:not(:disabled) { border-color: var(--lamp); color: var(--ink); }
+.dj-rond:disabled { opacity: .4; cursor: not-allowed; }
+.dj-rond.on { border-color: var(--lamp); color: var(--lamp); background: rgba(232, 163, 61, .1); }
+.dj-strategie { height: 34px; border-radius: 100px; padding: 0 12px; border: 1px solid var(--edge-hi); background: var(--panel);
+  color: var(--ink2); font: 500 12.5px var(--font-ui); min-width: 0; max-width: 170px; }
+@media (max-width: 720px), (max-width: 860px) and (max-height: 500px) {
+  .dj-milieu { height: auto; }
+  .dj-consigne { height: auto; min-height: 0; }
+  .dj-journal { height: 17px; }
+  .dj-journal div:nth-child(2) { display: none; }
+  .dj-geste { flex: 1 1 44%; justify-content: center; }
+  .dj-pilote { gap: 6px; }
+  .dj-rond { padding: 0 10px; }
+  .dj-pilote { flex-wrap: wrap; }
+  .dj-strategie { flex: 1 1 112px; max-width: none; padding: 0 8px; }
+  .dj-pilote-fin { margin-left: 0; }
+  /* Allégé, le combat tient avec son pilotage dans l'écran : le cœur ne
+     s'étire plus sur toute la hauteur, ce qui laissait deux bandes vides. */
+  .dj-coeur { min-height: 0; justify-content: flex-start; gap: 6px; }
+  /* Le bouton du menu flotte en bas à droite : l'arène lui laisse sa place. */
+  .dj-arene.telephone { padding-bottom: 76px; }
+}
+
+/* Fin de descente : chiffres clés et portraits */
+.dj-fin { max-width: 760px; }
+.dj-fin-ambiance { margin: 0 0 6px; }
+.dj-fin-gain { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.dj-chiffres-fin { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 14px 0; }
+.dj-chiffres-fin div { display: grid; justify-items: center; gap: 2px; padding: 9px 4px; border-radius: 10px; background: var(--ground2); }
+.dj-chiffres-fin .icone { color: var(--ink4); }
+.dj-chiffres-fin b { font: 600 20px/1.1 var(--font-display); color: var(--ink); }
+.dj-chiffres-fin span { font-size: 11px; color: var(--ink4); }
+.dj-portraits { list-style: none; margin: 0 0 14px; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 12px; }
+.dj-portraits li { display: grid; gap: 4px; justify-items: start; font-size: 11.5px; color: var(--ink2); }
+.dj-portraits .dj-carte { width: 100%; }
+.dj-portraits li.tombe .dj-carte { filter: grayscale(1) brightness(.55); transform: rotate(-3deg) translateY(3px); }
+.dj-portraits li.lieu .dj-carte { outline: 1.5px solid rgba(232, 163, 61, .55); outline-offset: 2px; border-radius: 6px; }
+.dj-portraits .dj-xp { width: 100%; height: 4px; }
+.dj-portrait-l { display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; }
+.dj-portrait-l .icone { color: var(--lamp); }
+.dj-portrait-l b { color: var(--lamp); font-weight: 600; margin-left: 3px; }
+.dj-portrait-l.repos, .dj-portrait-l.repos .icone { color: var(--ember); }
+.dj-portrait-l.gain { color: var(--m-rainbow); font-weight: 600; }
+@media (max-width: 560px) { .dj-chiffres-fin { grid-template-columns: repeat(2, minmax(0, 1fr)); } .dj-portraits { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; } }

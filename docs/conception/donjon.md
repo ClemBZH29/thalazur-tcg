@@ -227,6 +227,36 @@ repos ne peut pas redescendre avant la date affichée sur sa vignette
 ramassée en chemin n'est pas au joueur, elle n'est pas comptée. Le mode test
 affiche la convalescence sans l'appliquer.
 
+### La lisibilité (06/10/2026)
+
+L'interface écrivait ce qu'elle devait montrer : 753 mots et trois écrans de
+haut pour préparer une descente. Audit et maquette dans le projet
+(`claude/audit-lisibilite-donjon.md`) ; les icônes viennent de Claude Design
+(24 tracés ajoutés à `Icone.jsx` : neuf rôles, ressources, commandes).
+
+- **Préparation** : les modes en pastilles chiffrées (le détail est au
+  survol et dans « Comment ça marche », ouvert d'office à la première
+  descente) ; une rangée par rôle avec son icône, son quota et ses stats de
+  base lues une fois ; sous chaque carte, le niveau, l'étoile et seulement
+  les stats qui s'écartent de la base. Une **barre d'équipe** collée en bas
+  porte les quatre emplacements (marqués du rôle attendu au donjon du
+  jour ; toucher une carte posée la retire), la source et le bouton de
+  départ. Au donjon du jour, la source imposée n'est plus une section : elle
+  est dans la barre. 753 → ~320 mots (surtout des noms de cartes).
+- **Entre les salles** : pas d'écran sans décision. Une victoire ordinaire
+  sans relique, un trésor sans relique et un repos reviennent à la carte
+  avec un bandeau (« Victoire · +11 PO »). Restent à l'écran : relique
+  gagnée, rencontre, sortie d'étage, fin. Le butin se lit en **PO** pendant
+  toute la descente (`poDuButin`), les pièces au survol.
+- **Combat** : plus de consigne écrite ; la carte active, le liseré des
+  cibles et une pastille « à vous » suffisent. Les gestes sont une icône, un
+  nom et un chiffre (la description au survol). Le pilotage tient sur une
+  ligne : Auto (qui revient à la dernière stratégie), la stratégie en
+  liste, la vitesse en un bouton qui tourne, le lexique, Fuir.
+- **Fin** : quatre chiffres clés, puis l'équipe et la source en portraits,
+  avec l'expérience en jauge, la chute (carte grisée et inclinée) et le
+  repos en icône ; les reliques en pastilles.
+
 ## L'expérience des cartes
 
 Pour ne pas toujours emmener ses légendaires : chaque carte qui descend
