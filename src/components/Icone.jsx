@@ -285,6 +285,13 @@ const TRACES = {
       <path d="M8 11.5h9.5M15 9l2.5 2.5L15 14" />
     </>
   ),
+  // Une horloge : le temps avant la prochaine carte du jour (Reliquaire).
+  horloge: (
+    <>
+      <circle cx="10" cy="10" r="7.5" />
+      <path d="M10 6v4.2l2.8 1.8" />
+    </>
+  ),
   // Un point d'interrogation cerclé : la règle détaillée, au survol.
   aide: (
     <>

@@ -146,6 +146,43 @@ l'écran hors règles. La refonte de la mise en page et de l'animation de forge
 est confiée à Claude Design (`brief-reliquaire-design.md`) ; ses effets seront
 en code et remplaceront les planches de `public/reliquaire/`.
 
+**La scène (07/10/2026, maquette Claude Design).** La page n'est plus un
+bandeau et un étal : la crypte est la scène, plein cadre sous la navigation,
+sans défilement ni pied de page (`PLEIN`, `src/App.jsx`). La carte repose sur
+l'autel du décor, le gardien se tient à sa gauche (au téléphone, coupé par
+l'autel), le panneau de décision est à droite (au téléphone, dessous), avec des
+places réservées pour que rien ne bouge à l'arrivée du verdict. « Comment ça
+marche » est une bulle ouverte par le « ? ».
+
+| Fichier | Rôle |
+|---|---|
+| `src/reliquaire/scene.js` | Mise en page (`disposer`) et chronologie (`chronologie`, `evenements`), pures et testées |
+| `src/reliquaire/forge.js` | L'image à l'instant t : carte, lueur, voile, éclats, particules, braises, anneaux, étincelles, compteur, verdict |
+| `src/reliquaire/sons.js` | Les sons, synthétisés comme ceux de l'ouverture (`lib/audio.js`), au volume « effets » du profil |
+| `src/styles/reliquaire.css` | L'apparence ; les positions viennent de `disposer` |
+
+**La forge à l'aveugle**, en ms depuis le second toucher (lueur et
+retournement : `tele` et `flip` de `tiers.js`) : paiement 0–400 (dix éclats
+de vestige vers le dos de la carte, compteur qui décompte) ; éveil (lueur du
+palier, scène assombrie de `ombre`) ; retournement (face à 20 %, particules) ;
+fissure du cadre (520 ms, 700 pour une grande carte) puis éclat, et pour une
+légendaire ou une rainbow deux anneaux et 26 braises ; compte du prix réel
+(f₀ + 150, 550 ms) puis écart (f₀ + 700, 450 ms). Fin : 2 130 ms pour une
+commune, 3 705 pour une légendaire. Retourner : éveil et retournement
+seulement. Forger après avoir retourné : paiement, fissure, éclat. Un toucher
+sur la scène pose l'état final (seul le son final joue) ; en « moins
+d'animations », rien ne joue. Le geste est enregistré dans le jeu au premier
+instant : fermer la page pendant la séquence ne perd rien.
+
+Les planches d'effet générées (`forge`, `forge-legendaire`, `dissolution`) sont
+retirées de `public/reliquaire/` : les effets sont dans le code (charte, § 5).
+
+**Reste à produire (Sora, images fixes)** : la crypte à l'autel vide en 3:2
+(2 400 × 1 600 au moins, autel vers 55 % de la largeur, bord avant du plateau
+à 73 % de la hauteur, tiers droit calme), le plateau d'autel détouré (2:1),
+le gardien à mi-corps détouré (4:5, tourné vers l'autel). Le décor actuel
+(`bandeau.webp`) sert en attendant : la carte masque son coffret.
+
 **Les vestiges ont un second usage** depuis le 01/10/2026 : la fiche de combat
 des cartes (rangs d'ATQ et d'INI, changement de geste ou de technique), dans
 le volet « Combat » de la carte agrandie. Voir `donjon.md`, « La fiche de
