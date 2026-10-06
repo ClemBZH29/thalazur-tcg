@@ -39,8 +39,8 @@ const multEvenement = (S) => {
 
 /** `briserFilon`, en espérance sur l'événement plutôt qu'en tirage. */
 function briser(S) {
-  S.etoile += S.pvMax * 0.24 * K.multRecolte(S) * multEvenement(S);
-  S.etoileTotale += S.pvMax * 0.24 * K.multRecolte(S) * multEvenement(S);
+  S.etoile += S.pvMax * K.RECOLTE * K.multRecolte(S) * multEvenement(S);
+  S.etoileTotale += S.pvMax * K.RECOLTE * K.multRecolte(S) * multEvenement(S);
   S.brises[S.profondeur] = (S.brises[S.profondeur] || 0) + 1;
   S.brisesTotal++;
   S.xp += Math.round(5 * Math.pow(S.profondeur, 1.25));
@@ -105,7 +105,7 @@ function simuler({ jours, minutesActives, clicsParMinute = 150, effondrer = true
     /* Absence : le module crédite en étoile directe, à 35 % du rendement et
        plafonnée à huit heures. Ni expérience ni descente. */
     const absence = Math.min(8 * 3600, inactives);
-    const hors = K.dps(S) * absence * 0.35 * 0.24 * K.multRecolte(S);
+    const hors = K.dps(S) * absence * 0.35 * K.RECOLTE * K.multRecolte(S);
     if (hors > 0) { S.etoile += hors; S.etoileTotale += hors; }
 
     /* Chantier, puis compagnons du plus gros au plus petit. */

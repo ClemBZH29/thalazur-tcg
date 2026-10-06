@@ -1,5 +1,5 @@
 import { SCHEMA, migrer } from "../lib/sauvegarde/schema.js";
-import { eclatsMerites } from "./regles.js";
+import { eclatsMerites, PENTE_VERSION } from "./regles.js";
 
 /**
  * Mines de Kazim — la partie sauvegardée.
@@ -23,6 +23,7 @@ export function etatNeuf() {
     poRun: 0, resonance: 0, poJour: 0, jourT: Date.now(),
     cours: 1, coursT: 0,
     dernierTick: Date.now(),
+    pente: PENTE_VERSION,
   };
 }
 
@@ -48,6 +49,23 @@ export function relireMine(brut) {
      JSON en `null`, reprend sa valeur par défaut, et ne donne droit à rien. */
   if (!Number.isFinite(n.etoileTotale)) n.etoileTotale = 0;
   n.eclats = Math.min(Number.isFinite(n.eclats) ? n.eclats : 0, eclatsMerites(n));
+  /* La pente des strates a changé le 07/10/2026 (voir `regles.js`). Une
+     partie creusée sous l'ancienne pente garde son équipe, ses achats, ses
+     éclats et ses talents, mais remonte à la galerie d'entrée : à la strate 25
+     de l'ancienne règle, un filon de la nouvelle pèserait dix puissances de
+     plus que tout ce que l'équipe peut frapper, et le cours, indexé sur la
+     profondeur, ne paierait plus rien. L'équipe redescend d'elle-même jusqu'où
+     elle tient. Même raisonnement que pour les éclats : c'est un invariant, le
+     sens du champ ne change pas, `SCHEMA` ne bouge pas. */
+  if (d.pente !== PENTE_VERSION) {
+    n.profondeur = 1;
+    n.profondeurMax = 1;
+    n.brises = {};
+    n.pv = 0;
+    n.pvMax = 0;
+    n.filonRang = 0;
+    n.pente = PENTE_VERSION;
+  }
   n.schema = SCHEMA;
   return n;
 }

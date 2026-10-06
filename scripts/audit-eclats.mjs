@@ -27,7 +27,7 @@ const multEvenement = (S) => {
 };
 
 function briser(S) {
-  const r = S.pvMax * 0.24 * K.multRecolte(S) * multEvenement(S);
+  const r = S.pvMax * K.RECOLTE * K.multRecolte(S) * multEvenement(S);
   S.etoile += r;
   S.etoileTotale += r;
   S.brises[S.profondeur] = (S.brises[S.profondeur] || 0) + 1;
