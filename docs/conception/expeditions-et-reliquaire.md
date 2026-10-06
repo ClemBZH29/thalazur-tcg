@@ -84,7 +84,8 @@ choisissait sa carte manquante parmi toutes. Il ne reste qu'une carte :
   puis elle est irisée au taux du booster (3 %).
 - **Prix relevés** de deux fois et demie : 50, 100, 250, 1 000 vestiges ; une
   version irisée coûte cinq fois plus. On peut la forger même si on la possède
-  (elle s'ajoute aux exemplaires) : la dissoudre ne rend qu'un dixième.
+  (elle s'ajoute aux exemplaires) : la dissoudre ne rend qu'un dixième. Face
+  cachée, elle se forge au prix moyen (voir plus bas).
 - **Une forge par jour et par extension** (`reliquaire.achats`).
 - **La dissolution a quitté la page** : elle se fait depuis la bibliothèque, dans
   le volet Reliquaire de la carte agrandie (voir `bibliotheque.md`), au même
@@ -101,6 +102,30 @@ pour les doublons, plus un raccourci vers la fin de la collection.
 
 Le Reliquaire travaille sur l'extension courante de la boutique.
 
+**Face cachée, depuis le 06/10/2026.** La carte du jour se présente de dos.
+Deux gestes, chacun confirmé d'un second toucher :
+
+- **Forger à l'aveugle**, au prix moyen de la carte du jour : l'espérance de
+  son prix (60 % de communes à 50, 34,2 % de peu communes à 100, 4,8 % de
+  rares à 250, 1 % de légendaires à 1 000, rainbow ×5 trois fois sur cent),
+  soit 96,9, relevée au multiple de 5 supérieur : **100 vestiges**
+  (`prixAveugle`, réglage `RELIQUAIRE.aveugle`). Perdant sur une commune, juste
+  sur une peu commune, gagnant au-delà. La carte se retourne ensuite au tempo de
+  sa rareté et la page dit ce qu'elle valait.
+- **Retourner la carte** : gratuit, montre la carte et son vrai prix, mais
+  renonce au prix moyen pour la journée (`reliquaire.reveles`). Elle se forge
+  alors à son prix, ou pas du tout.
+
+Pourquoi ce n'est pas un faux choix : à prix moyen égal à l'espérance, un joueur
+qui forgerait de toute façon paie en moyenne la même chose dans les deux cas.
+Ce que le pari achète, c'est **l'accès** : avec 193 vestiges, une légendaire
+retournée à 1 000 est hors de portée, la même forgée à l'aveugle coûte 100. Le
+joueur riche est indifférent ; le joueur modeste tente sa chance ; et retourner
+la carte pour voir, c'est perdre ce billet. Tant qu'elle est cachée, la page ne
+dit rien d'elle : ni nom, ni palier, ni exemplaires détenus, ni loupe (la face
+n'est pas montée). La carte reste calculable par qui lit le code : le site n'a
+pas de serveur, l'enjeu ne justifie pas d'en ajouter un.
+
 **Les vestiges ont un second usage** depuis le 01/10/2026 : la fiche de combat
 des cartes (rangs d'ATQ et d'INI, changement de geste ou de technique), dans
 le volet « Combat » de la carte agrandie. Voir `donjon.md`, « La fiche de
@@ -115,9 +140,10 @@ Deux champs nouveaux dans `etatVide()`, sans changement de `SCHEMA` :
 
 - `expeditions` : `{ routes, orJour, seq }`. Une **valeur** pour la fusion entre
   appareils : l'appareil qui l'a changée depuis la base l'emporte ;
-- `reliquaire` : `{ vestiges, achats, ouvert }`. Les vestiges sont un
+- `reliquaire` : `{ vestiges, achats, reveles, ouvert }`. Les vestiges sont un
   **compteur** (`fusionnerReliquaire`, `src/lib/nuage/fusion.js`) ; pour chaque
-  extension, le jour de la dernière forge garde le plus récent des deux côtés.
+  extension, le jour de la dernière forge et celui du dernier retournement
+  gardent le plus récent des deux côtés.
   L'ancien `derniereForgeL` des sauvegardes est ignoré.
 
 Limite connue : une même route accueillie sur deux appareils avant qu'ils se

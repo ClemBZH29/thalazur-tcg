@@ -1,7 +1,7 @@
 /** Fusion à trois voies de deux copies d'une partie (src/lib/nuage/fusion.js). */
 import { test } from "vitest";
 import assert from "node:assert/strict";
-import { fusionner3, fusionnerMine, signature } from "../src/lib/nuage/fusion.js";
+import { fusionner3, fusionnerMine, fusionnerReliquaire, signature } from "../src/lib/nuage/fusion.js";
 import { ECONOMIE } from "../src/config/tiers.js";
 
 const P = ECONOMIE.parHeure;
@@ -98,3 +98,12 @@ test("une clé __proto__ venue de l'extérieur ne touche pas au prototype", () =
   assert.equal(Object.getPrototypeOf(f.collections), Object.prototype);
 });
 
+
+test("Reliquaire : la carte retournée sur un appareil l'est aussi sur l'autre", () => {
+  const base = { vestiges: 100, achats: {}, reveles: {} };
+  const ici = { vestiges: 100, achats: {}, reveles: { x: "2026-10-06" } };
+  const la = { vestiges: 130, achats: {}, reveles: { x: "2026-10-05", y: "2026-10-06" } };
+  const f = fusionnerReliquaire(base, ici, la);
+  assert.deepEqual(f.reveles, { x: "2026-10-06", y: "2026-10-06" });
+  assert.equal(f.vestiges, 130);
+});
