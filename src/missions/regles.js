@@ -13,7 +13,8 @@
  * `depart` est la valeur du compteur quand la mission a été confiée : la
  * progression est l'écart, et rien de ce qui précède ne compte.
  */
-import { QUOTIDIENNES, RECOMPENSE_SEMAINE, REMPLACEMENTS, TYPES } from "../config/missions.js";
+import { QUOTIDIENNES, RECOMPENSE_SEMAINE, REMPLACEMENTS, RYTHME, TYPES } from "../config/missions.js";
+import { SLOTS } from "../config/tiers.js";
 import { crediterGain } from "../lib/economie.js";
 import { descentesJouees } from "../lib/compteurs.js";
 
@@ -66,11 +67,33 @@ export function mesuresMissions(etat) {
   };
 }
 
+/** Cartes d'un palier qu'un booster tire, en moyenne (somme des emplacements). */
+const PAR_BOOSTER = SLOTS.reduce((m, slot) => {
+  for (const [t, p] of Object.entries(slot)) m[t] = (m[t] || 0) + p;
+  return m;
+}, {});
+
+/**
+ * Cartes nouvelles qu'un booster de cette extension apporte, en espérance :
+ * pour chaque palier, les cartes qu'il en tire multipliées par la part qui
+ * manque. Les garanties de légendaire et les full art sont négligées.
+ */
+export function nouvellesParBooster(collection = {}, roster = []) {
+  const total = {}, manque = {};
+  for (const c of roster) {
+    total[c.tier] = (total[c.tier] || 0) + 1;
+    if (!((collection[c.id]?.normale || 0) > 0)) manque[c.tier] = (manque[c.tier] || 0) + 1;
+  }
+  return Object.entries(PAR_BOOSTER)
+    .reduce((s, [t, n]) => s + (total[t] ? (n * (manque[t] || 0)) / total[t] : 0), 0);
+}
+
 /**
  * Ce que le joueur a sous la main, pour ne confier que des missions
- * possibles. `totalRoster` : nombre de cartes des extensions ouvertes.
+ * possibles. `extensions` : les extensions ouvertes, `{ id, roster }` avec
+ * le palier de chaque carte.
  */
-export function contexte(etat, totalRoster = 0) {
+export function contexte(etat, extensions = []) {
   let surplus = 0, pnj = 0, lieux = 0, possedees = 0;
   for (const coll of Object.values(etat.collections || {})) {
     for (const e of Object.values(coll || {})) {
@@ -82,15 +105,20 @@ export function contexte(etat, totalRoster = 0) {
       }
     }
   }
+  const totalRoster = extensions.reduce((n, e) => n + (e.roster?.length || 0), 0);
   return {
     surplus, pnj, lieux,
     manquantes: Math.max(0, totalRoster - possedees),
+    // L'extension la plus généreuse : le joueur choisit ce qu'il ouvre.
+    nouvellesParBooster: extensions.reduce(
+      (m, e) => Math.max(m, nouvellesParBooster((etat.collections || {})[e.id], e.roster)), 0),
     descentes: descentesJouees(etat.stats || {}),
     reliquaire: !!etat.reliquaire?.ouvert,
   };
 }
 
-const possible = (t, ctx) => !t.dispo || t.dispo(ctx);
+/** La mission `t` est-elle faisable sur la période (« jour » ou « semaine ») ? */
+const possible = (t, ctx, periode) => !t.dispo || t.dispo(ctx, { n: t[periode].n, boosters: RYTHME[periode] });
 
 /* ── Le tirage ───────────────────────────────────────────────────────────── */
 
@@ -122,7 +150,7 @@ const melanger = (liste, r) => {
  */
 export function tirerQuotidiennes(graine, ctx, mesures, combien = QUOTIDIENNES, exclus = [], modesPris = []) {
   const r = alea(graine);
-  const ordre = melanger(TYPES.filter((t) => t.jour && possible(t, ctx) && !exclus.includes(t.id)), r);
+  const ordre = melanger(TYPES.filter((t) => t.jour && possible(t, ctx, "jour") && !exclus.includes(t.id)), r);
   const choix = [];
   const modes = new Set(modesPris);
   const prendre = (t) => {
@@ -139,7 +167,7 @@ export function tirerQuotidiennes(graine, ctx, mesures, combien = QUOTIDIENNES, 
 /** La mission de la semaine, parmi celles que le joueur peut remplir. */
 export function tirerHebdo(graine, ctx, mesures) {
   const r = alea(graine);
-  const t = melanger(TYPES.filter((t) => t.semaine && possible(t, ctx)), r)[0];
+  const t = melanger(TYPES.filter((t) => t.semaine && possible(t, ctx, "semaine")), r)[0];
   return t ? { type: t.id, n: t.semaine.n, depart: mesures[t.mesure] || 0, reclamee: false } : null;
 }
 

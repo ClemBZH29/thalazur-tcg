@@ -4,10 +4,10 @@ import {
   contexte, echeances, evaluerMissions, mesuresMissions, mettreAJour, reclamerMission, remplacerMission,
 } from "../missions/regles.js";
 
-/** Cartes des extensions ouvertes : de quoi savoir s'il en manque encore. */
-const TOTAL_ROSTER = CATALOGUE.extensions.reduce((n, e) => n + e.roster.length, 0);
+/** Les extensions ouvertes et leurs cartes : de quoi savoir ce qui manque encore. */
+const EXTENSIONS = CATALOGUE.extensions.map((e) => ({ id: e.id, roster: e.roster }));
 
-const autour = (e) => ({ mesures: mesuresMissions(e), ctx: contexte(e, TOTAL_ROSTER) });
+const autour = (e) => ({ mesures: mesuresMissions(e), ctx: contexte(e, EXTENSIONS) });
 
 /**
  * Les missions de Bodégué, vues de l'application. Le tirage se fait au

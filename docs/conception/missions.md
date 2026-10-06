@@ -46,8 +46,13 @@ graine du jour suivie du numéro de remplacement.
 
 **On ne confie que le possible.** Chaque type déclare `dispo` : pas de vente
 au Comptoir sans dix doublons, pas de Donjon sans quatre PNJ, pas de
-Reliquaire avant son ouverture, pas de « cartes nouvelles » quand il en
-manque moins de quinze. Un débutant qui n'a pas trois modes ouverts reçoit
+Reliquaire avant son ouverture. Les « cartes nouvelles » se jugent en
+espérance : ce qu'un booster apporte de cartes nouvelles (pour chaque
+palier, les cartes qu'il en tire multipliées par la part qui manque,
+`nouvellesParBooster`), fois les boosters que le gain passif ouvre sur la
+période (3 par jour, 21 par semaine, `RYTHME`), doit couvrir la cible. Vers
+85 % de complétion, il ne manque presque plus que des rares et des
+légendaires : la mission sort du tirage au lieu de devenir un hasard. Un débutant qui n'a pas trois modes ouverts reçoit
 quand même trois missions, la troisième dans un mode déjà pris.
 
 **Rien de gagné ne se perd.** Au changement de jour ou de semaine, une
@@ -67,7 +72,7 @@ quelques dizaines de PO.
 | Mission du jour | Cible | Récompense | Possible si |
 |---|---:|---:|---|
 | Ouvrir des boosters | 2 | 30 PO | toujours |
-| Ajouter des cartes nouvelles | 2 | 40 PO | au moins 15 cartes manquantes |
+| Ajouter des cartes nouvelles | 2 | 40 PO | un booster en apporte au moins 0,67 en espérance (jusque vers 80 % de complétion) |
 | Vendre au Comptoir | 5 | 40 PO | au moins 10 doublons |
 | Rapporter des PO des Mines | 60 | 40 PO | toujours |
 | Descendre au Donjon | 1 | 40 PO | au moins 4 PNJ |
@@ -91,6 +96,10 @@ remplacent pas.
 L'illustration vient de Clément (`Base Image/missions/bodegue-source.png`),
 détourée pour le site (`public/missions/bodegue.webp`, 512 px de haut comme
 les autres découpes). Ses répliques (`src/missions/voix.js`) sont
-**provisoires**, à réécrire dans la langue de la campagne. La page actuelle
+**provisoires**, à réécrire dans la langue de la campagne : l'accueil, la
+journée finie, le remplacement, et **une réplique de complétion par type de
+mission** (deux le plus souvent, tirées au jour), qui prend la bulle dès
+qu'une mission est remplie ; la mission de la semaine a les siennes. Un test
+vérifie qu'aucun type n'en manque. La page actuelle
 est une mise en page de travail ; la maquette est demandée à Claude Design
 (`brief-missions-design.md`).

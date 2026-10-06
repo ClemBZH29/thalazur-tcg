@@ -1,11 +1,21 @@
 /** Les missions de Bodégué : tirage, progression, réclamation, remplacement. */
 import { describe, expect, test } from "vitest";
 import {
-  contexte, evaluerMissions, mesuresMissions, mettreAJour, reclamerMission, remplacerMission,
+  contexte, evaluerMissions, nouvellesParBooster, mesuresMissions, mettreAJour, reclamerMission, remplacerMission,
   semaineLocale, tirerQuotidiennes, TYPE_PAR_ID,
 } from "../src/missions/regles.js";
 import { QUOTIDIENNES, RECOMPENSE_SEMAINE, REMPLACEMENTS, TYPES } from "../src/config/missions.js";
 import { etatVide } from "../src/lib/storage.js";
+import { replique, VOIX } from "../src/missions/voix.js";
+
+/** Un roster à la forme de La Troupe : 110 communes, 66 peu communes, 33 rares, 11 légendaires. */
+const ROSTER = [["commun", 110], ["peucommun", 66], ["rare", 33], ["legendaire", 11]]
+  .flatMap(([tier, n]) => Array.from({ length: n }, (_, i) => ({ id: `${tier}-${i}`, tier })));
+const EXTS = [{ id: "troupe", roster: ROSTER }];
+/** Une collection qui possède les `n` premières cartes de chaque palier, dans l'ordre. */
+const possede = (parPalier) => Object.fromEntries(ROSTER
+  .filter((c) => Number(c.id.split("-")[1]) < (parPalier[c.tier] || 0))
+  .map((c) => [c.id, { normale: 1, rainbow: 0, carte: { type: "pnj" } }]));
 
 /** Un joueur qui a tout ouvert : quelques PNJ, un Lieu, des doublons, le Reliquaire. */
 function joueur(champs = {}) {
@@ -21,8 +31,7 @@ function joueur(champs = {}) {
     ...champs,
   };
 }
-const TOTAL = 220;
-const autour = (e) => ({ mesures: mesuresMissions(e), ctx: contexte(e, TOTAL) });
+const autour = (e) => ({ mesures: mesuresMissions(e), ctx: contexte(e, EXTS) });
 const lundi = new Date(2026, 9, 5, 10, 0);    // lundi 05/10/2026, 10 h
 const mardi = new Date(2026, 9, 6, 10, 0);
 
@@ -70,8 +79,44 @@ describe("tirage", () => {
       expect(t.jour.n).toBeGreaterThan(0);
       expect(t.jour.po).toBeGreaterThan(0);
     }
-    const q = tirerQuotidiennes("x", contexte(joueur(), TOTAL), mesuresMissions(joueur()));
+    const q = tirerQuotidiennes("x", contexte(joueur(), EXTS), mesuresMissions(joueur()));
     expect(q.every((m) => m.depart >= 0)).toBe(true);
+  });
+});
+
+describe("cartes nouvelles", () => {
+  test("ce qu'un booster apporte baisse avec la collection", () => {
+    const vide = nouvellesParBooster({}, ROSTER);
+    expect(vide).toBeCloseTo(5, 1);
+    const moitie = nouvellesParBooster(possede({ commun: 55, peucommun: 33, rare: 5, legendaire: 2 }), ROSTER);
+    expect(moitie).toBeLessThan(vide);
+    expect(nouvellesParBooster(possede({ commun: 110, peucommun: 66, rare: 33, legendaire: 11 }), ROSTER)).toBe(0);
+  });
+
+  test("la mission disparaît quand la collection est presque complète", () => {
+    const presque = { ...etatVide(), boosters: { troupe: 200 },
+      collections: { troupe: possede({ commun: 108, peucommun: 63, rare: 22, legendaire: 6 }) } };
+    for (let j = 1; j <= 28; j++) {
+      const e = mettreAJour(presque, { ...autour(presque), maintenant: new Date(2026, 9, j, 9) });
+      expect(e.missions.quotidiennes.map((m) => m.type)).not.toContain("nouvelles");
+      expect(e.missions.hebdo?.type).not.toBe("nouvelles");
+    }
+  });
+
+  test("elle reste au milieu de la collection", () => {
+    const milieu = { ...etatVide(), collections: { troupe: possede({ commun: 70, peucommun: 30, rare: 4, legendaire: 1 }) } };
+    expect(contexte(milieu, EXTS).nouvellesParBooster * 3).toBeGreaterThanOrEqual(2);
+  });
+});
+
+describe("répliques", () => {
+  test("chaque type de mission a sa réplique de complétion", () => {
+    for (const t of TYPES) {
+      expect(VOIX.faite[t.id]?.length, t.id).toBeGreaterThan(0);
+      expect(replique({ type: t.id }, "2026-10-07")).toBeTruthy();
+    }
+    expect(VOIX.semaine).toContain(replique({ type: "ventes", semaine: true }, "2026-10-07"));
+    expect(VOIX.accueil).toContain(replique("accueil", "2026-10-07"));
   });
 });
 

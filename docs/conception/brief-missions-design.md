@@ -106,7 +106,7 @@ peut être juste sous le pli si elle s'annonce.
 |---|---|---|
 | E1 | Nouvelles missions | Trois billets à 0, la semaine à 4 / 15, réplique d'accueil, remplacement disponible. |
 | E2 | En cours | « 3 / 5 », « 40 / 60 », « 0 / 1 » ; une jauge par billet, sans pourcentage écrit. |
-| E3 | Une mission prête | Le billet s'allume (lampe), bouton « Réclamer » ; réplique « C'est fait ? Venez chercher votre dû. » ; pastille dans la navigation. |
+| E3 | Une mission prête | Le billet s'allume (lampe), bouton « Réclamer » ; la bulle prend la réplique du type de mission (« Les kobolds ont payé ? Comptez deux fois, on ne sait jamais. ») ; pastille dans la navigation. |
 | E4 | Réclamer | L'animation du § 7.1. |
 | E5 | Journée finie | Trois billets scellés, réplique « Rien d'autre pour aujourd'hui. Revenez demain, j'aurai trouvé. », « Nouvelles missions : 7 h 22 ». **L'état qu'on voit le plus souvent** : la page doit y rester belle et calme. |
 | E6 | Remplacer | Le geste, sa confirmation légère (second toucher, comme au Reliquaire), l'animation du § 7.2 ; ensuite le geste est éteint pour la journée, et cela se lit. |
@@ -195,7 +195,12 @@ Répliques de Bodégué (provisoires, `src/missions/voix.js`) :
 - accueil : « Trois petites choses aujourd'hui. Rien d'héroïque, mais
   faites-les bien. » · « J'ai noté ce qu'il faudrait faire. Le reste, je vous
   le laisse. »
-- une mission prête : « C'est fait ? Venez chercher votre dû. »
+- une mission prête : une réplique **par type de mission**, par exemple
+  « Lise m'a dit que vous étiez passé. Elle avait l'air contente. » (ventes),
+  « Les kobolds ont payé ? Comptez deux fois, on ne sait jamais. » (Mines),
+  « Deux gardiens de moins. Les couloirs seront plus calmes cette nuit. »
+  (gardiens), « Toute une semaine de travail. Voilà de quoi ouvrir quelque
+  chose de neuf. » (semaine) ; la liste complète est dans `voix.js`
 - tout fait : « Rien d'autre pour aujourd'hui. Revenez demain, j'aurai
   trouvé. »
 - après un remplacement : « Celle-là ne vous plaisait pas ? Soit. Essayez

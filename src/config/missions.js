@@ -26,6 +26,14 @@
 export const QUOTIDIENNES = 3;
 export const REMPLACEMENTS = 1;
 
+/**
+ * Boosters qu'on peut ouvrir sur la période au seul gain passif (trois par
+ * jour). Sert à juger si une mission de collection reste faisable : ce qu'un
+ * booster apporte de cartes nouvelles baisse à mesure que la collection se
+ * remplit.
+ */
+export const RYTHME = { jour: 3, semaine: 21 };
+
 export const TYPES = [
   {
     id: "boosters", mode: "boutique", mesure: "boosters",
@@ -36,7 +44,11 @@ export const TYPES = [
     id: "nouvelles", mode: "boutique", mesure: "possedees",
     quoi: "Ajouter {n} carte{s} nouvelle{s} à votre collection",
     jour: { n: 2, po: 40 }, semaine: { n: 12 },
-    dispo: (c) => c.manquantes >= 15,
+    // Faisable tant que les boosters de la période en apportent assez, en
+    // espérance : vers 85 % de complétion, il manque surtout des rares et des
+    // légendaires, et deux cartes nouvelles par jour deviennent un hasard.
+    // Le type disparaît alors du tirage (07/10/2026).
+    dispo: (c, { n, boosters }) => c.nouvellesParBooster * boosters >= n,
   },
   {
     id: "ventes", mode: "comptoir", mesure: "ventes",

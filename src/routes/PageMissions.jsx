@@ -65,10 +65,12 @@ function Mission({ m, index, peutRemplacer, onReclamer, onRemplacer }) {
 
 export default function PageMissions() {
   const { missions, etat } = useJeu();
-  const { quotidiennes, hebdo, aReclamer, remplacements, echeances, reclamer, remplacer } = missions;
+  const { quotidiennes, hebdo, remplacements, echeances, reclamer, remplacer } = missions;
   const jour = etat.missions?.jour || "";
   const toutes = [...quotidiennes, ...(hebdo ? [hebdo] : [])];
-  const humeur = aReclamer > 0 ? "pret"
+  // Une mission remplie parle d'elle-même : la réplique de son type.
+  const prete = toutes.find((m) => m.atteinte && !m.reclamee);
+  const humeur = prete ? prete
     : quotidiennes.length && quotidiennes.every((m) => m.reclamee) ? "fini"
     : (etat.missions?.remplacees || 0) > 0 && toutes.every((m) => !m.atteinte) ? "remplacee"
     : "accueil";
