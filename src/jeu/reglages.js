@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { TAUX_DEFAUT } from "../config/tiers.js";
 import { CFG_IMAGE_DEFAUT } from "../lib/images.js";
 import { useAudio } from "../lib/audio.js";
+import { lireSon } from "../config/son.js";
+import { regler as reglerSonDonjon } from "../son/index.js";
 
 /** Un motif enregistré avant le rangement par extension (`{num}.jpg`) masquerait
  *  le nouveau : on l'écarte, le meneur garde son point focal. */
@@ -29,7 +31,10 @@ export const TEST_DEFAUT = {
 /** Les préférences du joueur et les leviers du meneur, lus dans l'état sauvegardé. */
 export function useReglages(etat, setEtat) {
   const reglages = etat.reglages || {};
-  const son = reglages.son !== false;
+  // Le réglage du son (schéma 9) : `son`, le booléen « le son joue », sert
+  // encore aux sons de l'ouverture (lib/audio.js) ; le Donjon lit le réglage entier.
+  const reglageSon = lireSon(reglages.son);
+  const son = !reglageSon.coupe;
   /**
    * Animations : « pleines » (défaut), « systeme » ou « reduites ».
    *
@@ -85,6 +90,8 @@ export function useReglages(etat, setEtat) {
   const sonRef = useRef(son);
   useEffect(() => { sonRef.current = son; }, [son]);
   const sfx = useAudio(sonRef);
+  // Le moteur du Donjon suit le réglage tout de suite, ou à la création de son contexte.
+  useEffect(() => { reglerSonDonjon(reglageSon); }, [reglageSon.coupe, reglageSon.musique, reglageSon.effets]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const majReglages = useCallback(
     (patch) => setEtat((e) => ({ ...e, reglages: { ...e.reglages, ...patch } })),
@@ -93,7 +100,7 @@ export function useReglages(etat, setEtat) {
 
 
   return {
-    reglages, son, animations, reventeAuto, MJ, taux, cfgImage, test, gratuit,
+    reglages, son, reglageSon, animations, reventeAuto, MJ, taux, cfgImage, test, gratuit,
     sobreSysteme, mouvementReduit, sfx, majReglages,
   };
 }

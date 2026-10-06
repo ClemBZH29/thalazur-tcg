@@ -17,6 +17,7 @@ import { Etoile } from "../components/VoletCombat.jsx";
 import { NIVEAU_MAX, PALIER_IRISEE, avancement, xpDe } from "./experience.js";
 import "../styles/donjon.css";
 import "../styles/donjon-animations.css";
+import * as Son from "../son/index.js";
 import { creerAnimationsDonjon } from "./animations.js";
 
 /**
@@ -200,7 +201,7 @@ function BoutonRemonter({ po, onRemonter, className = "btn quiet" }) {
     return () => clearTimeout(id);
   }, [arme]);
   return (
-    <button type="button" className={`${className}${arme ? " dj-arme" : ""}`} onClick={() => (arme ? onRemonter() : setArme(true))}>
+    <button type="button" className={`${className}${arme ? " dj-arme" : ""}`} onClick={() => (arme ? onRemonter() : (Son.jouer("donjon.carte.confirmer"), setArme(true)))}>
       {arme ? `Confirmer : remonter · ${po} PO` : `Remonter · ${po} PO`}
     </button>
   );
@@ -494,12 +495,19 @@ export default function Donjon({ jeu }) {
     const n = entrer(p, id);
     if (!n) return;
     const r = rnd.current;
-    if (n.genre === "combat" || n.genre === "elite" || n.genre === "boss") return lancerCombat(n.genre);
+    Son.jouer("donjon.carte.choisir");
+    if (n.genre === "combat" || n.genre === "elite" || n.genre === "boss") {
+      Son.jouer(n.genre === "boss" ? "donjon.carte.gardien" : "donjon.carte.combat");
+      return lancerCombat(n.genre);
+    }
+    Son.jouer("donjon.carte.reveler");
     // Pas d'écran sans décision : un trésor sans relique et un repos se
     // lisent en bandeau sur la carte ; une relique gagnée a son écran.
     if (n.genre === "tresor" || n.genre === "repos") {
       const R = n.genre === "tresor" ? tresor(p, r, POOLS.artefacts) : repos(p);
+      if (n.genre === "repos") Son.jouer("donjon.rencontre.repos");
       if (!R.relique) {
+        sonPieces(R.po);
         setBandeau({ cle: Date.now(), titre: R.titre, po: poGagne(p, R.po), texte: n.genre === "repos" ? "L'équipe panse ses plaies" : null });
         return aller("carte");
       }
@@ -507,6 +515,8 @@ export default function Donjon({ jeu }) {
     } else {
       p.rencontre = { id: RENCONTRES[Math.floor(r() * RENCONTRES.length)].id, graine: nouvelleGraine() };
       setRencontre(monterRencontre(p));
+      // Autel et voyageur blessé ont leur son ; les autres rencontres, le parchemin.
+      Son.jouer({ autel: "donjon.rencontre.autel", blesse: "donjon.rencontre.recrue" }[p.rencontre.id] || "donjon.rencontre.autre");
       return aller("rencontre");
     }
     aller("resultat");
@@ -526,6 +536,10 @@ export default function Donjon({ jeu }) {
     // La première salve a pu en abattre : debout à l'écran jusqu'à ce qu'elle les touche.
     koVu.current.clear();
     for (const x of CC.ennemis) if (x.ko) koVu.current.set(x.uid, false);
+    cdVu.current = new Map(p.equipe.map((u) => [u.uid, u.cd || 0]));
+    differer(() => Son.jouer("donjon.combat.debut"), 350);
+    // Un PNJ d'une faction rivale parmi les adversaires : la tension des cordes.
+    if (CC.ennemis.some((x) => x.c?.type === "pnj")) differer(() => Son.jouer("donjon.rencontre.rival"), 700);
     setJournal([
       ...CC.ouverture.map((o) => o.note).reverse(),
       ...(CC.relique ? [`Ils portent ${CC.relique.nom} : battez-les pour la prendre.`] : []),
@@ -538,7 +552,9 @@ export default function Donjon({ jeu }) {
       // La première salve s'affiche, puis le premier tour ; elle peut avoir tout fini.
       // La source s'annonce au premier tour ; la première salve part.
       animRef.current.animerSource?.(p.source ? { ...p.source, pouvoir: sourceDe(p.source.c).nom } : null, CC);
+      if (p.source) Son.jouer("donjon.lieu.pose", { rarete: Son.rareteDe(p.source.c.tier), rainbow: !!p.source.etoile });
       if (CC.relique) animRef.current.animerRelique?.(CC.relique, { moment: "porte", porteurs: CC.ennemis.filter((x) => !x.ko) });
+      if (CC.relique) Son.jouer("donjon.artefact.eveil", { rarete: Son.rareteDe(CC.relique.tier), camp: "adverse" });
       animerPouvoirs(CC.ouverture.map((o) => o.pouvoir));
       if (CC.ouverture.length) {
         requestAnimationFrame(() => montrer(CC.ouverture.flatMap((o) => o.effets)));
@@ -566,6 +582,7 @@ export default function Donjon({ jeu }) {
 
   const terminer = (iss) => {
     const p = partieRef.current;
+    if (iss === "sortie") Son.jouer("donjon.carte.remonter");
     const butin = rapporte(p, iss);
     const complete = p.mode !== "infini" && iss === "sortie" && p.etage >= etagesDe(p) && p.stats.gardiens >= etagesDe(p);
     const repos = convalescences(p, iss);
@@ -603,6 +620,57 @@ export default function Donjon({ jeu }) {
     });
   }
   useEffect(() => () => animRef.current?.nettoyer(), []);
+
+  // Le contexte audio ne naît qu'au premier geste dans le Donjon ; en quittant
+  // la page, tout se tait.
+  useEffect(() => {
+    const geste = () => Son.activer();
+    document.addEventListener("pointerdown", geste, true);
+    document.addEventListener("keydown", geste, true);
+    return () => {
+      document.removeEventListener("pointerdown", geste, true);
+      document.removeEventListener("keydown", geste, true);
+      Son.arreterTout();
+    };
+  }, []);
+  // La musique suit l'écran : la carte (rencontres et résultats compris), le
+  // combat, le gardien ; rien à la préparation ni au bilan.
+  const genreCombat = C?.genre;
+  useEffect(() => {
+    if (ecran === "combat") Son.musique(genreCombat === "boss" ? "gardien" : "combat", { delai: genreCombat === "boss" ? 1.1 : .3 });
+    else if (["carte", "rencontre", "resultat", "sortie"].includes(ecran)) { Son.musique("carte", { delai: delaiMusique.current }); delaiMusique.current = .6; }
+    else Son.musique(null);
+  }, [ecran, genreCombat]);
+  // La nappe du lieu de la salle où l'on est (neutre avant la première).
+  const salle = partie?.noeud ? partie.plan.noeuds[partie.noeud]?.lieu : null;
+  const dedans = !!partie && ecran !== "preparation" && ecran !== "fin";
+  const milieu = dedans ? Son.milieuDe(salle) : null;
+  useEffect(() => { Son.nappe(milieu); }, [milieu]);
+  useEffect(() => { if (partie?.etage) Son.etage(Math.min(3, partie.etage)); }, [partie?.etage]);
+  useEffect(() => { Son.vitesse(vitesse); }, [vitesse]);
+  // Une relique gagnée (victoire, trésor, rencontre) s'éveille, puis sonne sa famille ; vendue, ce sont des pièces.
+  useEffect(() => {
+    if (!resultat) return;
+    const a = resultat.relique;
+    if (resultat.po > 0) sonPieces(resultat.po);
+    if (!a) return;
+    if (a.vendue) { sonPieces(a.vendue); return; }
+    const id = setTimeout(() => {
+      Son.jouer("donjon.artefact.eveil", { rarete: Son.rareteDe(a.tier) });
+      setTimeout(() => Son.jouer(`donjon.artefact.${Son.familleArtefact(effetsArtefact(a))}`), 450);
+    }, 500);
+    return () => clearTimeout(id);
+  }, [resultat]);
+  // Le bilan : les PO versées, l'expérience qui compte, un niveau, une rainbow.
+  useEffect(() => {
+    if (!fin) return;
+    const t = [];
+    if (fin.po > 0) Son.jouer("donjon.butin.po");
+    if (fin.xp.length) t.push(setTimeout(() => Son.jouer("donjon.xp.compteur"), 900));
+    if (fin.xp.some((l) => l.apres > l.avant)) t.push(setTimeout(() => Son.jouer("donjon.xp.niveau"), 1900));
+    if (fin.xp.some((l) => l.irisee)) t.push(setTimeout(() => Son.jouer("donjon.xp.rainbow"), 2800));
+    return () => t.forEach(clearTimeout);
+  }, [fin]);
   const animerGeste = async (u, g, cible) => {
     if (!arene()) return;
     // Un coup sur un allié voilé traverse la brume : l'esquive remplace le geste.
@@ -618,7 +686,10 @@ export default function Donjon({ jeu }) {
     // précis où l'animation la rejoint, ni avant ni après.
     const poser = (x) => () => { koVu.current.set(x.uid, x.ko); el(x.uid)?.classList.toggle("ko", x.ko); };
     return Promise.all(unites(p, CC).flatMap((x) => {
-      if (x.ko && !avant.has(x.uid)) return [animRef.current.animerEvenement("ko", x, { appliquer: poser(x) })];
+      if (x.ko && !avant.has(x.uid)) {
+        Son.jouer(x.camp === "e" ? "donjon.combat.chute.adverse" : "donjon.combat.chute.allie");
+        return [animRef.current.animerEvenement("ko", x, { appliquer: poser(x) })];
+      }
       if (!x.ko && avant.has(x.uid)) return [animRef.current.animerEvenement("releve", x, { appliquer: poser(x) })];
       return [];
     })).then(liberer, liberer);
@@ -684,14 +755,47 @@ export default function Donjon({ jeu }) {
     }
   };
 
+  /* ── Le son (src/son/) : chaque évènement à l'endroit où il se produit ── */
+  const cdVu = useRef(new Map());     // recharges vues au tour d'avant, pour « capacité prête »
+  const delaiMusique = useRef(.6);    // la musique de la carte revient après la victoire, ou plus tard après un gardien
+  const sonPieces = (n) => { if (n > 0) Son.jouer("donjon.butin.pieces", { densite: n >= 20 ? 3 : 1 }); };
+  const sonEtage = (e) => {
+    const k = Math.min(3, Math.max(1, e));
+    Son.etage(k);
+    Son.jouer("donjon.carte.etage", { tr: -3 * (k - 1), revX: 1 + .4 * (k - 1) });
+  };
+  const survoler = (id) => { if (id && id !== survol) Son.jouer("donjon.carte.survol"); setSurvol(id); };
+  /** Les coups d'une action : frappe (sa force selon les dégâts) sur l'adversaire, l'allié encaisse, l'armure tinte. */
+  const sonCoups = (effets) => {
+    for (const f of effets) {
+      if (f.degats == null) continue;
+      if (f.par === "a") Son.jouer("donjon.combat.frappe", { force: Son.forceDe(f.degats) });
+      else Son.jouer("donjon.combat.encaisser");
+      if (f.amorti > 0) Son.jouer("donjon.combat.armure");
+    }
+  };
+  /** La main passe : la frise avance, une capacité revient, la brume monte après son tour. */
+  const sonTour = (p, CC) => {
+    Son.jouer("donjon.combat.tour");
+    for (const u of p.equipe) {
+      if (!u.ko && (cdVu.current.get(u.uid) || 0) > 0 && (u.cd || 0) === 0) Son.jouer("donjon.capacite.prete");
+      cdVu.current.set(u.uid, u.cd || 0);
+    }
+    const t = CC.brumeTour ?? BRUME_TOUR;
+    if (CC.round > t) Son.brume(BRUME_TOUR + (CC.round - t));
+  };
+
   const executer = useCallback(async (u, g, cible) => {
     const p = partieRef.current, CC = combatRef.current;
     if (!p || !CC || CC.fini) return;
     setOccupe(true); setGeste(null);
+    // La capacité d'un rôle sonne avec son geste (son élan précède l'impact).
+    if (COMPETENCES[g]?.place === "tech" && ROLES[u.role]) Son.jouer(`donjon.capacite.${u.role}`, u.camp === "e" ? { camp: "adverse" } : {});
     await animerGeste(u, g, cible);
     const avant = aTerre();
     const res = resoudre(p, CC, u, g, cible, rngCombat.current);
     setJournal((j) => [res.note, ...j].slice(0, 12));
+    sonCoups(res.effets);
     montrer(res.effets);
     animerPouvoirs(res.pouvoirs);
     if (res.renvoi && cible) await animRef.current.animerEvenement("renvoi", cible, { attaquant: u });
@@ -713,6 +817,7 @@ export default function Donjon({ jeu }) {
   const passerLaMain = async (p, CC) => {
     const avant = aTerre();
     prochain(p, CC);
+    sonTour(p, CC);
     const notes = CC.notes || [];
     if (notes.length) {
       const lignes = notes.map((n) => n.note).filter(Boolean).reverse();
@@ -734,6 +839,8 @@ export default function Donjon({ jeu }) {
     if (fin === "victoire") {
       CC.fini = "victoire";
       p.combat = null;
+      Son.jouer(CC.genre === "boss" ? "donjon.combat.gardien.vaincu" : "donjon.combat.victoire");
+      delaiMusique.current = CC.genre === "boss" ? 2 : .6;
       const avant = aTerre();
       const r = victoire(p, CC, rngCombat.current, POOLS.artefacts);
       animerChutes(avant); // la relève d'après victoire
@@ -745,12 +852,12 @@ export default function Donjon({ jeu }) {
       const sansEcran = CC.genre !== "boss" && !r.relique;
       differer(() => {
         combatRef.current = null;
-        if (sansEcran) { setResultat(null); setBandeau({ cle: Date.now(), titre: "Victoire", po: poGagne(p, r.po) }); aller("carte"); }
+        if (sansEcran) { setResultat(null); setBandeau({ cle: Date.now(), titre: "Victoire", po: poGagne(p, r.po) }); sonPieces(r.po); aller("carte"); }
         else aller(CC.genre === "boss" ? "sortie" : "resultat");
       }, 450 / vitesseRef.current);
       return;
     }
-    if (fin === "defaite") { CC.fini = "defaite"; differer(() => terminer("defaite"), 700); }
+    if (fin === "defaite") { CC.fini = "defaite"; Son.jouer("donjon.combat.defaite"); differer(() => terminer("defaite"), 700); }
   };
 
   // À chaque passage de main : l'adversaire joue seul, le pilote automatique
@@ -784,11 +891,13 @@ export default function Donjon({ jeu }) {
     const def = gestes(p, u).find((x) => x.id === geste);
     if (!def || cible.ko) return;
     if ((def.cible === "e") !== (cible.camp === "e")) return;
+    Son.jouer("donjon.combat.cibler");
     executer(u, geste, cible);
   };
   const seReplier = () => {
     if (occupe || !peutFuir(partieRef.current, combatRef.current)) return;
     combatRef.current.fini = "fuite";
+    Son.jouer("donjon.combat.fuite");
     partieRef.current.combat = null;
     setResultat(fuir(partieRef.current));
     combatRef.current = null;
@@ -912,7 +1021,7 @@ export default function Donjon({ jeu }) {
           <>
             <div className="section-titre sous-titre">
               <h2>Compagnons</h2>
-              <button type="button" className="dj-lex-bouton" onClick={() => setLexique("")}><Icone nom="lexique" taille={16} /> Lexique</button>
+              <button type="button" className="dj-lex-bouton" onClick={() => { Son.jouer("donjon.ui.dialogue"); setLexique(""); }}><Icone nom="lexique" taille={16} /> Lexique</button>
             </div>
             {/* Une rangée par rôle, qui défile à l'horizontale. Ce que partagent
                 toutes ses cartes (passif, compétence, stats de base) est lu une
@@ -1108,7 +1217,7 @@ export default function Donjon({ jeu }) {
             {(doigt || partie.plan.pos) && (
               <div className="dj-barre-carte">
                 {doigt && (
-                  <button type="button" className="dj-lex-bouton" onClick={() => setFeuille(true)}>
+                  <button type="button" className="dj-lex-bouton" onClick={() => { Son.jouer("donjon.ui.dialogue"); setFeuille(true); }}>
                     Équipe {debout} / {partie.equipe.length}{partie.reliques.length + (partie.artefact ? 1 : 0) > 0 ? ` · ${partie.reliques.length + (partie.artefact ? 1 : 0)} relique${partie.reliques.length + (partie.artefact ? 1 : 0) > 1 ? "s" : ""}` : ""}
                   </button>
                 )}
@@ -1118,7 +1227,7 @@ export default function Donjon({ jeu }) {
               </div>
             )}
             <div className="dj-plan-zone" onClick={() => setBulle(null)}>
-              <Plan partie={partie} onEntrer={entrerSalle} onSurvol={setSurvol} doigt={doigt} bulle={bulle} onBulle={setBulle} />
+              <Plan partie={partie} onEntrer={entrerSalle} onSurvol={survoler} doigt={doigt} bulle={bulle} onBulle={setBulle} />
               {doigt && nb && (
                 <div className={`dj-bulle${nb.y / H < 0.28 ? " dessous" : ""}`} role="dialog" aria-label={nb.lieu.nom}
                   style={{ left: `clamp(112px, ${(nb.x / 400) * 100}%, calc(100% - 112px))`, top: `${(nb.y / H) * 100}%` }}
@@ -1255,7 +1364,7 @@ export default function Donjon({ jeu }) {
           <div className="dj-pilote">
             <button type="button" className={`dj-rond dj-auto${strategie !== "manuel" ? " on" : ""}`} aria-pressed={strategie !== "manuel"}
               title={strategie === "manuel" ? "Combat automatique" : "Reprendre la main"}
-              onClick={() => setStrategie((x) => (x === "manuel" ? dernierAuto.current : "manuel"))}>
+              onClick={() => { Son.jouer("donjon.ui.pilote", { tr: strategie !== "manuel" ? -4 : 0 }); setStrategie((x) => (x === "manuel" ? dernierAuto.current : "manuel")); }}>
               <Icone nom="auto" taille={15} /> Auto
             </button>
             <select className="dj-strategie" aria-label="Stratégie du combat automatique" title={STRATEGIES[strategie === "manuel" ? dernierAuto.current : strategie].aide}
@@ -1264,11 +1373,11 @@ export default function Donjon({ jeu }) {
               {Object.entries(STRATEGIES).filter(([k]) => k !== "manuel").map(([k, v]) => <option key={k} value={k}>{v.nom}</option>)}
             </select>
             <button type="button" className="dj-rond dj-vitesse" title="Vitesse" aria-label={`Vitesse ×${vitesse}, changer`}
-              onClick={() => setVitesse((v) => (v === 1 ? 2 : v === 2 ? 4 : 1))}>
+              onClick={() => { const v = vitesse === 1 ? 2 : vitesse === 2 ? 4 : 1; Son.jouer("donjon.ui.vitesse", { densite: [1, 2, 4].indexOf(v) + 1 }); setVitesse(v); }}>
               <Icone nom="vitesse" taille={15} /> ×{vitesse}
             </button>
             <span className="dj-pilote-fin">
-              <button type="button" className="dj-rond" title="Lexique" aria-label="Lexique" onClick={() => setLexique("")}><Icone nom="aide" taille={16} /></button>
+              <button type="button" className="dj-rond" title="Lexique" aria-label="Lexique" onClick={() => { Son.jouer("donjon.ui.dialogue"); setLexique(""); }}><Icone nom="aide" taille={16} /></button>
               {C.genre !== "boss" && partie.mode !== "infini" && (
                 <button className="dj-rond" type="button" onClick={seReplier} disabled={occupe || !!C.fini || !peutFuir(partie, C)}
                   title="Fuir : deux cinquièmes du sac perdus, chacun blessé, et le compagnon le plus mal en point reste derrière jusqu'à demain.">
@@ -1334,7 +1443,7 @@ export default function Donjon({ jeu }) {
               {ecran === "sortie" ? (
                 <>
                   {!infini && <button className="btn" type="button" onClick={() => terminer("sortie")}>Remonter · {poDuButin(partie.sac, partie.mode)} PO</button>}
-                  {!dernier && <button className={infini ? "btn" : "btn quiet"} type="button" onClick={() => { descendre(partie, POOLS); setSurvol(null); setResultat(null); aller("carte"); }}>Descendre à l'étage {partie.etage + 1}</button>}
+                  {!dernier && <button className={infini ? "btn" : "btn quiet"} type="button" onClick={() => { descendre(partie, POOLS); sonEtage(partie.etage); setSurvol(null); setResultat(null); aller("carte"); }}>Descendre à l'étage {partie.etage + 1}</button>}
                 </>
               ) : (
                 <>

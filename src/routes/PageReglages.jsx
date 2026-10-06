@@ -30,7 +30,7 @@ export default function PageReglages() {
       // réglages du meneur sont enregistrés.
       onCfgImage={({ focal, base, motif }) => jeu.majReglages({ image: { focal, base, motif } })}
       onTest={(t) => jeu.majReglages({ test: t })}
-      onSon={(v) => jeu.majReglages({ son: v })}
+      onSon={(v) => jeu.majReglages({ son: { ...jeu.reglageSon, coupe: !v } })}
       onAnimations={(v) => jeu.majReglages({ animations: v })}
       onReventeAuto={(v) => jeu.majReglages({ reventeAuto: v })}
       onImages={(m, n) => {

@@ -29,6 +29,13 @@ export default [
       "no-empty": ["error", { allowEmptyCatch: true }],
     },
   },
+  // La musique du Donjon est la livraison de Claude Design, gardée telle
+  // quelle (voir docs/conception/son.md) : une variable de déstructuration
+  // inutilisée n'y vaut pas une retouche.
+  {
+    files: ["src/son/musique.js"],
+    rules: { "no-unused-vars": "warn" },
+  },
   {
     files: ["scripts/**", "tests/**", "*.config.js"],
     languageOptions: { globals: { ...globals.node } },

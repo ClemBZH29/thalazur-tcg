@@ -1,0 +1,12 @@
+Échantillons de public/son/orchestre/
+
+Source : VSCO 2 Community Edition, Versilian Studios Chamber Orchestra 2
+(enregistrement Sam Gossner et Simon Dalzell ; découpe Elan Hickler / Soundemote)
+Dépôt : https://github.com/sgossner/VSCO-2-CE
+Licence : CC0 1.0 Universal (domaine public), fichier LICENSE du dépôt, vérifié le 06/10/2026.
+
+Sélection : violons et violoncelles (tenu vibrato, spiccato, pizzicato), harpe, piano droit,
+flûte (tenu vibrato), cor en fa (tenu), timbales, caisse claire (Snare2), tenor drum (VSCO 1 Percussion).
+Conversion : outils/convertir-vsco.js — mono, 22 050 Hz, PCM 16 bits, attaque recalée,
+durée écourtée avec fondu de sortie, crête normalisée à -1 dBFS. Nom de fichier = hauteur MIDI.
+Total : 53 fichiers, 4,2 Mo.

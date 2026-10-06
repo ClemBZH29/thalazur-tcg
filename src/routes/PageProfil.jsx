@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import Curseur from "../components/Curseur.jsx";
+import { temoinEffets, temoinMusique } from "../son/index.js";
 import { CLE_SECOURS, compterCartes, useCompte } from "../jeu/Compte.jsx";
 import { useJeu } from "../jeu/Jeu.jsx";
 import { Lien } from "../lib/routeur.jsx";
@@ -309,7 +311,7 @@ function Preferences() {
   const compte = useCompte();
   const consentement = useConsentement();
   const connecte = compte.statut === "connecte";
-  const { animations, sobreSysteme, reventeAuto, son, majReglages } = jeu;
+  const { animations, sobreSysteme, reventeAuto, reglageSon, majReglages } = jeu;
 
   const toutEffacer = () => {
     const quoi = connecte
@@ -358,10 +360,18 @@ function Preferences() {
       <div className="bloc">
         <h3>Son</h3>
         <label className="bascule" style={{ marginTop: 6 }}>
-          <input type="checkbox" checked={son !== false}
-            onChange={(e) => majReglages({ son: e.target.checked })} />
-          <span>Activer les sons du jeu</span>
+          <input type="checkbox" checked={reglageSon.coupe}
+            onChange={(e) => majReglages({ son: { ...reglageSon, coupe: e.target.checked } })} />
+          <span>Couper le son</span>
         </label>
+        {[["musique", "Musique", temoinMusique], ["effets", "Effets", temoinEffets]].map(([cle, libelle, temoin]) => (
+          <div key={cle} className={`reglage-son${reglageSon.coupe ? " coupe" : ""}`}>
+            <label id={`son-${cle}`}>{libelle}</label>
+            <Curseur etiquette={libelle} valeur={reglageSon[cle]} onChange={(v) => majReglages({ son: { ...reglageSon, [cle]: v } })} />
+            <output aria-hidden="true">{reglageSon[cle]} %</output>
+            <button type="button" className="btn quiet sm" onClick={temoin} disabled={reglageSon.coupe}>Écouter</button>
+          </div>
+        ))}
       </div>
 
       <div className="bloc">

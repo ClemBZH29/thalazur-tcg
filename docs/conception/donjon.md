@@ -257,6 +257,10 @@ haut pour préparer une descente. Audit et maquette dans le projet
   avec l'expérience en jauge, la chute (carte grisée et inclinée) et le
   repos en icône ; les reliques en pastilles.
 
+### Le son (06/10/2026)
+
+Bruitages, nappes de lieu et musique orchestrale : voir [son.md](son.md).
+
 ## L'expérience des cartes
 
 Pour ne pas toujours emmener ses légendaires : chaque carte qui descend
