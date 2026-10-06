@@ -1155,14 +1155,21 @@ export function compositionDuJour(jour, allies, lieux = []) {
 }
 
 /**
- * L'apprentissage : un Donjon adouci pour qui commence sa collection. Les
+ * L'apprentissage : un Donjon adouci pour qui découvre le mode. Les
  * adversaires sont affaiblis, le butin aussi, et les deux remontent en ligne
- * droite jusqu'au jeu normal au `jusqua`-ième booster ouvert. `cfg` vient de
- * `DONJON.apprentissage` (src/config/tiers.js).
+ * droite jusqu'au jeu normal à la `jusqua`-ième descente jouée. `cfg` vient
+ * de `DONJON.apprentissage` (src/config/tiers.js).
  */
-export function apprentissage(boosters, cfg) {
+export function apprentissage(descentes, cfg) {
   if (!cfg || !cfg.jusqua) return { difficulte: 1, gain: 1, avance: 1, restant: 0 };
-  const a = Math.max(0, Math.min(1, boosters / cfg.jusqua));
+  const a = Math.max(0, Math.min(1, descentes / cfg.jusqua));
   const lisse = (x0) => Math.round((x0 + (1 - x0) * a) * 100) / 100;
-  return { difficulte: lisse(cfg.difficulte), gain: lisse(cfg.gain), avance: a, restant: Math.max(0, Math.ceil(cfg.jusqua - boosters)) };
+  return { difficulte: lisse(cfg.difficulte), gain: lisse(cfg.gain), avance: a, restant: Math.max(0, Math.ceil(cfg.jusqua - descentes)) };
 }
+
+/**
+ * Les descentes jouées. Le compteur date du 07/10/2026 ; avant lui, seules
+ * les remontées étaient comptées, et c'est d'elles que part une partie plus
+ * ancienne — qui n'a jamais remonté rejoue donc l'apprentissage.
+ */
+export const descentesJouees = (stats = {}) => stats.descentes ?? stats.remontees ?? 0;

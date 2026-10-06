@@ -301,11 +301,11 @@ d'être.
 
 ---
 
-## 9. Les succès rendent un huitième des boosters d'une complétion
+## 9. Les succès rendent un dixième des boosters d'une complétion
 
 Les succès paient en PO et en sachets offerts, une fois par palier. C'est un
-stock et non un flux : le barème entier rend environ 72 boosters par
-extension et 105 en Global. Chiffres de `scripts/audit-succes.mjs`, sur le
+stock et non un flux : le barème entier rend environ 67 boosters par
+extension et 144 en Global. Chiffres de `scripts/audit-succes.mjs`, sur le
 roster de La Troupe, en ouvrant aussi les sachets offerts et sans rien
 acheter au Comptoir :
 
@@ -313,25 +313,20 @@ acheter au Comptoir :
 node scripts/audit-succes.mjs
 ```
 
-| Complétion | Boosters ouverts | dont offerts | Part remboursée |
-| ---: | ---: | ---: | ---: |
-| 25 % | 13,6 | 7,2 | 53 % |
-| 50 % | 33,0 | 14,9 | 45 % |
-| 75 % | 70,0 | 25,7 | 37 % |
-| 90 % | 132,8 | 39,0 | 29 % |
-| 100 % | 575,5 | 74,1 | 13 % |
+| Complétion | Boosters ouverts | dont offerts | Part remboursée | Avant le 07/10 |
+| ---: | ---: | ---: | ---: | ---: |
+| 25 % | 13,6 | 2,5 | 18 % | 53 % |
+| 50 % | 33,0 | 7,3 | 22 % | 45 % |
+| 75 % | 70,0 | 13,7 | 20 % | 37 % |
+| 90 % | 132,8 | 27,5 | 21 % | 29 % |
+| 100 % | 575,5 | 59,3 | 10 % | 13 % |
 
-La boucle — un sachet offert compte vers le palier suivant — reste sous
-contrôle parce que la part remboursée décroît à chaque jalon. Le début est
-généreux : sept sachets dans les quatorze premiers, l'équivalent de deux
-jours de gain passif, parce que les premiers paliers de toutes les familles
-tombent ensemble.
-
-**Le pic de mise en service.** Les succès sont rétroactifs, à réclamer : un
-joueur déjà à 90 % de La Troupe avec cent trente boosters ouverts trouvera
-d'un coup une quarantaine de sachets et quelques centaines de PO en attente.
-C'est ponctuel et assumé ; pour l'adoucir, il suffirait de baisser les
-premiers paliers de `COLLECTION.completion` dans `src/config/succes.js`.
+**Le barème a été refait le 07/10/2026.** Le début remboursait la moitié des
+boosters, et les succès Global — que ce tableau ne joue pas — en ajoutaient
+autant : un bêta-testeur a touché l'équivalent de 33 boosters dans sa
+première heure. La part remboursée tient maintenant autour d'un cinquième
+jusqu'à 90 %. Le raisonnement, et la prochaine étape proposée (missions du
+jour et de la semaine), sont dans `docs/conception/succes-et-classement.md`.
 
 ---
 

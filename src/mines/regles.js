@@ -10,6 +10,34 @@ import { STRATES, COMPAGNONS, EQUIPEMENT, AMELIORATIONS } from "./donnees.js";
 
 export const FILONS_PAR_STRATE = 12;
 
+/* ── La pente des strates (retour bêta, 07/10/2026) ───────────────────────
+   Les points de roche montaient de ×3,2 par strate et un filon rendait 24 %
+   de ce qu'il avait coûté. L'équipe se rembourse donc en une minute au
+   début, sa production double toutes les cinq : un vrai joueur était à la
+   strate 12 en vingt-six minutes, et Clément à la strate 25 en moins d'une
+   semaine. Les huit strates nommées défilaient dans la première heure.
+
+   Deux leviers, mesurés par `scripts/audit-strates.mjs` :
+   - la récolte tombe à 7 % (`RECOLTE`) : l'équipe se rembourse trois fois
+     et demie moins vite, c'est ce qui freine la première heure ;
+   - la pente des strates monte d'elle-même (`echelle`) : ×6 par strate,
+     multiplié de 8 % de plus à chaque strate franchie. Elle borne le
+     milieu et la fin de partie, là où la récolte seule ne joue plus.
+   Même joueur, une heure par jour : strate 7 au premier soir au lieu de 13,
+   13 à une semaine au lieu de 28, 16 à deux mois au lieu de 32.
+
+   L'ancre du cours suit la même échelle et la même part de récolte : un PO
+   vaut toujours quatre filons de la strate 1, et descendre paie toujours un
+   peu plus qu'avant. */
+export const RECOLTE = 0.07;
+export const PENTE_STRATE = 6;
+export const ACCELERATION_STRATE = 1.08;
+export const echelle = (p) =>
+  Math.pow(PENTE_STRATE, p - 1) * Math.pow(ACCELERATION_STRATE, ((p - 1) * (p - 2)) / 2);
+/* Version de la pente : une partie creusée sous l'ancienne pente est
+   ramenée en surface au chargement (`relireMine`). */
+export const PENTE_VERSION = 2;
+
 /* Économie. L'économie de base donne 15 PO par heure plafonnées à 720, soit
    trois boosters par jour. La mine complète, elle ne remplace pas.
 
@@ -101,16 +129,16 @@ export const unFilonSur = (S) => Math.max(1, Math.round(1 / chanceEvenement(S)))
    franc à dix. Le talent gouverne la fréquence ; la couleur dit jusqu'où on
    l'a poussé, ce qu'aucun chiffre de l'interface ne disait. */
 export const teinteFortune = (S) => Math.round(40 - 40 * Math.min(1, S.talents.fortune / 10));
-export const pvFilon = (prof, brises) => Math.ceil(18 * Math.pow(3.2, prof - 1) * Math.pow(1.09, brises));
+export const pvFilon = (prof, brises) => Math.ceil(18 * echelle(prof) * Math.pow(1.09, brises));
 export const xpRequis = (S) => Math.floor(22 * Math.pow(S.niveau, 1.55));
 export const brisesIci = (S) => S.brises[S.profondeur] || 0;
 export const margeKobold = (S) =>
   Math.pow(0.94, Math.min(12, Math.floor(S.echanges / 4))) * equipMult(S, "taux");
 /* Ancre : ce que coûterait un PO si les kobolds étaient honnêtes. Elle suit la
    profondeur atteinte avec un exposant plus faible que les points de roche, donc
-   descendre augmente réellement le revenu, d'environ 19 % par strate. */
+   descendre augmente réellement le revenu. */
 export const ancrePO = (S) =>
-  Math.max(12, 0.24 * 18 * Math.pow(3.2, (S.profondeurMax - 1) * ANCRE_EXPO) * FILONS_PAR_PO);
+  Math.max(3.5, RECOLTE * 18 * Math.pow(echelle(S.profondeurMax), ANCRE_EXPO) * FILONS_PAR_PO);
 
 /* Dette d'effondrement : imperceptible au premier, jamais rattrapable ensuite. */
 export const dette = (S) => Math.min(DETTE_MAX, DETTE_PAS * Math.log(1 + S.effondrements));
@@ -244,7 +272,7 @@ export function naitreFilon(S, alea = Math.random) {
  */
 export function briser(S, alea = Math.random) {
   const rang = S.filonRang || 0;
-  const recolte = S.pvMax * 0.24 * multRecolte(S) * (rang === 2 ? 12 : rang === 1 ? 4 : 1);
+  const recolte = S.pvMax * RECOLTE * multRecolte(S) * (rang === 2 ? 12 : rang === 1 ? 4 : 1);
   S.etoile += recolte;
   S.etoileTotale += recolte;
   S.brises[S.profondeur] = brisesIci(S) + 1;

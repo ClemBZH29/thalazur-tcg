@@ -9,7 +9,7 @@ import {
   atqDe, cartesDonjon, choixAuto, choixIA, creerPartie, demarrerCombat, descendre, entrer, fuir,
   gestes, graineDuJour, issue, ouverts, parUid, prochain, rapporte, repos, resoudre,
   tresor, victoire, vivants, allie, compositionDuJour, ciblesPossibles, convalescences, fiche, peutFuir, gainsXP,
-  apprentissage, brume, tirage, BRUME_TOUR, COMPETENCES, techDe, unites, roleCarte, RELIQUES_MAX,
+  apprentissage, descentesJouees, brume, tirage, BRUME_TOUR, COMPETENCES, techDe, unites, roleCarte, RELIQUES_MAX,
 } from "./regles.js";
 import { etoiles, ficheDe, fichesDe } from "./fiches.js";
 import { effetsArtefact, effetsSource, sourceDe, texteEffets } from "./pouvoirs.js";
@@ -427,8 +427,7 @@ export default function Donjon({ jeu }) {
   }, [etat.collections]);
 
   /* ── Déroulé ─────────────────────────────────────────────────────── */
-  const ouvertsTotal = Object.values(etat.boosters || {}).reduce((s, n) => s + (n || 0), 0);
-  const apprenti = apprentissage(ouvertsTotal, DONJON.apprentissage);
+  const apprenti = apprentissage(descentesJouees(etat.stats), DONJON.apprentissage);
 
   /* Le donjon du jour impose quatre rôles et sa source : tirés à la première
      visite du jour parmi les cartes disponibles, puis figés (jeu/donjon.js). */
@@ -1007,7 +1006,7 @@ export default function Donjon({ jeu }) {
         </div>
         {apprenti.avance < 1 && (
           <p className="dj-bandeau" title="Tant que la collection est jeune, les adversaires sont affaiblis et le butin réduit. Tout revient à la normale au fil des boosters ouverts. L'expérience est entière.">
-            <b>Apprentissage</b> · adversaires {pourcent(apprenti.difficulte)} · butin {pourcent(apprenti.gain)} · encore {apprenti.restant} booster{apprenti.restant > 1 ? "s" : ""}
+            <b>Apprentissage</b> · adversaires {pourcent(apprenti.difficulte)} · butin {pourcent(apprenti.gain)} · encore {apprenti.restant} descente{apprenti.restant > 1 ? "s" : ""}
           </p>
         )}
         {donjon.dernier && donjon.dernier.jour === aujourdhui() && (

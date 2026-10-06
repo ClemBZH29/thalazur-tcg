@@ -132,9 +132,11 @@ export const DONJON = {
     infini: { tentatives: Infinity, gain: 1, xp: 0.5, entree: 100, conversion: { coef: 1.1, expo: 0.7 } },
   },
   // Les débuts adoucis : adversaires affaiblis et butin réduit, qui remontent
-  // en ligne droite jusqu'au jeu normal au `jusqua`-ième booster ouvert.
-  // Mesuré par scripts/audit-donjon.mjs.
-  apprentissage: { jusqua: 30, difficulte: 0.75, gain: 0.4 },
+  // en ligne droite jusqu'au jeu normal à la `jusqua`-ième descente jouée.
+  // Indexé sur les boosters, l'apprentissage disparaissait avant la première
+  // descente : un bêta-testeur en avait ouvert quarante dans sa première
+  // heure (retour du 06/10/2026). Mesuré par scripts/audit-donjon.mjs.
+  apprentissage: { jusqua: 5, difficulte: 0.75, gain: 0.4 },
 };
 
 /** Les PO que vaut un sac rapporté du Donjon, selon le mode. */

@@ -164,16 +164,16 @@ console.log(ligne("peu communes niv. 1 (repère)", mesurer({ equipe: (r) => auPa
 
 /* 4 bis. Apprentissage : le Donjon adouci des débuts */
 const cfgA = DONJON.apprentissage;
-console.log(`\n## Apprentissage (jeu normal à ${cfgA.jusqua} boosters ouverts)\n`);
+console.log(`\n## Apprentissage (jeu normal à la ${cfgA.jusqua}ᵉ descente)\n`);
 console.log(entete);
 for (const b of [0, Math.round(cfgA.jusqua / 3), Math.round((2 * cfgA.jusqua) / 3), cfgA.jusqua]) {
   const ap = apprentissage(b, cfgA);
-  console.log(ligne(`communes, ${b} boosters (adversaires ×${ap.difficulte.toFixed(2).replace(".", ",")}, butin ×${ap.gain.toFixed(2).replace(".", ",")})`, mesurer({ equipe: (r) => auPalier(r, "commun"), apprenti: ap })));
+  console.log(ligne(`communes, ${b} descentes (adversaires ×${ap.difficulte.toFixed(2).replace(".", ",")}, butin ×${ap.gain.toFixed(2).replace(".", ",")})`, mesurer({ equipe: (r) => auPalier(r, "commun"), apprenti: ap })));
 }
 for (const b of [0, cfgA.jusqua]) {
   const ap = apprentissage(b, cfgA);
   // Une collection de débutant : huit cartes tirées, les quatre meilleures.
-  console.log(ligne(`collection de 8, ${b} boosters`, mesurer({ equipe: (r) => collectionTiree(r, 8).slice(0, 4), apprenti: ap })));
+  console.log(ligne(`collection de 8, ${b} descentes`, mesurer({ equipe: (r) => collectionTiree(r, 8).slice(0, 4), apprenti: ap })));
 }
 
 /* 5. Rôles : trois peu communes au hasard + une du rôle */

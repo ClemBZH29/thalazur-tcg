@@ -2,6 +2,7 @@ import { useCallback } from "react";
 import { DONJON, poDuButin } from "../config/tiers.js";
 import { crediterGain, debiterLibre } from "../lib/economie.js";
 import { crediterXP, niveauDe } from "../donjon/experience.js";
+import { descentesJouees } from "../donjon/regles.js";
 
 const aujourdhui = () => new Date().toLocaleDateString("sv"); // AAAA-MM-JJ, local
 
@@ -72,6 +73,9 @@ export function useDonjon(etat, setEtat, test) {
       const { etat: e, po: bonus } = crediterXP(e0, gains);
       const d = e.donjon || { jour: aujourdhui(), tentatives: 0 };
       const stats = { ...(e.stats || {}) };
+      // Toute descente compte, victoire ou chute : c'est elle qui efface
+      // l'apprentissage (voir DONJON.apprentissage).
+      stats.descentes = descentesJouees(stats) + 1;
       stats.gardiens = (stats.gardiens || 0) + (resume.gardiens || 0);
       if (resume.complete) stats.remontees = (stats.remontees || 0) + 1;
       // Convalescences : la carte revient le jour indiqué. Les échéances

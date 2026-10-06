@@ -280,6 +280,51 @@ invariant et non une migration : le sens du champ n'a pas changé, et monter
 (`lireCompte`, `src/jeu/Compte.jsx`, exige l'égalité stricte — à corriger avant
 la prochaine vraie migration).
 
+### La pente des strates (retour bêta, 07/10/2026)
+
+Deux parties réelles ont montré que la descente allait beaucoup trop vite : un
+nouveau joueur à la strate 12 en vingt-six minutes, sans un seul effondrement ;
+Clément à la strate 25 en moins d'une semaine (4 effondrements, 2 228 éclats).
+Les huit strates nommées défilaient dans la première heure, et les succès de
+strate (3, 5, 8, 12) tombaient tous le premier soir.
+
+**Pourquoi.** Un filon rendait 24 % de ce qu'il avait coûté à briser : un
+porte-fanal se remboursait en une minute, la production de l'équipe doublait
+toutes les cinq. Face à des points de roche qui ne montaient que de ×3,2 par
+strate, chaque strate prenait quelques minutes. `audit-economie.mjs` ne le
+voyait pas : son joueur dépense tout, vend une fois par jour et ne mesure que
+des PO.
+
+**Ce qui change** (`src/mines/regles.js`) :
+
+- `RECOLTE` passe de 24 % à **7 %** : l'équipe se rembourse trois fois et
+  demie moins vite, c'est ce qui freine la première heure ;
+- les points de roche suivent `echelle(p)` : **×6 par strate, et 8 % de plus
+  à chaque strate franchie** (`PENTE_STRATE`, `ACCELERATION_STRATE`). La
+  récolte seule ne freine que le début ; la pente qui s'accentue borne le
+  milieu et la fin ;
+- l'ancre du cours suit la même échelle et la même part de récolte : un PO
+  vaut toujours à peu près quatre filons de la strate 1. Le plancher de
+  l'ancre passe de 12 à 3,5 en proportion.
+
+| Strate atteinte | 15 min | 1 h | 4 h | j1 (1 h/j) | j7 (1 h/j) | j60 (1 h/j) |
+|-----------------|-------:|----:|----:|-----------:|-----------:|------------:|
+| Avant | 10 | 13 | 22 | 13 | 28 | 32 |
+| Après | 3 | 7 | 9 | 7 | 13 | 16 |
+
+`scripts/audit-strates.mjs` (lancé par `npm run audit`) rejoue une soirée
+continue et trois habitudes sur deux mois, et **échoue** si l'Abîme (strate 8)
+redevient l'affaire de la première heure, ou si l'on passe la strate 20 en deux
+mois. Son joueur a été recoupé avec les deux parties réelles sous l'ancienne
+pente.
+
+**Les parties déjà creusées** remontent à la galerie d'entrée au chargement
+(`relireMine`, champ `pente`) : équipe, achats, talents et éclats gardés, la
+profondeur seule repart de 1 et l'équipe redescend jusqu'où elle tient. Sans
+cela, un filon de la strate 25 sous la nouvelle pente pèserait dix puissances
+de plus que tout ce que l'équipe frappe, et le cours ne paierait plus rien.
+Les succès de strate déjà réclamés restent acquis.
+
 ## Outils MJ
 
 En développement (`npm run dev`), **Réglages MJ → Mode test → Mines de Kazim**

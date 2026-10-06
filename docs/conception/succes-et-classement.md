@@ -16,11 +16,10 @@ d'être réclamés.
   expéditions accueillies et Lieux passés en rainbow par les routes,
   exemplaires dissous et cartes forgées au Reliquaire, expérience des cartes
   (niveau le plus haut, paliers rainbow atteints par l'XP, cartes au niveau
-  100 — Donjon et expéditions confondus), carte PJ. Ces familles ajoutent
-  environ 80 boosters d'équivalent au barème Global (188 en tout), à gagner
-  sur des mois.
+  100 — Donjon et expéditions confondus), carte PJ. Le barème Global rend
+  144 boosters d'équivalent en tout, à gagner sur des mois.
 - **Collection**, par extension : complétion (25, 50, 75, 90, 100 %),
-  cartes par type (PNJ, artéfacts, lieux : 5, 10, 25… puis « tous »),
+  cartes par type (PNJ, artéfacts, lieux : 10, 25, 50, 75 % du type puis « tous »),
   légendaires (une, la moitié, toutes), irisées, pleine illustration.
 
 Le barème est dans `src/config/succes.js`. Les familles de collection sont
@@ -47,22 +46,83 @@ d'accumulation, comme tout ce que le joueur est allé chercher lui-même.
 
 La boucle « plus tu gagnes, plus tu gagnes » est réelle — un sachet offert
 compte vers le palier suivant — et elle s'éteint d'elle-même : chaque palier
-rend moins que ce qu'il a coûté, et de moins en moins. Mesuré par
-`scripts/audit-succes.mjs` sur le roster de La Troupe, en ouvrant aussi les
-sachets offerts et sans rien acheter au Comptoir :
+rend moins que ce qu'il a coûté, et de moins en moins.
 
-| Complétion | Boosters ouverts | Part offerte par les succès |
-|---:|---:|---:|
-| 25 % | 14 | 53 % |
-| 50 % | 33 | 45 % |
-| 75 % | 70 | 37 % |
-| 90 % | 133 | 29 % |
-| 100 % | 576 | 13 % |
+### Le barème refait sur le retour bêta (07/10/2026)
 
-Le début est généreux, parce que les premiers paliers de chaque famille
-tombent ensemble : c'est la prise en main, l'équivalent de deux jours de gain
-passif. Le barème complet rend environ 72 boosters par extension et 105 en
-Global, dont une grande part n'arrive qu'après des mois de jeu.
+**Ce qu'ont montré les deux premières parties.** Le premier bêta-testeur a
+touché en une heure 3 300 PO et 6 sachets de succès, l'équivalent de
+33 boosters — onze jours de gain passif. Les quatre paliers de strate des
+Mines (1 560 PO) tombaient en vingt-six minutes, les quatre premiers paliers
+de PNJ (780 PO) en même temps. Sur la partie de Clément, neuf jours, 74 des
+179 boosters ouverts venaient des succès. Les deux effets secondaires étaient
+visibles : le Comptoir ne servait à rien (pourquoi vendre quand les PO
+pleuvent), et l'apprentissage du Donjon, indexé sur les boosters, était
+consommé avant la première descente.
+
+**Ce que font les TCG en ligne.** Hearthstone, Pokémon TCG Pocket, Marvel
+Snap et MTG Arena tiennent tous la même ligne :
+
+- l'accueil est généreux mais **borné** — les missions de débutant de Pocket,
+  les premiers paliers de Hearthstone — et ne vaut jamais une semaine de jeu ;
+- la récompense **grossit avec la difficulté** du palier ; les premiers
+  paliers paient en petite monnaie, les paquets vont aux paliers durs ;
+- la collection se mesure **en part du set** (missions de set de Pocket,
+  niveau de collection de Snap), pas en nombre fixe de cartes ;
+- le gros du revenu régulier vient d'un **flux** (quêtes du jour et de la
+  semaine, piste de récompenses), pas du stock des succès.
+
+**Ce qui change** (`src/config/succes.js`) :
+
+- les premiers paliers de chaque famille globale passent à 30 ou 60 PO, les
+  sachets ne viennent qu'aux paliers qui demandent des jours ou des semaines ;
+- **strate** : 5, 8, 12, 16 (au lieu de 3, 5, 8, 12, 20), calés sur la
+  nouvelle pente des Mines — 120 PO, puis 1, 2 et 4 sachets ;
+- **boosters ouverts** : 25, 100, 300, 1 000 (le premier était à 10) ;
+- **types de carte** : 10, 25, 50 et 75 % du type puis « tous », au lieu de
+  5, 10, 25, 50, 100 cartes ; 30, 60, 120 PO, un sachet, trois sachets ;
+- **complétion** : rééquilibrée vers la fin (1, 2, 4, 6 + 240 PO,
+  12 + 600 PO) ;
+- un palier dont le seuil a bougé sous un palier **déjà réclamé** de la même
+  famille compte comme réclamé (`seuilsReclames`) : personne ne se fait
+  repayer un chemin déjà fait sous un autre nom.
+
+Mesuré par `scripts/audit-succes.mjs` sur le roster de La Troupe, en ouvrant
+aussi les sachets offerts et sans rien acheter au Comptoir :
+
+| Complétion | Boosters ouverts | Part offerte, avant | Part offerte, après |
+|---:|---:|---:|---:|
+| 25 % | 14 | 53 % | 18 % |
+| 50 % | 33 | 45 % | 22 % |
+| 75 % | 70 | 37 % | 20 % |
+| 90 % | 133 | 29 % | 21 % |
+| 100 % | 576 | 13 % | 10 % |
+
+Le barème complet rend 144 boosters en Global (188 avant) et 67 par
+extension (72). Rejouée sous le nouveau barème et la nouvelle pente des
+Mines, la première heure du bêta-testeur rapporterait de l'ordre de
+1 100 PO et 5 sachets, un peu plus de trois jours de gain passif, au lieu
+de onze.
+
+### Prochaine étape proposée : un flux plutôt qu'un stock
+
+Les succès restent un stock : une fois les paliers faciles pris, ils ne
+rapportent presque plus rien pendant des semaines, et le joueur n'a pas de
+raison du jour de revenir. Les TCG cités comblent ce creux par des
+**missions** renouvelées, sans lesquelles leurs succès seraient trop
+généreux ou trop avares :
+
+- **missions du jour** (trois, tirées parmi les modes : « ouvrir 2 boosters »,
+  « vendre 3 cartes au Comptoir », « vaincre un gardien », « lancer une
+  expédition »…), de l'ordre de 40 PO chacune, une remplaçable par jour ;
+- **mission de la semaine**, plus longue, payée en sachet ;
+- éventuellement une **piste de rang** alimentée par les missions, dont les
+  paliers donnent des sachets et les titres — la « piste de récompenses » de
+  Hearthstone, le niveau de collection de Snap.
+
+C'est ce flux qui portera la récompense du joueur assidu, à la place des
+gros paliers du premier jour. À chiffrer avec le même audit avant de
+l'ouvrir.
 
 ### Réclamer
 

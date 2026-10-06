@@ -179,6 +179,27 @@ describe("mine", () => {
     expect(relu.eclats).toBe(0);
   });
 
+  test("une partie creusée sous l'ancienne pente remonte en surface, équipe gardée", () => {
+    const { pente, ...ancien } = etatNeuf();
+    const relu = relireMine(JSON.stringify({
+      ...ancien, profondeur: 25, profondeurMax: 25, brises: { 25: 4 }, pv: 9, pvMax: 99,
+      compagnons: { fanal: 40 }, eclats: 12, etoileTotale: 1e13,
+    }));
+    expect(pente).toBeDefined();
+    expect(relu.profondeur).toBe(1);
+    expect(relu.profondeurMax).toBe(1);
+    expect(relu.brises).toEqual({});
+    expect(relu.pvMax).toBe(0);
+    expect(relu.compagnons).toEqual({ fanal: 40 });
+    expect(relu.eclats).toBe(12);
+  });
+
+  test("une partie de la pente courante garde sa profondeur", () => {
+    const relu = relireMine(JSON.stringify({ ...etatNeuf(), profondeur: 9, profondeurMax: 11 }));
+    expect(relu.profondeur).toBe(9);
+    expect(relu.profondeurMax).toBe(11);
+  });
+
   test("une clé inconnue est ignorée", () => {
     const relu = relireMine(JSON.stringify({ ...etatNeuf(), piege: 1 }));
     expect(relu).not.toHaveProperty("piege");
