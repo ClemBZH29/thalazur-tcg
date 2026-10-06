@@ -65,7 +65,7 @@ const PAGES = [
 ];
 
 /** Pages dessinées pour tenir sur un écran, sans défilement ni pied. */
-const PLEIN = new Set(["/", "/boutique", "/mines"]);
+const PLEIN = new Set(["/", "/boutique", "/mines", "/reliquaire"]);
 
 /** Racine d'une page : « /boutique/troupe » appartient à « /boutique ». */
 const racine = (chemin) => "/" + (chemin.split("/")[1] || "");

@@ -1,0 +1,157 @@
+/* ------------------------------------------------------------------
+   Le Reliquaire : une scène plein cadre, l'autel, la carte du jour.
+   Maquette Claude Design (06/10/2026). Les positions viennent de
+   src/reliquaire/scene.js (styles en ligne) ; ici, l'apparence.
+   Animé par src/reliquaire/forge.js : transform, opacity et filter.
+   ------------------------------------------------------------------ */
+
+.rel-page { width: 100%; }
+.rel-scene { position: relative; width: 100%; overflow: hidden; background: var(--ground); color: var(--ink);
+  user-select: none; }
+.rel-scene > * { position: absolute; }
+
+.rel-decor { background-size: 100% 100%; }
+.rel-scene.est-scelle .rel-decor { filter: brightness(.42) saturate(.7); }
+.rel-voile, .rel-sombre { inset: 0; pointer-events: none; }
+.rel-sombre { opacity: 0; }
+
+/* Le gardien : une découpe posée, lueur de lampe derrière, fondu de 7 % (charte § 7). */
+.rel-gardien-lueur { background: radial-gradient(circle at 48% 40%, rgba(232, 163, 61, .2), transparent 60%); pointer-events: none; }
+.rel-gardien { object-fit: contain; object-position: 50% 100%; pointer-events: none;
+  filter: brightness(.82) drop-shadow(0 20px 30px rgba(0, 0, 0, .7));
+  -webkit-mask-image: linear-gradient(to top, transparent 0, #000 7%); mask-image: linear-gradient(to top, transparent 0, #000 7%); }
+.rel-scene.mob .rel-gardien { filter: brightness(.7) drop-shadow(0 10px 18px rgba(0, 0, 0, .7)); }
+.rel-scene.est-scelle .rel-gardien { filter: brightness(.45) saturate(.6); }
+
+.rel-ombre { height: 22px; border-radius: 50%; background: rgba(0, 0, 0, .66); filter: blur(8px); pointer-events: none; }
+.rel-lueur { border-radius: 50%; opacity: 0; will-change: transform, opacity; pointer-events: none; }
+
+/* La carte : le cadre et le dos du site (FaceCarte, DosCarte), retournés par la forge. */
+.rel-scene > .rel-carte { position: absolute; z-index: 5; }
+.rel-carte[role="button"] { cursor: zoom-in; }
+.rel-carte[role="button"]:focus-visible { outline: 2px solid var(--lamp); outline-offset: 4px; border-radius: 4%; }
+.rel-carte-eclat { position: absolute; inset: 0; perspective: 1100px; }
+.rel-carte-lift { position: absolute; inset: 0; transform-style: preserve-3d; will-change: transform; }
+.rel-flipper { position: absolute; inset: 0; transition: none; will-change: transform; }
+.rel-flipper > .dos, .rel-flipper > .plaque { transition: none; }
+.rel-flipper > .dos { box-shadow: 0 0 0 1px rgba(143, 184, 216, .22), 0 18px 46px rgba(0, 0, 0, .6); }
+.rel-flipper > .plaque { box-shadow: 0 18px 46px rgba(0, 0, 0, .55); }
+.rel-carte[data-palier="peucommun"] .plaque { box-shadow: 0 0 0 1px rgba(78, 140, 126, .5), 0 18px 46px rgba(20, 70, 62, .45); }
+.rel-carte[data-palier="rare"] .plaque { box-shadow: 0 0 0 1px rgba(209, 154, 60, .6), 0 0 26px rgba(209, 154, 60, .28), 0 18px 48px rgba(90, 60, 15, .5); }
+.rel-carte[data-palier="legendaire"] .plaque { box-shadow: 0 0 0 1px rgba(179, 48, 73, .65), 0 0 34px rgba(179, 48, 73, .34), 0 20px 54px rgba(0, 0, 0, .68); }
+.rel-carte[data-palier="rainbow"] .plaque { box-shadow: 0 0 0 1px rgba(157, 124, 240, .7), 0 0 30px rgba(157, 124, 240, .3), 0 20px 50px rgba(60, 30, 110, .5); }
+.rel-flash { position: absolute; inset: 0; border-radius: 3.7%/2.47%; opacity: 0; pointer-events: none; mix-blend-mode: screen;
+  box-shadow: inset 0 0 0 2px var(--lueur), inset 0 0 26px var(--lueur), 0 0 34px var(--lueur); }
+.rel-fx { inset: 0; pointer-events: none; z-index: 8; }
+
+/* ── Le panneau (bureau) ─────────────────────────────────────────────── */
+.rel-panneau { top: 0; bottom: 0; display: flex; flex-direction: column; justify-content: center; gap: 16px; z-index: 20; }
+.rel-titre { margin: 0; font: 600 36px/1.08 var(--font-display); font-variation-settings: var(--wonk); text-wrap: balance; }
+.rel-titre.long { font-size: 30px; }
+/* Places réservées : rien ne bouge quand le verdict arrive (charte, « Stabilité »). */
+.rel-zone-titre { height: 84px; display: flex; align-items: flex-end; }
+.rel-zone-sous { min-height: 62px; display: flex; align-items: flex-start; }
+.rel-zone-verdict { height: 38px; display: flex; align-items: center; }
+.rel-zone-actions { height: 52px; display: flex; align-items: center; }
+
+.rel-chances { margin: 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 6px; }
+.rel-chances li { display: flex; gap: 5px; align-items: center; height: 28px; padding: 0 10px; border: 1px solid var(--edge-ui);
+  border-radius: 999px; font-size: 13px; color: var(--ink2); }
+.rel-chances b { font-variant-numeric: tabular-nums; font-weight: 600; }
+.rel-sous { margin: 0; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 17px; color: var(--ink2); }
+.rel-sous span:not([aria-hidden]) { font-weight: 600; }
+.rel-sous b { color: var(--ink); font-variant-numeric: tabular-nums; }
+
+.rel-v { display: inline-flex; align-items: center; gap: 5px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.rel-v img { width: 20px; height: 20px; }
+
+.rel-reserve { display: flex; align-items: center; gap: 10px; padding-top: 16px; border-top: 1px solid var(--edge); }
+.rel-reserve img { width: 40px; height: 40px; }
+.rel-compte { font: 600 48px/1 var(--font-display); font-variation-settings: var(--wonk); color: var(--lamp); font-variant-numeric: tabular-nums; }
+.rel-reserve.petit { padding: 0; border: 0; gap: 6px; flex: 0 0 auto; }
+.rel-reserve.petit img { width: 28px; height: 28px; }
+.rel-reserve.petit .rel-compte { font-size: 32px; }
+
+.rel-manque { display: inline-flex; align-items: center; gap: 7px; font-size: 17px; font-weight: 600; color: var(--ember); font-variant-numeric: tabular-nums; }
+.rel-manque img { width: 18px; height: 18px; filter: grayscale(.3); }
+
+.rel-verdict { margin: 0; opacity: 0; display: flex; align-items: center; gap: 7px; font-size: 21px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--ink); }
+.rel-verdict .fleche { color: var(--ink3); padding: 0 2px; }
+.rel-ecart { display: inline-block; margin-left: 8px; font-size: 23px; transform-origin: 0 60%; }
+
+.rel-actions { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 10px; width: 100%; }
+.rel-actions.seul { grid-template-columns: minmax(0, 1fr); max-width: 240px; }
+.rel-btn { display: flex; align-items: center; justify-content: center; gap: 8px; height: 52px; padding: 0 12px; border-radius: var(--r-md);
+  font: 600 16px var(--font-ui); line-height: 1.15; text-align: center; cursor: pointer;
+  transition: box-shadow .18s cubic-bezier(.2, .8, .3, 1); }
+.rel-btn:focus-visible { outline: 2px solid var(--lamp); outline-offset: 3px; }
+.rel-btn.prim { background: var(--lamp); color: #1a1206; border: 1px solid var(--lamp); }
+.rel-btn.prim span { white-space: nowrap; }
+.rel-btn.prim:disabled { background: var(--panel2); color: var(--ink3); border-color: var(--edge-hi); cursor: not-allowed; }
+.rel-btn.prim:disabled img { filter: grayscale(1) opacity(.55); }
+/* Bouton armé (second toucher) : double cerne lampe et halo, sans changer de taille. */
+.rel-btn.prim.arme { box-shadow: 0 0 0 3px var(--ground), 0 0 0 5px var(--lamp), 0 0 30px rgba(232, 163, 61, .5); }
+.rel-btn.sec { background: transparent; color: var(--ink); border: 1px solid var(--edge-ui); font-size: 15px; padding: 0 10px; }
+.rel-btn.sec.arme { color: var(--lamp); border-color: var(--lamp); background: rgba(232, 163, 61, .1); }
+.rel-btn:disabled { cursor: default; }
+
+.rel-forgee { margin: 0; display: flex; align-items: center; gap: 8px; font-size: 16px; color: var(--ink2); font-variant-numeric: tabular-nums; }
+.rel-forgee b { color: var(--ink); }
+
+.rel-pied { position: relative; height: 28px; display: flex; justify-content: space-between; align-items: center; gap: 12px;
+  color: var(--ink3); font-size: 14px; white-space: nowrap; }
+.rel-etat { display: flex; align-items: center; gap: 7px; font-variant-numeric: tabular-nums; }
+.rel-aide { display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 4px; border: 0; background: none;
+  color: var(--ink3); font: 14px var(--font-ui); cursor: pointer; }
+.rel-aide:hover { color: var(--ink); }
+.rel-aide:focus-visible { outline: 2px solid var(--lamp); outline-offset: 2px; }
+
+/* « Comment ça marche » : une bulle au-dessus du pied, pas un paragraphe permanent. */
+.rel-regles { position: absolute; right: -8px; bottom: 40px; overflow: auto; z-index: 35; background: var(--panel);
+  border: 1px solid var(--edge-hi); border-radius: var(--r-lg); box-shadow: 0 4px 14px rgba(0, 0, 0, .4);
+  padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 12px; text-align: left;
+  color: var(--ink2); font-size: 14px; line-height: 1.45; white-space: normal; user-select: text; }
+.rel-regles-tete { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.rel-regles-tete b { font: 600 19px var(--font-display); font-variation-settings: var(--wonk); color: var(--ink); }
+.rel-regles-tete button { flex: 0 0 auto; width: 36px; height: 36px; margin: -6px -8px -6px 0; display: grid; place-items: center;
+  border: 0; border-radius: var(--r-md); background: none; color: var(--ink2); cursor: pointer; }
+.rel-regles-tete button:hover { color: var(--ink); }
+.rel-regles dl { margin: 0; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 9px 14px; padding-top: 12px; border-top: 1px solid var(--edge); }
+.rel-regles dt { color: var(--ink); font-weight: 600; }
+.rel-regles dd { margin: 0; }
+.rel-regles-prix { display: flex; flex-wrap: wrap; gap: 4px 12px; }
+.rel-regles-prix > span { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.rel-regles-prix b { color: var(--ink); }
+.rel-regles .rel-v img { width: 14px; height: 14px; }
+.rel-regles .rel-v { color: var(--ink); font-weight: 600; }
+
+/* Scellé : la progression vers le seuil, avec sa marque. */
+.rel-scelle { display: flex; flex-direction: column; gap: 12px; }
+.rel-pastille { align-self: flex-start; display: flex; gap: 6px; align-items: center; height: 30px; padding: 0 12px;
+  border: 1px solid var(--edge-ui); border-radius: 999px; font-size: 14px; color: var(--ink2); }
+.rel-pastille b { color: var(--ink); font-variant-numeric: tabular-nums; }
+.rel-jauge { position: relative; height: 6px; border-radius: 3px; background: var(--panel2); }
+.rel-jauge i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 3px; background: var(--ink4); }
+.rel-jauge b { position: absolute; top: -5px; bottom: -5px; width: 2px; background: var(--lamp); }
+
+/* ── Téléphone : le panneau au bas de la scène ───────────────────────── */
+.rel-panneau-mob { left: 16px; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 12px; z-index: 20; }
+.rel-tete-mob { min-height: 56px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--edge); padding-bottom: 10px; }
+.rel-tete-mob .rel-titre { flex: 1; min-width: 0; font-size: 23px; line-height: 1.1; }
+.rel-panneau-mob .rel-zone-sous { min-height: 58px; }
+.rel-panneau-mob .rel-chances { gap: 5px; }
+.rel-panneau-mob .rel-chances li { height: 26px; padding: 0 8px; font-size: 12px; gap: 4px; }
+.rel-sous-mob { display: flex; flex-direction: column; gap: 6px; width: 100%; }
+.rel-sous-mob .rel-sous { font-size: 15px; }
+.rel-zone-verdict.petit { height: 26px; }
+.rel-zone-verdict.petit .rel-verdict { font-size: 19px; gap: 6px; }
+.rel-zone-verdict.petit .rel-v img { width: 18px; height: 18px; }
+.rel-zone-verdict.petit .rel-ecart { font-size: 20px; margin-left: 6px; }
+.rel-panneau-mob .rel-actions { grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 8px; }
+.rel-panneau-mob .rel-actions.seul { grid-template-columns: minmax(0, 1fr); max-width: none; }
+/* La dernière ligne laisse 64 px au bouton rond du menu du site. */
+.rel-pied.mob { height: 52px; justify-content: flex-start; gap: 6px; padding-right: 64px; }
+.rel-pied.mob .rel-manque { font-size: 14px; }
+.rel-pied.mob .rel-regles { left: 0; right: auto; bottom: 60px; }
+.rel-aide.rond { margin-left: auto; width: 44px; height: 44px; justify-content: center; padding: 0; border: 1px solid var(--edge-ui);
+  border-radius: 50%; color: var(--ink2); }
