@@ -23,6 +23,24 @@ describe("schéma", () => {
   });
 });
 
+describe("schéma 9 : le réglage du son devient un objet", () => {
+  const avec = (son) => migrer("jeu", { schema: 8, reglages: { animations: "pleines", ...(son === undefined ? {} : { son }) } });
+  test("un ancien « son coupé » reste coupé, volumes par défaut", () => {
+    expect(avec(false).reglages).toEqual({ animations: "pleines", son: { coupe: true, musique: 20, effets: 50 } });
+  });
+  test("un son actif ou jamais réglé : défauts, non coupé", () => {
+    expect(avec(true).reglages.son).toEqual({ coupe: false, musique: 20, effets: 50 });
+    expect(avec(undefined).reglages.son).toEqual({ coupe: false, musique: 20, effets: 50 });
+    expect(migrer("jeu", { schema: 8 }).reglages.son).toEqual({ coupe: false, musique: 20, effets: 50 });
+  });
+  test("un réglage déjà en objet est gardé, borné", () => {
+    expect(avec({ coupe: false, musique: 135, effets: 40 }).reglages.son).toEqual({ coupe: false, musique: 100, effets: 40 });
+  });
+  test("une partie neuve a le réglage par défaut", () => {
+    expect(etatVide().reglages.son).toEqual({ coupe: false, musique: 20, effets: 50 });
+  });
+});
+
 describe("schéma 8 : full art renommés", () => {
   const ancienne = {
     schema: 7,
@@ -51,7 +69,7 @@ describe("schéma 8 : full art renommés", () => {
       slug: "selsy-sable-chaud",
     });
     expect(d.vitrine).toEqual(["fa-nemelye-nuit-ecarlate", "219-hida"]);
-    expect(d.schema).toBe(8);
+    expect(d.schema).toBe(SCHEMA); // migrée jusqu'au bout, 8 compris
   });
 
   test("les nouveaux identifiants sont ceux que déclare l'extension", () => {

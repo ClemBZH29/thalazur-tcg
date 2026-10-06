@@ -1,4 +1,5 @@
 import { bourseNeuve } from "./economie.js";
+import { SON_DEFAUT } from "../config/son.js";
 import { cles } from "./nuage/fusion.js";
 import { SCHEMA, migrer } from "./sauvegarde/schema.js";
 
@@ -36,7 +37,7 @@ const vide = () => ({
   // Ouverture en cours, conservée pour pouvoir la reprendre après une
   // fermeture d'onglet : les cartes sont déjà acquises, seul l'affichage manque.
   enCours: null,
-  reglages: {},
+  reglages: { son: { ...SON_DEFAUT } }, // son : voir config/son.js
   rosters: {},     // boosterId -> lignes chargées à la main (outils MJ, développement)
   grades: {},      // boosterId -> corrections de palier par grade (outils MJ)
   comptoir: {},    // boosterId -> état du marché (voir comptoir/marche.js)

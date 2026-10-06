@@ -54,7 +54,7 @@ export function Jeu({ children }) {
   }, []);
 
   const {
-    reglages, son, animations, reventeAuto, MJ, taux, cfgImage: cfgImageBase, test, gratuit,
+    reglages, son, reglageSon, animations, reventeAuto, MJ, taux, cfgImage: cfgImageBase, test, gratuit,
     sobreSysteme, mouvementReduit, sfx, majReglages,
   } = useReglages(etat, setEtat);
   const inventaire = useInventaire(cfgImageBase.base);
@@ -257,7 +257,7 @@ export function Jeu({ children }) {
   const valeur = {
     etat, setEtat, stockageKo, versionMine, rechargerMine,
     boosterId, setBoosterId, booster,
-    reglages, son, reventeAuto, taux, cfgImage, test, gratuit, majReglages,
+    reglages, son, reglageSon, reventeAuto, taux, cfgImage, test, gratuit, majReglages,
     animations, sobreSysteme, mouvementReduit,
     rows, source, grades, pool, speciales, jeuComplet, carteParId, paliersVides,
     ouverts, pity, garantirLegendaire,

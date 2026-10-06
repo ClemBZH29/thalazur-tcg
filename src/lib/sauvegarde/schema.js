@@ -35,12 +35,13 @@
  *        (« fa-selssy-sable-chaud » devient « fa-selsy-sable-chaud ») : même
  *        remplacement partout, et les instantanés reprennent nom et série.
  */
-export const SCHEMA = 8;
+export const SCHEMA = 9;
 
 /** Première version encore lisible. En dessous, on repart d'une partie neuve. */
 export const SCHEMA_MIN = 6;
 
 import RENUMEROTATION_TROUPE from "./renumerotation-troupe.json" with { type: "json" };
+import { SON_DEFAUT, lireSon } from "../../config/son.js";
 
 /**
  * Remplace, dans toute une sauvegarde, les identifiants de carte de `table`
@@ -108,6 +109,12 @@ export function renommerFullart(valeur, table = RENOMMAGE_FULLART) {
  *     mine: (d) => ({ ...d, talents: { ...d.talents, patience: 0 } }),
  *   },
  */
+/** Schéma 9 : l'ancien réglage du son (booléen ou absent) en objet. */
+export function sonV9(ancien) {
+  if (ancien && typeof ancien === "object") return lireSon(ancien);
+  return { ...SON_DEFAUT, coupe: ancien === false };
+}
+
 export const MIGRATIONS = {
   7: {
     jeu: (d) => renumeroter(d, RENUMEROTATION_TROUPE.ids),
@@ -116,6 +123,12 @@ export const MIGRATIONS = {
   8: {
     jeu: (d) => renommerFullart(d),
     mine: (d) => renommerFullart(d),
+  },
+  // Le son : un booléen (`false` = coupé) devient un réglage, la coupure et
+  // deux volumes en pourcentage (config/son.js). Un ancien « son coupé »
+  // reste coupé ; les volumes prennent leurs valeurs par défaut.
+  9: {
+    jeu: (d) => ({ ...d, reglages: { ...(d.reglages || {}), son: sonV9(d.reglages?.son) } }),
   },
 };
 

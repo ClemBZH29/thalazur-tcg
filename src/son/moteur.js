@@ -11,8 +11,9 @@
  */
 import { BANQUE, NAPPES, RARETE, demi, midi } from "./banque.js";
 import { creerMusique } from "./musique.js";
+import { SON_DEFAUT } from "../config/son.js";
 
-export const SON_DEFAUT = { coupe: false, musique: 20, effets: 50 };
+export { SON_DEFAUT };
 
 /** Un pourcentage borné (0 à 100), ramené au gain d'un bus. */
 const gainDe = (pct, defaut) => Math.max(0, Math.min(100, Number.isFinite(+pct) ? +pct : defaut)) / 100;
