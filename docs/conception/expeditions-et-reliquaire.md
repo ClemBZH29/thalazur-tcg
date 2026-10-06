@@ -126,6 +126,14 @@ dit rien d'elle : ni nom, ni palier, ni exemplaires détenus, ni loupe (la face
 n'est pas montée). La carte reste calculable par qui lit le code : le site n'a
 pas de serveur, l'enjeu ne justifie pas d'en ajouter un.
 
+**Texte allégé (06/10/2026)**, mêmes principes que le Donjon : plus de
+paragraphe d'introduction, montants en icône de vestige et chiffre, chances en
+pastilles, possession en « ×N » ou « Manquante », verdict « 100 → 1 000 +900 »,
+règles dans « Comment ça marche » (ouvert tant qu'on n'a rien forgé). 37 mots à
+l'écran hors règles. La refonte de la mise en page et de l'animation de forge
+est confiée à Claude Design (`brief-reliquaire-design.md`) ; ses effets seront
+en code et remplaceront les planches de `public/reliquaire/`.
+
 **Les vestiges ont un second usage** depuis le 01/10/2026 : la fiche de combat
 des cartes (rangs d'ATQ et d'INI, changement de geste ou de technique), dans
 le volet « Combat » de la carte agrandie. Voir `donjon.md`, « La fiche de

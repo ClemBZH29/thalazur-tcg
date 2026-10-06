@@ -3,8 +3,8 @@
 **Projet** : La Brume de Thalazur, page `#/reliquaire`.
 **Demandé par** : Clément, 06/10/2026.
 **Pour** : Claude Design.
-**Pièces jointes** : le dossier `brief-reliquaire/` (liste au § 10), dont la
-capture de la page actuelle (`reliquaire-actuel.png`).
+**Pièces jointes** : le dossier `brief-reliquaire/` (liste au § 12), dont les
+captures de la page avant et après l'allègement du texte.
 **À lire avec** : `charte-graphique.md` (règles visuelles, qui priment sur ce
 brief) et `expeditions-et-reliquaire.md` (la mécanique, section Reliquaire).
 
@@ -42,17 +42,22 @@ l'aveugle doit devenir **le moment fort** de la page.
 
 ## 3. Ce qui ne va pas aujourd'hui (voir la capture)
 
-1. **Elle ne tient pas sur un écran.** Un bandeau de 340 px avec un paragraphe
-   d'explication, puis l'étal en dessous : à 1 440 × 900, le bas de la carte
-   et les boutons passent sous le pli.
+1. **Elle ne tient pas sur un écran.** Le bandeau, puis l'étal en dessous, puis
+   les règles : à 1 440 × 900, la page fait 1 120 px de haut, 1 474 px au
+   téléphone.
 2. **Le gardien flotte.** Une découpe détourée posée dans le vide à gauche de
    la carte : pas de sol, pas de lumière derrière lui, la coupe nette du torse
    visible. La charte (§ 7, « Les portraits sont des découpes ») explique
    pourquoi c'est faux.
 3. **Trois colonnes inertes.** Gardien, carte, fiche : rien ne relie les trois,
    la crypte du bandeau et la scène de forge sont deux mondes séparés.
-4. **Aucune mise en scène de la forge.** Une planche d'effet joue par-dessus la
-   page ; la carte ne bouge pas, les vestiges ne vont nulle part.
+4. **Aucune mise en scène de la forge.** Une planche d'images générée (Sora)
+   joue par-dessus la page ; la carte ne bouge pas, les vestiges ne vont nulle
+   part. **Ces planches sont abandonnées** : les animations du site se font
+   désormais en code, par Claude Design (§ 6).
+
+Le texte a déjà été allégé (06/10/2026, captures `reliquaire-allege-*.png`) :
+voir § 7. La refonte part de cet état, pas de la capture d'origine.
 
 ## 4. Le principe : une seule scène, l'autel
 
@@ -68,12 +73,11 @@ une scène unique, plein cadre, sous la navigation du site.
   place, le proposer en vignette de dialogue (sa voix porte les textes
   d'ambiance) plutôt que de le laisser flotter.
 - **Le panneau de décision**, sobre, à droite au bureau et sous la carte au
-  téléphone : la réserve de vestiges, les deux gestes, la ligne de chances,
-  le compte à rebours.
-- Une **phrase du gardien** remplace le paragraphe d'introduction : courte, à
-  sa voix (par ex. « Elle dort encore. La réveiller vous coûtera votre
-  chance. »). L'explication complète des vestiges passe dans une aide repliée
-  ou un lien vers la bibliothèque.
+  téléphone : la réserve de vestiges, les deux gestes, les chances en
+  pastilles, le compte à rebours.
+- **Aucun texte d'introduction.** Les règles vivent dans « Comment ça
+  marche », replié (ouvert d'office tant que le joueur n'a rien forgé), ou
+  dans une bulle « ? » ; le proposer sans qu'il pousse la scène sous le pli.
 
 **Tenue à l'écran** : aucune barre de défilement au bureau dès 1 024 × 680
 (palier « Bureau » de la charte), maquettes à **1 440 × 900** et **1 280 ×
@@ -82,16 +86,19 @@ réserve tiennent au-dessus de la barre de navigation basse, sans défiler.
 
 ## 5. Les états à produire
 
+Libellés : ceux de la page actuelle (§ 7), à reprendre tels quels sauf
+meilleure idée **plus courte**.
+
 | # | État | Ce qu'on voit |
 |---|---|---|
-| E1 | Face cachée, assez de vestiges | Carte de dos sur l'autel. « Forger à l'aveugle · 100 vestiges » (principal), « Retourner la carte » (secondaire). Chances : 60 % commune, 34 % peu commune, 4,8 % rare, 1 % légendaire ; rainbow 3 fois sur cent. |
-| E2 | Face cachée, pas assez | Bouton principal éteint, « Il vous manque 27 vestiges pour la forger à l'aveugle ». Retourner reste possible. |
-| E3 | Confirmation | Chaque geste se confirme d'un second toucher sur le même bouton : « Confirmer : 100 vestiges », « Confirmer : renoncer au prix moyen ». Montrer comment le bouton armé se distingue (sans fenêtre modale). |
-| E4 | Forge à l'aveugle | L'animation du § 6, image par image (6 à 8 vignettes clés). |
-| E5 | Verdict | Après la forge à l'aveugle : la carte retournée, le prix payé et le prix réel. Trois variantes : **gagnant** (« Payée 100, elle en vaut 1 000. Belle affaire : 900 vestiges d'économisés. »), **perdant** (« Payée 100, elle en vaut 50. Le pari ne paie pas cette fois. »), **juste**. |
-| E6 | Retournée, pas encore forgée | Nom, rareté, « Vous en avez 3 exemplaires : celui-ci s'y ajoutera » ou « Elle manque à votre collection », bouton « Forger · 250 vestiges », et en rappel discret « Face cachée, elle coûtait 100 ». Variante : trop chère (« Il vous manque 807 vestiges »). |
-| E7 | Forgée aujourd'hui | Carte face visible, « Forgée aujourd'hui. Prochaine carte dans 7 h 22. » La page doit rester belle dans cet état, c'est celui qu'on voit le plus. |
-| E8 | Scellé | Moins de 60 % de la collection : la crypte fermée, « Le Reliquaire est scellé », la progression (« La Troupe : 48 % »). |
+| E1 | Face cachée, assez de vestiges | Carte de dos sur l'autel. « Carte du jour ». Pastilles de chances : Commun 60 %, Peu commun 34 %, Rare 4,8 %, Légendaire 1 %, ✦ Rainbow 3 %. Réserve [vestige] 193. Boutons « À l'aveugle [vestige] 100 » (principal) et « Retourner » (secondaire). « Nouvelle carte : 7 h 22 ». |
+| E2 | Face cachée, pas assez | Bouton principal éteint, « Manque 27 » en ambre brûlé. Retourner reste possible. |
+| E3 | Confirmation | Second toucher sur le même bouton : « Confirmer [vestige] 100 », « Renoncer à l'aveugle ? ». Sans fenêtre modale. Montrer comment le bouton armé se distingue. |
+| E4 | Forge à l'aveugle | L'animation du § 6, en 6 à 8 vignettes clés. |
+| E5 | Verdict | « [vestige] 100 → [vestige] 1 000 +900 » : gagnant (vert), perdant (« 100 → 50 −50 », ambre brûlé), juste (sans écart). Aucune phrase. |
+| E6 | Retournée, pas encore forgée | Nom ; « Rare · ×3 » ou « Rare · Manquante » ; « Forger [vestige] 250 » ; variante trop chère (« Manque 807 »). |
+| E7 | Forgée aujourd'hui | Carte face visible, « ✓ Forgée · Nouvelle carte : 7 h 22 ». La page doit rester belle dans cet état, c'est celui qu'on voit le plus. |
+| E8 | Scellé | Moins de 60 % de la collection : crypte fermée, « Reliquaire scellé », pastille « La Troupe 48 % », « s'ouvre à 60 % ». |
 
 Une **légendaire rainbow** dans E5 gagnant, pour vérifier que la scène supporte
 le cas le plus spectaculaire.
@@ -101,6 +108,16 @@ le cas le plus spectaculaire.
 Un prototype HTML de cette séquence est la pièce la plus attendue. Elle
 réutilise le langage déjà en place à l'ouverture des boosters (charte, § 5) :
 **le tempo porte l'information**.
+
+**Tout en code, aucune image animée.** Les planches générées (`forge.webp`,
+`forge-legendaire.webp`, `dissolution.webp`) sont retirées. Éclats, lueurs,
+particules, braises : CSS (`@keyframes`, variables), SVG ou `<canvas>`,
+éventuellement l'API Web Animations, sans bibliothèque ni ressource tierce.
+N'animer que `transform`, `opacity` et `filter` ; fluide sur un téléphone
+moyen ; les particules en nombre borné (tableau ci-dessous). Les couleurs
+viennent des jetons et des lueurs de palier, pour que l'effet change avec la
+rareté sans nouvel asset. Le code livré doit pouvoir être repris tel quel dans
+le site (React, une feuille CSS) : structure et noms de classes lisibles.
 
 ### 6.1 Forger à l'aveugle
 
@@ -113,10 +130,11 @@ réutilise le langage déjà en place à l'ouverture des boosters (charte, § 5)
    de l'autel.
 3. **Le retournement**, à la durée du palier, courbe
    `cubic-bezier(.34,.85,.36,1)`. Particules pour peu commune et au-delà.
-4. **La forge** : un éclat bref sur la carte retournée (les planches
-   `forge.webp` et `forge-legendaire.webp` existent, à reprendre ou remplacer).
-5. **Le verdict** : le prix réel apparaît à côté du prix payé et compte jusqu'à
-   sa valeur. Gagnant : le chiffre éclate en vert (`--vert-encre`, déjà employé
+4. **La forge** : un éclat bref sur la carte retournée, dessiné en code
+   (braises, fissure de lumière, onde : à proposer), plus ample pour une
+   légendaire ou une rainbow.
+5. **Le verdict** : le prix réel apparaît à côté du prix payé (« 100 → 1 000 »)
+   et compte jusqu'à sa valeur, puis l'écart s'affiche (« +900 »). Gagnant : le chiffre éclate en vert (`--vert-encre`, déjà employé
    au Comptoir) ; perdant : il tressaille en ambre brûlé (`--ember`). Aucun
    écran de victoire : une ligne, à sa place réservée.
 
@@ -153,7 +171,23 @@ Le site a un moteur de sons (`src/son/`). Indiquer dans la note les instants où
 un son se poserait : paiement, éveil, retournement, verdict gagnant, verdict
 perdant.
 
-## 7. Contenu réel pour la maquette
+## 7. Le texte : montrer plutôt que dire
+
+Même règle que la refonte du Donjon (audit de lisibilité du 06/10/2026) :
+
+- **Un joueur ne lit pas, il reconnaît** des formes, des couleurs, des
+  chiffres. Un montant s'écrit icône de vestige + chiffre, jamais « 100
+  vestiges » ; une possession « ×3 » ; un écart « +900 ».
+- **Une information, un seul endroit.** Les chances ne s'écrivent qu'une
+  fois (pastilles), le prix une fois (dans le bouton).
+- **Les règles se révèlent une fois** : « Comment ça marche » et bulles au
+  survol, pas de paragraphe permanent.
+- **Pas d'écran sans décision** : le verdict s'inscrit dans la page, pas dans
+  une fenêtre.
+- **Budget** : la page actuelle affiche **37 mots** hors règles repliées. La
+  refonte ne doit pas en ajouter ; chaque mot de plus se justifie.
+
+## 8. Contenu réel pour la maquette
 
 - Joueur : **193 vestiges**, 78 PO. Extension : La Troupe.
 - Carte du jour d'exemple : **Tisseuse de Tian**, commune, TRO-094 (Nomade,
@@ -165,7 +199,7 @@ perdant.
 - Compte à rebours : « Nouvelle carte dans 7 h 22 » (la carte change à minuit).
 - Nombres entiers, séparateur de milliers par espace fine (« 1 000 »).
 
-## 8. Contraintes visuelles (la charte fait foi)
+## 9. Contraintes visuelles (la charte fait foi)
 
 - **Palette** : `tokens.css` joint. Sol froid (`--ground` `#0d1417`, `--panel`
   `#1a272c`), une seule lumière chaude, la lampe `--lamp` `#e8a33d`, réservée
@@ -187,10 +221,14 @@ perdant.
 - **Accessibilité** : cibles de 44 px, focus visible, bordure d'élément
   actionnable `--edge-ui`, annonce du verdict en région `aria-live`.
 - **Écriture** : « booster », « rainbow » (jamais « sachet », « irisé ») ; pas
-  de tiret cadratin ; phrases courtes ; la voix du gardien pour l'ambiance.
+  de tiret cadratin ; le moins de mots possible (§ 7).
+- **Icônes** : tracés SVG de `Icone.jsx` (grille de 20, trait 1,6,
+  `currentColor`) ; une icône manquante (horloge du compte à rebours,
+  vestige en tracé si l'image ne tient pas aux petites tailles) se dessine
+  dans le même style.
 - Aucune police, image ou script chargé depuis un domaine tiers.
 
-## 9. Ce qu'il ne faut pas faire
+## 10. Ce qu'il ne faut pas faire
 
 - Pas de bandeau-titre avec paragraphe au-dessus de la scène.
 - Pas de découpe de personnage posée dans le vide.
@@ -198,32 +236,37 @@ perdant.
 - Pas de fond crème, d'accent turquoise, de micro-libellés.
 - Pas de faux suspense sur le verdict (pas de roue, pas de compteur qui
   hésite) : la lueur du palier annonce, le retournement montre.
+- Pas d'image générée pour une animation (planche, GIF, vidéo).
+- Pas de phrase là où un chiffre ou une icône suffit.
 
-## 10. Livrables attendus
+## 11. Livrables attendus
 
 1. Maquettes **bureau 1 440 × 900** et **téléphone 390 × 844** des états E1 à
    E8, plus le contrôle à 1 280 × 720.
-2. **Un prototype HTML cliquable** de la page avec l'animation du § 6, un
-   sélecteur pour choisir le palier tiré (commune, peu commune, rare,
-   légendaire, légendaire rainbow) et un interrupteur « moins d'animations ».
+2. **Un prototype HTML cliquable** de la page avec l'animation du § 6, **en
+   code** (CSS, SVG ou canvas), un sélecteur pour choisir le palier tiré
+   (commune, peu commune, rare, légendaire, légendaire rainbow) et un
+   interrupteur « moins d'animations ».
 3. Une note courte : jetons ajoutés, dimensions, **chronologie de l'animation
    en millisecondes** (étape, durée, courbe), dans le vocabulaire de la charte.
-4. La liste des images à produire pour Sora, avec leur ratio : la crypte en
-   plein cadre (sans texte, zone calme à droite pour le panneau), l'autel ou le
-   reliquaire seul en découpe, le gardien en pied ou à mi-corps détouré, et les
-   planches d'effet si elles changent.
+4. La liste des **images fixes** à produire pour Sora, avec leur ratio : la
+   crypte en plein cadre (sans texte, zone calme à droite pour le panneau),
+   l'autel ou le reliquaire seul en découpe, le gardien en pied ou à mi-corps
+   détouré. Aucune image d'effet : les effets sont dans le code.
 
-## 11. Pièces jointes (dossier `brief-reliquaire/`)
+## 12. Pièces jointes (dossier `brief-reliquaire/`)
 
 | Fichier | Pour quoi |
 |---|---|
-| `reliquaire-actuel.png` | La page telle qu'elle est (avant la face cachée) |
+| `reliquaire-actuel.png` | La page d'origine, avant la face cachée |
+| `reliquaire-allege-bureau.png`, `reliquaire-allege-verdict.png`, `reliquaire-allege-telephone.png` | La page actuelle : face cachée, texte allégé, verdict |
 | `charte-graphique.md` | Les règles visuelles du site |
 | `expeditions-et-reliquaire.md` | La mécanique du Reliquaire |
 | `tokens.css`, `site.css`, `expeditions.css`, `cards.css` | Styles actuels |
-| `PageReliquaire.jsx` | La page, avec la face cachée déjà branchée |
+| `PageReliquaire.jsx` | La page, face cachée et texte allégé déjà branchés |
 | `regles.js`, `reliquaire.js`, `tiers.js` | Règles, prix, tempo des paliers |
 | `Carte.jsx`, `FaceCarte.jsx`, `DosCarte.jsx` | Le rendu d'une carte et son retournement |
 | `carte-cadre.webp`, `carte-dos.webp` | Cadre et dos de carte |
-| `reliquaire/*.webp` | Bandeau (crypte), gardien, reliquaire, vestige, planches d'effet |
+| `reliquaire/*.webp` | Bandeau (crypte), gardien, reliquaire, vestige ; les planches d'effet, pour mémoire seulement (abandonnées) |
+| `Icone.jsx` | Les pictogrammes du site, style à suivre |
 | `cartes/*.png` | Illustrations de cartes pour les états |
