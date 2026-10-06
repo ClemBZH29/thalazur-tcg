@@ -120,15 +120,34 @@
 }
 .rel-jour-carte { justify-self: center; }
 .rel-jour-fiche { display: grid; gap: 10px; justify-items: start; }
-.rel-jour-fiche h2 { font-size: 13px; letter-spacing: .02em; color: var(--lamp); font-family: var(--font-ui); font-weight: 600; margin: 0; }
-.rel-jour-nom { margin: 0; font: 600 26px/1.15 var(--font-display); font-variation-settings: var(--wonk); color: var(--ink); }
+.rel-jour-fiche .rel-jour-nom { margin: 0; font: 600 26px/1.15 var(--font-display); font-variation-settings: var(--wonk); color: var(--ink); }
 .rel-jour-nom span { display: block; margin-top: 4px; font: 600 13px var(--font-ui); color: var(--ink3); }
 .rel-jour-fiche p { margin: 0; }
 .rel-jour-fiche .rel-reserve { text-align: left; padding: 6px 0; display: flex; gap: 10px; align-items: center; }
 .rel-jour-fiche .rel-vestige { margin: 0; width: 36px; height: 36px; }
 .rel-jour-etat { font-size: 13px; }
 .rel-gestes { display: flex; flex-wrap: wrap; gap: 8px; }
-.rel-jour-verdict { font-size: 14px; color: var(--ink2); font-variant-numeric: tabular-nums; }
+.rel-gestes .btn, .rel-jour-fiche > .btn { display: inline-flex; align-items: center; gap: 10px; }
+/* Un montant en vestiges : l'icône tient lieu de mot. */
+.rel-v { display: inline-flex; align-items: center; gap: 4px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.rel-v img { width: 1.15em; height: 1.15em; }
+.rel-reserve .rel-v { font: 600 clamp(30px, 4vw, 40px)/1 var(--font-display); font-variation-settings: var(--wonk); color: var(--lamp); }
+.rel-reserve .rel-v img { filter: drop-shadow(0 0 10px rgba(232, 163, 61, .5)); }
+.rel-chances { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.rel-chances li { font-size: 12px; padding: 4px 10px; border-radius: 100px; background: var(--panel); border: 1px solid var(--edge); color: var(--ink3); }
+.rel-chances li b { color: var(--ink); font-variant-numeric: tabular-nums; }
+.rel-chances li.ch-rainbow b { color: var(--m-rainbow); }
+.rel-manque { color: var(--ember); font-weight: 600; }
+.rel-jour-nom span .rel-manque { font-weight: 600; }
+.rel-jour-etat { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; color: var(--ink3); }
+.rel-verdict { display: flex; align-items: center; gap: 8px; font-size: 18px; color: var(--ink2); }
+.rel-verdict b { font: 600 20px var(--font-display); }
+.rel-verdict.gain b { color: var(--vert-encre, #78c2b0); }
+.rel-verdict.perte b { color: var(--ember); }
+.rel-scelle { display: flex; gap: 10px; align-items: center; margin: 0; }
+/* Plus de paragraphe : le bandeau se réduit à son titre, la carte remonte. */
+.rel-bandeau { min-height: clamp(96px, 12vw, 150px); }
+.rel-regles { margin-top: 18px; }
 .rel-reserve p { margin: 0; }
 .rel-reserve b { font: 600 clamp(30px, 4vw, 40px)/1 var(--font-display); font-variation-settings: var(--wonk); color: var(--lamp); }
 .rel-vestige { width: 44px; height: 44px; display: block; margin: 0 auto 6px; filter: drop-shadow(0 0 10px rgba(232, 163, 61, .5)); }
@@ -137,7 +156,6 @@
   .rel-jour .rel-gardien { display: none; }
   .rel-jour-fiche { justify-items: center; text-align: center; }
 }
-.rel-hors { margin: 10px 0 0; }
 
 /* Planche de neuf images, lue d'un trait. Le noir d'origine est devenu transparent. */
 .rel-effet {

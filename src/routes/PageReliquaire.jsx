@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useJeu } from "../jeu/Jeu.jsx";
 import Carte from "../components/Carte.jsx";
 import { Lien } from "../lib/routeur.jsx";
+import Icone from "../components/Icone.jsx";
 import { RELIQUAIRE } from "../config/reliquaire.js";
 import { SLOTS, TAUX_DEFAUT, TIER_INFO } from "../config/tiers.js";
 import { PALIERS, completion, eligible, frequences, jourDe, offreDuJour, offrePrise, offreRevelee, peutForgerOffre } from "../reliquaire/regles.js";
@@ -32,13 +33,43 @@ const CACHEE = { id: "cachee", nom: "?", tier: "commun" };
 
 const fmt = (n) => n.toLocaleString("fr-FR");
 
-/** Les chances de la carte du jour, lues dans la table du booster : « 60 % de communes… ». */
+/** Les chances de la carte du jour, lues dans la table du booster : [palier, « 60 % »]. */
 function chances() {
   const f = frequences(SLOTS);
   const total = PALIERS.reduce((s, t) => s + f[t], 0);
-  const pct = (t) => { const v = (f[t] / total) * 100; return v >= 10 ? Math.round(v) : Math.round(v * 10) / 10; };
-  return `${pct("commun")} % commune, ${pct("peucommun")} % peu commune, ${String(pct("rare")).replace(".", ",")} % rare, `
-    + `${String(pct("legendaire")).replace(".", ",")} % légendaire ; rainbow ${Math.round(TAUX_DEFAUT.rainbow * 100)} fois sur cent`;
+  const pct = (v) => `${String(v >= 10 ? Math.round(v) : Math.round(v * 10) / 10).replace(".", ",")} %`;
+  return [
+    ...PALIERS.map((t) => [TIER_INFO[t].nom, pct((f[t] / total) * 100), t]),
+    ["✦ Rainbow", pct(TAUX_DEFAUT.rainbow * 100), "rainbow"],
+  ];
+}
+
+/** Un montant en vestiges : l'icône et le chiffre, sans le mot. */
+function Vestiges({ n, className = "" }) {
+  return (
+    <span className={`rel-v ${className}`}>
+      <img src={`${IMG}vestige.webp`} alt="" />{fmt(n)}<span className="sr"> vestiges</span>
+    </span>
+  );
+}
+
+/** Les règles, lues une fois : ouvertes d'office tant qu'on n'a rien forgé. */
+function Regles({ ouvert }) {
+  return (
+    <details className="dj-regles rel-regles" open={ouvert}>
+      <summary>Comment ça marche</summary>
+      <ul>
+        <li><b>Une carte par jour</b>, la même pour tous, tirée comme dans un booster. Elle change à minuit.</li>
+        <li><b>À l'aveugle</b> : forgée sans la voir, au prix moyen. Perdant sur une commune, gagnant sur une rare ou mieux.</li>
+        <li><b>Retourner</b> : gratuit, montre la carte et son prix. Le prix à l'aveugle est alors perdu pour la journée.</li>
+        <li><b>Prix</b> : commune {fmt(RELIQUAIRE.forge.commun)}, peu commune {fmt(RELIQUAIRE.forge.peucommun)},
+          rare {fmt(RELIQUAIRE.forge.rare)}, légendaire {fmt(RELIQUAIRE.forge.legendaire)} ; rainbow ×{RELIQUAIRE.multRainbow}.</li>
+        <li><b>Vestiges</b> : on les tire de ses doublons, dans la{" "}
+          <Lien vers="/bibliotheque" actif={false} className="lien">bibliothèque</Lien> (volet Reliquaire d'une carte en double).
+          Cartes de personnage et full art n'y entrent pas.</li>
+      </ul>
+    </details>
+  );
 }
 
 /**
@@ -84,12 +115,12 @@ export default function PageReliquaire() {
   if (!reliquaireOuvert) {
     return (
       <main className="view large exp-page rel-page" id="contenu">
-        <header className="exp-bandeau" style={{ backgroundImage: `url(${IMG}bandeau.webp)` }}>
+        <header className="exp-bandeau rel-bandeau" style={{ backgroundImage: `url(${IMG}bandeau.webp)` }}>
           <div className="exp-bandeau-texte">
-            <h1>Le Reliquaire est scellé</h1>
-            <p className="lede">
-              Le gardien ouvre sa crypte aux collectionneurs qui ont complété une extension à
-              {" "}{Math.round(RELIQUAIRE.ouverture * 100)} % au moins. {booster?.titre || "Cette extension"} : {Math.round(pct * 100)} %.
+            <h1>Reliquaire scellé</h1>
+            <p className="rel-scelle">
+              <span className="pastille">{booster?.titre || "Collection"} <b>{Math.round(pct * 100)} %</b></span>
+              <span className="muted">s'ouvre à {Math.round(RELIQUAIRE.ouverture * 100)} %</span>
             </p>
           </div>
         </header>
@@ -144,28 +175,20 @@ export default function PageReliquaire() {
     }
   });
 
-  const verdict = bilan && (bilan.vaut > bilan.paye
-    ? `Belle affaire : ${fmt(bilan.vaut - bilan.paye)} vestiges d'économisés.`
-    : bilan.vaut < bilan.paye ? "Le pari ne paie pas cette fois." : "Le compte est juste.");
+  const ecart = bilan ? bilan.vaut - bilan.paye : 0;
+  const prochaine = <span className="rel-prochaine">Nouvelle carte : {avantMinuit(maintenant)}</span>;
 
   return (
     <main className="view large exp-page rel-page" id="contenu">
-      <header className="exp-bandeau" style={{ backgroundImage: `url(${IMG}bandeau.webp)` }}>
-        <div className="exp-bandeau-texte">
-          <h1>Reliquaire</h1>
-          <p className="lede">
-            Chaque jour, le gardien forge une seule carte, la même pour tous les collectionneurs.
-            Elle se paie en vestiges, qu'il tire de vos doublons : dans la bibliothèque, touchez une
-            carte en double et ouvrez son volet Reliquaire.
-          </p>
-        </div>
+      <header className="exp-bandeau rel-bandeau" style={{ backgroundImage: `url(${IMG}bandeau.webp)` }}>
+        <div className="exp-bandeau-texte"><h1>Reliquaire</h1></div>
       </header>
 
       <p className="sr" role="status" aria-live="polite">{annonce}</p>
 
       {offre && (
         <section className="rel-jour" aria-labelledby="rel-jour-titre">
-          <img className="rel-gardien" src={`${IMG}gardien.webp`} alt="Le gardien du Reliquaire" draggable="false" />
+          <img className="rel-gardien" src={`${IMG}gardien.webp`} alt="" draggable="false" />
 
           <div className="rel-jour-carte">
             {/* Une seule carte, qui reste montée : retournée, elle tourne sur
@@ -178,72 +201,60 @@ export default function PageReliquaire() {
           </div>
 
           <div className="rel-jour-fiche">
-            <h2 id="rel-jour-titre">La carte du jour</h2>
-            {revelee ? (
-              <>
-                <p className="rel-jour-nom">
-                  {offre.c.nom}
-                  <span>{TIER_INFO[offre.c.tier]?.nom}{offre.rainbow && " · Rainbow"}</span>
-                </p>
-                <p className="muted">
-                  {detenus > 0
-                    ? `Vous en avez ${detenus} exemplaire${detenus > 1 ? "s" : ""}${offre.rainbow ? " rainbow" : ""} : celui-ci s'y ajoutera.`
-                    : offre.rainbow ? "Vous n'avez pas encore sa version rainbow." : "Elle manque à votre collection."}
-                </p>
-              </>
-            ) : (
-              <>
-                <p className="rel-jour-nom">
-                  Face cachée
-                  <span>La même pour tous les collectionneurs</span>
-                </p>
-                <p className="muted">
-                  Forgez-la sans la voir au prix moyen, ou retournez-la pour connaître la carte et son
-                  prix : il ne sera plus question du prix moyen aujourd'hui. Elle sort comme dans un
-                  booster : {chances()}.
-                </p>
-              </>
+            <h2 id="rel-jour-titre" className="rel-jour-nom">
+              {revelee ? offre.c.nom : "Carte du jour"}
+              {revelee && (
+                <span>
+                  {TIER_INFO[offre.c.tier]?.nom}{offre.rainbow && " · ✦ Rainbow"}
+                  {" · "}{detenus > 0 ? `×${detenus}` : <b className="rel-manque">Manquante</b>}
+                </span>
+              )}
+            </h2>
+
+            {!revelee && (
+              <ul className="rel-chances" aria-label="Chances">
+                {chances().map(([nom, p, t]) => <li key={t} className={`ch-${t}`}>{nom} <b>{p}</b></li>)}
+              </ul>
             )}
 
-            <div className="rel-reserve">
-              <img src={`${IMG}vestige.webp`} alt="" className="rel-vestige" />
-              <p><b>{fmt(vestiges)}</b> vestiges</p>
-            </div>
+            <p className="rel-reserve" title="Vos vestiges"><Vestiges n={vestiges} /></p>
 
             {prise ? (
               <>
                 {bilan && (
-                  <p className="rel-jour-verdict">
-                    Payée {fmt(bilan.paye)} vestiges à l'aveugle, elle en vaut {fmt(bilan.vaut)}. {verdict}
+                  <p className={`rel-verdict ${ecart > 0 ? "gain" : ecart < 0 ? "perte" : ""}`}>
+                    <Vestiges n={bilan.paye} /> <span aria-hidden="true">→</span><span className="sr">, elle en vaut</span> <Vestiges n={bilan.vaut} />
+                    {ecart !== 0 && <b>{ecart > 0 ? "+" : "−"}{fmt(Math.abs(ecart))}</b>}
                   </p>
                 )}
-                <p className="rel-jour-etat">Forgée aujourd'hui. Prochaine carte dans {avantMinuit(maintenant)}.</p>
+                <p className="rel-jour-etat"><Icone nom="fait" taille={15} /> Forgée · {prochaine}</p>
               </>
             ) : !revelee ? (
               <>
                 <div className="rel-gestes">
                   <button type="button" className="btn" disabled={!possibleAveugle} onClick={forgerAveugle}
                     onBlur={() => setConfirme(null)}>
-                    {confirme === "aveugle" ? `Confirmer : ${fmt(offre.prixAveugle)} vestiges` : `Forger à l'aveugle · ${fmt(offre.prixAveugle)} vestiges`}
+                    {confirme === "aveugle" ? "Confirmer" : "À l'aveugle"} <Vestiges n={offre.prixAveugle} />
                   </button>
-                  <button type="button" className="btn quiet" onClick={revelerCarte} onBlur={() => setConfirme(null)}>
-                    {confirme === "retourner" ? "Confirmer : renoncer au prix moyen" : "Retourner la carte"}
+                  <button type="button" className="btn quiet" onClick={revelerCarte} onBlur={() => setConfirme(null)}
+                    title="Montre la carte et son prix. Le prix à l'aveugle est perdu pour aujourd'hui.">
+                    {confirme === "retourner" ? "Renoncer à l'aveugle ?" : "Retourner"}
                   </button>
                 </div>
-                <p className="muted rel-jour-etat">
-                  {!possibleAveugle && `Il vous manque ${fmt(offre.prixAveugle - vestiges)} vestiges pour la forger à l'aveugle. `}
-                  Nouvelle carte dans {avantMinuit(maintenant)}.
+                <p className="rel-jour-etat">
+                  {!possibleAveugle && <span className="rel-manque">Manque {fmt(offre.prixAveugle - vestiges)} · </span>}
+                  {prochaine}
                 </p>
               </>
             ) : (
               <>
                 <button type="button" className="btn" disabled={!possible} onClick={forger}
                   onBlur={() => setConfirme(null)}>
-                  {confirme === "forger" ? `Confirmer : ${fmt(offre.prix)} vestiges` : `Forger · ${fmt(offre.prix)} vestiges`}
+                  {confirme === "forger" ? "Confirmer" : "Forger"} <Vestiges n={offre.prix} />
                 </button>
-                <p className="muted rel-jour-etat">
-                  {!possible && `Il vous manque ${fmt(offre.prix - vestiges)} vestiges. `}
-                  Face cachée, elle coûtait {fmt(offre.prixAveugle)}. Nouvelle carte dans {avantMinuit(maintenant)}.
+                <p className="rel-jour-etat">
+                  {!possible && <span className="rel-manque">Manque {fmt(offre.prix - vestiges)} · </span>}
+                  {prochaine}
                 </p>
               </>
             )}
@@ -251,11 +262,7 @@ export default function PageReliquaire() {
         </section>
       )}
 
-      <p className="muted rel-hors">
-        Les cartes de personnage et les full art restent hors du Reliquaire. Les vestiges se tirent des
-        doublons, depuis la bibliothèque.
-        {" "}<Lien vers="/bibliotheque" actif={false} className="lien">Aller à la bibliothèque</Lien>
-      </p>
+      <Regles ouvert={!(etat.stats?.forges > 0)} />
 
       {effet && <Effet key={effet} genre={effet} onFin={() => setEffet(null)} />}
     </main>
