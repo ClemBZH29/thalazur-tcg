@@ -151,6 +151,44 @@ describe("reliquaire", () => {
     expect(R.forgerOffre(avec({}, 1), o).reliquaire.vestiges).toBe(1);
   });
 
+  test("forge à l'aveugle : le prix moyen de la carte du jour, arrondi au-dessus", () => {
+    // Table du site : 60 % de communes, 34,2 % de peu communes, 4,8 % de rares,
+    // 1 % de légendaires ; prix 50/100/250/1000, rainbow ×5 trois fois sur cent.
+    const SITE = [{ commun: 1 }, { commun: 1 }, { commun: 1 }, { peucommun: 0.955, rare: 0.038, legendaire: 0.007 }, { peucommun: 0.755, rare: 0.2, legendaire: 0.045 }];
+    expect(R.esperanceForge(SITE, 0.03)).toBeCloseTo(96.88, 1);
+    expect(R.prixAveugle(SITE, 0.03)).toBe(100);
+    // Le prix moyen tient la promesse : perdant sur une commune, gagnant sur une rare.
+    expect(R.prixAveugle(SITE, 0.03)).toBeGreaterThan(RELIQUAIRE.forge.commun);
+    expect(R.prixAveugle(SITE, 0.03)).toBeLessThan(RELIQUAIRE.forge.rare);
+  });
+
+  test("forge à l'aveugle : au prix moyen tant que la carte est cachée", () => {
+    const o = { ...offre(), prix: 1000, prixAveugle: 100 };
+    const e = avec({}, 150);
+    expect(R.offreRevelee(e, o)).toBe(false);
+    expect(R.peutForgerOffre(e, o)).toBe(false);
+    expect(R.peutForgerOffre(e, o, { aveugle: true })).toBe(true);
+    const e1 = R.forgerOffre(e, o, { aveugle: true });
+    expect(e1.reliquaire.vestiges).toBe(50);
+    expect(e1.collections.x[o.c.id].normale).toBe(1);
+    expect(e1.stats.forgesAveugles).toBe(1);
+    // Forgée, elle est retournée, et ne se forge plus aujourd'hui.
+    expect(R.offreRevelee(e1, o)).toBe(true);
+    expect(R.forgerOffre(e1, o, { aveugle: true })).toBe(e1);
+  });
+
+  test("retourner la carte : gratuit, mais le prix moyen est perdu pour la journée", () => {
+    const o = { ...offre(), prix: 50, prixAveugle: 100 };
+    const e = R.reveler(avec({}, 500), o);
+    expect(e.reliquaire.vestiges).toBe(500);
+    expect(R.offreRevelee(e, o)).toBe(true);
+    expect(R.reveler(e, o)).toBe(e);
+    expect(R.peutForgerOffre(e, o, { aveugle: true })).toBe(false);
+    expect(R.forgerOffre(e, o).reliquaire.vestiges).toBe(450);
+    // Le lendemain, une nouvelle carte se présente face cachée.
+    expect(R.offreRevelee(e, { ...o, jour: "2026-10-01" })).toBe(false);
+  });
+
   test("rainbow et cartes de personnage restent hors du Reliquaire", () => {
     expect(R.eligible({ id: "pj-1", tier: "legendaire" })).toBe(false);
     expect(R.eligible({ id: "f1", tier: "fullart" })).toBe(false);

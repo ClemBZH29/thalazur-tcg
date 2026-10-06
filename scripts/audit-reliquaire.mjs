@@ -23,7 +23,7 @@ import { construirePool, deduireGrades } from "../src/lib/roster.js";
 import { specialesPour } from "../src/config/speciales.js";
 import { GARANTIES, TAUX_DEFAUT, ECONOMIE, SLOTS } from "../src/config/tiers.js";
 import { RELIQUAIRE } from "../src/config/reliquaire.js";
-import { offreDuJour } from "../src/reliquaire/regles.js";
+import { esperanceForge, offreDuJour, prixAveugle } from "../src/reliquaire/regles.js";
 
 const ID = "troupe-valeran";
 const roster = JSON.parse(readFileSync(new URL(`../src/extensions/${ID}/roster.json`, import.meta.url), "utf8"));
@@ -100,3 +100,9 @@ for (const [nom, bj] of PROFILS) {
     console.log(`| ${nom} (${bj} b/j) | ${lib} | ${moy(cs.map((c) => c[90]).filter(Boolean))} j | ${moy(j100)} j${j100.length < N ? ` (${j100.length}/${N})` : ""} | ${rel ? moy(cs.map((c) => c.vest30 || 0)) : "—"} | ${rel ? moy(cs.map((c) => c.forges || 0)) : "—"} |`);
   }
 }
+
+// La forge à l'aveugle : le prix moyen face cachée, contre le prix réel de
+// chaque palier (src/config/reliquaire.js, `aveugle`).
+const esp = esperanceForge(SLOTS, TAUX_DEFAUT.rainbow);
+console.log(`\nForge à l'aveugle : ${prixAveugle(SLOTS, TAUX_DEFAUT.rainbow)} vestiges (espérance du prix : ${esp.toFixed(1)}). `
+  + `Prix réels : ${PALIERS.map((t) => `${t} ${RELIQUAIRE.forge[t]}`).join(", ")}, rainbow ×${RELIQUAIRE.multRainbow}.`);

@@ -229,6 +229,14 @@ pouvoir lire quoi que ce soit.
 Courbes usuelles : `cubic-bezier(.2,.8,.3,1)` pour une entrée, `.34,.85,.36,1`
 pour le retournement, `.2,1.3,.4,1` pour un retour en ressort.
 
+**Les animations se font en code** (décision du 06/10/2026). Éclats, lueurs,
+particules : CSS, SVG ou `<canvas>`, conçus avec Claude Design, jamais en
+planches d'images générées (Sora). Une planche ne suit ni la rareté ni la
+palette, pèse plus lourd et ne se règle qu'en la régénérant ; un effet en code
+prend ses couleurs dans les jetons. Les planches encore en place (Reliquaire,
+`public/reliquaire/*.webp`) partent à leur refonte. Sora reste l'outil des
+images fixes : portraits, décors, illustrations de cartes.
+
 **Le réglage « moins d'animations » coupe toutes les animations d'ambiance et
 de révélation** (profil : « Jamais animer », ou « Suivre le système » quand le
 système le demande ; le défaut est « Toujours animer »). Une règle absolue l'accompagne : une animation supprimée doit voir

@@ -10,13 +10,14 @@
  *   dissout que des exemplaires normaux.
  *
  * Les vestiges vivent dans `etat.reliquaire.vestiges` ; le jour de la
- * dernière forge, par extension, dans `etat.reliquaire.achats`.
+ * dernière forge, par extension, dans `etat.reliquaire.achats` ; le jour où
+ * la carte du jour a été retournée, dans `etat.reliquaire.reveles`.
  */
 import { RELIQUAIRE } from "../config/reliquaire.js";
 
 export const PALIERS = ["commun", "peucommun", "rare", "legendaire"];
 
-export const etatReliquaire = (etat) => ({ vestiges: 0, achats: {}, ouvert: null, ...(etat.reliquaire || {}) });
+export const etatReliquaire = (etat) => ({ vestiges: 0, achats: {}, reveles: {}, ouvert: null, ...(etat.reliquaire || {}) });
 export const vestiges = (etat) => etatReliquaire(etat).vestiges;
 
 /** Une carte que le Reliquaire accepte de traiter. */
@@ -125,27 +126,67 @@ export function offreDuJour(ext, cartes, jour, { slots, tauxRainbow }) {
   while (i < elig.length - 1 && (x -= poids[i]) > 0) i++;
   const c = elig[i];
   const rainbow = r() < tauxRainbow;
-  return { ext, jour, c, rainbow, prix: prixOffre(c, rainbow) };
+  return { ext, jour, c, rainbow, prix: prixOffre(c, rainbow), prixAveugle: prixAveugle(slots, tauxRainbow) };
 }
 
 export const prixOffre = (c, rainbow) =>
   RELIQUAIRE.forge[c.tier] * (rainbow ? RELIQUAIRE.multRainbow : 1);
 
+/**
+ * Ce que coûte en moyenne la carte du jour : le prix de chaque palier pesé
+ * par sa part des cartes d'un booster, relevé de l'irisation. Ne dépend que
+ * de la table des emplacements, pas du nombre de cartes par palier : un
+ * palier pèse sa fréquence, partagée entre ses cartes.
+ */
+export function esperanceForge(slots, tauxRainbow) {
+  const f = frequences(slots);
+  const total = PALIERS.reduce((s, t) => s + f[t], 0);
+  if (!total) return 0;
+  const base = PALIERS.reduce((s, t) => s + (f[t] / total) * RELIQUAIRE.forge[t], 0);
+  return base * (1 + tauxRainbow * (RELIQUAIRE.multRainbow - 1));
+}
+
+/** Le prix à l'aveugle : l'espérance, relevée de la marge, au multiple supérieur. */
+export function prixAveugle(slots, tauxRainbow) {
+  const { marge, arrondi } = RELIQUAIRE.aveugle;
+  return Math.ceil((esperanceForge(slots, tauxRainbow) * marge) / arrondi) * arrondi;
+}
+
 /** Déjà forgée aujourd'hui ? Une seule par jour et par extension. */
 export const offrePrise = (etat, offre) =>
   !!offre && etatReliquaire(etat).achats?.[offre.ext] === offre.jour;
 
-export const peutForgerOffre = (etat, offre) =>
-  !!offre && !offrePrise(etat, offre) && vestiges(etat) >= offre.prix;
+/**
+ * La carte du jour est-elle retournée ? Elle l'est une fois qu'on l'a
+ * retournée, ou forgée (la forge la montre toujours).
+ */
+export const offreRevelee = (etat, offre) =>
+  !!offre && (etatReliquaire(etat).reveles?.[offre.ext] === offre.jour || offrePrise(etat, offre));
+
+/** Retourne la carte du jour : gratuit, mais le prix moyen est perdu pour la journée. */
+export function reveler(etat, offre) {
+  if (!offre || offreRevelee(etat, offre)) return etat;
+  const R = etatReliquaire(etat);
+  return { ...etat, reliquaire: { ...R, reveles: { ...(R.reveles || {}), [offre.ext]: offre.jour } } };
+}
+
+/** Le prix demandé : le prix moyen face cachée, le prix réel une fois retournée. */
+export const prixDemande = (offre, aveugle = false) => (aveugle ? offre.prixAveugle : offre.prix);
+
+export const peutForgerOffre = (etat, offre, { aveugle = false } = {}) =>
+  !!offre && !offrePrise(etat, offre) && !(aveugle && offreRevelee(etat, offre))
+  && Number.isFinite(prixDemande(offre, aveugle)) && vestiges(etat) >= prixDemande(offre, aveugle);
 
 /**
- * Forge la carte du jour. On peut la forger même si on la possède : elle
+ * Forge la carte du jour, face cachée (`aveugle`, au prix moyen) ou
+ * retournée (à son prix). On peut la forger même si on la possède : elle
  * s'ajoute aux exemplaires (ou à la case irisée). Pas de cycle possible : la
- * dissoudre rend le dixième de son prix.
+ * dissoudre rend au mieux la moitié du prix moyen (une commune : 5 pour 100).
  */
-export function forgerOffre(etat, offre) {
-  if (!peutForgerOffre(etat, offre)) return etat;
-  const { ext, c, rainbow, prix } = offre;
+export function forgerOffre(etat, offre, { aveugle = false } = {}) {
+  if (!peutForgerOffre(etat, offre, { aveugle })) return etat;
+  const { ext, c, rainbow } = offre;
+  const prix = prixDemande(offre, aveugle);
   const R = etatReliquaire(etat);
   const coll = { ...(etat.collections?.[ext] || {}) };
   const { ext: _e, rainbow: _r, slot: _s, ...carte } = c;
@@ -156,7 +197,15 @@ export function forgerOffre(etat, offre) {
   return {
     ...etat,
     collections: { ...etat.collections, [ext]: coll },
-    reliquaire: { ...R, vestiges: R.vestiges - prix, achats: { ...(R.achats || {}), [ext]: offre.jour } },
-    stats: { ...(etat.stats || {}), forges: ((etat.stats || {}).forges || 0) + 1 },
+    reliquaire: {
+      ...R, vestiges: R.vestiges - prix,
+      achats: { ...(R.achats || {}), [ext]: offre.jour },
+      reveles: { ...(R.reveles || {}), [ext]: offre.jour },
+    },
+    stats: {
+      ...(etat.stats || {}),
+      forges: ((etat.stats || {}).forges || 0) + 1,
+      ...(aveugle ? { forgesAveugles: ((etat.stats || {}).forgesAveugles || 0) + 1 } : {}),
+    },
   };
 }

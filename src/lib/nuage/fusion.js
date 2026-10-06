@@ -193,6 +193,12 @@ export function fusionnerXP(base = {}, ici = {}, la = {}) {
  * Reliquaire : les vestiges sont un compteur (dissous ici et là s'additionnent),
  * la date de la dernière légendaire forgée garde la plus récente.
  */
+/** Par extension, le jour le plus récent des deux côtés (AAAA-MM-JJ se trie en texte). */
+const plusRecents = (a = {}, b = {}) =>
+  Object.fromEntries([...new Set([...Object.keys(a || {}), ...Object.keys(b || {})])]
+    .filter((k) => k !== "__proto__")
+    .map((k) => [k, [a?.[k], b?.[k]].filter(Boolean).sort().pop()]));
+
 export function fusionnerReliquaire(base, ici, la) {
   if (!ici) return la || null;
   if (!la) return ici;
@@ -202,9 +208,10 @@ export function fusionnerReliquaire(base, ici, la) {
     vestiges: Math.max(0, (la.vestiges || 0) + (ici.vestiges || 0) - (b.vestiges || 0)),
     // Le jour de la dernière forge, par extension : le plus récent des deux
     // côtés, pour qu'une carte du jour forgée ailleurs ne se reforge pas ici.
-    achats: Object.fromEntries([...new Set([...Object.keys(la.achats || {}), ...Object.keys(ici.achats || {})])]
-      .filter((k) => k !== "__proto__")
-      .map((k) => [k, [la.achats?.[k], ici.achats?.[k]].filter(Boolean).sort().pop()])),
+    achats: plusRecents(la.achats, ici.achats),
+    // Le jour où la carte du jour a été retournée : même règle, pour que le
+    // prix moyen perdu sur un appareil ne revienne pas sur l'autre.
+    reveles: plusRecents(la.reveles, ici.reveles),
     ouvert: ici.ouvert || la.ouvert || null,
   };
 }

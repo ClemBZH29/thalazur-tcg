@@ -68,11 +68,12 @@ export function useExpeditions(etat, setEtat) {
   const reliquaireOuvert = R.estOuvert(etat);
   const seuilReliquaire = useMemo(() => R.seuilAtteint({ collections }, PAR_EXTENSION), [collections]);
   const ouvrirReliquaire = useCallback(() => setEtat((e) => R.ouvrir(e)), [setEtat]);
-  const forgerOffre = useCallback((offre) => {
-    const ok = R.peutForgerOffre(etat, offre);
-    if (ok) setEtat((e) => R.forgerOffre(e, offre));
+  const forgerOffre = useCallback((offre, options) => {
+    const ok = R.peutForgerOffre(etat, offre, options);
+    if (ok) setEtat((e) => R.forgerOffre(e, offre, options));
     return ok;
   }, [etat, setEtat]);
+  const revelerOffre = useCallback((offre) => setEtat((e) => R.reveler(e, offre)), [setEtat]);
 
   /* ── Entraînement : des doublons contre de l'expérience ─────────────── */
   /**
@@ -115,7 +116,7 @@ export function useExpeditions(etat, setEtat) {
     empechementExpedition: empechement,
     enExpedition: (c) => X.enRoute(etat).has(cleXP(c)),
     vestiges: R.vestiges(etat),
-    dissoudreCarte, forgerOffre, entrainerCarte,
+    dissoudreCarte, forgerOffre, revelerOffre, entrainerCarte,
     reliquaireOuvert, seuilReliquaire, ouvrirReliquaire,
   };
 }

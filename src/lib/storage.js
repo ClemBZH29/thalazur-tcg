@@ -63,7 +63,7 @@ const vide = () => ({
   xp: {},
   // Expéditions : { routes, orJour, seq } (voir src/expeditions/regles.js).
   expeditions: null,
-  // Reliquaire : { vestiges, achats, ouvert } (voir src/reliquaire/regles.js).
+  // Reliquaire : { vestiges, achats, reveles, ouvert } (voir src/reliquaire/regles.js).
   reliquaire: null,
   // Fiches de combat : "extension:carte" -> { atq, ini, geste, tech, etoiles }
   // (voir src/donjon/fiches.js).
