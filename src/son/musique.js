@@ -185,9 +185,9 @@ export function creerMusique(ctx, sortie, { source = SOURCE_MUSIQUE, dossier = D
     g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(v, t + a);
     if (duree && I.relache) {
       g.gain.setValueAtTime(v, t + Math.max(a, duree)); g.gain.linearRampToValueAtTime(0, t + duree + I.relache);
-      src.stop(t + duree + I.relache + .05);
-    }
-    src.connect(g); g.connect(sortieInstrument(inst, groupe)); src.start(t);
+      src.start(t); src.stop(t + duree + I.relache + .05); // start avant stop : sinon InvalidStateError
+    } else src.start(t);
+    src.connect(g); g.connect(sortieInstrument(inst, groupe));
   }
 
   // --- Séquenceur unique : les trois arrangements partagent la même horloge ---
