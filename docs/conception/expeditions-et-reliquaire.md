@@ -126,6 +126,18 @@ dit rien d'elle : ni nom, ni palier, ni exemplaires détenus, ni loupe (la face
 n'est pas montée). La carte reste calculable par qui lit le code : le site n'a
 pas de serveur, l'enjeu ne justifie pas d'en ajouter un.
 
+**Audit du prix à l'aveugle (06/10/2026, `node scripts/audit-aveugle.mjs`).**
+Compté au prix de forge, le pari est neutre (espérance 96,9 pour 100). Compté
+pour un collectionneur, qui ne tire que 5 vestiges d'une commune déjà
+possédée, il rend 50 à 23 vestiges pour 100 selon l'avancement : forger à
+l'aveugle chaque jour coûte 1 760 vestiges par carte nouvelle, contre 170 à
+190 en retournant. Il ne devient gagnant qu'avec l'information : un joueur
+qui sait quelle est la carte (un autre l'a retournée) ne la forge que si elle
+vaut plus de 100 et reçoit 3,4 fois ce qu'il paie. **Décision : le partage
+entre joueurs est voulu**, c'est un mini-jeu de petite communauté ; le prix
+reste à 100 (le relever ne réduirait presque pas ce gain et ne punirait que
+le pari honnête).
+
 **Texte allégé (06/10/2026)**, mêmes principes que le Donjon : plus de
 paragraphe d'introduction, montants en icône de vestige et chiffre, chances en
 pastilles, possession en « ×N » ou « Manquante », verdict « 100 → 1 000 +900 »,
