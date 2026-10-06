@@ -16,6 +16,7 @@
 import { construirePool, deduireGrades } from "../lib/roster.js";
 import { bonusNiveau } from "./experience.js";
 import { cumuler, effetsArtefact, effetsSource } from "./pouvoirs.js";
+import ROLES_CARTES from "./roles-cartes.json" with { type: "json" };
 
 /* ── Tirage reproductible ────────────────────────────────────────────── */
 
@@ -249,6 +250,17 @@ export function roleDe(rep1) {
   return "debrouillard";
 }
 
+/**
+ * Le rôle d'une carte : celui que `roles-cartes.json` lui impose, sinon celui
+ * de son archétype. Le fichier se modifie à la main ; le roster, lui, est
+ * produit par `npm run roster` et serait écrasé.
+ */
+export const IMPOSES = ROLES_CARTES.roles || {};
+export const roleCarte = (c) => {
+  const r = c && IMPOSES[`${c.ext}:${c.id}`];
+  return r && ROLES[r] ? r : roleDe(c?.rep1);
+};
+
 /** Une carte, sans ce dont le donjon n'a pas besoin : c'est ce qui part dans la sauvegarde. */
 const legere = (c) => ({ id: c.id, num: c.num, nom: c.nom, type: c.type, tier: c.tier, rep1: c.rep1, race: c.race, rep3: c.rep3, citation: c.citation, ext: c.ext });
 
@@ -262,7 +274,7 @@ const ETATS = { provoque: 0, galva: 0, galvaVal: 0, rempart: 0, rempartVal: 0, a
  * rangs d'ATQ et d'INI, geste et technique choisis, lignes étoilées.
  */
 export function allie(partie, c, niveau = 1, fiche = null) {
-  const b = BASE[c.tier] || BASE.commun, role = roleDe(c.rep1);
+  const b = BASE[c.tier] || BASE.commun, role = roleCarte(c);
   const bn = bonusNiveau(niveau);
   const f = fiche || {}, et = f.etoiles || {};
   let pv = b.pv + bn.pv, atq = b.atq + bn.atq;
@@ -290,7 +302,7 @@ export function monstre(partie, c, etage, mult = 1) {
   const dif = partie.difficulte ?? 1;
   const b = BASE[c.tier] || BASE.commun;
   const hostile = HOSTILES.has(c.rep1);
-  const role = hostile ? (c.rep1 === "Animal" ? "rapide" : c.rep1 === "Criminel" ? "fourbe" : "brute") : roleDe(c.rep1);
+  const role = hostile ? (c.rep1 === "Animal" ? "rapide" : c.rep1 === "Criminel" ? "fourbe" : "brute") : roleCarte(c);
   let pvMax = Math.round(b.pv * (0.9 + 0.4 * etage) * (role === "brute" || role === "garde" ? 1.2 : 1) * mult * dif);
   if (!hostile && ["soigneur", "mage", "debrouillard", "intendant"].includes(role)) pvMax = Math.round(pvMax * 0.9);
   const atq = Math.max(1, Math.round((Math.round(b.atq * 0.85) + Math.round((etage - 1) * 1.4) + (mult > 1.5 ? 2 : mult > 1 ? 1 : 0) + (role === "frappeur" ? 1 : 0)) * dif));
@@ -1038,7 +1050,8 @@ export function victoire(partie, C, r, _artefacts) {
     : { titre: "Victoire", texte: `${C.ennemis.length} adversaires à terre.`, po, relique, pouvoirs };
 }
 /** On ne fuit pas seul : il faut quelqu'un pour couvrir la retraite. */
-export const peutFuir = (partie, C) => C.genre !== "boss" && vivants(partie.equipe).length >= 2;
+/** On ne fuit ni un gardien, ni seul, ni au donjon infini : là, on tient jusqu'au bout. */
+export const peutFuir = (partie, C) => partie.mode !== "infini" && C.genre !== "boss" && vivants(partie.equipe).length >= 2;
 
 /**
  * La retraite coûte cher. Deux cinquièmes du sac tombent dans la débandade,
@@ -1080,7 +1093,8 @@ export function convalescences(partie, iss) {
  * entière ; tomber n'en laisse que la moitié. La recrue n'est pas à nous.
  */
 export function gainsXP(partie, iss) {
-  const f = (iss === "defaite" ? 0.5 : 1) * (partie.xpMode ?? 1) * (1 + (modsEquipe(partie).xp || 0));
+  // Au donjon infini, on ne remonte pas : la chute est la fin normale, elle ne coûte rien.
+  const f = (iss === "defaite" && partie.mode !== "infini" ? 0.5 : 1) * (partie.xpMode ?? 1) * (1 + (modsEquipe(partie).xp || 0));
   const l = partie.equipe.filter((u) => !u.recrue).map((u) => ({ c: u.c, xp: Math.round((u.xp || 0) * f) }));
   // La source de pouvoir apprend avec l'équipe : la moyenne de ce qu'ont gagné les compagnons.
   if (partie.source?.c && l.length) l.push({ c: partie.source.c, xp: Math.round(l.reduce((s, x) => s + x.xp, 0) / l.length) });
@@ -1113,7 +1127,31 @@ export function fiche(partie, u) {
   return { nom: u.nomAffiche || u.c.nom, stats: `${u.camp === "a" ? `Niveau ${u.niveau || 1} · ` : ""}${u.pv} / ${u.pvMax} PV · ATQ ${atqDe(partie, u)} · INI ${u.ini}`, lignes };
 }
 /** Ce que l'on rapporte : tout le sac en remontant, un quart si l'équipe tombe. */
-export const rapporte = (partie, iss) => (iss === "defaite" ? Math.round(partie.sac * 0.25) : partie.sac);
+export const rapporte = (partie, iss) => (iss === "defaite" && partie.mode !== "infini" ? Math.round(partie.sac * 0.25) : partie.sac);
+
+/**
+ * Le donjon du jour impose sa composition et sa source : quatre rôles (deux
+ * fois le même au plus) et un lieu, tirés chaque jour parmi les cartes que
+ * le joueur peut emmener. La graine est la même pour tous ; le résultat
+ * dépend de la collection. Rend null s'il n'y a pas quatre compagnons.
+ */
+export function compositionDuJour(jour, allies, lieux = []) {
+  if (allies.length < 4) return null;
+  const r = tirage(hacher(`composition-${jour}`));
+  const dispo = {};
+  for (const c of allies) { const k = roleCarte(c); dispo[k] = (dispo[k] || 0) + 1; }
+  const ordre = Object.keys(ROLES).filter((k) => dispo[k]);
+  const roles = {};
+  for (let i = 0; i < 4; i++) {
+    const libres = ordre.filter((k) => (roles[k] || 0) < dispo[k]);
+    const varies = libres.filter((k) => (roles[k] || 0) < 2);
+    const k = choisir(r, varies.length ? varies : libres);
+    roles[k] = (roles[k] || 0) + 1;
+  }
+  const tri = [...lieux].sort((a, b) => `${a.ext}:${a.id}`.localeCompare(`${b.ext}:${b.id}`));
+  const lieu = tri.length ? tri[Math.floor(r() * tri.length)] : null;
+  return { roles, lieu: lieu ? `${lieu.ext}:${lieu.id}` : null };
+}
 
 /**
  * L'apprentissage : un Donjon adouci pour qui commence sa collection. Les

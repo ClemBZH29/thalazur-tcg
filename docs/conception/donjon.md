@@ -7,16 +7,43 @@ Raisonnement de conception : ce que fait cette partie du site, et pourquoi elle 
 `#/donjon`. Deux donjons depuis le 30/09/2026 (`MODES`, `src/donjon/regles.js`) :
 
 - **le donjon du jour** : trois étages, la même carte pour tous, **une
-  descente par jour** ; son butin compte double ;
+  descente par jour**, une **composition et une source imposées** (voir
+  plus bas) ; son butin compte ×2,5 ;
 - **le donjon infini** : une graine neuve à chaque descente, des étages sans
   fin, de plus en plus durs (les PV et l'ATQ des adversaires montent avec
-  l'étage, sans plafond ; la part des élites plafonne à l'étage 12). Autant de
-  descentes qu'on veut, mais butin ×0,4, expérience ×0,5, et 120 PO par jour
-  au plus versées à la bourse (100 jusqu'au 01/10/2026 ; 120, c'est un booster). Une défaite n'y coûte qu'un jour de repos : un
-  jour par étage aurait immobilisé l'équipe neuf jours après l'étage 9. Le
-  plus grand nombre de gardiens vaincus fait le record (`donjon.recordInfini`).
+  l'étage, sans plafond ; la part des élites plafonne à l'étage 12).
+  Depuis le 06/10/2026 : **100 PO l'entrée**, **ni fuite ni remontée**,
+  l'équipe descend jusqu'à tomber et rapporte **tout le sac**, sans plafond
+  quotidien ; expérience ×0,5, sans la moitié retirée à la chute. Une défaite
+  n'y coûte qu'un jour de repos, et c'est elle qui borne le nombre de
+  descentes. Le plus grand nombre de gardiens vaincus fait le record
+  (`donjon.recordInfini`).
 
-Dans les deux cas, On y descend avec quatre compagnons de sa collection et un artéfact ;
+### Le donjon du jour impose son équipe (06/10/2026)
+
+À la première visite du jour, `compositionDuJour` (regles.js) tire quatre
+rôles (deux fois le même au plus) et un lieu parmi les cartes **disponibles**
+du joueur (ni en expédition, ni au repos). La graine est la même pour tous ;
+le résultat dépend de la collection, il est donc toujours faisable. Il est
+figé dans `donjon.imposition` jusqu'au lendemain : envoyer des cartes en
+expédition ne le fait pas changer. La préparation n'affiche que les rangées
+des rôles imposés, chacune avec son quota, et la source est posée d'office.
+
+Une équipe imposée est plus faible que celle qu'on aurait choisie : sur
+300 descentes, trois gardiens 15 % au lieu de 30 % et butin divisé par deux
+pour un débutant (18 cartes), 48 % au lieu de 62 % et butin −25 % pour une
+collection moyenne (45 cartes, niveau 25). Le butin du jour est passé de ×2
+à ×2,5 pour compenser.
+
+### Les rôles imposés à la main
+
+Le rôle d'une carte vient de son archétype (`rep1` du roster, `roleDe`). Pour
+en changer un sans toucher au roster (produit par `npm run roster`), on
+l'inscrit dans `src/donjon/roles-cartes.json` : clé « extension:identifiant »,
+valeur le rôle. `roleCarte(c)` lit ce fichier avant l'archétype ; un test
+vérifie que chaque entrée désigne une carte et un rôle connus.
+
+Dans les deux cas, on y descend avec quatre compagnons de sa collection et une source de pouvoir ;
 on en remonte avec du butin, que la bourse convertit en PO. Deux prototypes
 autonomes ont précédé l'intégration (hors dépôt, dans `Claude outputs`).
 
@@ -557,8 +584,25 @@ Le module rapporte des **pièces de butin** ; `src/jeu/donjon.js` les convertit
 | Levier | Valeur |
 |---|---:|
 | PO par pièce de butin | 0,6 |
-| Donjon du jour | 1 descente par jour, butin ×2 |
-| Donjon infini | illimité, butin ×0,4, expérience ×0,5, 120 PO par jour au plus |
+| Donjon du jour | 1 descente par jour, composition imposée, butin ×2,5 |
+| Donjon infini | 100 PO l'entrée, jusqu'à la chute, PO = 1,1 × sac^0,7, expérience ×0,5 |
+
+**Le donjon infini depuis le 06/10/2026.** Le sac croît bien plus vite que
+l'étage (un gardien de plus double presque ce qu'on remonte) : converti au
+taux fixe sans plafond, une équipe forte aurait rapporté plus de 1 000 PO par
+descente. La conversion est donc concave (`poDuButin`, `src/config/tiers.js`).
+Mesure du 06/10/2026, 300 descentes par profil :
+
+| Profil | Gardiens, médiane | PO moyennes | Net après l'entrée |
+|---|---:|---:|---:|
+| Débutant (18 cartes, niv. 1) | 2 | 82 | −18 |
+| Moyen (45 cartes, niv. 25) | 3 | 127 | +27 |
+| Avancé (45 cartes, niv. 60) | 5 | 164 | +64 |
+| Fort (4 légendaires niv. 100, source légendaire étoilée) | 9 | 371 | +271 |
+
+Le débutant joue à perte en moyenne : l'infini est un défi, le donjon du
+jour reste son revenu. L'apprentissage y adoucit les adversaires mais ne
+rogne pas le butin.
 
 La descente du jour est prise au départ et non à la remontée : abandonner ne
 la rend pas. Le mode test des outils MJ la rend illimitée.
@@ -595,9 +639,10 @@ jour où un troisième module arrive, l'enveloppe commune des modules devra
 
 ## Sauvegarde
 
-`etat.donjon = { jour, tentatives, poInfini, recordInfini, partie, dernier, convalescence }`
-(`tentatives` : descentes du donjon du jour ; `poInfini` : PO versées par
-l'infini aujourd'hui ; la partie porte son `mode`, une partie d'avant les
+`etat.donjon = { jour, tentatives, imposition, recordInfini, partie, dernier, convalescence }`
+(`tentatives` : descentes du donjon du jour ; `imposition` : rôles et lieu
+imposés du jour ; `poInfini`, le plafond de l'infini, n'est plus lu depuis le
+06/10/2026 ; la partie porte son `mode`, une partie d'avant les
 modes est un donjon du jour). La partie est un objet
 simple, sauvé à chaque changement d'écran : un onglet fermé ne coûte pas la
 tentative. Entre deux appareils, `donjon` est une valeur : celle de l'appareil

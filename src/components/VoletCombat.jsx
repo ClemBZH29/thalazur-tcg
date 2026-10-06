@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useJeu } from "../jeu/Jeu.jsx";
 import { BOOSTERS } from "../extensions/index.js";
-import { COMPETENCES, ETOILE, ROLES, allie, cartesDonjon, roleDe } from "../donjon/regles.js";
+import { COMPETENCES, ETOILE, ROLES, allie, cartesDonjon, roleCarte } from "../donjon/regles.js";
 import { cleXP, niveauDe, xpDe } from "../donjon/experience.js";
 import { ETOILE_SOURCE, effetsSource, sourceDe, texteEffets } from "../donjon/pouvoirs.js";
 import {
@@ -55,7 +55,7 @@ function ChoixCompetence({ c, place, actuelle, vestiges, onChoisir, onFermer }) 
     fermer();
   };
   const liste = catalogue(c, place);
-  const role = ROLES[roleDe(c.rep1)];
+  const role = ROLES[roleCarte(c)];
   return (
     <dialog ref={ref} className="fc-choix" aria-labelledby="fc-choix-titre" onKeyDown={touche}
       onClick={(e) => { e.stopPropagation(); if (e.target === ref.current) fermer(); }}>

@@ -108,26 +108,38 @@ export const MINE = {
  * Le Donjon, vues de l'application. Même principe que la mine : le
  * module annonce le butin rapporté du donjon, la conversion se fait ici.
  *
- * Deux modes depuis le 30/09/2026 (`modes`) :
+ * Deux modes (`modes`) :
  *
- * - **le donjon du jour**, une descente par jour, la même carte pour tous :
- *   son butin compte double. Avec les soins réduits, une descente moyenne
- *   rapporte environ 76 pièces de base (défaites comprises), soit ~150 PO ;
- * - **le donjon infini**, autant de descentes qu'on veut : butin et
- *   expérience réduits, et les PO qu'il verse plafonnées chaque jour. Une
- *   défaite n'y immobilise l'équipe qu'un jour, quel que soit l'étage : sans
- *   cela, tomber à l'étage 9 coûtait neuf jours.
+ * - **le donjon du jour**, une descente par jour, la même carte pour tous, une
+ *   composition et une source imposées (06/10/2026). Imposée, l'équipe est
+ *   moins forte que celle qu'on aurait choisie (butin −20 % pour une
+ *   collection moyenne, presque −50 % pour un débutant) : le butin y compte
+ *   ×2,5 au lieu de ×2 ;
+ * - **le donjon infini** (06/10/2026) : 100 PO l'entrée, ni fuite ni
+ *   remontée, l'équipe va jusqu'à la chute et rapporte tout le sac, sans
+ *   plafond. Le sac croît plus vite que l'étage : il est converti en PO par
+ *   une courbe concave (`conversion`), qui laisse le débutant à peu près
+ *   rentrer dans ses frais et paie une équipe forte trois à quatre fois
+ *   plus. La chute immobilise l'équipe un jour : c'est elle qui borne le
+ *   nombre de descentes.
  *
  * Mesures : `node scripts/audit-donjon.mjs` et docs/conception/donjon.md.
  */
 export const DONJON = {
-  multiplicateur: 0.6,   // PO créditées par pièce de butin rapportée
+  multiplicateur: 0.6,   // PO créditées par pièce de butin rapportée (donjon du jour)
   modes: {
-    jour: { tentatives: 1, gain: 2, xp: 1 },
-    infini: { tentatives: Infinity, gain: 0.4, xp: 0.5, plafondPOJour: 120 },
+    jour: { tentatives: 1, gain: 2.5, xp: 1 },
+    infini: { tentatives: Infinity, gain: 1, xp: 0.5, entree: 100, conversion: { coef: 1.1, expo: 0.7 } },
   },
   // Les débuts adoucis : adversaires affaiblis et butin réduit, qui remontent
   // en ligne droite jusqu'au jeu normal au `jusqua`-ième booster ouvert.
   // Mesuré par scripts/audit-donjon.mjs.
   apprentissage: { jusqua: 30, difficulte: 0.75, gain: 0.4 },
 };
+
+/** Les PO que vaut un sac rapporté du Donjon, selon le mode. */
+export function poDuButin(butin, mode = "jour") {
+  if (butin <= 0) return 0;
+  const k = DONJON.modes[mode]?.conversion;
+  return Math.round(k ? k.coef * Math.pow(butin, k.expo) : butin * DONJON.multiplicateur);
+}

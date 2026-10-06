@@ -24,7 +24,7 @@
  */
 import { PERSONNALISATION as P } from "../config/reliquaire.js";
 import { cleXP } from "./experience.js";
-import { COMPETENCES, ROLES, roleDe } from "./regles.js";
+import { COMPETENCES, ROLES, roleCarte } from "./regles.js";
 
 export const LIGNES = ["atq", "ini", "geste", "tech"];
 export const RANG_MAX = P.rangs.length;
@@ -45,21 +45,21 @@ export const possedee = (etat, c) => (entree(etat, c).normale || 0) > 0;
 export const rainbowEnTrop = (etat, c) => Math.max(0, (entree(etat, c).rainbow || 0) - 1);
 const vestigesDe = (etat) => etat.reliquaire?.vestiges || 0;
 
-export const origine = (c, place) => (place === "geste" ? "attaque" : ROLES[roleDe(c.rep1)].tech);
+export const origine = (c, place) => (place === "geste" ? "attaque" : ROLES[roleCarte(c)].tech);
 export const competenceDe = (c, f, place) => {
   const id = f[place];
   return COMPETENCES[id]?.place === place ? id : origine(c, place);
 };
 /** Les compétences d'un emplacement : l'origine, celles du rôle, les autres, les réservées. */
 export function catalogue(c, place) {
-  const role = roleDe(c.rep1);
+  const role = roleCarte(c);
   return Object.values(COMPETENCES)
     .filter((k) => k.place === place)
     .sort((a, b) => (b.id === origine(c, place)) - (a.id === origine(c, place))
       || permise(c, b.id) - permise(c, a.id)
       || b.roles.includes(role) - a.roles.includes(role));
 }
-export const naturelle = (c, id) => COMPETENCES[id]?.roles.includes(roleDe(c.rep1)) || false;
+export const naturelle = (c, id) => COMPETENCES[id]?.roles.includes(roleCarte(c)) || false;
 /** Une compétence réservée (les soins) n'est ouverte qu'aux rôles qui la portent. */
 export const permise = (c, id) => !!COMPETENCES[id] && (!COMPETENCES[id].reservee || naturelle(c, id) || id === origine(c, COMPETENCES[id].place));
 

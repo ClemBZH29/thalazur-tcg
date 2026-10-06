@@ -1,0 +1,4 @@
+{
+  "_aide": "Rôle de Donjon imposé à une carte, à la place de celui que donne son archétype (rep1 du roster). Clé : « extension:identifiant » de la carte ; valeur : garde, frappeur, tireur, soigneur, mage, meneur, debrouillard, artificier ou intendant. Exemple : \"troupe-valeran:045-nom-de-la-carte\": \"meneur\".",
+  "roles": {}
+}

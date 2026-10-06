@@ -1,6 +1,6 @@
 import { useCallback } from "react";
-import { DONJON } from "../config/tiers.js";
-import { crediterGain } from "../lib/economie.js";
+import { DONJON, poDuButin } from "../config/tiers.js";
+import { crediterGain, debiterLibre } from "../lib/economie.js";
 import { crediterXP, niveauDe } from "../donjon/experience.js";
 
 const aujourdhui = () => new Date().toLocaleDateString("sv"); // AAAA-MM-JJ, local
@@ -24,24 +24,37 @@ export function useDonjon(etat, setEtat, test) {
     ? etat.donjon
     : { jour: aujourdhui(), tentatives: 0, partie: etat.donjon?.partie ?? null, dernier: etat.donjon?.dernier ?? null };
   const illimite = test.actif;
+  const gratuit = test.actif && test.sansPO;
   const MJ = DONJON.modes.jour, MI = DONJON.modes.infini;
   // `tentatives` compte les descentes du donjon du jour ; l'infini n'en prend
-  // pas. `poInfini` : les PO déjà versées par l'infini aujourd'hui.
+  // pas, il se paie à l'entrée.
   const restantes = illimite ? Infinity : Math.max(0, MJ.tentatives - (brut.tentatives || 0));
-  const poInfiniRestant = Math.max(0, MI.plafondPOJour - (brut.poInfini || 0));
+  const entreeInfini = gratuit ? 0 : MI.entree;
+  const peutPayerInfini = (etat.bourse?.po || 0) >= entreeInfini;
+  // La composition et la source imposées du donjon du jour : tirées une fois
+  // par jour, à la première visite, puis figées (voir compositionDuJour).
+  const imposition = brut.imposition?.jour === brut.jour ? brut.imposition : null;
 
   const majDonjon = useCallback((champs) => {
     setEtat((e) => {
       const j = aujourdhui();
-      const d = e.donjon && e.donjon.jour === j ? e.donjon : { ...(e.donjon || {}), jour: j, tentatives: 0, poInfini: 0 };
+      const d = e.donjon && e.donjon.jour === j ? e.donjon : { ...(e.donjon || {}), jour: j, tentatives: 0, imposition: null };
       return { ...e, donjon: { ...d, ...(typeof champs === "function" ? champs(d) : champs) } };
     });
   }, [setEtat]);
 
-  /** Une tentative est prise à la descente, pas à la remontée : abandonner ne la rend pas. */
+  /**
+   * Une tentative est prise à la descente, pas à la remontée : abandonner ne
+   * la rend pas. L'entrée de l'infini est payée au même moment.
+   */
   const commencerDonjon = useCallback((partie) => {
-    majDonjon((d) => (partie.mode === "infini" ? { partie } : { tentatives: (d.tentatives || 0) + 1, partie }));
-  }, [majDonjon]);
+    if (partie.mode === "infini") {
+      setEtat((e) => ({ ...e, bourse: debiterLibre(e.bourse, entreeInfini) }));
+      majDonjon({ partie });
+    } else majDonjon((d) => ({ tentatives: (d.tentatives || 0) + 1, partie }));
+  }, [majDonjon, setEtat, entreeInfini]);
+
+  const fixerImposition = useCallback((i) => majDonjon((d) => ({ imposition: { ...i, jour: d.jour } })), [majDonjon]);
 
   const sauverPartie = useCallback((partie) => majDonjon({ partie }), [majDonjon]);
 
@@ -51,9 +64,7 @@ export function useDonjon(etat, setEtat, test) {
    */
   const terminerDonjon = useCallback((butin, resume, repos = [], gains = []) => {
     const infini = resume.mode === "infini";
-    // L'infini verse ses PO jusqu'au plafond du jour ; le reste du sac est
-    // compté, mais n'entre pas à la bourse.
-    const po = Math.min(Math.round(butin * DONJON.multiplicateur), infini ? poInfiniRestant : Infinity);
+    const po = poDuButin(butin, resume.mode || "jour");
     // Le bilan d'expérience se lit sur l'état du moment ; le setter le refait
     // sur l'état le plus frais, qui est le même au clic près.
     const { bilan, po: poXP } = crediterXP(etat, gains);
@@ -73,13 +84,12 @@ export function useDonjon(etat, setEtat, test) {
       }
       const suite = { ...d, partie: null, convalescence, dernier: { ...resume, jour: j, butin, po, repos: repos.length } };
       if (infini) {
-        suite.poInfini = (d.jour === j ? d.poInfini || 0 : 0) + po;
         suite.recordInfini = Math.max(d.recordInfini || 0, resume.gardiens || 0);
       }
       return { ...e, bourse: crediterGain(e.bourse, po + bonus), stats, donjon: suite };
     });
     return { po, bilan, poXP };
-  }, [setEtat, etat, poInfiniRestant]);
+  }, [setEtat, etat]);
 
   /** Le niveau d'une carte, et la table des niveaux pour une descente. */
   const niveauCarte = (c) => niveauDe(etat.xp?.[`${c.ext}:${c.id}`]?.xp || 0);
@@ -92,7 +102,7 @@ export function useDonjon(etat, setEtat, test) {
 
   return {
     donjon: brut, convalescence, niveauCarte, tentativesRestantes: restantes, tentativesParJour: MJ.tentatives, illimite,
-    poInfiniRestant, recordInfini: etat.donjon?.recordInfini || 0,
-    commencerDonjon, sauverPartie, terminerDonjon,
+    entreeInfini, peutPayerInfini, imposition, recordInfini: etat.donjon?.recordInfini || 0,
+    commencerDonjon, sauverPartie, terminerDonjon, fixerImposition,
   };
 }

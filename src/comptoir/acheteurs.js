@@ -18,7 +18,7 @@
  * `up`     bonification en cas de réussite
  * `down`   pénalité en cas d'échec, réellement appliquée jusqu'au lendemain
  */
-import { roleDe } from "../donjon/regles.js";
+import { roleCarte as roleDonjon } from "../donjon/regles.js";
 import { VOIX } from "./voix.js";
 import { conservateurPresent, JOUR_UN } from "./jour.js";
 
@@ -35,7 +35,7 @@ export const factionDe = (carte) => norm(carte.type === "lieu" ? carte.rep1 : ca
 
 /** Les rôles du Donjon qui se battent en première ligne ou à distance. */
 const ROLES_COMBAT = new Set(["garde", "frappeur", "tireur", "mage"]);
-export const roleCarte = (carte) => (carte.type === "pnj" ? roleDe(carte.rep1) : null);
+export const roleCarte = (carte) => (carte.type === "pnj" ? roleDonjon(carte) : null);
 
 /* ── Fabriques de prédicats ───────────────────────────────────────────────── */
 
