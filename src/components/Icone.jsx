@@ -285,6 +285,33 @@ const TRACES = {
       <path d="M8 11.5h9.5M15 9l2.5 2.5L15 14" />
     </>
   ),
+  // Une pile de pièces vue de biais : les PO d'une récompense.
+  piece: (
+    <>
+      <path d="M4 7.5a6 2.3 0 1 0 12 0a6 2.3 0 1 0-12 0" />
+      <path d="M4 7.5v6c0 1.3 2.7 2.3 6 2.3s6-1 6-2.3v-6" />
+      <path d="M4 10.5c0 1.3 2.7 2.3 6 2.3s6-1 6-2.3" />
+    </>
+  ),
+  // Une coche épaisse : le sceau d'une mission réclamée.
+  coche: <path d="M4.5 10.5l3.5 3.5 7.5-8" />,
+  // Un parchemin roulé, une coche dessus : les missions de Bodégué.
+  missions: (
+    <>
+      <path d="M6 3.5h8.5a2 2 0 0 1 2 2v0a2 2 0 0 1-2 2H14v8a2 2 0 0 1-2 2H5.5a2 2 0 0 1-2-2v0a2 2 0 0 1 2-2H6z" />
+      <path d="M6 3.5a2 2 0 0 0-2 2v0a2 2 0 0 0 2 2" />
+      <path d="M7.8 11.3l1.6 1.6 2.8-3.2" />
+    </>
+  ),
+  // Deux flèches en boucle : remplacer une mission.
+  remplacer: (
+    <>
+      <path d="M15.5 8A5.8 5.8 0 0 0 5 6.2L3.8 7.5" />
+      <path d="M3.5 4v3.5H7" />
+      <path d="M4.5 12a5.8 5.8 0 0 0 10.5 1.8l1.2-1.3" />
+      <path d="M16.5 16v-3.5H13" />
+    </>
+  ),
   // Une horloge : le temps avant la prochaine carte du jour (Reliquaire).
   horloge: (
     <>

@@ -1167,9 +1167,5 @@ export function apprentissage(descentes, cfg) {
   return { difficulte: lisse(cfg.difficulte), gain: lisse(cfg.gain), avance: a, restant: Math.max(0, Math.ceil(cfg.jusqua - descentes)) };
 }
 
-/**
- * Les descentes jouées. Le compteur date du 07/10/2026 ; avant lui, seules
- * les remontées étaient comptées, et c'est d'elles que part une partie plus
- * ancienne — qui n'a jamais remonté rejoue donc l'apprentissage.
- */
-export const descentesJouees = (stats = {}) => stats.descentes ?? stats.remontees ?? 0;
+/** Les descentes jouées : voir `src/lib/compteurs.js`. */
+export { descentesJouees } from "../lib/compteurs.js";

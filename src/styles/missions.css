@@ -1,0 +1,385 @@
+/* ------------------------------------------------------------------
+   Missions : la table de Bodégué, d'après la maquette de Claude Design
+   (docs/conception/missions.md, « La page »).
+
+   Au bureau, la page tient sur un écran : Bodégué derrière sa table, qui
+   le coupe sous les mains ; les trois billets du jour posés sur le
+   plateau ; le pli de la semaine à droite. Les unités cqh/cqw lisent la
+   page elle-même (`container-type: size`), donc la hauteur sous le bandeau.
+   Au doigt, la scène se resserre (Bodégué coupé à mi-poitrine) et les
+   billets deviennent des bandes.
+   ------------------------------------------------------------------ */
+
+.msn-page {
+  --msn-table-y: clamp(210px, calc(55cqh - 98px), 340px);
+  --msn-img-h: calc((var(--msn-table-y) - 12px) / .86);
+  --msn-billet: clamp(204px, 18cqw, 248px);
+  --msn-billet-h: clamp(212px, calc(26cqh + 26px), 236px);
+  --msn-pli: clamp(272px, 22cqw, 320px);
+  --msn-pli-h: calc(var(--msn-billet-h) + 32px);
+  --msn-haut: clamp(8px, calc(4cqh - 14px), 40px);
+  --msn-tete-h: 64px;
+  --rainbow-encre: #b39cf5;   /* texte rainbow : 5,76:1 sur --panel2 (--m-rainbow seul : 4,22:1) */
+  position: relative;
+  /* La page ne prend pas la hauteur de la zone par le flex (voir plus bas) :
+     un conteneur de taille dont la base flex est nulle donne 0 aux unités cqh. */
+  /* Un pixel de marge : la hauteur du bandeau est arrondie, et un demi-pixel
+     de trop faisait paraître une barre de défilement. */
+  height: calc(100dvh - var(--tete-h, 0px) - 1px);
+  container-type: size;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: radial-gradient(120% 80% at 50% 18%, #131e22, var(--ground) 62%);
+}
+
+/* La page occupe toute la largeur, sans les marges des autres pages. */
+.shell .zone > .view.msn-page { flex: none; max-width: none; padding: 0; overflow: hidden; }
+
+/* ── Le titre et l'aide ─────────────────────────────────────────────── */
+
+.msn-tete {
+  position: relative; z-index: 5; height: var(--msn-tete-h);
+  flex: 0 0 auto; width: 100%; max-width: 1420px; margin: 0 auto; box-sizing: border-box;
+  padding: 16px 32px 4px; display: flex; align-items: flex-start; justify-content: space-between;
+}
+.msn-tete h1 {
+  margin: 0; text-shadow: 0 2px 10px rgba(0, 0, 0, .8), 0 0 2px rgba(0, 0, 0, .6); font-family: var(--font-display); font-variation-settings: var(--wonk);
+  font-weight: 700; font-size: 34px; line-height: 40px; letter-spacing: -.01em; outline: none;
+}
+.msn-aide { position: relative; z-index: 8; }
+.msn-rond {
+  width: 44px; height: 44px; display: grid; place-items: center; border-radius: 50%;
+  border: 1px solid var(--edge-ui); background: rgba(10, 16, 19, .72); color: var(--ink2); cursor: pointer;
+}
+.msn-rond:hover, .msn-rond:focus-visible { color: var(--ink); border-color: var(--ink); }
+.msn-aide-texte {
+  position: absolute; right: 0; top: 54px; width: 340px; box-sizing: border-box; padding: 16px 18px;
+  background: var(--panel); border: 1px solid var(--edge-hi); border-radius: 10px;
+  box-shadow: 0 18px 46px rgba(0, 0, 0, .55);
+}
+.msn-aide-titre { margin: 0 0 8px; font-family: var(--font-display); font-variation-settings: var(--wonk);
+  font-size: 18px; font-weight: 600; }
+.msn-aide-texte ul { margin: 0; padding: 0 0 0 18px; display: flex; flex-direction: column; gap: 6px;
+  font-size: 14px; line-height: 1.45; color: var(--ink2); }
+
+/* ── La scène ───────────────────────────────────────────────────────── */
+
+.msn-scene {
+  position: relative; isolation: isolate; flex: 1 1 auto; min-height: 0;
+  display: grid; grid-template-columns: auto var(--msn-pli); grid-template-rows: var(--msn-table-y) auto;
+  column-gap: 40px; justify-content: center; padding: 0 32px;
+}
+/* Le décor de la boutique : le mur monte jusque sous le titre, calé par le bas
+   sur le bord de la table ; le plateau part de ce bord. Un voile sombre en haut
+   garde le titre lisible, un autre sur le plateau calme le bois sous le texte. */
+.msn-mur {
+  position: absolute; left: 0; right: 0; top: calc(-1 * var(--msn-tete-h)); height: calc(var(--msn-tete-h) + var(--msn-table-y));
+  z-index: 0; pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(8, 12, 14, .72), rgba(8, 12, 14, .18) 36%, transparent 60%),
+    var(--msn-mur) 50% 100% / cover no-repeat,
+    var(--ground);
+}
+.msn-table {
+  position: absolute; left: 0; right: 0; top: var(--msn-table-y); bottom: 0; z-index: 1;
+  background:
+    linear-gradient(180deg, rgba(10, 8, 6, .1), rgba(10, 8, 6, .4) 40%, rgba(10, 8, 6, .62)),
+    var(--msn-plateau) 50% 0 / cover no-repeat,
+    #1d130d;
+  box-shadow: 0 -1px 0 rgba(0, 0, 0, .45);
+}
+
+.msn-bodegue { position: relative; grid-column: 1; grid-row: 1; }
+.msn-lueur {
+  position: absolute; left: 50%; top: calc(var(--msn-img-h) * -.12); z-index: 0;
+  width: calc(var(--msn-img-h) * 1.5); height: calc(var(--msn-img-h) * 1.25);
+  transform: translateX(-50%); opacity: .75; pointer-events: none;
+  background: radial-gradient(closest-side, rgba(232, 163, 61, .24), rgba(232, 163, 61, .07) 55%, transparent);
+}
+/* Les six poses sont empilées au même cadrage : seule la pose du moment est
+   visible, et l'on passe de l'une à l'autre en fondu de 200 ms. */
+.msn-pose {
+  position: absolute; left: 50%; bottom: calc(var(--msn-img-h) * -.14); z-index: 0;
+  height: var(--msn-img-h); width: auto; transform: translateX(-50%);
+  object-fit: contain; object-position: 50% 100%;
+  filter: drop-shadow(0 14px 18px rgba(0, 0, 0, .55));
+  opacity: 0; transition: opacity .2s ease-out; pointer-events: none; user-select: none;
+}
+.msn-pose.active { opacity: 1; }
+.msn-bulle {
+  position: absolute; z-index: 3; left: calc(50% + var(--msn-img-h) * .24); top: calc(12px + var(--msn-img-h) * .07);
+  width: 300px; min-height: 106px; box-sizing: border-box; padding: 14px 18px;
+  background: var(--panel); border: 1px solid var(--edge-hi); border-radius: 10px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, .4);
+}
+.msn-bulle-pointe {
+  position: absolute; left: -7px; top: 30px; width: 12px; height: 12px; background: var(--panel);
+  border-left: 1px solid var(--edge-hi); border-bottom: 1px solid var(--edge-hi); transform: rotate(45deg);
+}
+.msn-bulle p {
+  margin: 0; font-family: var(--font-display); font-variation-settings: var(--wonk);
+  font-size: 19px; line-height: 1.38; color: var(--ink); text-wrap: pretty;
+}
+
+/* ── Les missions du jour ───────────────────────────────────────────── */
+
+.msn-jour { position: relative; z-index: 2; grid-column: 1; grid-row: 2; padding-top: var(--msn-haut); }
+.msn-ligne {
+  height: 28px; display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  font-size: 13.5px; color: var(--ink3); font-variant-numeric: tabular-nums;
+}
+.msn-echeances { display: flex; align-items: center; gap: 16px; }
+.msn-echeance { display: flex; align-items: center; gap: 6px; color: var(--ink3); font-size: 13.5px;
+  font-variant-numeric: tabular-nums; white-space: nowrap; }
+.msn-echeances .msn-echeance + .msn-echeance { color: var(--ink2); }
+.msn-echeances .msn-echeance.eteint { color: var(--ink3); }
+.msn-tout {
+  height: 28px; padding: 0 12px; border-radius: 6px; border: 1px solid var(--lamp);
+  background: transparent; color: var(--lamp); font: 600 13px var(--font-ui); cursor: pointer;
+}
+.msn-tout:hover { background: rgba(232, 163, 61, .1); }
+
+.msn-billets { display: flex; gap: 18px; margin-top: 28px; }
+.msn-place { flex: 0 0 auto; width: var(--msn-billet); height: var(--msn-billet-h); transform: rotate(var(--rot, 0deg)); }
+
+.msn-billet {
+  position: relative; height: 100%; box-sizing: border-box; display: flex; flex-direction: column;
+  padding: 46px 16px 12px; background: var(--panel2); border: 1px solid var(--edge-hi); border-radius: 3px;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, .45), 0 2px 4px rgba(0, 0, 0, .3);
+}
+.msn-billet.faite { background: var(--panel); border-color: var(--edge); }
+.msn-lueur-b {
+  position: absolute; inset: -1px; border-radius: 3px; border: 1px solid var(--lamp); pointer-events: none;
+  box-shadow: 0 0 0 1px rgba(232, 163, 61, .18), 0 16px 42px -8px rgba(232, 163, 61, .38); opacity: 0;
+}
+.msn-billet.prete .msn-lueur-b { opacity: 1; }
+.msn-coiffe {
+  position: absolute; left: 50%; top: -22px; width: 44px; height: 44px; margin-left: -22px; box-sizing: border-box;
+  border-radius: 50%; display: grid; place-items: center; background: var(--ground2);
+  border: 1px solid var(--edge-hi); color: var(--ink2); box-shadow: 0 4px 10px rgba(0, 0, 0, .4);
+}
+.msn-billet.prete .msn-coiffe { border-color: var(--lamp-lo); color: var(--lamp); }
+.msn-billet.faite .msn-coiffe { color: var(--ink3); }
+
+.msn-remplacer {
+  position: absolute; top: 2px; right: 2px; z-index: 2; width: 44px; height: 44px; display: grid; place-items: center;
+  border-radius: 6px; border: 1px solid transparent; background: transparent; color: var(--ink3); cursor: pointer;
+}
+.msn-remplacer:hover, .msn-remplacer:focus-visible { border-color: var(--edge-ui); color: var(--ink); }
+.msn-remplacer.confirme {
+  top: 4px; right: 4px; width: auto; height: 40px; padding: 0 12px 0 10px; display: flex; align-items: center; gap: 6px;
+  border-color: var(--ink); background: var(--panel); color: var(--ink); font: 600 13px var(--font-ui);
+}
+
+.msn-quoi {
+  margin: 0; min-height: 2.7em; font-size: 16px; line-height: 1.35; text-align: center; text-wrap: balance; color: var(--ink);
+}
+.msn-billet.faite .msn-quoi { color: var(--ink3); }
+.msn-bas { flex: 1 1 auto; display: flex; flex-direction: column; justify-content: flex-end; }
+.msn-prog { display: flex; align-items: center; gap: 10px; }
+.msn-jauge { flex: 1 1 auto; min-width: 40px; height: 6px; border-radius: 3px; background: var(--ground2); overflow: hidden; }
+.msn-jauge span { display: block; height: 100%; border-radius: 3px; background: var(--ink4); transform-origin: 0 50%; }
+.msn-billet.prete .msn-jauge span { background: var(--lamp); }
+.msn-billet.faite .msn-jauge span, .msn-pli.faite .msn-jauge span { background: var(--edge-hi); }
+.msn-compte { font-size: 14px; font-weight: 500; font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--ink2); }
+.msn-billet.faite .msn-compte, .msn-pli.faite .msn-compte { color: var(--ink3); }
+
+.msn-pied {
+  margin: 12px -16px 0; padding: 10px 16px 0; border-top: 1px dashed var(--edge-hi);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.msn-gain { display: flex; align-items: center; gap: 6px; font-size: 18px; font-weight: 700;
+  font-variant-numeric: tabular-nums; color: var(--lamp); }
+.msn-billet.faite .msn-gain { color: var(--ink3); }
+.msn-action { position: relative; width: 112px; height: 44px; display: flex; justify-content: flex-end; }
+
+.msn-btn {
+  display: inline-flex; align-items: center; gap: 7px; height: 44px; box-sizing: border-box; padding: 0 16px;
+  border-radius: 6px; border: 1px solid var(--edge-ui); background: transparent; color: var(--ink);
+  font: 600 14px var(--font-ui); text-decoration: none; white-space: nowrap; cursor: pointer;
+}
+.msn-btn:hover, .msn-btn:focus-visible { border-color: var(--ink); color: var(--ink); }
+.msn-btn.principal { border: 0; background: var(--lamp); color: #241704; font-weight: 700; }
+.msn-btn.principal:hover { background: #f0b458; }
+
+/* Le sceau : cire froide une fois posé ; la cire chaude ne paraît que le temps
+   de la réclamation (scene.js). */
+.msn-sceau {
+  position: absolute; right: 20px; top: 50%; width: 60px; height: 60px; margin-top: -34px;
+  border-radius: 50%; transform: rotate(-8deg);
+}
+.msn-cire, .msn-cire-chaude {
+  position: absolute; inset: 0; border-radius: 50%; display: grid; place-items: center;
+}
+.msn-cire::before, .msn-cire-chaude::before {
+  content: ""; position: absolute; inset: 7px; border-radius: 50%; border: 1.5px solid rgba(13, 20, 23, .45);
+}
+.msn-cire {
+  color: var(--ground2);
+  background: radial-gradient(circle at 36% 30%, #5d7279, var(--edge-hi) 55%, #26363b);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, .5), inset 0 -2px 4px rgba(0, 0, 0, .35);
+}
+.msn-cire-chaude {
+  opacity: 0; color: #241704;
+  background: radial-gradient(circle at 36% 30%, #f7d58e, var(--lamp) 50%, var(--lamp-lo));
+  box-shadow: 0 0 24px rgba(232, 163, 61, .6);
+}
+.msn-cire-chaude::before { border-color: rgba(36, 23, 4, .4); }
+.msn-sceau .icone { stroke-width: 2.2; position: relative; }
+
+/* ── Le pli de la semaine ───────────────────────────────────────────── */
+
+.msn-place-pli {
+  position: relative; z-index: 2; grid-column: 2; grid-row: 2; align-self: start;
+  margin-top: calc(var(--msn-haut) + 48px); width: var(--msn-pli); height: var(--msn-pli-h); transform: rotate(1.4deg);
+}
+.msn-pli {
+  position: relative; height: 100%; box-sizing: border-box; background: var(--panel2);
+  border: 1px solid rgba(157, 124, 240, .45); border-radius: 3px;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, .5), 0 2px 4px rgba(0, 0, 0, .3);
+}
+.msn-pli.prete { border-color: var(--m-rainbow); }
+.msn-lueur-p {
+  position: absolute; inset: -1px; border-radius: 3px; border: 1px solid var(--m-rainbow); pointer-events: none;
+  box-shadow: 0 0 0 1px rgba(157, 124, 240, .22), 0 18px 46px -8px rgba(157, 124, 240, .4); opacity: 0;
+}
+.msn-pli.prete .msn-lueur-p { opacity: 1; }
+.msn-rabat {
+  position: absolute; left: -1px; right: -1px; top: -1px; height: 58px; transform-origin: 50% 0;
+  transform: perspective(700px) rotateX(0deg); filter: drop-shadow(0 1px 0 rgba(157, 124, 240, .55));
+}
+.msn-rabat span { position: absolute; inset: 0; clip-path: polygon(0 0, 100% 0, 50% 100%);
+  background: linear-gradient(180deg, #2e4046, #26363b); }
+.msn-pli.ouvert .msn-rabat { transform: perspective(700px) rotateX(180deg); }
+.msn-coiffe-sem { position: absolute; left: 50%; top: 36px; width: 40px; height: 40px; margin-left: -20px; }
+.msn-coiffe-ico { display: none; }
+.msn-sceau-sem {
+  position: absolute; inset: 0; border-radius: 50%; display: grid; place-items: center; color: #1d1440;
+  background: radial-gradient(circle at 36% 30%, #cdbcfb, var(--m-rainbow) 50%, #6a50c0);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, .45);
+}
+.msn-pli.ouvert .msn-sceau-sem { opacity: 0; }
+.msn-pli-corps { position: absolute; inset: 0; display: flex; flex-direction: column; padding: 84px 16px 12px; }
+.msn-pli .msn-quoi { min-height: 0; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.msn-quoi-ico { display: flex; color: var(--rainbow-encre); }
+.msn-pli.faite .msn-quoi, .msn-pli.faite .msn-quoi-ico { color: var(--ink3); }
+.msn-pli .msn-prog { margin-top: 12px; }
+.msn-pli .msn-jauge span { background: var(--m-rainbow); }
+.msn-recompense { margin-top: auto; display: flex; align-items: center; gap: 10px; height: 40px; }
+.msn-pouces { position: relative; flex: 0 0 auto; width: 40px; height: 40px; }
+.msn-pouces img { position: absolute; top: 2px; width: 24px; height: 36px; border-radius: 2px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, .5); }
+.msn-pouces img:first-child { left: 2px; transform: rotate(-9deg); }
+.msn-pouces img:last-child { left: 14px; transform: rotate(7deg); }
+.msn-pli.faite .msn-pouces { opacity: 0; }
+.msn-gain-sem { font-size: 15px; font-weight: 600; color: var(--rainbow-encre); }
+.msn-pli.faite .msn-gain-sem { color: var(--ink3); }
+.msn-pli-pied { display: flex; align-items: center; justify-content: space-between; height: 44px; margin-top: 8px; }
+
+/* ── Ce qui vole, et ce qui s'annonce ──────────────────────────────── */
+
+.msn-couche { position: fixed; inset: 0; z-index: 80; pointer-events: none; overflow: hidden; }
+.msn-piece {
+  position: absolute; width: 12px; height: 12px; border-radius: 50%; opacity: 0;
+  background: radial-gradient(circle at 35% 35%, #ffd98a, var(--lamp) 60%, var(--lamp-lo));
+  box-shadow: 0 0 8px rgba(232, 163, 61, .55);
+}
+.msn-booster-vol { position: absolute; width: 26px; height: 39px; border-radius: 2px; box-shadow: 0 4px 10px rgba(0, 0, 0, .5); }
+.msn-annonce { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* ── Tablette : le pli passe sous les billets, la page défile ───────── */
+
+@media (min-width: 721px) and (max-width: 1099px) {
+  .msn-page {
+    --msn-table-y: 300px; --msn-billet: 204px; --msn-billet-h: 228px; --msn-pli: 320px; --msn-haut: 16px;
+    height: auto; min-height: calc(100dvh - var(--tete-h, 0px)); container-type: normal;
+  }
+  .shell .zone > .view.msn-page { overflow: visible; }
+  .msn-scene { grid-template-columns: auto; grid-template-rows: var(--msn-table-y) auto auto; padding-bottom: 48px; }
+  .msn-place-pli { grid-column: 1; grid-row: 3; justify-self: center; margin-top: 40px; }
+}
+
+/* ── Au doigt ───────────────────────────────────────────────────────── */
+
+@media (max-width: 720px) {
+  .msn-page { height: auto; container-type: normal; }
+  .shell .zone > .view.msn-page { overflow: visible; padding: 0 0 calc(96px + env(safe-area-inset-bottom)); }
+  .msn-page { --msn-tete-h: 50px; }
+  .msn-tete { padding: 6px 6px 0 16px; align-items: center; }
+  .msn-tete h1 { font-size: 28px; line-height: 44px; }
+  .msn-rond { border: 0; background: rgba(10, 16, 19, .6); }
+  .msn-aide-texte { right: 6px; top: 48px; width: 300px; padding: 14px 16px; }
+
+  .msn-scene { display: block; padding: 0; }
+  .msn-mur { top: calc(-1 * var(--msn-tete-h)); height: calc(var(--msn-tete-h) + 128px);
+    background:
+      linear-gradient(180deg, rgba(8, 12, 14, .6), transparent 55%),
+      var(--msn-mur-tel) 50% 100% / cover no-repeat,
+      var(--ground); }
+  .msn-table { top: 128px; background:
+    linear-gradient(180deg, rgba(10, 8, 6, .15), rgba(10, 8, 6, .45) 30%, rgba(10, 8, 6, .6)),
+    var(--msn-plateau-tel) 50% 0 / cover no-repeat,
+    #1d130d; }
+  /* Le plateau descend sous la marge laissée au bouton de navigation. */
+  .msn-table { bottom: calc(-96px - env(safe-area-inset-bottom)); }
+  .msn-bodegue { height: 128px; }
+  .msn-lueur { left: -60px; top: -30px; width: 280px; height: 240px; transform: none; }
+  .msn-pose { left: -51px; top: 6px; bottom: auto; height: 270px; transform: none; filter: drop-shadow(0 10px 14px rgba(0, 0, 0, .55)); }
+  .msn-bulle { left: 148px; right: 12px; top: 10px; width: auto; min-height: 88px; padding: 10px 13px; }
+  .msn-bulle p { font-size: 15px; line-height: 1.36; }
+
+  .msn-jour { padding: 4px 16px 0; }
+  .msn-ligne { gap: 12px; font-size: 13px; }
+  .msn-echeances { gap: 14px; }
+  .msn-tout { height: 30px; padding: 0 10px; }
+  .msn-billets { flex-direction: column; gap: 8px; margin-top: 4px; }
+  .msn-place { width: auto; height: auto; transform: rotate(calc(var(--rot, 0deg) * .3)); }
+  .msn-billet {
+    display: grid; grid-template-columns: 40px minmax(0, 1fr); column-gap: 12px; row-gap: 6px; padding: 12px;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, .42);
+  }
+  .msn-coiffe { position: static; grid-row: 1 / span 2; align-self: start; width: 40px; height: 40px; margin: 0; box-shadow: none; }
+  .msn-quoi { grid-column: 2; padding-right: 36px; min-height: 2.6em; font-size: 15px; line-height: 1.3; text-align: left; }
+  .msn-remplacer { top: 0; right: 0; border: 0; }
+  .msn-remplacer.confirme { top: 4px; right: 4px; padding: 0 10px; border: 1px solid var(--ink); }
+  .msn-bas { grid-column: 2; flex-direction: row; align-items: center; gap: 10px; height: 44px; }
+  .msn-prog { flex: 1 1 auto; min-width: 0; }
+  .msn-compte { font-size: 13px; }
+  .msn-pied { margin: 0; padding: 0; border: 0; gap: 10px; }
+  .msn-gain { font-size: 15px; gap: 4px; }
+  .msn-gain .icone { width: 16px; height: 16px; }
+  .msn-action { width: 92px; }
+  .msn-btn { padding: 0 12px; }
+  .msn-sceau { right: 22px; top: -2px; width: 48px; height: 48px; margin-top: 0; }
+  .msn-cire::before, .msn-cire-chaude::before { inset: 6px; }
+  .msn-sceau .icone { width: 20px; height: 20px; }
+
+  .msn-place-pli { width: auto; height: auto; margin: 10px 16px 0; transform: rotate(.4deg); }
+  .msn-pli {
+    display: grid; grid-template-columns: 40px minmax(0, 1fr); column-gap: 12px; padding: 12px;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, .45);
+  }
+  .msn-rabat { display: none; }
+  .msn-coiffe-sem { position: relative; left: auto; top: auto; margin: 0; grid-row: 1; align-self: start; }
+  .msn-coiffe-ico {
+    position: absolute; inset: 0; display: grid; place-items: center; box-sizing: border-box; border-radius: 50%;
+    background: var(--ground2); border: 1px solid var(--m-rainbow); color: var(--rainbow-encre);
+  }
+  .msn-pli-corps { position: static; inset: auto; padding: 0; gap: 6px; grid-column: 2; }
+  .msn-quoi-ico { display: none; }
+  .msn-pli .msn-quoi { justify-content: flex-start; text-align: left; padding: 0; }
+  .msn-pli .msn-prog { margin-top: 0; }
+  .msn-recompense { margin-top: 2px; height: 36px; }
+  .msn-pouces { width: 34px; height: 36px; }
+  .msn-pouces img { width: 20px; height: 30px; top: 3px; }
+  .msn-pouces img:last-child { left: 12px; }
+  .msn-gain-sem { font-size: 14px; }
+  .msn-pli-pied { margin-top: 0; }
+}
+
+/* Les échéances sont posées à même le bois : une ombre les en détache. */
+.msn-ligne, .msn-echeance { color: var(--ink2); text-shadow: 0 1px 3px rgba(0, 0, 0, .95), 0 0 8px rgba(0, 0, 0, .7); }
+
+/* Mouvement réduit : la pose change sans fondu. */
+[data-mouvement="reduit"] .msn-pose { transition: none; }

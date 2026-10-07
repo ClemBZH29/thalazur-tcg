@@ -31,6 +31,8 @@ export function useMine(etat, setEtat) {
         ...e,
         bourse: crediterGain(e.bourse, po),
         mine: { jour: aujourdhui, credite: jour.credite + po },
+        // Cumul de toujours : les missions de Bodégué le suivent.
+        stats: { ...(e.stats || {}), poMine: ((e.stats || {}).poMine || 0) + po },
       };
     });
   }, [setEtat]);
