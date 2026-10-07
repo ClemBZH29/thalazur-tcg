@@ -25,7 +25,10 @@ export const DOSSIERS = {
   kazim: ["benediction-filon", "contrat-courtage", "elementaire-faille", "etais-renforces", "fanal-huile",
     "foreuse-vapeur", "golem-schiste", "kobold-deserteur", "lentille-quartz", "machine-kazim", "mineur-nain",
     "pioche-acier", "pioche-fer", "pioche-kazim", "pioche-resonante", "porte-fanal", "rails-bascule",
-    "serment-rookerie", "sourciere-etoile", "tamis-mailles"],
+    "serment-rookerie", "sourciere-etoile", "tamis-mailles",
+    // Tafix, le Fossoyeur et sa grotte (refonte des Mines, 07/10/2026).
+    "tafix", "tafix-malicieux", "tafix-panique", "tafix-ebloui", "fossoyeur", "fossoyeur-eveille",
+    "faveur-fond", "faveur-fond-mobile"],
 };
 
 /** Les cadres et le dos des cartes, présents sur presque chaque page. */
