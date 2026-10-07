@@ -579,7 +579,10 @@ function MinesDeKazim({
 
   /* La partie ancienne a été remise à zéro à la lecture : le joueur a lu
      l'écran, on verse le solde (une fois par compte, voir src/jeu/mine.js)
-     et Tafix ne lui présente plus que les nouveautés. */
+     et Tafix ne lui présente plus que les nouveautés : il le salue tout de
+     suite et lui montre les commandes ; le Fossoyeur viendra à la cinquième
+     strate, la Faveur au premier éclat. (Retour de l'aperçu, 07/10/2026 :
+     tout était marqué vu, et Tafix restait muet jusqu'au premier éclat.) */
   const rouvrir = () => {
     const s = S.current;
     const r = s.remise;
@@ -588,8 +591,14 @@ function MinesDeKazim({
       try { onRemise(r.total); } catch (err) { console.error("[Kazim] onRemise", err); }
     }
     signaler({ onglets: ["compagnons", "commandes", "equipement", "talents", "fossoyeur"] });
-    ["arrivee", "filon1", "compagnon", "chantier", "talents", "riche", "fossoyeur"]
+    ["arrivee", "filon1", "commandes", "compagnon", "chantier", "talents", "riche", "retour"]
       .forEach((vu) => signaler({ vu }));
+    const retour = TAFIX.find((c) => c.id === "retour");
+    if (!muet) {
+      setBulleTafix(retour);
+      setAVoir((v) => new Set(v).add("commandes"));
+      noter("Tafix : " + retour.dit);
+    }
     setOnglet("commandes");
     sauver(true);
     forcer();

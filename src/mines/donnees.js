@@ -189,7 +189,9 @@ export const TAFIX = [
   { id: "arrivee", expr: "malicieux", quand: () => true,
     dit: "Psst, toi, le grand. Tafix, c'est moi. La roche, là : tu tapes dessus. Fort." },
   { id: "filon1", expr: "ebloui", quand: (s) => s.brisesTotal >= 1,
-    dit: "De l'étoile ! Ça brille, ça se garde, ça se dépense. Tafix adore les trois.", onglet: "commandes" },
+    dit: "De l'étoile ! Ça brille, ça se garde, ça se dépense. Tafix adore les trois." },
+  { id: "commandes", expr: "content", quand: (s) => s.brisesTotal >= 2,
+    dit: "La tribu veut ton étoile : Tafix apporte trois commandes par jour, payées en or. La grosse, il faut rester un quart d'heure à la mine.", onglet: "commandes" },
   { id: "compagnon", expr: "malicieux", quand: (s) => s.etoile >= 6 && !s.compagnons.fanal,
     dit: "Avec ça, tu payes un porte-fanal. Lui, il tape même quand tu dors.", onglet: "compagnons" },
   { id: "chantier", expr: "malicieux", quand: (s) => s.brisesTotal >= 4,
@@ -200,6 +202,10 @@ export const TAFIX = [
     dit: "La roche qui rougit rend quatre fois plus. Celle-là d'abord." },
   { id: "fossoyeur", expr: "panique", quand: (s) => s.profondeurMax >= 5,
     dit: "Le gros, là-haut, c'est le Fossoyeur. Il fait tout sauter, tu gardes les éclats. Tafix se met derrière toi." },
+  /* Pour qui revient d'une partie remise à zéro : jamais tiré par une
+     condition, Tafix le dit en fermant l'écran de remise (`rouvrir`). */
+  { id: "retour", expr: "malicieux", quand: () => false,
+    dit: "Te revoilà, le grand ! Maintenant Tafix t'apporte trois commandes par jour, payées en or ; la grosse demande un quart d'heure de mine.", onglet: "commandes" },
   { id: "faveur", expr: "panique", quand: (s) => s.eclats > 0,
     dit: "Le Fossoyeur dort. Offre-lui tes éclats, il t'aidera à chaque nouvelle mine. Tafix reste ici." },
 ];
