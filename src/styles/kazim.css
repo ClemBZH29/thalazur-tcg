@@ -389,23 +389,6 @@
   background: linear-gradient(180deg, var(--panel2, #223136), rgba(229,119,75,.1)); }
 .kz button.kz-mini { padding: 7px 11px; font-size: 12.5px; }
 .kz-lots { display: flex; gap: 8px; margin-bottom: 14px; }
-.kz-taux {
-  margin-bottom: 14px; padding: 15px;
-  background: linear-gradient(180deg, rgba(232,163,61,.05), rgba(19,30,34,.55));
-  border: 1px solid var(--edge-ui, #687a80); border-radius: var(--r-md, 6px);
-}
-.kz-prix { font-family: var(--font-display, "Fraunces"), Georgia, serif;
-           font-variation-settings: var(--wonk, "SOFT" 24, "WONK" 1);
-           font-size: 23px; font-weight: 600; color: var(--lamp, #e8a33d); font-variant-numeric: tabular-nums; }
-.kz-taux .kz-note { margin-top: 8px; }
-.kz-vendre { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
-.kz-bourse-tete { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 11px; }
-.kz-grille {
-  display: grid; grid-template-columns: 1fr auto; gap: 6px 14px;
-  font-size: 12.5px; color: var(--ink3, #8c989a);
-  padding-top: 11px; border-top: 1px solid var(--edge, #2c3d43);
-}
-.kz-grille b { color: var(--ink2, #b7b2a4); font-weight: 500; font-variant-numeric: tabular-nums; text-align: right; }
 .kz-talent { flex-direction: row; align-items: center; gap: 10px; }
 .kz-pastille {
   min-width: 36px; padding: 6px 8px; text-align: center; font-size: 14px; font-weight: 600;
@@ -429,27 +412,12 @@
   background: var(--lamp, #e8a33d); border-radius: 100px;
 }
 
-/* Bulle d'aide : ce qu'on lit une fois et qu'on ne veut plus subir. */
-.kz-aide-bouton {
-  width: 18px; height: 18px; margin-left: 7px; padding: 0; cursor: pointer;
-  border: 1px solid var(--edge-ui, #687a80); border-radius: 50%;
-  background: none; color: var(--ink3, #8c989a);
-  font: inherit; font-size: 11px; line-height: 1; vertical-align: 1px;
-}
-.kz-aide-bouton:hover { color: var(--ink, #ece3d2); background: var(--panel2, #223136); }
-.kz-bulle {
-  position: absolute; z-index: 8; left: clamp(13px, 1.4vw, 18px); right: clamp(13px, 1.4vw, 18px);
-  margin-top: 8px; padding: 13px 34px 13px 15px;
-  border: 1px solid var(--edge-hi, #3d5259); border-radius: var(--r-md, 6px);
-  background: var(--panel, #1a272c); box-shadow: 0 18px 40px rgba(0, 0, 0, .6);
-  font-size: 12.5px; line-height: 1.55; color: var(--ink2, #b7b2a4);
-}
+/* Le bouton de fermeture du lexique. */
 .kz-bulle-fermer {
   position: absolute; top: 6px; right: 6px; width: 24px; height: 24px; cursor: pointer;
   background: none; border: 0; color: var(--ink3, #8c989a); font-size: 16px; line-height: 1;
 }
 .kz-bulle-fermer:hover { color: var(--ink, #ece3d2); }
-.kz-taux { position: relative; }
 
 @media (max-width: 720px) {
   .kz-top { gap: 14px; }
@@ -691,3 +659,203 @@
     justify-content: space-between; align-items: center; text-align: left; }
   .kz-row .kz-actions.kz-talent { flex-direction: row; }
 }
+
+/* ══════════════════════════════════════════════════════════════════════
+   REFONTE DU 07/10/2026 — commandes de Tafix, salle du Fossoyeur, conseils,
+   écran de remise à zéro. Voir docs/conception/mines.md.
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* Une classe qui pose `display` bat l'attribut `hidden` : la quatrième
+   variété d'échec silencieux de ce projet. On le dit explicitement. */
+.kz-grid[hidden] { display: none; }
+.kz-eclats-n { color: var(--carte-pj, #e3ecf4); text-shadow: 0 0 16px rgba(227, 236, 244, .35); }
+.kz button.kz-or-bouton { color: var(--lamp, #e8a33d); border-color: var(--lamp, #e8a33d); }
+
+/* ── Tafix ── */
+.kz-tafix {
+  display: inline-block; flex: 0 0 auto; width: 92px; height: 92px; overflow: hidden;
+  border-radius: var(--r-md, 6px); border: 1px solid #5a2e22;
+  background: radial-gradient(circle at 50% 70%, #2a1c16, #120d0b 75%);
+}
+.kz-tafix img, .kz-tafix svg { display: block; width: 100%; height: 100%; object-fit: contain; }
+.kz-tafix-tete { display: flex; gap: 14px; align-items: flex-end; margin-bottom: 14px; }
+.kz-dit {
+  position: relative; flex: 1; padding: 10px 13px; font-size: 14px; color: #f0dfcf;
+  background: #1f1714; border: 1px solid #5a2e22; border-radius: var(--r-md, 6px);
+}
+.kz-dit::before {
+  content: ""; position: absolute; left: -7px; bottom: 18px; width: 12px; height: 12px;
+  background: #1f1714; border-left: 1px solid #5a2e22; border-bottom: 1px solid #5a2e22; transform: rotate(45deg);
+}
+.kz-dit small { display: block; margin-top: 3px; font-size: 11.5px; letter-spacing: .04em; text-transform: uppercase; color: #c79a7a; }
+
+/* ── Les commandes ── */
+.kz-commande {
+  padding: 12px; margin-bottom: 9px;
+  background: rgba(19, 30, 34, .55); border: 1px solid var(--edge, #2c3d43); border-radius: var(--r-md, 6px);
+}
+.kz-commande.kz-prete { border-color: var(--lamp, #e8a33d); background: linear-gradient(180deg, rgba(232,163,61,.07), rgba(19,30,34,.55)); }
+.kz-commande.kz-livree { opacity: .55; }
+.kz-commande-tete { display: flex; align-items: center; gap: 10px; }
+.kz-commande-tete h3 { flex: 1; font-size: 16px; }
+.kz-paie { font-weight: 600; color: var(--lamp, #e8a33d); white-space: nowrap; }
+.kz-commande-barre { height: 6px; margin: 9px 0 7px; border-radius: 3px; background: var(--ground, #0d1417); overflow: hidden; }
+.kz-commande-barre i { display: block; height: 100%; background: linear-gradient(90deg, var(--kz-etoile), #fff); transition: width 160ms linear; }
+.kz-commande-pied { display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: 12.5px; color: var(--ink3, #8c989a); }
+.kz-note.kz-fraiche { margin-top: 7px; font-size: 12px; }
+
+/* ── Le bouton du Fossoyeur ── */
+.kz button.kz-fossoyeur-bouton, .kz-fossoyeur-bouton {
+  position: relative; align-self: stretch; display: flex; align-items: center; gap: 10px;
+  padding: 7px 14px 7px 9px; cursor: pointer; text-align: left; color: var(--ink, #ece3d2); font: inherit;
+  background: linear-gradient(180deg, #1d2b30, #111a1d);
+  border: 1px solid rgba(207, 224, 236, .28); border-radius: var(--r-md, 6px);
+  box-shadow: var(--kz-grave), 0 2px 5px rgba(0, 0, 0, .35);
+}
+.kz-fossoyeur-bouton:hover { border-color: var(--kz-etoile); }
+.kz-fossoyeur-bouton:focus-visible { outline: 2px solid var(--lamp, #e8a33d); outline-offset: 2px; }
+.kz-fossoyeur-bouton .kz-colosse { width: 34px; height: 42px; }
+.kz-fossoyeur-bouton b { display: block; font-family: var(--font-display, "Fraunces"), Georgia, serif; font-size: 15px; font-weight: 600; }
+.kz-fossoyeur-bouton small { display: block; font-size: 12px; color: var(--ink3, #8c989a); }
+.kz-fossoyeur-bouton.kz-appel { border-color: var(--kz-etoile); box-shadow: 0 0 0 1px rgba(207,224,236,.35), 0 0 18px rgba(207,224,236,.25); }
+.kz-fossoyeur-bouton.kz-appel::after {
+  content: ""; position: absolute; top: 7px; right: 7px; width: 7px; height: 7px; border-radius: 50%;
+  background: var(--lamp, #e8a33d); box-shadow: 0 0 8px var(--lamp, #e8a33d);
+}
+
+/* ── Le Fossoyeur ── */
+.kz-colosse { display: inline-block; flex: 0 0 auto; }
+.kz-colosse img, .kz-colosse svg { display: block; width: 100%; height: 100%; object-fit: contain; overflow: visible; }
+.kz-colosse .kz-oeil { fill: #141a1c; transition: fill 600ms; }
+.kz-colosse .kz-forge { fill: #7a3d12; opacity: .75; transition: fill 600ms, opacity 600ms; }
+.kz-colosse.kz-eveille .kz-oeil { fill: var(--lamp, #e8a33d); filter: drop-shadow(0 0 6px var(--lamp, #e8a33d)); }
+.kz-colosse.kz-eveille .kz-forge { fill: #ffb347; opacity: 1; filter: drop-shadow(0 0 10px var(--lamp, #e8a33d)); }
+
+/* ── La salle du Fossoyeur : à la place de la grille, même hauteur ── */
+.kz-salle {
+  position: relative; isolation: isolate; display: flex; flex-direction: column;
+  margin-top: clamp(15px, 1.8vw, 22px); height: clamp(560px, 72vh, 780px); overflow: hidden;
+  border: 1px solid rgba(207, 224, 236, .2); border-radius: var(--r-lg, 10px);
+  box-shadow: 0 20px 44px -28px rgba(0, 0, 0, .95);
+}
+.mines .kz-salle { flex: 1; }
+.kz-grotte { position: absolute; inset: 0; z-index: -1; }
+.kz-grotte img, .kz-grotte svg { display: block; width: 100%; height: 100%; object-fit: cover; }
+.kz-salle-barre { display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: linear-gradient(180deg, rgba(13,20,23,.85), rgba(13,20,23,.2)); }
+.kz-salle-barre h2 { font-size: clamp(19px, 2.2vw, 24px); }
+.kz-salle-barre h2:focus { outline: none; }
+.kz-salle-barre .kz-note { margin-left: auto; }
+.kz-salle-corps { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(260px, .8fr) minmax(0, 1.4fr); gap: 18px; padding: 4px 16px 16px; }
+.kz-salle-gauche { display: flex; flex-direction: column; align-items: center; min-height: 0; }
+.kz-salle-gauche > .kz-colosse { width: min(100%, 300px); flex: 1 1 auto; min-height: 0; aspect-ratio: 200 / 260; }
+.kz-offrande {
+  width: 100%; margin-top: auto; padding: 12px;
+  background: rgba(10, 16, 18, .78); border: 1px solid rgba(207, 224, 236, .16); border-radius: var(--r-md, 6px);
+}
+.kz-solde { font-size: 13px; color: var(--ink3, #8c989a); }
+.kz-solde b { font-size: 24px; margin-right: 4px; color: var(--carte-pj, #e3ecf4); text-shadow: 0 0 14px rgba(227, 236, 244, .4); }
+.kz-prochaine { margin: 10px 0 8px; padding-top: 10px; border-top: 1px solid var(--edge, #2c3d43); font-size: 13px; color: var(--ink2, #b7b2a4); }
+.kz-effondrement-note { margin-top: 8px; font-size: 12px; }
+.kz-salle-droite { min-height: 0; overflow-y: auto; padding-right: 4px; container: kzsalle / inline-size; }
+.kz-branches { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+@container kzsalle (max-width: 460px) { .kz-branches { grid-template-columns: 1fr; } }
+.kz-branche { padding: 10px; background: rgba(10, 16, 18, .72); border: 1px solid rgba(207, 224, 236, .16); border-radius: var(--r-md, 6px); }
+.kz-branche h3 {
+  margin: 0 0 4px; font-family: var(--font-ui, "Archivo"), system-ui, sans-serif; font-variation-settings: normal;
+  font-size: 11.5px; letter-spacing: .08em; text-transform: uppercase; color: #a9c3d4; font-weight: 600;
+}
+.kz-faveur {
+  position: relative; display: flex; width: 100%; gap: 9px; align-items: center; margin-top: 6px; padding: 8px 9px;
+  text-align: left; font: inherit; color: var(--ink, #ece3d2); cursor: pointer;
+  background: rgba(26, 39, 44, .85); border: 1px solid var(--edge, #2c3d43); border-radius: var(--r-sm, 3px);
+}
+.kz-faveur + .kz-faveur::before { content: ""; position: absolute; left: 20px; top: -7px; width: 1px; height: 7px; background: rgba(207, 224, 236, .25); }
+.kz-faveur:hover:not(:disabled) { border-color: var(--kz-etoile); }
+.kz-faveur:focus-visible { outline: 2px solid var(--lamp, #e8a33d); outline-offset: 2px; }
+.kz-faveur:disabled { cursor: default; }
+.kz-faveur.kz-verrou { opacity: .45; }
+.kz-faveur.kz-prise { border-color: rgba(232, 163, 61, .55); background: linear-gradient(90deg, rgba(232,163,61,.12), rgba(26,39,44,.85)); }
+.kz-gemme { flex: 0 0 auto; width: 20px; height: 20px; margin: 0 4px; transform: rotate(45deg); border: 1px solid rgba(207, 224, 236, .4); background: #101a1d; }
+.kz-faveur.kz-abordable .kz-gemme { background: var(--kz-etoile); box-shadow: 0 0 10px rgba(207, 224, 236, .7); }
+.kz-faveur.kz-prise .kz-gemme { background: var(--lamp, #e8a33d); border-color: var(--lamp, #e8a33d); box-shadow: 0 0 10px var(--lamp, #e8a33d); }
+.kz-faveur-txt { flex: 1; min-width: 0; }
+.kz-faveur-txt b { display: block; font-size: 13.5px; font-weight: 600; }
+.kz-faveur-txt span { display: block; font-size: 12px; color: var(--ink3, #8c989a); }
+.kz-faveur-prix { flex: 0 0 auto; font-size: 12.5px; white-space: nowrap; color: var(--carte-pj, #e3ecf4); }
+.kz-faveur.kz-prise .kz-faveur-prix { color: var(--lamp, #e8a33d); }
+@media (max-width: 900px) {
+  .kz-salle { height: auto; }
+  .kz-salle-corps { grid-template-columns: minmax(0, 1fr); }
+  .kz-salle-gauche > .kz-colosse { width: 180px; flex: 0 0 auto; }
+  .kz-salle-droite { overflow: visible; }
+}
+@media (max-width: 720px) {
+  .kz-salle-barre .kz-note { display: none; }
+  .kz-salle-barre h2 { font-size: 18px; }
+  .kz-fossoyeur-bouton { order: 2; }
+}
+
+/* ── L'étoile filante et la frénésie ── */
+.kz-filante {
+  position: absolute; left: -48px; z-index: 4; width: 46px; height: 46px; padding: 0;
+  border: 0; background: none; cursor: pointer; animation: kz-file 6s linear forwards;
+}
+.kz-filante svg { width: 100%; height: 100%; fill: #fff6dc; filter: drop-shadow(0 0 10px #fff) drop-shadow(0 0 18px var(--lamp, #e8a33d)); }
+.kz-filante:focus-visible { outline: 2px solid var(--lamp, #e8a33d); border-radius: 50%; }
+@keyframes kz-file { from { transform: translateX(0) rotate(0); } to { transform: translateX(calc(100cqw + 96px)) rotate(540deg); } }
+.kz-vein { container-type: inline-size; }
+/* Sans animation, l'étoile se pose et attend : quinze secondes, puis s'en va. */
+.kz-sobre .kz-filante { left: 60%; animation: kz-file-sobre 15s step-end forwards; }
+@keyframes kz-file-sobre { to { visibility: hidden; } }
+.kz-frenesie {
+  position: absolute; right: 10px; top: 10px; z-index: 3; margin: 0; padding: 3px 9px; font-size: 12px; font-weight: 600;
+  color: var(--lamp, #e8a33d); background: rgba(232, 163, 61, .15); border: 1px solid var(--lamp, #e8a33d); border-radius: var(--r-sm, 3px);
+}
+
+/* Le portail de la bulle et de l'écran de remise à zéro : il reprend les
+   jetons de `.kz` sans créer de contexte d'empilement. */
+.kz.kz-portail { position: static; isolation: auto; }
+
+/* ── La bulle de conseil de Tafix ── */
+.kz-bulle-tafix {
+  position: fixed; z-index: 50; right: max(16px, env(safe-area-inset-right)); bottom: calc(22px + env(safe-area-inset-bottom));
+  width: min(380px, calc(100vw - 32px)); display: flex; gap: 12px; align-items: flex-end; padding: 12px;
+  background: #1f1714; border: 1px solid #7a3b2a; border-radius: var(--r-lg, 10px);
+  box-shadow: 0 18px 40px -12px #000, 0 0 0 1px rgba(0, 0, 0, .4);
+  animation: kz-surgit 500ms cubic-bezier(.2, 1.3, .4, 1);
+}
+.kz-bulle-tafix .kz-tafix { width: 74px; height: 74px; }
+.kz-bulle-tafix p { font-size: 14.5px; color: #f0dfcf; }
+.kz-bulle-tafix .kz-qui { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: #d0896b; margin-bottom: 3px; }
+.kz-bulle-actions { display: flex; gap: 10px; align-items: center; margin-top: 9px; }
+.kz-taire { padding: 0; border: 0; background: none; cursor: pointer; font: inherit; font-size: 12px; color: #a7826b; text-decoration: underline; }
+.kz-taire:focus-visible { outline: 2px solid var(--lamp, #e8a33d); }
+@keyframes kz-surgit { from { opacity: 0; transform: translateY(40px); } to { opacity: 1; transform: none; } }
+.kz-sobre .kz-bulle-tafix { animation: none; }
+
+/* ── L'écran de remise à zéro ── */
+.kz-voile-remise {
+  position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; padding: 16px;
+  background: rgba(5, 8, 9, .78); backdrop-filter: blur(3px);
+}
+.kz-remise {
+  width: min(560px, 100%); max-height: calc(100vh - 32px); overflow: auto; padding: 22px;
+  background: linear-gradient(180deg, var(--panel2, #223136), var(--panel, #1a272c));
+  border: 1px solid var(--edge-hi, #3d5259); border-radius: var(--r-lg, 10px); box-shadow: 0 30px 70px -20px #000;
+}
+.kz-remise-tete { display: flex; gap: 14px; align-items: center; margin-bottom: 16px; }
+.kz-remise-tete h2 { font-size: 24px; }
+.kz-remise-tete h2:focus { outline: none; }
+.kz-remise-tete p { margin-top: 4px; font-size: 14px; color: #f0dfcf; }
+.kz-remise-bloc { margin-top: 10px; padding: 12px 14px; border: 1px solid var(--edge, #2c3d43); border-radius: var(--r-md, 6px); background: rgba(13, 20, 23, .5); }
+.kz-remise-bloc h3 {
+  margin-bottom: 6px; font-family: var(--font-ui, "Archivo"), system-ui, sans-serif; font-variation-settings: normal;
+  font-size: 11.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink4, #88999e);
+}
+.kz-remise-bloc ul { margin: 0; padding-left: 18px; font-size: 14px; color: var(--ink2, #b7b2a4); }
+.kz-remise-bloc li { margin: 3px 0; }
+.kz-remise-bloc > p { font-size: 14px; color: var(--ink2, #b7b2a4); }
+.kz-remise-solde { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: flex-end; font-size: 14px; color: var(--ink2, #b7b2a4); }
+.kz-remise-solde b { display: block; font-size: 24px; line-height: 1.1; color: var(--lamp, #e8a33d); }
+.kz-remise-solde small { font-size: 12.5px; color: var(--ink3, #8c989a); }
+.kz button.kz-rouvrir { width: 100%; margin-top: 16px; padding: 11px; font-size: 15px; }

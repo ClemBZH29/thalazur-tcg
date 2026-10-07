@@ -62,7 +62,7 @@ export function Jeu({ children }) {
   // Les portraits se rangent par extension : la carte a besoin de savoir où
   // chercher, et si l'image existe (inventaire publié avec les portraits).
   const cfgImage = { ...cfgImageBase, extension: boosterId, inventaire };
-  const { crediterMine, mineJour, versionMine, rechargerMine } = useMine(etat, setEtat);
+  const { crediterCommande, crediterRemise, remisePayee, majTafix, versionMine, rechargerMine } = useMine(etat, setEtat);
 
   const donnees = MJ ? etat.rosters[boosterId] : null;
   const roster = BOOSTER_PAR_ID[boosterId]?.roster;
@@ -266,7 +266,8 @@ export function Jeu({ children }) {
     collection, collecte, surplusTotal, exemplaires, surplus,
     bourse: etat.bourse, achetable, prixBooster: ECONOMIE.prix,
     recolter, majProgres, finirOuverture,
-    vendreExemplaires, acheterExemplaire, appliquerMarche, compter, crediterMine, mineJour,
+    vendreExemplaires, acheterExemplaire, appliquerMarche, compter,
+    crediterCommande, crediterRemise, remisePayee, majTafix, tafix: etat.tafix,
     succes, missions, sachetOffert, ...donjon, ...expeditions,
     tirerVisiteColporteur,
     comptoirSauve: (etat.comptoir || {})[boosterId] || null, majComptoir,

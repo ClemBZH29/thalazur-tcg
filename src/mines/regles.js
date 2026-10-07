@@ -6,7 +6,10 @@
  * rejouer l'économie sans navigateur. Une formule qui change ici change
  * partout — l'interface ne recalcule rien de son côté.
  */
-import { STRATES, COMPAGNONS, EQUIPEMENT, AMELIORATIONS } from "./donnees.js";
+import { STRATES, COMPAGNONS, EQUIPEMENT, AMELIORATIONS, COMMANDES } from "./donnees.js";
+import {
+  aFaveur, rendementAbsence, absenceMax, fortuneOfferte, multCritique, petitesCommandes,
+} from "./faveur.js";
 
 export const FILONS_PAR_STRATE = 12;
 
@@ -26,42 +29,32 @@ export const FILONS_PAR_STRATE = 12;
    Même joueur, une heure par jour : strate 7 au premier soir au lieu de 13,
    13 à une semaine au lieu de 28, 16 à deux mois au lieu de 32.
 
-   L'ancre du cours suit la même échelle et la même part de récolte : un PO
-   vaut toujours quatre filons de la strate 1, et descendre paie toujours un
-   peu plus qu'avant. */
+   L'accélération n'a pas de plafond : depuis que les éclats se comptent en
+   strates (voir plus bas), elle ne fait plus mur — la simulation de la Faveur
+   descend encore d'une strate tous les quinze jours au troisième mois. */
 export const RECOLTE = 0.07;
 export const PENTE_STRATE = 6;
 export const ACCELERATION_STRATE = 1.08;
 export const echelle = (p) =>
   Math.pow(PENTE_STRATE, p - 1) * Math.pow(ACCELERATION_STRATE, ((p - 1) * (p - 2)) / 2);
-/* Version de la pente : une partie creusée sous l'ancienne pente est
-   ramenée en surface au chargement (`relireMine`). */
-export const PENTE_VERSION = 2;
+/* Version des règles. Une partie jouée sous des règles antérieures repart
+   de zéro au chargement, avec un écran pour le dire (`relireMine`,
+   `sauvegarde.js`) : 2 était la pente du 07/10/2026, 3 la refonte des
+   commandes, des éclats comptés en strates et de la Faveur. */
+export const REGLES_VERSION = 3;
 
-/* Économie. L'économie de base donne 15 PO par heure plafonnées à 720, soit
-   trois boosters par jour. La mine complète, elle ne remplace pas.
+/* ── Ce qui sort de la mine (refonte du 07/10/2026) ───────────────────────
+   La mine vendait son étoile aux kobolds à un cours qui s'épuisait, ne se
+   reconstituait qu'à l'effondrement et s'appauvrissait d'une dette à chaque
+   effondrement. Six modificateurs que personne ne lisait, et une stratégie
+   cachée : le joueur qui réinvestit son étoile, comme dans tout clicker,
+   touchait de 0 à 100 PO par jour ; celui qui stockait une demi-heure puis
+   vendait tout touchait 400. Voir docs/conception/mines.md.
 
-   Les kobolds rachètent à un cours qui monte avec le volume d'une vente et qui
-   s'appauvrit à mesure qu'ils ont déjà payé. L'appauvrissement est indexé sur
-   les PO VERSÉS depuis le dernier effondrement, jamais sur le nombre de ventes :
-   sinon il suffirait de vendre une seule fois, très gros, pour l'annuler.
-
-   Prix d'un PO : ancre * e^(PO versés / FATIGUE_PO). Le stock nécessaire croît
-   en exponentielle quand les PO croissent en linéaire, ce qui transforme une
-   production exponentielle en revenu logarithmique. */
-export const FILONS_PAR_PO = 4;       // ancre du ratio : un PO vaut quatre filons de la strate 1
-export const ANCRE_EXPO = 0.85;       // sous-linéaire : descendre rend l'étoile un peu plus payante
-export const FATIGUE_PO = 32;         // PO versés pour que le cours soit divisé par e
-export const T_MAX = 0.75;            // plafond du bonus de volume
-export const DETTE_PAS = 0.06;        // creusement logarithmique de la dette par effondrement
-export const DETTE_MAX = 0.55;        // plancher du cours : la mine ne meurt jamais tout à fait
-export const RESONANCE_MAX = 0.25;    // bonus de cours accumulable par les critiques
-/* Plafond quotidien laissé à zéro, donc désactivé : la mine complète le gain
-   passif de l'application au lieu de le remplacer, et son économie est déjà
-   logarithmique — le cours kobold est divisé par e tous les trente-deux PO
-   versés, ce qui borne la journée bien mieux qu'un couperet. Voir
-   docs/audit-economie.md pour les ordres de grandeur mesurés. */
-export const PLAFOND_JOUR = 0;
+   Les kobolds passent désormais commande : Tafix apporte chaque jour trois
+   commandes à paie fixe, dont la demande suit la production de l'équipe
+   (`commandesDuJour`). La grosse demande de l'étoile fraîche, sortie page
+   ouverte : la production d'absence n'y compte pas. */
 export const PIOCHES = ["p4", "p3", "p2", "p1"];
 
 
@@ -69,25 +62,17 @@ export const equipA = (S, id) => S.equipement.indexOf(id) !== -1;
 export const equipMult = (S, type) =>
   EQUIPEMENT.reduce((m, e) => (e.type === type && equipA(S, e.id) ? m * e.val : m), 1);
 /* ── Les éclats ───────────────────────────────────────────────────────────
-   Un éclat valait 3 % de dégâts *et* 3 % de récolte, et leur nombre suivait
-   la racine carrée de l'étoile cumulée. L'étoile par seconde étant le produit
-   des dégâts par la récolte, elle montait comme le carré des éclats, et les
-   éclats comme la racine de l'étoile : la boucle se refermait à l'identique,
-   chaque effondrement doublait les éclats en un temps constant, puis de plus
-   en plus court — la profondeur remplit les compagnons plus vite qu'ils ne
-   coûtent. Simulé : 2 éclats à 16 minutes, 1 551 à 99, l'infini à 167.
+   Deuxième version (07/10/2026). Ils suivaient la racine cubique de l'étoile
+   cumulée ; avec la Faveur du Fossoyeur, qui raccourcit chaque mine, la boucle
+   corrigée en septembre se rouvrait — 3 000 éclats en deux semaines à vingt
+   minutes par jour, l'arbre entier acheté en dix jours.
 
-   Deux changements, et il faut les deux :
-   - l'éclat ne touche plus que les dégâts (frappes et compagnons). La récolte
-     suit déjà les dégâts — un filon rend ce qu'il a coûté à briser —, donc
-     l'étoile par seconde monte comme les éclats, plus comme leur carré ;
-   - leur nombre suit la racine cubique de l'étoile cumulée : doubler ses
-     éclats demande huit fois plus d'étoile, et non quatre.
-   Même joueur simulé : 2 éclats à 14 minutes, 267 à 3 h, 1 112 à 6 h 30, et
-   chaque doublement prend plus longtemps que le précédent. Détail et chiffres
-   dans docs/conception/mines.md. */
+   Un effondrement rapporte maintenant **un éclat par strate atteinte au-delà
+   de la quatrième, dans cette mine**. La strate est déjà le logarithme de
+   l'étoile : plus de boucle possible, et le gain se lit d'avance. L'éclat ne
+   touche que les dégâts, comme avant. */
 export const ECLAT_BONUS = 0.03;      // dégâts ajoutés par éclat
-export const ECLAT_DIVISEUR = 4e5;    // étoile cumulée pour le premier éclat
+export const STRATE_ECLATS = 5;       // première strate qui rapporte
 export const mEclats = (S) => 1 + S.eclats * ECLAT_BONUS;
 /* Force convertit la présence en revenu : une frappe vaut une fraction de la
    production passive, donc cliquer reste utile quand les compagnons pèsent des
@@ -102,7 +87,7 @@ export const critChance = (S) =>
     (c, e) => (equipA(S, e.id) && (e.type === "crit" || e.type === "crit2") ? c + e.val : c),
     Math.min(15, S.talents.echo * 2)
   ));
-export const critMult = (S) => (equipA(S, "l2") ? 7.5 : 5);
+export const critMult = (S) => multCritique(S, equipA(S, "l2"));
 export const prodUnitaire = (S) => (1 + S.talents.discipline * 0.12) * equipMult(S, "dps") * mEclats(S);
 /* Les améliorations d'un compagnon se cumulent en doublant : ×2, ×4, ×8, ×16.
    Elles vivent dans le même tableau `equipement` que le chantier, donc un
@@ -121,57 +106,23 @@ export const dps = dpsBrut;
 export const multRecolte = (S) => equipMult(S, "recolte");
 /* Fortune ne touche pas la moyenne par la même porte que Discipline : elle
    gonfle la fréquence des filons qui rendent plus, donc la variance. */
-export const chanceEvenement = (S) => Math.min(0.35, 0.05 * (1 + 0.5 * S.talents.fortune));
+export const fortune = (S) => S.talents.fortune + fortuneOfferte(S);
+export const chanceEvenement = (S) => Math.min(0.35, 0.05 * (1 + 0.5 * fortune(S)));
 /* Un filon sur combien rend plus. Le chiffre est affiché sous les talents :
    douze points placés dans Fortune ne se voyaient nulle part. */
 export const unFilonSur = (S) => Math.max(1, Math.round(1 / chanceEvenement(S)));
 /* La teinte des filons qui rendent plus : ambre à zéro point de Fortune, rouge
    franc à dix. Le talent gouverne la fréquence ; la couleur dit jusqu'où on
    l'a poussé, ce qu'aucun chiffre de l'interface ne disait. */
-export const teinteFortune = (S) => Math.round(40 - 40 * Math.min(1, S.talents.fortune / 10));
+export const teinteFortune = (S) => Math.round(40 - 40 * Math.min(1, fortune(S) / 10));
 export const pvFilon = (prof, brises) => Math.ceil(18 * echelle(prof) * Math.pow(1.09, brises));
 export const xpRequis = (S) => Math.floor(22 * Math.pow(S.niveau, 1.55));
 export const brisesIci = (S) => S.brises[S.profondeur] || 0;
-export const margeKobold = (S) =>
-  Math.pow(0.94, Math.min(12, Math.floor(S.echanges / 4))) * equipMult(S, "taux");
-/* Ancre : ce que coûterait un PO si les kobolds étaient honnêtes. Elle suit la
-   profondeur atteinte avec un exposant plus faible que les points de roche, donc
-   descendre augmente réellement le revenu. */
-export const ancrePO = (S) =>
-  Math.max(3.5, RECOLTE * 18 * Math.pow(echelle(S.profondeurMax), ANCRE_EXPO) * FILONS_PAR_PO);
-
-/* Dette d'effondrement : imperceptible au premier, jamais rattrapable ensuite. */
-export const dette = (S) => Math.min(DETTE_MAX, DETTE_PAS * Math.log(1 + S.effondrements));
-/* Bonus de volume : vendre gros paie, avec un rendement décroissant. */
-export const bonusVolume = (S, mise) =>
-  Math.min(T_MAX, 0.18 * Math.log2(1 + Math.max(0, mise) / ancrePO(S) / 5));
-export const resonance = (S) => Math.min(RESONANCE_MAX, (S.resonance || 0) * 0.004);
-/* Cours hors fatigue, exprimé comme un multiplicateur : tout ce qui aide monte. */
-export const coursBase = (S, mise) =>
-  Math.max(0.05, (1 + bonusVolume(S, mise) + resonance(S)) * (1 - dette(S))
-    / equipMult(S, "taux") / S.cours);
-export const coursAffiche = (S, mise) =>
-  Math.round(coursBase(S, mise) * Math.exp(-S.poRun / FATIGUE_PO) * 100);
-
-/* Combien de PO pour une mise, fatigue intégrée sur toute la vente.
-   E = (ancre / cours) * F * (e^(p1/F) - e^(p0/F)), résolu en p1. */
-export function poPourMise(S, mise) {
-  const ancre = ancrePO(S), c = coursBase(S, mise), F = FATIGUE_PO, p0 = S.poRun;
-  const p1 = F * Math.log(Math.exp(p0 / F) + (Math.max(0, mise) * c) / (ancre * F));
-  const po = Math.floor(p1 - p0);
-  if (po < 1) return { po: 0, depense: 0, prixMoyen: Math.ceil(ancre / c) };
-  const depense = Math.ceil((ancre / c) * F * (Math.exp((p0 + po) / F) - Math.exp(p0 / F)));
-  return { po, depense, prixMoyen: Math.ceil(depense / po) };
-}
-export const prochainPO = (S) =>
-  Math.ceil((ancrePO(S) / coursBase(S, 0)) * FATIGUE_PO
-    * (Math.exp((S.poRun + 1) / FATIGUE_PO) - Math.exp(S.poRun / FATIGUE_PO)));
-
-/* Les éclats qu'autorise l'étoile cumulée : on en a gagné au plus autant. */
-export const eclatsMerites = (S) =>
-  Math.floor(Math.cbrt(Math.max(0, S.etoileTotale || 0) / ECLAT_DIVISEUR));
+/** Éclats que rapporterait un effondrement maintenant. */
 export const eclatsDispo = (S) =>
-  S.profondeurMax < 5 ? 0 : Math.max(0, eclatsMerites(S) - S.eclats);
+  S.profondeurMax < STRATE_ECLATS ? 0 : S.profondeurMax - STRATE_ECLATS + 1;
+/** Étoile sortie par seconde par l'équipe seule, à plein rendement. */
+export const etoileParSeconde = (S) => dps(S) * RECOLTE * multRecolte(S);
 export const coutUn = (S, c) => Math.ceil(c.base * Math.pow(1.15, S.compagnons[c.id] || 0));
 export const coutN = (S, c, n) =>
   Math.ceil(c.base * Math.pow(1.15, S.compagnons[c.id] || 0) * (Math.pow(1.15, n) - 1) / 0.15);
@@ -295,10 +246,11 @@ export function briser(S, alea = Math.random) {
   return { rang, recolte, niveaux, descente };
 }
 
-/** Part du travail de l'équipe retenue pendant une absence. */
+/** Part du travail de l'équipe retenue pendant une absence, sans faveur. */
 export const RENDEMENT_ABSENCE = 0.35;
 /** Au-delà, l'absence ne rapporte plus rien : la mine attend son contremaître. */
 export const ABSENCE_MAX = 8 * 3600000;
+export { rendementAbsence, absenceMax };
 /** Garde-fou de boucle ; les filons durcissent assez vite pour ne jamais l'atteindre. */
 const FILONS_MAX_ABSENCE = 20000;
 
@@ -307,9 +259,9 @@ const FILONS_MAX_ABSENCE = 20000;
  * filons se brisent, la strate se vide, on descend — comme si l'on avait
  * laissé la page ouverte, en plus lent. Rend le bilan.
  */
-export function simulerAbsence(S, ms, rendement = RENDEMENT_ABSENCE, alea = Math.random) {
+export function simulerAbsence(S, ms, rendement = rendementAbsence(S), alea = Math.random) {
   const bilan = { ms, filons: 0, etoile: 0, niveaux: 0, strates: 0, exceptionnels: 0 };
-  const duree = Math.max(0, Math.min(ABSENCE_MAX, ms));
+  const duree = Math.max(0, Math.min(absenceMax(S), ms));
   let d = dps(S) * (duree / 1000) * rendement;
   if (!(d > 0)) return bilan;
   if (!S.pvMax) naitreFilon(S, alea);
@@ -325,4 +277,115 @@ export function simulerAbsence(S, ms, rendement = RENDEMENT_ABSENCE, alea = Math
     if (r.rang === 2) bilan.exceptionnels++;
   }
   return bilan;
+}
+
+/* ── Les commandes de Tafix ───────────────────────────────────────────────
+   Trois commandes par jour, date locale, comme le Comptoir. La demande est
+   relative — des minutes de production du moment (`productionNominale`),
+   avec un plancher en filons pour la première minute —
+   et la paie est fixe : l'économie du site se règle au PO près, sans rien
+   savoir de la profondeur de la mine.
+
+   Modèle hybride (décision du 07/10/2026) : la petite et la moyenne se
+   remplissent d'une nuit d'absence, c'est la récompense du passage
+   quotidien ; la grosse demande de l'étoile fraîche — un quart d'heure de
+   mine, page ouverte et visible, depuis son arrivée (le principe du cookie
+   doré).
+
+   Fraîche se mesure en temps et non en étoile : la première version
+   comptait l'étoile sortie page ouverte, mais un joueur qui dépense en
+   arrivant le stock de sa nuit multiplie sa production par dix en deux
+   minutes, et le simple passage remplissait la grosse un jour sur cinq
+   (`audit-economie.mjs`). */
+export const jourLocal = (d = new Date()) => d.toLocaleDateString("sv");
+
+/** Les commandes du jour, tirées à la première visite du jour. */
+/* Ce que sort le joueur par seconde, page ouverte : l'équipe, plus une
+   frappe toutes les cinq secondes. Sans la frappe, la demande ignorait ce
+   que la pioche fait dans les premiers jours ; à une frappe par seconde, la
+   petite commande du premier matin demandait mille deux cents coups. */
+export const FRAPPES_NOMINALES = 0.2;
+export const productionNominale = (S) => (dps(S) + FRAPPES_NOMINALES * degatsClic(S)) * RECOLTE * multRecolte(S);
+
+export function commandesDuJour(S, jour = jourLocal()) {
+  const ps = productionNominale(S);
+  /* Le plancher se compte en filons de la galerie d'entrée : à la strate
+     courante, il dépassait de loin ce que l'équipe sort, et une commande
+     pouvait rester hors d'atteinte des jours durant. */
+  const plancher = pvFilon(1, 0) * RECOLTE;
+  const liste = [];
+  for (const c of COMMANDES) {
+    const n = c.id === "petite" ? petitesCommandes(S) : 1;
+    for (let i = 0; i < n; i++) {
+      liste.push({
+        id: c.id + (i ? "-" + (i + 1) : ""), taille: c.id,
+        demande: Math.ceil(Math.max(ps * c.minutes * 60, plancher * c.filons)),
+        po: c.po, presence: c.presence || 0, depart: S.presence || 0, livree: false,
+      });
+    }
+  }
+  return { jour, liste };
+}
+
+/** Rafraîchit les commandes si le jour a changé. Rend `true` s'il y en a de nouvelles. */
+export function majCommandes(S, jour = jourLocal()) {
+  if (S.commandes && S.commandes.jour === jour) return false;
+  S.commandes = commandesDuJour(S, jour);
+  return true;
+}
+
+/** Minutes de mine (page ouverte et visible) passées depuis l'arrivée d'une commande. */
+export const presencePour = (S, c) => Math.max(0, ((S.presence || 0) - (c.depart || 0)) / 60);
+/** Ce qui manque encore en étoile (le temps de présence se lit à part). */
+export const manque = (S, c) => (c.livree ? 0 : Math.max(0, c.demande - S.etoile));
+export const livrable = (S, c) =>
+  !c.livree && manque(S, c) <= 0 && presencePour(S, c) >= (c.presence || 0);
+
+/** Livre une commande. Rend les PO à verser, ou 0. */
+export function livrer(S, id) {
+  const c = S.commandes && S.commandes.liste.find((x) => x.id === id);
+  if (!c || !livrable(S, c)) return 0;
+  S.etoile -= c.demande;
+  c.livree = true;
+  S.poGagnes = (S.poGagnes || 0) + c.po;
+  return c.po;
+}
+
+/* ── L'effondrement ────────────────────────────────────────────────────── */
+
+/**
+ * La mine d'après. Ce qui reste : les éclats (et ceux qu'on vient de
+ * gagner), la Faveur, les compteurs de toujours et les commandes du jour.
+ * L'Héritage décide de ce qu'on retrouve en rouvrant.
+ */
+export function effondrer(S, neuve) {
+  const gain = eclatsDispo(S);
+  if (gain < 1) return null;
+  const n = neuve();
+  Object.assign(n, {
+    eclats: S.eclats + gain, eclatsDepenses: S.eclatsDepenses || 0, faveurs: [...(S.faveurs || [])],
+    effondrements: S.effondrements + 1, etoileTotale: S.etoileTotale, echanges: S.echanges,
+    poGagnes: S.poGagnes, commandes: S.commandes, presence: S.presence || 0,
+  });
+  if (aFaveur(n, "plans")) n.equipement = ["p1", "l1"];
+  if (aFaveur(n, "equipe")) n.compagnons = { fanal: 10, nain: 5 };
+  // Les talents gardés gardent leur niveau : sinon les niveaux regagnés
+  // donneraient une seconde fois les mêmes points.
+  if (aFaveur(n, "memoire")) Object.assign(n, { talents: { ...S.talents }, niveau: S.niveau, xp: S.xp, points: S.points });
+  if (aFaveur(n, "puits")) { n.profondeur = 3; n.profondeurMax = 3; }
+  /* Les commandes pas encore livrées se remettent à la mesure de la mine
+     neuve : tirées le matin sur une équipe de millions, elles devenaient
+     inatteignables jusqu'au soir pour qui effondrait à midi. Elles ne font
+     que baisser — effondrer n'est pas un moyen de les renchérir. */
+  if (n.commandes) {
+    const neuves = commandesDuJour(n, n.commandes.jour);
+    n.commandes = {
+      ...n.commandes,
+      liste: n.commandes.liste.map((c) => {
+        const m = neuves.liste.find((x) => x.id === c.id);
+        return c.livree || !m ? c : { ...c, demande: Math.min(c.demande, m.demande) };
+      }),
+    };
+  }
+  return { mine: n, gain };
 }

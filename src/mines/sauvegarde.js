@@ -1,5 +1,6 @@
 import { SCHEMA, migrer } from "../lib/sauvegarde/schema.js";
-import { eclatsMerites, PENTE_VERSION } from "./regles.js";
+import { REGLES_VERSION } from "./regles.js";
+import { soldeRemise } from "./remise.js";
 
 /**
  * Mines de Kazim — la partie sauvegardée.
@@ -20,10 +21,17 @@ export function etatNeuf() {
     talents: { force: 0, echo: 0, discipline: 0, fortune: 0 },
     compagnons: {}, equipement: [],
     eclats: 0, echanges: 0, effondrements: 0,
-    poRun: 0, resonance: 0, poJour: 0, jourT: Date.now(),
-    cours: 1, coursT: 0,
+    /* La Faveur du Fossoyeur (voir faveur.js) : les éclats déjà offerts, et
+       les faveurs acquises. Gardés à l'effondrement. */
+    eclatsDepenses: 0, faveurs: [],
+    /* Les commandes de Tafix du jour, et les secondes passées page ouverte
+       et visible depuis toujours (la grosse commande en lit l'écart). */
+    commandes: null, presence: 0,
     dernierTick: Date.now(),
-    pente: PENTE_VERSION,
+    regles: REGLES_VERSION,
+    /* Partie ancienne remise à zéro au chargement : ce qu'on en dit au joueur
+       et ce qu'on lui verse, jusqu'à ce qu'il l'ait lu. */
+    remise: null,
   };
 }
 
@@ -39,32 +47,28 @@ export function relireMine(brut) {
   if (!d) return null;
   const n = etatNeuf();
   Object.keys(n).forEach((k) => { if (d[k] !== undefined && d[k] !== null) n[k] = d[k]; });
-  /* Les éclats ne dépassent jamais ce que l'étoile cumulée autorise. Sous la
-     règle en vigueur c'est vrai par construction, et cette ligne ne touche à
-     rien ; elle ramène les parties jouées sous l'ancienne règle (racine carrée,
-     voir `regles.js`) à ce que la nouvelle leur aurait donné. C'est un
-     invariant, pas une migration : le sens du champ n'a pas changé, et monter
-     `SCHEMA` ferait lire comme vide toute copie de compte encore au n° 6
-     (`lireCompte` exige l'égalité stricte). Une étoile cumulée infinie sort du
-     JSON en `null`, reprend sa valeur par défaut, et ne donne droit à rien. */
   if (!Number.isFinite(n.etoileTotale)) n.etoileTotale = 0;
-  n.eclats = Math.min(Number.isFinite(n.eclats) ? n.eclats : 0, eclatsMerites(n));
-  /* La pente des strates a changé le 07/10/2026 (voir `regles.js`). Une
-     partie creusée sous l'ancienne pente garde son équipe, ses achats, ses
-     éclats et ses talents, mais remonte à la galerie d'entrée : à la strate 25
-     de l'ancienne règle, un filon de la nouvelle pèserait dix puissances de
-     plus que tout ce que l'équipe peut frapper, et le cours, indexé sur la
-     profondeur, ne paierait plus rien. L'équipe redescend d'elle-même jusqu'où
-     elle tient. Même raisonnement que pour les éclats : c'est un invariant, le
-     sens du champ ne change pas, `SCHEMA` ne bouge pas. */
-  if (d.pente !== PENTE_VERSION) {
-    n.profondeur = 1;
-    n.profondeurMax = 1;
-    n.brises = {};
-    n.pv = 0;
-    n.pvMax = 0;
-    n.filonRang = 0;
-    n.pente = PENTE_VERSION;
+  if (!Number.isFinite(n.eclats)) n.eclats = 0;
+  if (!Array.isArray(n.faveurs)) n.faveurs = [];
+  /* Les règles ont changé le 07/10/2026 (commandes de Tafix, éclats comptés
+     en strates, Faveur du Fossoyeur). Une partie jouée sous les anciennes
+     repart de zéro, éclats compris — décision de Clément, pour que tout le
+     monde reparte de la même galerie d'entrée —, et reçoit un solde en PO
+     (`remise.js`). Seul le cumul des PO versés est repris.
+
+     La remise se fait à la lecture, et pas une fois pour toutes : une copie
+     ancienne venue d'un autre appareil est remise à zéro à son tour en la
+     relisant. Le solde, lui, n'est versé qu'une fois par compte : la marque
+     vit dans l'état principal du jeu (`etat.mine.regles`, src/jeu/mine.js),
+     qu'une vieille copie de la mine ne peut pas écraser. */
+  if (d.regles !== REGLES_VERSION) {
+    const joue = (d.brisesTotal || 0) > 0 || (d.effondrements || 0) > 0;
+    const remise = joue ? { ...soldeRemise(d), profondeurMax: d.profondeurMax || 1 } : null;
+    const neuve = etatNeuf();
+    neuve.poGagnes = Number.isFinite(d.poGagnes) ? d.poGagnes : 0;
+    neuve.remise = remise;
+    neuve.schema = SCHEMA;
+    return neuve;
   }
   n.schema = SCHEMA;
   return n;

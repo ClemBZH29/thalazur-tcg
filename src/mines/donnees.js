@@ -16,7 +16,7 @@ export const STRATES = [
 ];
 
 export const COMPAGNONS = [
-  { id: "fanal",   sprite: "porte-fanal",        nom: "Porte-fanal",           desc: "Tient la lumière, ramasse les éclats tombés.", base: 15,     dps: 1 },
+  { id: "fanal",   sprite: "porte-fanal",        nom: "Porte-fanal",           desc: "Tient la lumière, ramasse les éclats tombés.", base: 6,      dps: 1 },
   { id: "nain",    sprite: "mineur-nain",        nom: "Mineur nain",           desc: "Frappe lentement, ne s'arrête jamais.",        base: 130,    dps: 9 },
   { id: "foreuse", sprite: "foreuse-vapeur",     nom: "Foreuse à vapeur",      desc: "Bruyante, gourmande en charbon, efficace.",    base: 1400,   dps: 52 },
   { id: "golem",   sprite: "golem-schiste",      nom: "Golem de schiste",      desc: "Creuse la roche avec ses propres poings.",     base: 15000,  dps: 290 },
@@ -31,12 +31,12 @@ export const EQUIPEMENT = [
   { id: "l1", sprite: "fanal-huile",        nom: "Fanal à huile claire",   desc: "Ajoute 4 % de chance de coup critique.",        cout: 400,   type: "crit",    val: 4,    req: 0 },
   { id: "e1", sprite: "etais-renforces",    nom: "Étais renforcés",        desc: "Production des compagnons augmentée de 40 %.",  cout: 1600,  type: "dps",     val: 1.4,  req: 1 },
   { id: "p2", sprite: "pioche-acier",       nom: "Pioche d'acier trempé",  desc: "Dégâts de frappe multipliés par 2,5.",          cout: 7000,  type: "clic",    val: 2.5,  req: 1 },
-  { id: "c1", sprite: "contrat-courtage",   nom: "Contrat de courtage",    desc: "Prix de rachat +14 %, et les kobolds se lassent moins vite.",      cout: 20000, type: "taux",    val: 0.88, req: 2 },
+  { id: "c1", sprite: "contrat-courtage",   nom: "Contrat de courtage",    desc: "Tafix fait passer vos sacs en premier : récolte d'étoile +25 %.",  cout: 20000, type: "recolte", val: 1.25, req: 2 },
   { id: "l2", sprite: "lentille-quartz",    nom: "Lentille de quartz",     desc: "Ajoute 6 % de critique et les rend plus durs.", cout: 65000, type: "crit2",   val: 6,    req: 2 },
   { id: "e2", sprite: "rails-bascule",      nom: "Rails à bascule",        desc: "Production des compagnons doublée.",            cout: 3e5,   type: "dps",     val: 2,    req: 3 },
   { id: "p3", sprite: "pioche-resonante",   nom: "Pioche résonante",       desc: "Dégâts de frappe multipliés par 4.",            cout: 1.4e6, type: "clic",    val: 4,    req: 4 },
   { id: "f1", sprite: "tamis-mailles",      nom: "Tamis à mailles fines",  desc: "Récolte d'étoile augmentée de 60 %.",           cout: 9e6,   type: "recolte", val: 1.6,  req: 4 },
-  { id: "c2", sprite: "serment-rookerie",   nom: "Serment de la Rookerie", desc: "Prix de rachat +18 %, et ils se lassent encore moins vite.",          cout: 4e7,   type: "taux",    val: 0.85, req: 6 },
+  { id: "c2", sprite: "serment-rookerie",   nom: "Serment de la Rookerie", desc: "La tribu vous prête ses tamis : récolte d'étoile +40 %.",            cout: 4e7,   type: "recolte", val: 1.4,  req: 6 },
   { id: "p4", sprite: "pioche-kazim",       nom: "Pioche de Kazim",        desc: "Dégâts de frappe multipliés par 6.",            cout: 2.5e8, type: "clic",    val: 6,    req: 7 },
   { id: "f2", sprite: "benediction-filon",  nom: "Bénédiction du filon",   desc: "Récolte d'étoile multipliée par 2,2.",          cout: 1.2e9, type: "recolte", val: 2.2,  req: 7 },
 ];
@@ -120,14 +120,31 @@ export const TALENTS = [
 export const ONGLETS = [
   ["compagnons", "Compagnons", () => true,
     "Embauchez qui creusera à votre place, même quand vous n'êtes pas là."],
-  ["echoppe", "Échoppe kobolde", (s) => s.brisesTotal >= 1,
-    "Les kobolds rachètent votre étoile contre des pièces d'or."],
+  ["commandes", "Commandes", (s) => s.brisesTotal >= 1,
+    "Tafix apporte les commandes de sa tribu : livrez de l'étoile, elle paie en or."],
   ["equipement", "Chantier", (s) => s.brisesTotal >= 4,
-    "Pioches, fanaux, étais : du matériel qu'on installe une fois pour toutes."],
+    "Pioches, fanaux, étais : du matériel qu'on installe une fois pour toute la mine."],
   ["talents", "Talents", (s) => s.niveau > 1 || s.points > 0,
     "Un point par niveau, à placer où vous voulez."],
-  ["effondrement", "Effondrement", (s) => s.profondeurMax >= 5,
-    "Tout faire sauter et recommencer, en plus fort."],
+];
+
+/* L'effondrement et la Faveur ne sont plus des onglets : six onglets à la
+   suite, c'était trop (retour de maquette, 07/10/2026). Ils vivent ensemble
+   dans la salle du Fossoyeur, ouverte par un bouton de l'en-tête dès la
+   cinquième strate — faire sauter les étais rapporte les éclats qu'on offre
+   aussitôt. */
+export const SALLE_OUVRE = (s) => s.profondeurMax >= 5 || s.eclats > 0;
+
+/* ── Les commandes de Tafix ───────────────────────────────────────────────
+   Demande : des minutes de production (l'équipe et une frappe par seconde),
+   avec un plancher en filons de la galerie d'entrée. Paie fixe, en PO du site. La grosse ne
+   prend que de l'étoile fraîche : un quart d'heure de mine, page ouverte
+   (voir `regles.js`).
+   À 230 PO par jour au plus, les Mines restent derrière le Donjon. */
+export const COMMANDES = [
+  { id: "petite", nom: "Petite commande", minutes: 20, filons: 8, po: 40 },
+  { id: "moyenne", nom: "Commande moyenne", minutes: 60, filons: 20, po: 70 },
+  { id: "grosse", nom: "Grosse commande", minutes: 30, filons: 15, po: 120, presence: 15 },
 ];
 
 /* ── Le lexique ───────────────────────────────────────────────────────────
@@ -140,23 +157,74 @@ export const ONGLETS = [
    l'effondrement au premier coup de pioche n'apprend rien à personne. */
 export const LEXIQUE = [
   { mot: "Étoile", des: () => true,
-    def: "Le minerai qu'on sort de la roche. Elle ne sert qu'ici : embaucher, équiper, et se faire payer par les kobolds." },
+    def: "Le minerai qu'on sort de la roche. Elle sert à embaucher, à équiper, et à remplir les commandes de Tafix." },
   { mot: "Filon", des: () => true,
     def: "Un bloc de roche. On le frappe jusqu'à ce qu'il cède, il rend son étoile, un autre prend sa place." },
   { mot: "Résistance", des: () => true,
     def: "Ce qu'il reste à casser sur le filon en cours — la barre sous la roche." },
   { mot: "Profondeur", des: () => true,
-    def: "Douze filons par profondeur. Le douzième vous fait descendre, et plus bas l'étoile se vend plus cher." },
+    def: "Douze filons par profondeur. Le douzième vous fait descendre, et plus bas l'étoile sort plus vite." },
   { mot: "Coup critique", des: (s) => s.brisesTotal >= 1,
     def: "Une frappe qui compte cinq fois. Le fanal, la lentille et le talent Écho les rendent plus fréquents." },
   { mot: "Filon exceptionnel", des: (s) => s.brisesTotal >= 1,
     def: "Il arrive qu'un filon rende quatre, voire douze fois plus d'étoile. Le talent Fortune les fait sortir plus souvent." },
-  { mot: "PO kobold", des: (s) => s.brisesTotal >= 1,
-    def: "Les pièces d'or que les kobolds versent. Elles rejoignent votre bourse, en haut du site." },
-  { mot: "Prix de rachat", des: (s) => s.brisesTotal >= 1,
-    def: "Ce que les kobolds consentent à payer, en pourcentage. Il monte quand vous vendez gros, il baisse à mesure qu'ils ont déjà payé." },
-  { mot: "Éclat de Kazim", des: (s) => s.profondeurMax >= 5,
-    def: "Ce qu'on retrouve dans les gravats après un effondrement. Chaque éclat ajoute 3 % de dégâts, pour toujours." },
-  { mot: "Effondrement", des: (s) => s.profondeurMax >= 5,
-    def: "Faire sauter les étais : la mine repart de zéro, mais vos pièces d'or et vos éclats restent." },
+  { mot: "Commande", des: (s) => s.brisesTotal >= 1,
+    def: "Ce que la tribu de Tafix vous achète chaque jour : une quantité d'étoile contre des pièces d'or, à prix fixe." },
+  { mot: "Étoile fraîche", des: (s) => s.brisesTotal >= 1,
+    def: "Celle qu'on sort soi-même. La grosse commande demande un quart d'heure de mine, page ouverte : l'étoile de la nuit ne compte pas." },
+  { mot: "Éclat de Kazim", des: (s) => s.profondeurMax >= 5 || s.eclats > 0,
+    def: "Ce qu'on retrouve dans les gravats d'un effondrement : un par strate atteinte au-delà de la quatrième. Chacun ajoute 3 % de dégâts, pour toujours." },
+  { mot: "Effondrement", des: (s) => s.profondeurMax >= 5 || s.eclats > 0,
+    def: "Faire sauter les étais : la mine repart de zéro, mais vos éclats et vos faveurs restent." },
+  { mot: "Faveur du Fossoyeur", des: (s) => s.eclats > 0,
+    def: "Ce que le Fossoyeur accorde contre des éclats. Une faveur dure d'une mine à l'autre." },
 ];
+
+/* ── Les conseils de Tafix ────────────────────────────────────────────────
+   Une bulle par étape nouvelle, une seule fois par compte (les étapes vues
+   vivent dans l'état principal, pas dans la mine : un effondrement ne les
+   rejoue pas). Tafix, kobold rouge dans une cotte de mailles trop grande,
+   parle de lui à la troisième personne. Deux phrases au plus. */
+export const TAFIX = [
+  { id: "arrivee", expr: "malicieux", quand: () => true,
+    dit: "Psst, toi, le grand. Tafix, c'est moi. La roche, là : tu tapes dessus. Fort." },
+  { id: "filon1", expr: "ebloui", quand: (s) => s.brisesTotal >= 1,
+    dit: "De l'étoile ! Ça brille, ça se garde, ça se dépense. Tafix adore les trois." },
+  { id: "commandes", expr: "content", quand: (s) => s.brisesTotal >= 2,
+    dit: "La tribu veut ton étoile : Tafix apporte trois commandes par jour, payées en or. La grosse, il faut rester un quart d'heure à la mine.", onglet: "commandes" },
+  { id: "compagnon", expr: "malicieux", quand: (s) => s.etoile >= 6 && !s.compagnons.fanal,
+    dit: "Avec ça, tu payes un porte-fanal. Lui, il tape même quand tu dors.", onglet: "compagnons" },
+  { id: "chantier", expr: "malicieux", quand: (s) => s.brisesTotal >= 4,
+    dit: "Meilleure pioche, plus de coups. Plus de coups, plus d'étoile. Tafix est très fort en calcul.", onglet: "equipement" },
+  { id: "talents", expr: "malicieux", quand: (s) => s.niveau > 1,
+    dit: "Un point à placer ! Tafix conseille Fortune. Tafix conseille toujours Fortune.", onglet: "talents" },
+  { id: "riche", expr: "ebloui", quand: (s) => s.filonRang > 0,
+    dit: "La roche qui rougit rend quatre fois plus. Celle-là d'abord." },
+  { id: "fossoyeur", expr: "panique", quand: (s) => s.profondeurMax >= 5,
+    dit: "Le gros, là-haut, c'est le Fossoyeur. Il fait tout sauter, tu gardes les éclats. Tafix se met derrière toi." },
+  /* Pour qui revient d'une partie remise à zéro : jamais tiré par une
+     condition, Tafix le dit en fermant l'écran de remise (`rouvrir`). */
+  { id: "retour", expr: "malicieux", quand: () => false,
+    dit: "Te revoilà, le grand ! Maintenant Tafix t'apporte trois commandes par jour, payées en or ; la grosse demande un quart d'heure de mine.", onglet: "commandes" },
+  { id: "faveur", expr: "panique", quand: (s) => s.eclats > 0,
+    dit: "Le Fossoyeur dort. Offre-lui tes éclats, il t'aidera à chaque nouvelle mine. Tafix reste ici." },
+];
+
+/** Ce que dit Tafix dans l'onglet Commandes, selon l'occasion. */
+export const REPLIQUES_COMMANDES = {
+  accueil: [
+    ["content", "La tribu a faim d'étoile. Tafix a noté les commandes, il en a perdu aucune."],
+    ["malicieux", "Nouveau jour, nouvelles commandes. Tafix a choisi les meilleures. Enfin, les premières."],
+  ],
+  livree: [
+    ["content", "Livré ! Tafix a compté deux fois. Il manque rien. Presque rien."],
+    ["ebloui", "De l'or ! Pour toi. Tafix a juste un peu léché la pièce."],
+    ["content", "La tribu dit merci. Enfin, elle grogne. Chez nous, c'est merci."],
+  ],
+  fraiche: [
+    ["malicieux", "La grosse, la tribu la veut fraîche : de l'étoile qui sent encore la roche. Reste un quart d'heure à la mine, Tafix compte."],
+  ],
+  fini: [
+    ["content", "Tout est livré. La tribu est contente, Tafix aussi. Reviens demain."],
+  ],
+};

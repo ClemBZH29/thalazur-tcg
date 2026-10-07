@@ -161,43 +161,54 @@ describe("mine", () => {
     expect(relu.talents).toEqual(etatNeuf().talents);
   });
 
-  test("des éclats gagnés sous l'ancienne règle sont ramenés à la nouvelle", () => {
-    // 1 814 éclats pour 1,4e13 d'étoile : la racine carrée les donnait,
-    // la racine cubique en autorise 327.
-    const relu = relireMine(JSON.stringify({ ...etatNeuf(), eclats: 1814, etoileTotale: 1.4e13 }));
-    expect(relu.eclats).toBe(327);
-  });
-
-  test("des éclats conformes à la règle ne bougent pas", () => {
-    const relu = relireMine(JSON.stringify({ ...etatNeuf(), eclats: 12, etoileTotale: 1e13 }));
-    expect(relu.eclats).toBe(12);
-  });
-
-  test("une étoile cumulée infinie ne donne droit à aucun éclat", () => {
-    const relu = relireMine(JSON.stringify({ ...etatNeuf(), eclats: 5e9, etoileTotale: Infinity }));
-    expect(relu.etoileTotale).toBe(0);
-    expect(relu.eclats).toBe(0);
-  });
-
-  test("une partie creusée sous l'ancienne pente remonte en surface, équipe gardée", () => {
-    const { pente, ...ancien } = etatNeuf();
-    const relu = relireMine(JSON.stringify({
-      ...ancien, profondeur: 25, profondeurMax: 25, brises: { 25: 4 }, pv: 9, pvMax: 99,
-      compagnons: { fanal: 40 }, eclats: 12, etoileTotale: 1e13,
-    }));
-    expect(pente).toBeDefined();
-    expect(relu.profondeur).toBe(1);
-    expect(relu.profondeurMax).toBe(1);
-    expect(relu.brises).toEqual({});
-    expect(relu.pvMax).toBe(0);
-    expect(relu.compagnons).toEqual({ fanal: 40 });
-    expect(relu.eclats).toBe(12);
-  });
-
-  test("une partie de la pente courante garde sa profondeur", () => {
-    const relu = relireMine(JSON.stringify({ ...etatNeuf(), profondeur: 9, profondeurMax: 11 }));
+  test("une partie des règles courantes garde tout", () => {
+    const relu = relireMine(JSON.stringify({ ...etatNeuf(), profondeur: 9, profondeurMax: 11, eclats: 40, faveurs: ["plans"] }));
     expect(relu.profondeur).toBe(9);
-    expect(relu.profondeurMax).toBe(11);
+    expect(relu.eclats).toBe(40);
+    expect(relu.faveurs).toEqual(["plans"]);
+    expect(relu.remise).toBeNull();
+  });
+
+  test("une partie d'avant la refonte repart de zéro, éclats compris, avec son solde", () => {
+    const { regles, ...ancien } = etatNeuf();
+    const relu = relireMine(JSON.stringify({
+      ...ancien, pente: 2, profondeur: 25, profondeurMax: 25, brisesTotal: 900, compagnons: { fanal: 40 },
+      eclats: 2228, effondrements: 4, etoile: 1e9, etoileTotale: 1e15, poGagnes: 77,
+    }));
+    expect(regles).toBeDefined();
+    expect(relu.regles).toBe(regles);
+    expect(relu.profondeurMax).toBe(1);
+    expect(relu.compagnons).toEqual({});
+    expect(relu.eclats).toBe(0);
+    expect(relu.effondrements).toBe(0);
+    expect(relu.poGagnes).toBe(77);
+    expect(relu.remise.effondrements).toBe(4);
+    expect(relu.remise.partEffondrements).toBe(120);
+    expect(relu.remise.total).toBeLessThanOrEqual(480);
+    expect(relu.remise.etoile).toBeLessThanOrEqual(240);
+  });
+
+  test("relue deux fois, une partie remise à zéro ne change plus", () => {
+    const { regles, ...ancien } = etatNeuf();
+    const une = relireMine(JSON.stringify({ ...ancien, brisesTotal: 10, effondrements: 1 }));
+    const deux = relireMine(JSON.stringify({ ...une, remise: null }));
+    expect(regles).toBeDefined();
+    expect(deux.remise).toBeNull();
+    expect(deux.regles).toBe(une.regles);
+  });
+
+  test("une partie ancienne jamais jouée repart sans écran", () => {
+    const { regles, ...ancien } = etatNeuf();
+    expect(regles).toBeDefined();
+    expect(relireMine(JSON.stringify(ancien)).remise).toBeNull();
+  });
+
+  test("une étoile infinie ne casse pas le solde", () => {
+    const { regles, ...ancien } = etatNeuf();
+    expect(regles).toBeDefined();
+    const relu = relireMine(JSON.stringify({ ...ancien, brisesTotal: 3, etoile: null, etoileTotale: null }));
+    expect(relu.remise.total).toBeLessThanOrEqual(480);
+    expect(relu.etoileTotale).toBe(0);
   });
 
   test("une clé inconnue est ignorée", () => {

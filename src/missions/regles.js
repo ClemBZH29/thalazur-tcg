@@ -59,6 +59,7 @@ export function mesuresMissions(etat) {
     possedees,
     ventes: s.ventes || 0,
     poMine: s.poMine || 0,
+    commandes: s.commandes || 0,
     descentes: descentesJouees(s),
     gardiens: s.gardiens || 0,
     expeditions: s.expeditions || 0,

@@ -105,12 +105,28 @@ function fusionnerBourse(base, ici, la) {
   };
 }
 
-/** Journée de la mine : on garde la plus récente, et le plus gros crédit du jour. */
-function fusionnerJourMine(ici, la) {
+/**
+ * Ce que le jeu retient des Mines, hors de la partie : la version des règles
+ * dont la remise à zéro est déjà payée (`regles`). Elle ne fait que monter :
+ * on garde la plus haute, sinon le solde serait versé une seconde fois.
+ * (Le champ portait jusqu'au 07/10/2026 le plafond quotidien, `{ jour,
+ * credite }`, parti avec la vente aux kobolds.)
+ */
+function fusionnerMarqueMine(ici, la) {
+  const r = Math.max(ici?.regles || 0, la?.regles || 0);
+  return r ? { regles: r } : null;
+}
+
+/**
+ * Tafix : les conseils déjà vus et les onglets déjà ouverts s'unissent — ce
+ * qu'on a vu sur un appareil, on l'a vu. Le silence suit le dernier choix de
+ * cet appareil.
+ */
+export function fusionnerTafix(ici, la) {
   if (!ici) return la || null;
   if (!la) return ici;
-  if (ici.jour !== la.jour) return ici.jour > la.jour ? ici : la;
-  return { jour: ici.jour, credite: Math.max(ici.credite || 0, la.credite || 0) };
+  const union = (x, y) => [...new Set([...(x || []), ...(y || [])])];
+  return { vus: union(ici.vus, la.vus), onglets: union(ici.onglets, la.onglets), muet: !!ici.muet };
 }
 
 /**
@@ -120,7 +136,11 @@ function fusionnerJourMine(ici, la) {
  * en poche qu'un achat fait baisser. L'horodatage ne départage qu'à égalité.
  */
 export function comparerMines(a, b) {
-  const cle = (m) => [m?.effondrements || 0, m?.brisesTotal || 0, m?.etoileTotale || 0, m?.dernierTick || 0];
+  /* La version des règles d'abord : une copie d'avant la refonte du
+     07/10/2026 a toujours plus de filons brisés que la mine remise à zéro, et
+     l'emporterait sinon — chaque relecture la remettrait à zéro, et la
+     partie nouvelle disparaîtrait avec. */
+  const cle = (m) => [m?.regles || 0, m?.effondrements || 0, m?.brisesTotal || 0, m?.etoileTotale || 0, m?.dernierTick || 0];
   const x = cle(a), y = cle(b);
   for (let i = 0; i < x.length; i++) if (x[i] !== y[i]) return x[i] - y[i];
   return 0;
@@ -252,7 +272,7 @@ export function fusionnerFiches(base = {}, ici = {}, la = {}, rangMax = 3) {
 }
 
 const COMPTEURS = new Set([
-  "collections", "boosters", "bourse", "mine", "schema", "succes", "sachets", "stats", "xp", "reliquaire", "fiches",
+  "collections", "boosters", "bourse", "mine", "tafix", "schema", "succes", "sachets", "stats", "xp", "reliquaire", "fiches",
 ]);
 
 /**
@@ -268,7 +288,8 @@ export function fusionner3(base, ici, la, vide) {
   sortie.bourse = base ? fusionnerBourse(b.bourse, ici.bourse, la.bourse)
     // Première connexion : on garde le plus garni, comme à l'import.
     : ((ici.bourse?.po || 0) > (la.bourse?.po || 0) ? ici.bourse : la.bourse);
-  sortie.mine = fusionnerJourMine(ici.mine, la.mine);
+  sortie.mine = fusionnerMarqueMine(ici.mine, la.mine);
+  sortie.tafix = fusionnerTafix(ici.tafix, la.tafix);
   sortie.sachets = fusionnerCompteurs(b.sachets, ici.sachets, la.sachets);
   sortie.stats = fusionnerCompteurs(b.stats, ici.stats, la.stats);
   sortie.xp = fusionnerXP(b.xp, ici.xp, la.xp);

@@ -57,9 +57,21 @@ export const TYPES = [
     dispo: (c) => c.surplus >= 10,
   },
   {
+    // Retiré du tirage le 07/10/2026 : les PO des Mines viennent désormais
+    // des commandes de Tafix. Le type reste pour les missions déjà confiées,
+    // qui se remplissent jusqu'à minuit (lundi pour celle de la semaine).
     id: "mine", mode: "mines", mesure: "poMine",
     quoi: "Rapporter {n} PO des Mines de Kazim",
     jour: { n: 60, po: 40 }, semaine: { n: 600 },
+    dispo: () => false,
+  },
+  {
+    // Trois commandes, c'est la grosse comprise : celle qui demande de
+    // l'étoile fraîche, sortie page ouverte. La petite et la moyenne se
+    // remplissent d'une nuit d'absence ; la mission, elle, demande de jouer.
+    id: "commandes", mode: "mines", mesure: "commandes",
+    quoi: "Livrer {n} commande{s} à Tafix",
+    jour: { n: 3, po: 40 }, semaine: { n: 15 },
   },
   {
     id: "descentes", mode: "donjon", mesure: "descentes",

@@ -41,7 +41,10 @@ const vide = () => ({
   rosters: {},     // boosterId -> lignes chargées à la main (outils MJ, développement)
   grades: {},      // boosterId -> corrections de palier par grade (outils MJ)
   comptoir: {},    // boosterId -> état du marché (voir comptoir/marche.js)
-  mine: null,      // { jour: "AAAA-MM-JJ", credite: PO } — plafond quotidien
+  mine: null,      // { regles: n } — remise à zéro des Mines déjà payée (voir src/jeu/mine.js)
+  // Tafix, le kobold des Mines : conseils déjà vus, onglets déjà ouverts
+  // (un onglet ouvert l'est pour le compte, pas pour la mine), silence.
+  tafix: { vus: [], onglets: [], muet: false },
   colporteur: null, // { jour: "AAAA-MM-JJ", depuis: n }
   // Ce que le joueur a choisi de montrer de lui. Rien n'est lu chez Google
   // pour le remplir : le pseudo est saisi à la main, ou reste vide.

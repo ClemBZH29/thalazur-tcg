@@ -82,31 +82,16 @@ export const ECONOMIE = {
   plafond: 720, // 48 h d'accumulation : on peut sauter un jour sans rien perdre
 };
 
-/**
- * Les Mines de Kazim, vues de l'application.
- *
- * Le module annonce ce que les kobolds ont payé ; c'est ici qu'on décide ce que
- * cela vaut dans l'économie du site. La conversion est posée à la frontière et
- * non dans le module, pour une raison de fond : la progression de la mine, le
- * moment où l'on décide de tout effondrer, la sensation du cours qui s'épuise
- * sont l'œuvre de son auteur et forment un équilibre cohérent. Le seul levier
- * interne, la fatigue du cours, a été mesuré : le faire varier fait passer un
- * joueur de trois boosters par jour à vingt sans rien de linéaire entre les
- * deux. Une conversion au bord ne dérange rien et se règle au chiffre près.
- *
- * Le plafond quotidien borne le seul profil qui échappait à la courbe : deux
- * heures de frappe par jour rapportaient cinq fois ce que rapportent trente
- * minutes, parce que les frappes se cumulent linéairement là où l'équipe est
- * plafonnée par le cours. Voir docs/audit-economie.md pour les mesures.
+/*
+ * Les Mines de Kazim n'ont plus de conversion ici (07/10/2026) : elles
+ * vendaient leur étoile aux kobolds, et l'application convertissait ×15 avec
+ * un plafond de 480 PO par jour. Les commandes de Tafix paient désormais en
+ * PO du site, à prix fixe — voir `COMMANDES` dans src/mines/donnees.js.
  */
-export const MINE = {
-  multiplicateur: 15, // PO créditées par PO annoncée par les kobolds
-  plafondJour: 480,   // quatre boosters de plus par jour, au maximum
-};
 
 /**
- * Le Donjon, vues de l'application. Même principe que la mine : le
- * module annonce le butin rapporté du donjon, la conversion se fait ici.
+ * Le Donjon, vues de l'application. Le module annonce le butin rapporté du
+ * donjon, la conversion se fait ici.
  *
  * Deux modes (`modes`) :
  *
