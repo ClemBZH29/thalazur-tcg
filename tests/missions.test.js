@@ -67,7 +67,7 @@ describe("tirage", () => {
     for (let j = 1; j <= 28; j++) {
       const e = mettreAJour(debutant, { ...autour(debutant), maintenant: new Date(2026, 9, j, 9) });
       for (const m of e.missions.quotidiennes) {
-        expect(["boosters", "nouvelles", "mine"]).toContain(m.type);
+        expect(["boosters", "nouvelles", "commandes"]).toContain(m.type);
       }
       // Trois quand même : un débutant ne trouve pas de case vide.
       expect(e.missions.quotidiennes).toHaveLength(QUOTIDIENNES);

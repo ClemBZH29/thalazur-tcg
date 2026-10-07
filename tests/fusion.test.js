@@ -84,6 +84,9 @@ test("la mine la plus récemment jouée l'emporte", () => {
   assert.equal(fusionnerMine(avancee, vieille), avancee);
   // Un effondrement remet les filons à zéro mais reste le plus avancé.
   assert.equal(fusionnerMine('{"effondrements":1,"brisesTotal":2}', '{"brisesTotal":500}'), '{"effondrements":1,"brisesTotal":2}');
+  // Une mine des règles courantes l'emporte sur une copie d'avant la refonte,
+  // même beaucoup plus avancée : sinon la relecture la remettrait à zéro.
+  assert.equal(fusionnerMine('{"regles":3,"brisesTotal":2}', '{"effondrements":9,"brisesTotal":5000}'), '{"regles":3,"brisesTotal":2}');
 });
 
 test("le gain passif seul ne compte pas comme un changement", () => {
@@ -106,4 +109,15 @@ test("Reliquaire : la carte retournée sur un appareil l'est aussi sur l'autre",
   const f = fusionnerReliquaire(base, ici, la);
   assert.deepEqual(f.reveles, { x: "2026-10-06", y: "2026-10-06" });
   assert.equal(f.vestiges, 130);
+});
+
+test("la remise à zéro payée et les conseils de Tafix ne se perdent pas d'un appareil à l'autre", () => {
+  const base = { ...vide, tafix: { vus: [], onglets: [], muet: false } };
+  const ici = { ...base, mine: { regles: 3 }, tafix: { vus: ["arrivee"], onglets: ["commandes"], muet: true } };
+  const la = { ...base, mine: { jour: "2026-10-06", credite: 120 }, tafix: { vus: ["filon1"], onglets: [], muet: false } };
+  const f = fusionner3(base, ici, la, vide);
+  assert.deepEqual(f.mine, { regles: 3 });
+  assert.deepEqual(f.tafix.vus.sort(), ["arrivee", "filon1"]);
+  assert.deepEqual(f.tafix.onglets, ["commandes"]);
+  assert.equal(f.tafix.muet, true);
 });

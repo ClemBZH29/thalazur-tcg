@@ -37,7 +37,11 @@ export const VOIX = {
       "Vendu, et bien vendu. Le Comptoir vous connaît, maintenant.",
     ],
     mine: [
-      "Les kobolds ont payé ? Comptez deux fois, on ne sait jamais.",
+      "Tafix a payé ? Comptez deux fois, on ne sait jamais.",
+      "Vous sentez la poussière de Kazim. Ça vous va bien.",
+    ],
+    commandes: [
+      "Tafix a payé ? Comptez deux fois, on ne sait jamais.",
       "Vous sentez la poussière de Kazim. Ça vous va bien.",
     ],
     descentes: [

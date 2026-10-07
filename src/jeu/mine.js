@@ -1,48 +1,76 @@
 import { useCallback, useState } from "react";
-import { MINE } from "../config/tiers.js";
 import { crediterGain } from "../lib/economie.js";
+import { REGLES_VERSION } from "../mines/regles.js";
 
-/** Ce que l'application sait des Mines de Kazim : le crédit des PO et sa relecture. */
+/**
+ * Ce que l'application sait des Mines de Kazim : les commandes livrées, le
+ * solde de la remise à zéro, les conseils de Tafix, et la relecture de la
+ * sauvegarde.
+ *
+ * Plus de conversion ni de plafond ici (refonte du 07/10/2026) : les
+ * commandes de Tafix paient en PO du site, à prix fixe, trois par jour au
+ * plus. L'économie se règle dans `src/mines/donnees.js` (`COMMANDES`).
+ */
 export function useMine(etat, setEtat) {
   // Monte de un quand la sauvegarde de la mine a été remplacée de l'extérieur
   // (copie du compte adoptée) : la page des Mines s'en sert de clé, et le
   // module relit sa sauvegarde au lieu d'écraser la nouvelle avec l'ancienne.
   const [versionMine, setVersionMine] = useState(0);
   const rechargerMine = useCallback(() => setVersionMine((v) => v + 1), []);
+
   /**
-   * Les kobolds de Kazim paient. Le crédit passe par la même porte que la
-   * revente d'un doublon, donc hors du plafond d'accumulation passive : borner
-   * ce que le joueur est allé chercher lui-même n'aurait aucun sens.
-   *
-   * Deux choses se passent ici et pas dans le module. La conversion, parce que
-   * c'est l'application qui sait ce qu'un PO vaut chez elle. Et le plafond
-   * quotidien, indexé sur la date locale : sans lui, deux heures de frappe par
-   * jour rapportaient cinq fois trente minutes, la mine devenant le jeu et les
-   * boosters un accessoire.
+   * Une commande livrée. Le crédit passe par la même porte que la revente
+   * d'un doublon, donc hors du plafond d'accumulation passive. Deux compteurs
+   * pour les missions de Bodégué : les PO rapportées des Mines, et les
+   * commandes livrées.
    */
-  const crediterMine = useCallback((poBrut) => {
-    const aujourdhui = new Date().toLocaleDateString("sv");  // AAAA-MM-JJ, local
+  const crediterCommande = useCallback((po) => {
+    if (!(po > 0)) return;
     setEtat((e) => {
-      const jour = e.mine && e.mine.jour === aujourdhui ? e.mine : { jour: aujourdhui, credite: 0 };
-      const reste = Math.max(0, MINE.plafondJour - jour.credite);
-      const po = Math.min(Math.round(poBrut * MINE.multiplicateur), reste);
-      if (po <= 0) return { ...e, mine: jour };
+      const stats = e.stats || {};
       return {
         ...e,
         bourse: crediterGain(e.bourse, po),
-        mine: { jour: aujourdhui, credite: jour.credite + po },
-        // Cumul de toujours : les missions de Bodégué le suivent.
-        stats: { ...(e.stats || {}), poMine: ((e.stats || {}).poMine || 0) + po },
+        stats: { ...stats, poMine: (stats.poMine || 0) + po, commandes: (stats.commandes || 0) + 1 },
       };
     });
   }, [setEtat]);
 
-  const mineJour = (() => {
-    const aujourdhui = new Date().toLocaleDateString("sv");
-    const m = etat.mine && etat.mine.jour === aujourdhui ? etat.mine : null;
-    return { credite: m ? m.credite : 0, plafond: MINE.plafondJour };
-  })();
+  /**
+   * Le solde d'une partie remise à zéro (voir src/mines/remise.js). Versé une
+   * seule fois par compte : la marque vit ici, dans l'état du jeu, et non dans
+   * la mine — une vieille copie de la mine venue d'un autre appareil se remet
+   * à zéro à la relecture et rouvre l'écran, mais ne paie pas deux fois. Il
+   * ne compte pas pour les missions : sinon la mission du jour se remplirait
+   * toute seule le jour de la mise en production.
+   */
+  const crediterRemise = useCallback((po) => {
+    setEtat((e) => {
+      if ((e.mine?.regles || 0) >= REGLES_VERSION) return e;
+      return {
+        ...e,
+        bourse: po > 0 ? crediterGain(e.bourse, po) : e.bourse,
+        mine: { regles: REGLES_VERSION },
+      };
+    });
+  }, [setEtat]);
+  const remisePayee = (etat.mine?.regles || 0) >= REGLES_VERSION;
 
+  /** Tafix : un conseil vu, un onglet ouvert, ou le silence. */
+  const majTafix = useCallback((patch) => {
+    setEtat((e) => {
+      const t = { vus: [], onglets: [], muet: false, ...(e.tafix || {}) };
+      const n = {
+        vus: patch.vu && !t.vus.includes(patch.vu) ? [...t.vus, patch.vu] : t.vus,
+        onglets: (patch.onglets || []).some((o) => !t.onglets.includes(o))
+          ? [...new Set([...t.onglets, ...patch.onglets])] : t.onglets,
+        muet: patch.muet !== undefined ? patch.muet : t.muet,
+      };
+      if (patch.oublier) n.vus = [];
+      if (n.vus === t.vus && n.onglets === t.onglets && n.muet === t.muet && !patch.oublier) return e;
+      return { ...e, tafix: n };
+    });
+  }, [setEtat]);
 
-  return { crediterMine, mineJour, versionMine, rechargerMine };
+  return { crediterCommande, crediterRemise, remisePayee, majTafix, versionMine, rechargerMine };
 }

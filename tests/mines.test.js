@@ -7,6 +7,7 @@
 import { describe, expect, test } from "vitest";
 import { COMPAGNONS } from "../src/mines/donnees.js";
 import * as R from "../src/mines/regles.js";
+import * as F from "../src/mines/faveur.js";
 import { etatNeuf } from "../src/mines/sauvegarde.js";
 import { fmt, fmtEnt } from "../src/mines/format.js";
 
@@ -52,21 +53,6 @@ describe("progression", () => {
   test("les filons sont plus solides en profondeur et à mesure qu'on les brise", () => {
     expect(R.pvFilon(3, 0)).toBeGreaterThan(R.pvFilon(2, 0));
     expect(R.pvFilon(2, 5)).toBeGreaterThan(R.pvFilon(2, 0));
-  });
-
-  test("vendre plus d'étoile ne rapporte jamais moins de PO", () => {
-    const S = partie({ profondeur: 3, profondeurMax: 3 });
-    let avant = 0;
-    for (const mise of [1e3, 1e4, 1e5, 1e6, 1e7, 1e9]) {
-      const { po } = R.poPourMise(S, mise);
-      expect(po).toBeGreaterThanOrEqual(avant);
-      avant = po;
-    }
-    expect(avant).toBeGreaterThan(0);
-  });
-
-  test("la dette des effondrements est plafonnée", () => {
-    expect(R.dette(partie({ effondrements: 1e9 }))).toBeLessThanOrEqual(R.DETTE_MAX);
   });
 
   test("un filon a toujours entre cinq et huit éclats", () => {
@@ -137,15 +123,130 @@ describe("éclats", () => {
     expect(R.multRecolte(avec)).toBe(R.multRecolte(sans));
   });
 
-  test("doubler ses éclats demande huit fois plus d'étoile", () => {
-    const n = (T) => R.eclatsMerites(partie({ etoileTotale: T }));
-    const T = R.ECLAT_DIVISEUR * 1000;
-    expect(n(T)).toBe(10);
-    expect(n(T * 8)).toBe(20);
+  test("un éclat par strate atteinte au-delà de la quatrième, quelle que soit l'étoile", () => {
+    expect(R.eclatsDispo(partie({ etoileTotale: 1e30, profondeurMax: 4 }))).toBe(0);
+    expect(R.eclatsDispo(partie({ profondeurMax: 5 }))).toBe(1);
+    expect(R.eclatsDispo(partie({ profondeurMax: 12 }))).toBe(8);
+  });
+});
+
+describe("effondrement", () => {
+  test("rien à gagner avant la cinquième strate", () => {
+    expect(R.effondrer(partie({ profondeurMax: 4 }), etatNeuf)).toBeNull();
   });
 
-  test("rien avant la cinquième strate", () => {
-    expect(R.eclatsDispo(partie({ etoileTotale: 1e15, profondeurMax: 4 }))).toBe(0);
-    expect(R.eclatsDispo(partie({ etoileTotale: 1e15, profondeurMax: 5 }))).toBeGreaterThan(0);
+  test("on garde éclats, faveurs et compteurs ; le reste repart de zéro", () => {
+    const S = partie({ profondeur: 9, profondeurMax: 9, etoile: 5e9, eclats: 10, eclatsDepenses: 3,
+      faveurs: ["plans"], effondrements: 2, compagnons: { fanal: 80 }, talents: { force: 4, echo: 0, discipline: 0, fortune: 0 } });
+    const { mine, gain } = R.effondrer(S, etatNeuf);
+    expect(gain).toBe(5);
+    expect(mine.eclats).toBe(15);
+    expect(mine.eclatsDepenses).toBe(3);
+    expect(mine.effondrements).toBe(3);
+    expect(mine.etoile).toBe(0);
+    expect(mine.profondeurMax).toBe(1);
+    expect(mine.compagnons).toEqual({});
+    expect(mine.talents.force).toBe(0);
+    // Plans du chantier : la pioche de fer et le fanal restent.
+    expect(mine.equipement).toEqual(["p1", "l1"]);
+  });
+
+  test("l'Héritage : équipe de départ, talents gardés avec leur niveau, puits de reprise", () => {
+    const S = partie({ profondeurMax: 8, niveau: 9, points: 1, talents: { force: 3, echo: 2, discipline: 2, fortune: 0 },
+      eclats: 200, faveurs: ["plans", "equipe", "memoire", "puits"] });
+    const { mine } = R.effondrer(S, etatNeuf);
+    expect(mine.compagnons).toEqual({ fanal: 10, nain: 5 });
+    expect(mine.talents.force).toBe(3);
+    expect(mine.niveau).toBe(9);
+    expect(mine.profondeur).toBe(3);
+  });
+});
+
+describe("Faveur du Fossoyeur", () => {
+  test("une faveur s'offre dans l'ordre de sa branche, si l'on a les éclats", () => {
+    const S = partie({ eclats: 10 });
+    expect(F.offrir(S, "equipe")).toBe(false);          // la précédente manque
+    expect(F.offrir(S, "plans")).toBe(true);
+    expect(F.eclatsLibres(S)).toBe(10 - F.FAVEUR_PAR_ID.plans.cout);
+    expect(F.offrir(S, "plans")).toBe(false);           // déjà acquise
+    expect(F.offrir(S, "puits")).toBe(false);
+  });
+
+  test("offrir ne retire pas les dégâts des éclats", () => {
+    const S = partie({ eclats: 50, compagnons: { fanal: 10 } });
+    const avant = R.dps(S);
+    F.offrir(S, "plans");
+    expect(R.dps(S)).toBe(avant);
+  });
+
+  test("les effets : absence, critiques, Fortune", () => {
+    expect(R.rendementAbsence(partie())).toBe(R.RENDEMENT_ABSENCE);
+    expect(R.rendementAbsence(partie({ faveurs: ["lanterne"] }))).toBe(0.5);
+    expect(R.absenceMax(partie({ faveurs: ["lanterne", "releve"] }))).toBe(12 * 3600000);
+    expect(R.critMult(partie({ faveurs: ["echoprofond"] }))).toBe(7.5);
+    expect(R.critMult(partie({ faveurs: ["echoprofond"], equipement: ["l2"] }))).toBe(10);
+    expect(R.fortune(partie({ faveurs: ["oeil"] }))).toBe(1);
+  });
+
+  test("l'arbre complet coûte ce que la simulation a calé", () => {
+    expect(F.COUT_ARBRE).toBe(257);
+  });
+});
+
+describe("commandes de Tafix", () => {
+  const jour = "2026-10-08";
+  test("trois commandes par jour, quatre avec la faveur, à paie fixe", () => {
+    const S = partie();
+    R.majCommandes(S, jour);
+    expect(S.commandes.liste.map((c) => c.po)).toEqual([40, 70, 120]);
+    const T = partie({ faveurs: ["quatrieme"] });
+    R.majCommandes(T, jour);
+    expect(T.commandes.liste).toHaveLength(4);
+  });
+
+  test("le jour change, les commandes aussi ; le même jour, rien ne bouge", () => {
+    const S = partie();
+    expect(R.majCommandes(S, jour)).toBe(true);
+    expect(R.majCommandes(S, jour)).toBe(false);
+    expect(R.majCommandes(S, "2026-10-09")).toBe(true);
+  });
+
+  test("la demande suit la production de l'équipe, avec un plancher", () => {
+    const vide = partie();
+    R.majCommandes(vide, jour);
+    expect(vide.commandes.liste[0].demande).toBeGreaterThan(0);
+    const equipe = partie({ compagnons: { fanal: 50, nain: 20 } });
+    R.majCommandes(equipe, jour);
+    expect(equipe.commandes.liste[0].demande).toBeGreaterThan(vide.commandes.liste[0].demande);
+  });
+
+  test("livrer retire l'étoile et paie une fois", () => {
+    const S = partie();
+    R.majCommandes(S, jour);
+    const c = S.commandes.liste[0];
+    S.etoile = c.demande * 2;
+    expect(R.livrer(S, c.id)).toBe(40);
+    expect(S.etoile).toBe(c.demande);
+    expect(R.livrer(S, c.id)).toBe(0);
+  });
+
+  test("la grosse commande demande un quart d'heure de mine, page ouverte", () => {
+    const S = partie();
+    R.majCommandes(S, jour);
+    const g = S.commandes.liste.find((c) => c.presence);
+    S.etoile = g.demande * 10;              // une nuit d'absence : du stock, pas de présence
+    expect(R.livrable(S, g)).toBe(false);
+    S.presence += g.presence * 60;          // un quart d'heure page ouverte
+    expect(R.livrable(S, g)).toBe(true);
+  });
+
+  test("après un effondrement, les commandes restantes suivent la nouvelle mine", () => {
+    const S = partie({ profondeurMax: 6, compagnons: { fanal: 200, nain: 100, foreuse: 40 } });
+    R.majCommandes(S, jour);
+    const avant = S.commandes.liste.map((c) => c.demande);
+    S.commandes.liste[0].livree = true;
+    const { mine } = R.effondrer(S, etatNeuf);
+    expect(mine.commandes.liste[0].demande).toBe(avant[0]);          // livrée : rien ne bouge
+    expect(mine.commandes.liste[1].demande).toBeLessThan(avant[1]);  // à faire : à la mesure de la mine neuve
   });
 });
