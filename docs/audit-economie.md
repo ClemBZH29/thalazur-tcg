@@ -1,5 +1,11 @@
 # Audit économique — la mine, le gain passif, le Comptoir, le colporteur et les succès
 
+> **07/10/2026 — sections 1 à 5 périmées.** La mine ne vend plus son étoile aux
+> kobolds : les commandes de Tafix paient en PO à prix fixe, sans conversion ni
+> plafond. `scripts/audit-economie.mjs` mesure désormais les commandes ; voir
+> `docs/conception/mines.md`, « La refonte du 07/10/2026 ». Ce qui suit reste
+> pour l'histoire du calibrage.
+
 Ce document répond à une question posée avant l'intégration : combien de
 boosters par jour, une fois les Mines de Kazim branchées sur la bourse ? Les
 chiffres viennent de `scripts/audit-economie.mjs`, à relancer après toute

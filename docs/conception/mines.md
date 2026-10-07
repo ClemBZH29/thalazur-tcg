@@ -6,9 +6,132 @@ Raisonnement de conception : ce que fait cette partie du site, et pourquoi elle 
 
 
 Module idle, à `#/mines`. On frappe le filon, on embauche du monde, on descend,
-on vend l'étoile aux kobolds. Le cadre cliquable, les vingt vignettes, les huit
+on livre l'étoile aux commandes de Tafix, on fait sauter les étais et l'on offre
+ses éclats au Fossoyeur. Le cadre cliquable, les vingt vignettes, les huit
 strates, les compagnons, les talents et l'effondrement sont ceux du module
-d'origine.
+d'origine ; les commandes, la Faveur du Fossoyeur et Tafix datent de la refonte
+du 07/10/2026 (section suivante).
+
+## La refonte du 07/10/2026
+
+L'audit du 07/10/2026 (`claude/audit-mines.md` dans le projet) a trouvé quatre
+défauts de fond : une conversion en PO à stratégie cachée (le joueur qui
+réinvestit touchait 0 à 100 PO par jour, celui qui stockait puis vendait tout
+400), un cours qui ne se reconstituait qu'à l'effondrement, une dette qui
+punissait l'effondrement, et aucun usage des éclats. Clément a décidé de tout
+refondre, et que tout le monde reparte de zéro.
+
+### Les commandes de Tafix
+
+La vente au cours (fatigue, dette, humeur, bonus de volume, résonance, ×15 et
+plafond de 480 PO côté application) est supprimée. **Tafix**, kobold rouge dans
+une cotte de mailles trop grande pour lui, PNJ de la page, apporte chaque jour
+trois commandes à paie fixe (`COMMANDES`, `src/mines/donnees.js`) :
+
+| Commande | Demande | Paie |
+|---|---|---:|
+| Petite | 20 min de production | 40 PO |
+| Moyenne | 60 min de production | 70 PO |
+| Grosse | 30 min de production **et 15 min de mine, page ouverte** | 120 PO |
+
+La production est celle de l'équipe plus une frappe toutes les cinq secondes
+(`productionNominale`), avec un plancher en filons de la galerie d'entrée. La
+paie est en PO du site : l'économie se règle au PO près, sans rien savoir de la
+profondeur.
+
+**Modèle hybride** (décision de Clément) : la petite et la moyenne se
+remplissent d'une nuit d'absence — la récompense du passage quotidien ; la
+grosse demande de l'étoile **fraîche**, c'est-à-dire un quart d'heure de mine
+page ouverte et visible depuis son arrivée (`presence`). C'est le principe du
+cookie doré de Cookie Clicker. Une première version comptait l'étoile sortie
+page ouverte : un joueur qui dépense en arrivant le stock de sa nuit multiplie
+sa production par dix en deux minutes, et le simple passage remplissait la
+grosse un jour sur cinq. Le temps ne se triche pas ainsi.
+
+Après un effondrement, les commandes pas encore livrées se remettent à la
+mesure de la mine neuve (elles ne font que baisser) : tirées le matin sur une
+équipe de millions, elles devenaient inatteignables pour qui effondrait à midi.
+
+`scripts/audit-economie.mjs` (refait) : passage de deux minutes 83 PO/j sans
+jamais la grosse ; 30 min 212 PO/j, la grosse sept jours sur dix ; 1 h et plus,
+environ 260 PO/j. Il échoue si le passage touche la grosse, si une demi-heure ne
+la remplit pas un jour sur deux, ou si un profil dépasse 300 PO/j.
+
+### Les éclats comptés en strates, et la Faveur du Fossoyeur
+
+Un effondrement rapporte **un éclat par strate atteinte au-delà de la
+quatrième, dans cette mine** (`eclatsDispo`). La racine cubique de l'étoile
+cumulée, couplée à une Faveur qui raccourcit chaque mine, rouvrait la boucle
+corrigée en septembre : 3 000 éclats en deux semaines. La strate est déjà le
+logarithme de l'étoile ; plus de boucle possible, et le gain se lit d'avance.
+La dette d'effondrement est supprimée.
+
+Les éclats gardent leurs +3 % de dégâts **et** se dépensent dans **la Faveur du
+Fossoyeur** (`src/mines/faveur.js`), sur le modèle de Cookie Clicker : offrir ne
+retire rien, `eclatsDepenses` compte ce qui est offert. Quatre branches —
+Héritage (ce qu'on garde en rouvrant), Veille (l'absence), Filon (étoile
+filante, pioche enchantée, Fortune, critiques), Commandes (une quatrième) —,
+douze faveurs, 257 éclats en tout. Le Fossoyeur est un colosse mécanique
+antique, trois quarts fer, un quart bois, dans une grotte de cristaux géants.
+
+`scripts/audit-eclats.mjs` (refait, joueur commun dans `joueur-mine.mjs`) : à
+une heure par jour, première faveur le premier soir, arbre complet à j36 ; à
+vingt minutes, j85 ; à trois heures, j18. Il échoue si l'arbre tombe avant
+trois semaines à une heure par jour, ou si les éclats dépassent 5 000 à trois
+mois.
+
+### Une salle, pas des onglets
+
+Six onglets à la suite, c'était trop (retour de maquette). L'Échoppe est devenue
+**Commandes** ; l'effondrement et la Faveur vivent dans **la salle du
+Fossoyeur**, un panneau qui prend la place du front de taille et des onglets,
+ouvert par un bouton de l'en-tête dès la cinquième strate. Sa ligne dit ce qu'il
+y a à faire (« 4 éclats à offrir », « 6 éclats dans les étais »), un point ambre
+qu'il y a quelque chose à faire. La mine continue de tourner pendant ce temps.
+
+**Un onglet ouvert l'est pour le compte** : les onglets se lisaient sur l'état
+de la mine, et un effondrement refermait Commandes, Chantier et Talents au
+moment même où la salle s'ouvrait. La liste vit dans l'état du jeu
+(`etat.tafix.onglets`, union entre appareils).
+
+### Tafix
+
+Une bulle par étape nouvelle (`TAFIX`, `donnees.js`), une seule fois par
+compte : arrivée, premier filon, premier compagnon, chantier, talents, filon
+riche, Fossoyeur, Faveur. Deux phrases au plus, « Compris » et « Tafix,
+tais-toi » ; il remplace la ligne « Frappez la roche » (qui revient si on le fait
+taire). Les étapes vues vivent dans l'état du jeu (`etat.tafix.vus`), pas dans
+la mine : un effondrement ne les rejoue pas. La bulle et l'écran de remise à
+zéro passent par un portail : `.kz` isole son contexte d'empilement, et l'en-tête
+du site passait par-dessus.
+
+Les portraits (`tafix*.webp`), le Fossoyeur (`fossoyeur*.webp`) et la grotte
+(`faveur-fond*.webp`) se rangent dans `public/kazim/` ; tant qu'ils manquent,
+`Personnages.jsx` dessine une silhouette vectorielle à leur place. Prompts :
+`assets-sora-tafix.json`, `assets-sora-faveur.json` dans le projet.
+
+### La remise à zéro
+
+Toute partie aux règles antérieures (`regles` < 3) repart de zéro à la lecture
+(`relireMine`), **éclats compris** — sinon les anciens joueurs arriveraient avec
+l'arbre rempli et le classement de strate ne voudrait plus rien dire. Seul
+`poGagnes` est repris. Un écran, dit par Tafix, explique ce qui change et verse
+un solde en PO (`remise.js`) : l'étoile en stock au dernier cours kobold (formule
+figée, ×15, plafond 240), plus 30 PO par effondrement, plafonné à 480.
+
+Deux pièges : la fusion entre appareils garde d'abord la copie aux règles les
+plus récentes (`comparerMines`), sinon une vieille copie plus avancée
+l'emporterait et serait remise à zéro à chaque relecture ; et le solde n'est
+versé qu'une fois par compte, la marque vivant dans l'état du jeu
+(`etat.mine.regles`), qu'une vieille copie de la mine ne peut pas écraser. Le
+solde ne compte pas pour les missions.
+
+### Missions de Bodégué
+
+Le type « Rapporter des PO des Mines » sort du tirage (les missions déjà
+confiées se remplissent jusqu'à minuit) ; il est remplacé par « Livrer 3
+commandes à Tafix » (15 dans la semaine). Trois, c'est la grosse comprise : la
+mission demande de jouer, pas seulement de passer.
 
 Ce qui a changé à l'intégration :
 
@@ -22,8 +145,8 @@ Ce qui a changé à l'intégration :
 - **Les styles sont une feuille.** Ils vivaient dans un gabarit injecté par
   `dangerouslySetInnerHTML` à chaque montage ; ils sont dans
   `src/styles/kazim.css`, analysés une fois et mis en cache.
-- **Le module ne touche jamais au porte-monnaie.** Il annonce un gain par
-  `onPO`, l'application convertit et crédite.
+- **Le module ne touche jamais au porte-monnaie.** Il annonce une commande
+  livrée par `onCommande`, l'application crédite (`src/jeu/mine.js`).
 - **La page ne tient plus de comptabilité.** Elle a porté un temps le quota du
   jour, sa jauge, la pesée et la conversion « une pièce kobolde en vaut quinze
   ici ». L'intention était de ne pas laisser le plafond se découvrir en
@@ -80,13 +203,13 @@ possible — frapper.
 | Onglet | S'ouvre | Ce qu'il apporte |
 |--------|---------|------------------|
 | Compagnons | d'emblée | quelqu'un creuse à votre place |
-| Échoppe kobolde | 1ᵉʳ filon brisé | l'étoile devient des pièces d'or |
+| Commandes | 1ᵉʳ filon brisé | Tafix achète l'étoile contre des pièces d'or |
 | Chantier | 4 filons | du matériel, acheté une fois pour toutes |
 | Talents | niveau 2 | un point par niveau |
-| Effondrement | profondeur 5 | tout recommencer, en plus fort |
+| *(salle du Fossoyeur)* | profondeur 5 | effondrement et Faveur, par un bouton de l'en-tête |
 
-Le prédicat lit l'état, rien n'est stocké : une sauvegarde ancienne retrouve
-tous ses onglets au chargement. Un onglet qui vient de s'ouvrir porte un point
+Le prédicat ouvre l'onglet la première fois ; depuis la refonte, la liste des
+onglets ouverts est retenue pour le compte (voir plus haut). Un onglet qui vient de s'ouvrir porte un point
 ambre jusqu'à ce qu'on l'ouvre, et son ouverture est annoncée dans la région
 vocale. L'ordre du tableau est l'ordre d'ouverture, donc l'ordre d'affichage :
 la rangée se lit de gauche à droite comme une progression.
@@ -236,7 +359,10 @@ effondrements, puis filons brisés, puis étoile sortie au total
 (`comparerMines`, `src/lib/nuage/fusion.js`) — et non plus la plus récemment
 sauvée : un vieil onglet oublié effaçait ainsi des talents et des achats.
 
-### Les éclats ne s'emballent plus
+### Les éclats ne s'emballent plus (septembre 2026, remplacé le 07/10/2026)
+
+*Les éclats se comptent désormais en strates (voir « La refonte »). Ce qui suit
+reste pour l'histoire de la boucle.*
 
 Au premier jour de jeu réel, un joueur a vendu, effondré, doublé ses éclats en
 cinq minutes, effondré de nouveau : 1 814 éclats, et un troisième puits qui en
@@ -281,6 +407,10 @@ invariant et non une migration : le sens du champ n'a pas changé, et monter
 la prochaine vraie migration).
 
 ### La pente des strates (retour bêta, 07/10/2026)
+
+*La migration silencieuse décrite à la fin de cette section est remplacée par la
+remise à zéro de la refonte. L'accélération n'a plus de plafond à prévoir : avec
+des éclats comptés en strates, elle ne fait plus mur.*
 
 Deux parties réelles ont montré que la descente allait beaucoup trop vite : un
 nouveau joueur à la strate 12 en vingt-six minutes, sans un seul effondrement ;

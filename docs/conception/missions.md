@@ -74,14 +74,14 @@ quelques dizaines de PO.
 | Ouvrir des boosters | 2 | 30 PO | toujours |
 | Ajouter des cartes nouvelles | 2 | 40 PO | un booster en apporte au moins 0,67 en espérance (jusque vers 80 % de complétion) |
 | Vendre au Comptoir | 5 | 40 PO | au moins 10 doublons |
-| Rapporter des PO des Mines | 60 | 40 PO | toujours |
+| Livrer des commandes à Tafix | 3 | 40 PO | toujours (la grosse demande un quart d'heure de mine ; depuis le 07/10/2026, à la place de « Rapporter 60 PO des Mines ») |
 | Descendre au Donjon | 1 | 40 PO | au moins 4 PNJ |
 | Vaincre des gardiens | 2 | 50 PO | 4 PNJ et 3 descentes jouées |
 | Accueillir une expédition | 1 | 30 PO | un Lieu et 4 PNJ |
 | Dissoudre au Reliquaire | 10 | 30 PO | Reliquaire ouvert, 15 doublons |
 
 La mission de la semaine reprend les mêmes types à plus grande échelle
-(15 boosters, 12 cartes nouvelles, 40 ventes, 600 PO des Mines, 5 descentes,
+(15 boosters, 12 cartes nouvelles, 40 ventes, 15 commandes de Tafix, 5 descentes,
 10 gardiens, 7 expéditions, 60 dissolutions, ou 3 forges au Reliquaire) et
 rapporte **2 boosters au choix**.
 
