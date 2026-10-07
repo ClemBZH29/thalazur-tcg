@@ -1,119 +1,57 @@
 /**
- * Audit des éclats — le joueur qui effondre en boucle.
- *
- * `audit-economie.mjs` simule un joueur qui s'effondre au plus une fois par
- * jour, quand le cours kobold est mort. Il n'a jamais vu ce que fait un joueur
- * réel dès sa première journée : jouer en continu et faire sauter les étais
- * dès que l'effondrement multiplie ses éclats. Sous l'ancienne règle, ce joueur
- * doublait ses éclats en un temps de plus en plus court et atteignait l'infini
- * en moins de trois heures. Cet audit le rejoue, et échoue si la boucle
- * s'emballe de nouveau.
+ * Audit des éclats et de la Faveur du Fossoyeur.
  *
  *   node scripts/audit-eclats.mjs
  *
- * Même joueur que l'audit d'économie (achats, talents), mais présent sans
- * interruption, 150 frappes par minute, un achat toutes les dix secondes.
+ * Deux fois déjà les éclats se sont emballés : en septembre (racine carrée de
+ * l'étoile, l'infini en trois heures), puis à la refonte du 07/10/2026, quand
+ * la Faveur raccourcissait chaque mine et rouvrait la boucle (3 000 éclats en
+ * deux semaines). Ils se comptent désormais en strates ; cet audit rejoue
+ * trois habitudes sur quatre-vingt-dix jours avec le joueur de
+ * `joueur-mine.mjs` et **échoue** si :
+ *  - à une heure par jour, la première faveur n'arrive pas dans les deux
+ *    premiers jours (le premier effondrement doit se sentir) ;
+ *  - à une heure par jour, l'arbre complet tombe avant trois semaines, ou
+ *    n'est pas complet à deux mois ;
+ *  - à trois heures par jour, l'arbre tombe avant la fin de la première semaine ;
+ *  - les éclats dépassent 5 000 à trois mois, quel que soit le profil (boucle).
  */
-import * as donnees from "../src/mines/donnees.js";
-import * as regles from "../src/mines/regles.js";
-import { etatNeuf } from "../src/mines/sauvegarde.js";
+import { joueur, present, absent } from "./joueur-mine.mjs";
+import { COUT_ARBRE, FAVEURS } from "../src/mines/faveur.js";
 
-const K = { ...donnees, ...regles, etatNeuf };
+console.log(`\nAUDIT DES ÉCLATS — Faveur du Fossoyeur (arbre complet : ${COUT_ARBRE} éclats, ${FAVEURS.length} faveurs)\n`);
 
-/** Espérance du multiplicateur d'événement, comme dans l'audit d'économie. */
-const multEvenement = (S) => {
-  const s = K.chanceEvenement(S);
-  return (1 - s) + 0.4 * s * 12 + 0.6 * s * 4;
-};
-
-function briser(S) {
-  const r = S.pvMax * K.RECOLTE * K.multRecolte(S) * multEvenement(S);
-  S.etoile += r;
-  S.etoileTotale += r;
-  S.brises[S.profondeur] = (S.brises[S.profondeur] || 0) + 1;
-  S.brisesTotal++;
-  S.xp += Math.round(5 * Math.pow(S.profondeur, 1.25));
-  while (S.xp >= K.xpRequis(S)) { S.xp -= K.xpRequis(S); S.niveau++; S.points++; }
-  if (S.brises[S.profondeur] >= K.FILONS_PAR_STRATE && S.profondeur === S.profondeurMax) {
-    S.profondeur++;
-    S.profondeurMax = S.profondeur;
-  }
-  S.pvMax = K.pvFilon(S.profondeur, S.brises[S.profondeur] || 0);
-  S.pv = S.pvMax;
-}
-
-function degats(S, d) {
-  let garde = 0;
-  while (d > 0 && garde++ < 200000) {
-    if (d >= S.pv) { d -= S.pv; S.pv = 0; briser(S); } else { S.pv -= d; d = 0; }
-  }
-}
-
-function neuve(garde = {}) {
-  const S = Object.assign(K.etatNeuf(), garde);
-  S.profondeur = 1;
-  S.pvMax = K.pvFilon(1, 0);
-  S.pv = S.pvMax;
-  return S;
-}
-
-/** Joue `heures` en continu ; effondre dès que les éclats seraient × `ratio`. */
-function boucle(ratio, heures) {
-  let S = neuve();
-  const effondrements = [];
-  const pas = 10;
-  for (let t = 0; t < heures * 3600; t += pas) {
-    const pc = Math.min(75, K.critChance(S)) / 100;
-    degats(S, K.dps(S) * pas + (150 / 60) * pas * K.degatsClic(S) * (1 + pc * (K.critMult(S) - 1)));
-    for (const e of [...K.EQUIPEMENT, ...K.AMELIORATIONS]) {
-      if (S.equipement.includes(e.id) || S.etoile < e.cout) continue;
-      if (e.compagnon ? (S.compagnons[e.compagnon] || 0) < e.seuil : S.profondeurMax < e.req + 1) continue;
-      S.etoile -= e.cout;
-      S.equipement.push(e.id);
-    }
-    for (let passe = 0; passe < 3; passe++) {
-      for (const c of [...K.COMPAGNONS].reverse()) {
-        const n = Math.min(K.nbAbordable(S, c), 25);
-        if (n < 1) continue;
-        const cout = K.coutN(S, c, n);
-        if (cout > S.etoile) continue;
-        S.etoile -= cout;
-        S.compagnons[c.id] = (S.compagnons[c.id] || 0) + n;
-      }
-    }
-    while (S.points > 0) { S.talents[["force", "discipline", "echo", "force"][S.points % 4]]++; S.points--; }
-    const gain = K.eclatsDispo(S);
-    if (gain > 0 && S.eclats + gain >= Math.max(1, S.eclats) * ratio) {
-      effondrements.push({ minute: Math.round(t / 60), strate: S.profondeurMax, eclats: S.eclats + gain });
-      S = neuve({
-        poGagnes: S.poGagnes, eclats: S.eclats + gain, echanges: S.echanges,
-        effondrements: S.effondrements + 1, etoileTotale: S.etoileTotale,
-      });
+const res = {};
+for (const [nom, cle, minutes] of [["20 min par jour", "court", 20], ["1 h par jour", "moyen", 60], ["3 h par jour", "long", 180]]) {
+  const j = joueur();
+  const releves = [];
+  for (let n = 1; n <= 90; n++) {
+    present(j, minutes * 60, n);
+    absent(j, 7 * 3600);
+    absent(j, 8 * 3600);
+    if ([1, 3, 7, 14, 30, 60, 90].includes(n)) {
+      releves.push(`j${n} ${j.S.eclats}◆ s${j.strate} ×${(1 + j.S.eclats * 0.03).toFixed(1)}`);
     }
   }
-  return { effondrements, S };
+  const premiere = j.faveurs.length ? j.faveurs[0][1] : Infinity;
+  const complet = j.faveurs.length === FAVEURS.length ? j.faveurs[j.faveurs.length - 1][1] : Infinity;
+  res[cle] = { premiere, complet, eclats: j.S.eclats };
+  console.log(nom.padEnd(17) + releves.join(" · "));
+  console.log(" ".repeat(17) + `première faveur j${premiere} · arbre complet ${complet === Infinity ? "non" : "j" + complet} · effondrements ${j.S.effondrements} · commandes ${Math.round(j.po / 90)} PO/j`);
 }
 
-const HEURES = 10;
+const bornes = [
+  ["la première faveur tombe dans les deux premiers jours (1 h/j)", res.moyen.premiere <= 2],
+  ["l'arbre ne tombe pas avant trois semaines (1 h/j)", res.moyen.complet >= 21],
+  ["l'arbre est complet à deux mois (1 h/j)", res.moyen.complet <= 60],
+  ["l'arbre ne tombe pas dans la première semaine (3 h/j)", res.long.complet > 7],
+  ["les éclats ne s'emballent pas (moins de 5 000 à trois mois)", Object.values(res).every((r) => r.eclats < 5000)],
+];
+console.log("");
 let echec = false;
-console.log(`\nAUDIT DES ÉCLATS — joueur présent ${HEURES} h d'affilée, effondre dès que ses éclats seraient multipliés\n`);
-for (const ratio of [2, 3]) {
-  const { effondrements, S } = boucle(ratio, HEURES);
-  console.log(`Effondre à × ${ratio} :`);
-  let precedent = 0, ecart = 0, raccourcis = 0;
-  for (const e of effondrements) {
-    const d = e.minute - precedent;
-    if (ecart && d < ecart * 0.8) raccourcis++;
-    console.log(`  ${String(e.minute).padStart(4)} min  (+${String(d).padStart(3)})  strate ${String(e.strate).padStart(2)}  ${e.eclats} éclats`);
-    precedent = e.minute; ecart = d;
-  }
-  console.log(`  au bout de ${HEURES} h : ${S.eclats} éclats, soit × ${K.mEclats(S).toFixed(1)} de dégâts\n`);
-  /* L'emballement se reconnaît à deux signes : un nombre qui sort des
-     flottants, ou des effondrements qui se rapprochent au lieu de s'espacer. */
-  if (!Number.isFinite(S.eclats) || raccourcis > 2) echec = true;
+for (const [quoi, ok] of bornes) {
+  console.log((ok ? "  ok     " : "  ÉCHEC  ") + quoi);
+  if (!ok) echec = true;
 }
-if (echec) {
-  console.log("ÉCHEC : la boucle d'effondrement s'emballe.\n");
-  process.exit(1);
-}
-console.log("Les effondrements s'espacent : la boucle ne s'emballe pas.\n");
+console.log("");
+if (echec) process.exit(1);
