@@ -16,6 +16,11 @@ export const VOIX = {
     "Vous avez tout fait. Allez donc vous reposer, ou ouvrir un booster.",
   ],
   remplacee: "Celle-là ne vous plaisait pas ? Soit. Essayez plutôt ceci.",
+  /** Juste après une réclamation, quand il reste à faire. */
+  apres: [
+    "Bien. Il en reste, si le cœur vous en dit.",
+    "Une de faite. Les autres ne vont pas s'envoler.",
+  ],
 
   /** Une mission remplie, par type : ce que Bodégué en dit avant de payer. */
   faite: {
@@ -61,6 +66,35 @@ export const VOIX = {
     "Je l'avais dit lundi : vous y arriveriez. Vos boosters vous attendent.",
   ],
 };
+
+/**
+ * Ce que montre la scène : la réplique de la bulle et la pose de Bodégué.
+ * Les poses sont les fichiers `public/missions/bodegue-<pose>.webp`
+ * (« neutre » est `bodegue.webp`). Par ordre de priorité :
+ *
+ * - juste après un remplacement : malicieux, « Celle-là ne vous plaisait pas ? » ;
+ * - une mission du jour remplie : content, la réplique de son type ;
+ * - la semaine remplie : la lettre scellée levée ;
+ * - un instant après une réclamation (`content`) : content ;
+ * - la journée finie : serein, yeux clos ;
+ * - juste après une réclamation, s'il reste à faire : neutre ;
+ * - missions toutes neuves : il tend le billet du jour ;
+ * - sinon : neutre.
+ */
+export function humeurDe({ quotidiennes = [], hebdo = null, remplacee = false, apres = false, content = false }) {
+  const prete = quotidiennes.find((m) => m.atteinte && !m.reclamee);
+  const semaine = hebdo && hebdo.atteinte && !hebdo.reclamee ? hebdo : null;
+  const fini = quotidiennes.length > 0 && quotidiennes.every((m) => m.reclamee);
+  const neuf = quotidiennes.length > 0 && quotidiennes.every((m) => !m.reclamee && m.valeur === 0);
+  if (remplacee) return { voix: "remplacee", pose: "malicieux" };
+  if (prete) return { voix: prete, pose: "content" };
+  if (semaine) return { voix: semaine, pose: "semaine" };
+  if (content) return { voix: fini ? "fini" : "apres", pose: "content" };
+  if (fini) return { voix: "fini", pose: "serein" };
+  if (apres) return { voix: "apres", pose: "neutre" };
+  if (neuf) return { voix: "accueil", pose: "billet" };
+  return { voix: "accueil", pose: "neutre" };
+}
 
 /** Un élément d'une liste, choisi au jour : stable jusqu'à minuit. */
 function auJour(liste, jour = "") {

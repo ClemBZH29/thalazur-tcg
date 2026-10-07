@@ -191,3 +191,31 @@ describe("remplacement", () => {
     expect(evaluerMissions(r, mesuresMissions(r)).remplacements).toBe(REMPLACEMENTS - 1);
   });
 });
+
+describe("la scène", () => {
+  const m = (champs) => ({ type: "ventes", valeur: 0, n: 5, atteinte: false, reclamee: false, ...champs });
+  test("la pose suit l'état de la journée", async () => {
+    const { humeurDe } = await import("../src/missions/voix.js");
+    expect(humeurDe({ quotidiennes: [m(), m(), m()] }).pose).toBe("billet");
+    expect(humeurDe({ quotidiennes: [m({ valeur: 2 }), m(), m()] }).pose).toBe("neutre");
+    const prete = m({ type: "mine", valeur: 60, n: 60, atteinte: true });
+    expect(humeurDe({ quotidiennes: [m(), prete, m()] })).toEqual({ voix: prete, pose: "content" });
+    const faites = [m({ reclamee: true, atteinte: true }), m({ reclamee: true, atteinte: true }), m({ reclamee: true, atteinte: true })];
+    expect(humeurDe({ quotidiennes: faites }).pose).toBe("serein");
+    expect(humeurDe({ quotidiennes: faites, hebdo: m({ atteinte: true, semaine: true }) }).pose).toBe("semaine");
+    expect(humeurDe({ quotidiennes: [m(), prete, m()], remplacee: true }).pose).toBe("malicieux");
+    expect(humeurDe({ quotidiennes: faites, content: true }).pose).toBe("content");
+  });
+
+  test("la progression vue en partant sert de départ au retour, le jour même seulement", async () => {
+    const { noterVu, dejaVu } = await import("../src/missions/regles.js");
+    const e = mettreAJour(joueur(), { ...autour(joueur()), maintenant: lundi });
+    const avance = { ...e, stats: { ...e.stats, ventes: 13, poMine: 30, descentes: 7, gardiens: 3, expeditions: 1, dissous: 4 }, boosters: { troupe: 41 } };
+    const vu = noterVu(avance, mesuresMissions(avance));
+    expect(vu.missions.vu.jour).toBe("2026-10-05");
+    vu.missions.quotidiennes.forEach((q, i) => expect(dejaVu(vu.missions, i)).toBe(evaluerMissions(vu, mesuresMissions(vu)).quotidiennes[i].valeur));
+    expect(noterVu(vu, mesuresMissions(vu))).toBe(vu);
+    const lendemain = mettreAJour(vu, { ...autour(vu), maintenant: mardi });
+    expect(dejaVu(lendemain.missions, 0)).toBe(0);
+  });
+});

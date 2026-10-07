@@ -285,6 +285,16 @@ const TRACES = {
       <path d="M8 11.5h9.5M15 9l2.5 2.5L15 14" />
     </>
   ),
+  // Une pile de pièces vue de biais : les PO d'une récompense.
+  piece: (
+    <>
+      <path d="M4 7.5a6 2.3 0 1 0 12 0a6 2.3 0 1 0-12 0" />
+      <path d="M4 7.5v6c0 1.3 2.7 2.3 6 2.3s6-1 6-2.3v-6" />
+      <path d="M4 10.5c0 1.3 2.7 2.3 6 2.3s6-1 6-2.3" />
+    </>
+  ),
+  // Une coche épaisse : le sceau d'une mission réclamée.
+  coche: <path d="M4.5 10.5l3.5 3.5 7.5-8" />,
   // Un parchemin roulé, une coche dessus : les missions de Bodégué.
   missions: (
     <>

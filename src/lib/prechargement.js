@@ -19,7 +19,7 @@
 export const DOSSIERS = {
   expeditions: ["bandeau", "camp-vide", "maitre-route", "marqueur"],
   reliquaire: ["bandeau", "gardien", "reliquaire", "vestige"],
-  missions: ["bodegue"],
+  missions: ["bodegue", "bodegue-billet", "bodegue-content", "bodegue-malicieux", "bodegue-semaine", "bodegue-serein"],
   comptoir: ["conservateur", "eloi", "gaspard", "hector", "lise", "mirko", "nassim", "oriane", "sorelle", "voren", "ysee"],
   kazim: ["benediction-filon", "contrat-courtage", "elementaire-faille", "etais-renforces", "fanal-huile",
     "foreuse-vapeur", "golem-schiste", "kobold-deserteur", "lentille-quartz", "machine-kazim", "mineur-nain",

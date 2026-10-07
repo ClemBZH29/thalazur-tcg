@@ -24,6 +24,7 @@ import AnnonceReliquaire from "./components/AnnonceReliquaire.jsx";
 import { demarrerMesure, mesureDisponible, pageVue, rouvrirBandeau } from "./lib/mesure.js";
 import { precharger as prechargerImages } from "./lib/prechargement.js";
 import { BOOSTERS } from "./extensions/index.js";
+import { useBourseAffichee } from "./lib/bourseAffichee.js";
 
 /* Les deux modules pèsent chacun plus que tout le reste de l'application :
    le Comptoir porte son moteur de marché, la mine son gréement d'animation.
@@ -68,7 +69,7 @@ const PAGES = [
 ];
 
 /** Pages dessinées pour tenir sur un écran, sans défilement ni pied. */
-const PLEIN = new Set(["/", "/boutique", "/mines", "/reliquaire"]);
+const PLEIN = new Set(["/", "/boutique", "/mines", "/reliquaire", "/missions"]);
 
 /** Racine d'une page : « /boutique/troupe » appartient à « /boutique ». */
 const racine = (chemin) => "/" + (chemin.split("/")[1] || "");
@@ -243,7 +244,9 @@ function Coque() {
   }, [chemin]);
 
   const { bourse, gratuit, collecte, stockageKo, loupe,
-    setLoupe, cfgImage, fichiers, succes, missions, etat, reliquaireOuvert } = jeu;
+    setLoupe, cfgImage, fichiers, succes, missions, etat, reliquaireOuvert, mouvementReduit } = jeu;
+  // Le chiffre compte au lieu de sauter, et attend les pièces des missions.
+  const poAffichees = useBourseAffichee(bourse.po, mouvementReduit);
   // Le jour change à minuit ; une page restée ouverte le relit au rendu suivant.
   const conservateur = conservateurPresent(jourCourant());
   // Le Reliquaire n'entre dans la navigation qu'une fois ouvert (voir AnnonceReliquaire).
@@ -298,7 +301,7 @@ function Coque() {
               title={`Gain passif de ${ECONOMIE.parHeure} PO par heure, plafonné à ${ECONOMIE.plafond}`}
             >
               <span className="bourse-veille" aria-hidden="true" />
-              {gratuit ? "PO désactivées" : `${Math.floor(bourse.po)} PO`}
+              {gratuit ? "PO désactivées" : `${Math.floor(poAffichees)} PO`}
             </span>
             {/* Le son se règle au profil, avec les autres préférences : il
                 prenait un bouton du bandeau, sur chaque page, pour un réglage

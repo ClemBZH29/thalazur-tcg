@@ -198,6 +198,31 @@ export function evaluerMissions(etat, mesures) {
   return { quotidiennes, hebdo, aReclamer, remplacements: Math.max(0, REMPLACEMENTS - (M.remplacees || 0)) };
 }
 
+/* ── Ce que le joueur a déjà vu ──────────────────────────────────────────── */
+
+/**
+ * La progression affichée quand le joueur a quitté la page : à son retour,
+ * les jauges montent de là jusqu'à la valeur du moment, au lieu d'apparaître
+ * déjà pleines. Rend l'état tel quel si rien n'a changé.
+ *   etat.missions.vu = { jour, semaine, q: [valeurs du jour], h: valeur de la semaine }
+ */
+export function noterVu(etat, mesures) {
+  const M = etat.missions;
+  if (!M) return etat;
+  const ev = evaluerMissions(etat, mesures);
+  const vu = { jour: M.jour, semaine: M.semaine, q: ev.quotidiennes.map((m) => m.valeur), h: ev.hebdo?.valeur ?? 0 };
+  if (JSON.stringify(vu) === JSON.stringify(M.vu)) return etat;
+  return { ...etat, missions: { ...M, vu } };
+}
+
+/** Ce qui était affiché pour la mission `index` (« hebdo » pour la semaine), ou 0. */
+export function dejaVu(M, index) {
+  const vu = M?.vu;
+  if (!vu) return 0;
+  if (index === "hebdo") return vu.semaine === M.semaine ? vu.h || 0 : 0;
+  return vu.jour === M.jour ? vu.q?.[index] || 0 : 0;
+}
+
 /* ── Ce qui fait bouger la partie ────────────────────────────────────────── */
 
 /** Paie une mission jugée. */

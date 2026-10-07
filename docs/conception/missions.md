@@ -91,6 +91,55 @@ soit **1,2 booster par jour** en plus, 41 % du gain passif. L'audit échoue
 au-delà de la moitié : les missions complètent le rythme, elles ne le
 remplacent pas.
 
+## La page (maquette de Claude Design, 07/10/2026)
+
+La page reprend le prototype livré par Claude Design (copie dans
+`Claude outputs/missions-claude-design/`) : **la table de Bodégué**.
+
+- **Bodégué derrière sa table**, coupé par le plateau sous les mains : l'image
+  est posée de sorte que 86 % de sa hauteur dépasse (`--msn-img-h`), sans
+  fondu, c'est la table qui coupe. Sa bulle porte la réplique du moment.
+- **Trois billets** posés sur le plateau, légèrement de travers, coiffés du
+  pictogramme du mode : la mission, sa jauge, sa récompense, « Y aller » ou
+  « Réclamer ». Réclamée, la mission reçoit un **sceau** de cire.
+- **Le pli de la semaine** à droite, scellé de cire rainbow ; rempli, le
+  sceau se rompt et le rabat s'ouvre.
+- Une ligne d'échéances : l'heure de minuit, les remplacements restants, et
+  « Tout réclamer » dès deux missions prêtes. Les règles sont derrière le « ? ».
+
+**Au bureau, la page tient sur un écran** : elle prend la hauteur sous le
+bandeau et la lit en unités `cqh`/`cqw` (`container-type: size`). Une page
+conteneur ne doit pas prendre sa hauteur par le flex (base nulle) : les
+unités `cqh` y valent 0. Entre 721 et 1 099 px, le pli passe sous les
+billets et la page défile ; au doigt, Bodégué est coupé à mi-poitrine en
+haut, les billets deviennent des bandes.
+
+**Les poses de Bodégué** (`public/missions/`, 640 px de haut, toutes au même
+cadrage pour se remplacer sur place, détourées depuis les sources de
+`Base Image/missions/`) suivent l'état de la journée (`humeurDe`, `voix.js`) :
+il tend le billet du jour quand tout est neuf, sourit quand une mission est
+remplie et un instant après chaque réclamation, lève la lettre scellée quand
+la semaine est remplie, ferme les yeux quand la journée est finie, se gratte
+la barbe après un remplacement. Les six images sont empilées ; on passe de
+l'une à l'autre en fondu de 200 ms.
+
+**Les effets** (`src/missions/scene.js`, API Web Animations, seulement
+`transform`, `opacity` et `filter`) suivent la chronologie de la note de
+Claude Design : le sceau tombe et refroidit, les pièces volent vers la bourse
+du bandeau (de 3 à 8), le chiffre de la bourse attend leur arrivée puis
+compte (`src/lib/bourseAffichee.js`) ; les boosters de la semaine filent vers
+l'entrée « Boutique » (vers le menu, au doigt) ; un billet remplacé est repris
+vers Bodégué puis un neuf est posé ; une mission qui se remplit sous les yeux
+s'allume. Un toucher pendant une animation pose tout à l'état final. À
+l'arrivée sur la page, les jauges montent depuis ce qui était affiché à la
+dernière visite (`etat.missions.vu`, écrit en quittant la page). Mouvement
+réduit : aucune animation, et la région `aria-live` annonce les gains.
+
+**Reste à faire** : le décor peint de la table (Sora, 16:9 et 9:16, prompts
+dans `claude/assets-sora-missions.json`) ; pour l'instant le plateau est un
+dégradé. Remplacer le billet est un premier toucher qui arme (« Remplacer ? »,
+annulé après 3,2 s ou par Échap), le second qui remplace.
+
 ## Bodégué
 
 L'illustration vient de Clément (`Base Image/missions/bodegue-source.png`),
@@ -101,5 +150,4 @@ journée finie, le remplacement, et **une réplique de complétion par type de
 mission** (deux le plus souvent, tirées au jour), qui prend la bulle dès
 qu'une mission est remplie ; la mission de la semaine a les siennes. Un test
 vérifie qu'aucun type n'en manque. La page actuelle
-est une mise en page de travail ; la maquette est demandée à Claude Design
-(`brief-missions-design.md`).
+suit la maquette de Claude Design (section précédente).

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { CATALOGUE } from "../succes/catalogue.js";
 import {
-  contexte, echeances, evaluerMissions, mesuresMissions, mettreAJour, reclamerMission, remplacerMission,
+  contexte, echeances, evaluerMissions, mesuresMissions, mettreAJour, noterVu, reclamerMission, remplacerMission,
 } from "../missions/regles.js";
 
 /** Les extensions ouvertes et leurs cartes : de quoi savoir ce qui manque encore. */
@@ -34,5 +34,13 @@ export function useMissions(etat, setEtat) {
     setEtat((e) => remplacerMission(e, index, autour(e)));
   }, [setEtat]);
 
-  return { ...evaluation, echeances: echeances(new Date(horloge)), reclamer, remplacer };
+  /** Retient la progression affichée, pour l'animer au retour sur la page. */
+  const noter = useCallback(() => {
+    setEtat((e) => noterVu(e, mesuresMissions(e)));
+  }, [setEtat]);
+
+  return {
+    ...evaluation, echeances: echeances(new Date(horloge)), reclamer, remplacer, noterVu: noter,
+    jour: etat.missions?.jour || "", remplacees: etat.missions?.remplacees || 0,
+  };
 }
