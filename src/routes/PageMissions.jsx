@@ -22,6 +22,17 @@ const BASE = import.meta.env.BASE_URL;
 const IMG = `${BASE}missions/`;
 const POSES = ["neutre", "billet", "content", "malicieux", "semaine", "serein"];
 const fichierPose = (p) => `${IMG}${p === "neutre" ? "bodegue" : `bodegue-${p}`}.webp`;
+/** Le décor : le mur et le plateau sont deux images coupées au bord de la table,
+    pour que chacune se cadre seule et que le bord tombe toujours sur --msn-table-y.
+    L'adresse est rendue absolue : une url() relative passée par une variable CSS
+    se lit depuis la feuille de style (assets/), pas depuis la page. */
+const IMG_ABS = typeof document === "undefined" ? IMG : new URL(IMG, document.baseURI).href;
+const DECOR = {
+  "--msn-mur": `url(${IMG_ABS}decor-mur.webp)`,
+  "--msn-plateau": `url(${IMG_ABS}decor-table.webp)`,
+  "--msn-mur-tel": `url(${IMG_ABS}decor-tel-mur.webp)`,
+  "--msn-plateau-tel": `url(${IMG_ABS}decor-tel-table.webp)`,
+};
 const nombre = (n) => Math.floor(n).toLocaleString("fr-FR");
 
 /** Où se remplit une mission : la page, et son pictogramme. */
@@ -300,7 +311,7 @@ export default function PageMissions() {
   const fini = quotidiennes.length > 0 && quotidiennes.every((m) => m.reclamee);
 
   return (
-    <main className="view msn-page" id="contenu" ref={racine} onPointerDownCapture={auToucher}>
+    <main className="view msn-page" id="contenu" ref={racine} style={DECOR} onPointerDownCapture={auToucher}>
       <div className="msn-tete">
         <h1>Missions</h1>
         <div className="msn-aide">
@@ -322,6 +333,7 @@ export default function PageMissions() {
       </div>
 
       <div className="msn-scene">
+        <div className="msn-mur" aria-hidden="true" />
         <div className="msn-table" aria-hidden="true" />
         <div className="msn-bodegue">
           <span className="msn-lueur" ref={lueur} aria-hidden="true" />

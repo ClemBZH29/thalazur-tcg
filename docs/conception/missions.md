@@ -135,9 +135,14 @@ l'arrivée sur la page, les jauges montent depuis ce qui était affiché à la
 dernière visite (`etat.missions.vu`, écrit en quittant la page). Mouvement
 réduit : aucune animation, et la région `aria-live` annonce les gains.
 
-**Reste à faire** : le décor peint de la table (Sora, 16:9 et 9:16, prompts
-dans `claude/assets-sora-missions.json`) ; pour l'instant le plateau est un
-dégradé. Remplacer le billet est un premier toucher qui arme (« Remplacer ? »,
+**Le décor** : l'arrière-boutique d'un marchand excentrique (Sora, 16:9 et
+9:16, prompts dans `claude/assets-sora-missions.json`, sources dans
+`Base Image/missions/decor-source.png` et `decor-tel-source.png`). Chaque image
+est coupée au bord de la table en deux fichiers (`decor-mur`, `decor-table`,
+et leurs pendants `-tel`) : le mur se cale par le bas sur `--msn-table-y` et
+monte sous le titre, le plateau part de ce bord ; chacun se cadre en `cover`
+sans que le bord bouge. Un voile sombre en haut du mur garde le titre lisible,
+un autre assombrit le bois sous le texte. Remplacer le billet est un premier toucher qui arme (« Remplacer ? »,
 annulé après 3,2 s ou par Échap), le second qui remplace.
 
 ## Bodégué

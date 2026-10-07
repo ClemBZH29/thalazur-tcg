@@ -18,6 +18,7 @@
   --msn-pli: clamp(272px, 22cqw, 320px);
   --msn-pli-h: calc(var(--msn-billet-h) + 32px);
   --msn-haut: clamp(8px, calc(4cqh - 14px), 40px);
+  --msn-tete-h: 64px;
   --rainbow-encre: #b39cf5;   /* texte rainbow : 5,76:1 sur --panel2 (--m-rainbow seul : 4,22:1) */
   position: relative;
   /* La page ne prend pas la hauteur de la zone par le flex (voir plus bas) :
@@ -38,17 +39,18 @@
 /* ── Le titre et l'aide ─────────────────────────────────────────────── */
 
 .msn-tete {
+  position: relative; z-index: 5; height: var(--msn-tete-h);
   flex: 0 0 auto; width: 100%; max-width: 1420px; margin: 0 auto; box-sizing: border-box;
   padding: 16px 32px 4px; display: flex; align-items: flex-start; justify-content: space-between;
 }
 .msn-tete h1 {
-  margin: 0; font-family: var(--font-display); font-variation-settings: var(--wonk);
+  margin: 0; text-shadow: 0 2px 10px rgba(0, 0, 0, .8), 0 0 2px rgba(0, 0, 0, .6); font-family: var(--font-display); font-variation-settings: var(--wonk);
   font-weight: 700; font-size: 34px; line-height: 40px; letter-spacing: -.01em; outline: none;
 }
 .msn-aide { position: relative; z-index: 8; }
 .msn-rond {
   width: 44px; height: 44px; display: grid; place-items: center; border-radius: 50%;
-  border: 1px solid var(--edge-ui); background: transparent; color: var(--ink2); cursor: pointer;
+  border: 1px solid var(--edge-ui); background: rgba(10, 16, 19, .72); color: var(--ink2); cursor: pointer;
 }
 .msn-rond:hover, .msn-rond:focus-visible { color: var(--ink); border-color: var(--ink); }
 .msn-aide-texte {
@@ -68,12 +70,23 @@
   display: grid; grid-template-columns: auto var(--msn-pli); grid-template-rows: var(--msn-table-y) auto;
   column-gap: 40px; justify-content: center; padding: 0 32px;
 }
+/* Le décor de la boutique : le mur monte jusque sous le titre, calé par le bas
+   sur le bord de la table ; le plateau part de ce bord. Un voile sombre en haut
+   garde le titre lisible, un autre sur le plateau calme le bois sous le texte. */
+.msn-mur {
+  position: absolute; left: 0; right: 0; top: calc(-1 * var(--msn-tete-h)); height: calc(var(--msn-tete-h) + var(--msn-table-y));
+  z-index: 0; pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(8, 12, 14, .72), rgba(8, 12, 14, .18) 36%, transparent 60%),
+    var(--msn-mur) 50% 100% / cover no-repeat,
+    var(--ground);
+}
 .msn-table {
   position: absolute; left: 0; right: 0; top: var(--msn-table-y); bottom: 0; z-index: 1;
-  border-top: 1px solid var(--edge-hi);
   background:
-    radial-gradient(46% 160px at 42% 0, rgba(232, 163, 61, .07), transparent),
-    linear-gradient(180deg, #1c2a2f 0, #162327 34%, #0f181b 100%);
+    linear-gradient(180deg, rgba(10, 8, 6, .1), rgba(10, 8, 6, .4) 40%, rgba(10, 8, 6, .62)),
+    var(--msn-plateau) 50% 0 / cover no-repeat,
+    #1d130d;
   box-shadow: 0 -1px 0 rgba(0, 0, 0, .45);
 }
 
@@ -292,15 +305,24 @@
 @media (max-width: 720px) {
   .msn-page { height: auto; container-type: normal; }
   .shell .zone > .view.msn-page { overflow: visible; padding: 0 0 calc(96px + env(safe-area-inset-bottom)); }
+  .msn-page { --msn-tete-h: 50px; }
   .msn-tete { padding: 6px 6px 0 16px; align-items: center; }
   .msn-tete h1 { font-size: 28px; line-height: 44px; }
-  .msn-rond { border: 0; }
+  .msn-rond { border: 0; background: rgba(10, 16, 19, .6); }
   .msn-aide-texte { right: 6px; top: 48px; width: 300px; padding: 14px 16px; }
 
   .msn-scene { display: block; padding: 0; }
+  .msn-mur { top: calc(-1 * var(--msn-tete-h)); height: calc(var(--msn-tete-h) + 128px);
+    background:
+      linear-gradient(180deg, rgba(8, 12, 14, .6), transparent 55%),
+      var(--msn-mur-tel) 50% 100% / cover no-repeat,
+      var(--ground); }
   .msn-table { top: 128px; background:
-    radial-gradient(70% 120px at 22% 0, rgba(232, 163, 61, .07), transparent),
-    linear-gradient(180deg, #1c2a2f 0, #162327 30%, #0f181b 100%); }
+    linear-gradient(180deg, rgba(10, 8, 6, .15), rgba(10, 8, 6, .45) 30%, rgba(10, 8, 6, .6)),
+    var(--msn-plateau-tel) 50% 0 / cover no-repeat,
+    #1d130d; }
+  /* Le plateau descend sous la marge laissée au bouton de navigation. */
+  .msn-table { bottom: calc(-96px - env(safe-area-inset-bottom)); }
   .msn-bodegue { height: 128px; }
   .msn-lueur { left: -60px; top: -30px; width: 280px; height: 240px; transform: none; }
   .msn-pose { left: -51px; top: 6px; bottom: auto; height: 270px; transform: none; filter: drop-shadow(0 10px 14px rgba(0, 0, 0, .55)); }
@@ -355,6 +377,9 @@
   .msn-gain-sem { font-size: 14px; }
   .msn-pli-pied { margin-top: 0; }
 }
+
+/* Les échéances sont posées à même le bois : une ombre les en détache. */
+.msn-ligne, .msn-echeance { color: var(--ink2); text-shadow: 0 1px 3px rgba(0, 0, 0, .95), 0 0 8px rgba(0, 0, 0, .7); }
 
 /* Mouvement réduit : la pose change sans fondu. */
 [data-mouvement="reduit"] .msn-pose { transition: none; }
