@@ -1,152 +1,117 @@
 # La Brume de Thalazur
 
-Jeu de cartes à collectionner tiré de la campagne **La Brume de Thalazur** :
-on ouvre des boosters, on écoule ses doublons au Comptoir, on creuse les Mines
-de Kazim pour financer la suite. En ligne sur [thalazur.io](https://thalazur.io).
+> Jeu de cartes à collectionner tiré de la campagne D&D *La Brume de Thalazur*.
+> En ligne sur **[thalazur.io](https://thalazur.io)**.
 
-La partie est conservée dans le navigateur ; un compte Google **facultatif** la
-recopie sur Firebase pour la retrouver d'un appareil à l'autre.
+On ouvre des boosters, on complète sa collection, et on la fait travailler :
+au Donjon, dans les Mines de Kazim, sur les routes des Expéditions. La partie
+vit dans le navigateur ; un compte Google **facultatif** la synchronise entre
+appareils.
+
+**Vite · React 18 · Firebase (Auth, Firestore, Hosting) · Vitest · GitHub Pages**
 
 ---
+
+## Démarrer
+
+```powershell
+npm install
+npm run dev        # http://localhost:5173, avec la page Réglages MJ
+```
+
+Sans configuration Firebase, le site tourne entièrement en local, sans bouton
+de connexion. Pour le compte et la synchro : copier `.env.example` en
+`.env.local` et le remplir (de préférence avec un projet Firebase de test).
 
 ## Travailler sur le projet
 
-**Le dépôt Git est la seule source.** Jamais d'archive `.zip` extraite
-par-dessus le dossier : c'est ce qui a déjà fait revenir en arrière une
-dizaine de fichiers sans que rien ne le signale. Chaque sujet se traite sur
-sa propre branche, et `main` ne reçoit que du travail vérifié — c'est `main`
-qui est publié.
+Le dépôt Git est la seule source : **une branche par sujet**, jamais d'archive
+`.zip` extraite par-dessus le dossier. `main` ne reçoit que du travail vérifié,
+et c'est `main` qui est publié.
 
 ```powershell
-git switch main
-git pull                          # partir de la dernière version
-git switch -c sujet/mines-talents # une branche par sujet
-npm install                       # si package.json a changé
-npm run dev                       # site local, rechargé à chaque modification
+git switch main; git pull
+git switch -c sujet/mon-sujet
 # … travail …
-npm run verifier                  # lint + tests + build : doit passer
-git add -A
-git commit -m "Mines : …"
-git push -u origin sujet/mines-talents
+npm run verifier                   # lint + tests + build : doit passer
+git add -A; git commit -m "Module : …"
+git push -u origin sujet/mon-sujet # puis pull request vers main sur GitHub
 ```
 
-Puis sur GitHub : **Pull request** vers `main`. Le workflow relance la
-vérification ; une fois fusionnée, la branche part en ligne.
-
-Les règles communes aux conversations Claude sont dans
-[`CLAUDE.md`](CLAUDE.md).
-
-### Commandes
+Une fois la pull request fusionnée, le workflow GitHub publie le site. Les
+règles des conversations Claude sont dans [`CLAUDE.md`](CLAUDE.md).
 
 | Commande | Effet |
 |---|---|
-| `npm run dev` | Site local sur `http://localhost:5173`, avec la page Réglages MJ |
-| `npm run verifier` | Lint, tests, build : ce que le workflow exige avant de publier |
-| `npm test` | Tests (Vitest), dossier `tests/` |
-| `npm run lint` | ESLint, avec les règles des hooks React |
-| `npm run format -- <fichiers>` | Prettier sur les fichiers indiqués |
-| `npm run audit` | Audits d'économie, du Comptoir, du colporteur et des succès |
-| `npm run roster -- <fichier.xlsx> <id>` | Roster d'une extension, voir [roster et portraits](docs/conception/roster-et-portraits.md) |
-| `npm run portraits` | Convertit `../Base Image/<extension>/` en WebP dans `public/portraits/` |
-| `npm run portraits:publier` | Idem, puis publie sur le site Firebase des portraits (voir [roster et portraits](docs/conception/roster-et-portraits.md#publier-des-portraits)) |
-
-### Configuration
-
-Firebase (comptes, sauvegardes, mesure d'audience) se configure par les
-variables `VITE_FIREBASE_*` : voir `.env.example`. En local, `.env.local`
-(de préférence vers un projet Firebase de test) ; en production, les
-variables du dépôt GitHub. Sans elles, le site tourne entièrement en local.
-
-Les portraits des cartes ne sont pas dans le dépôt : ils sont publiés à part,
-sur `images.thalazur.io` (`VITE_PORTRAITS_BASE`), par `npm run portraits:publier`.
+| `npm run dev` | Site local, rechargé à chaque modification |
+| `npm run verifier` | Lint, tests et build — exigé avant toute fusion |
+| `npm test` | Tests Vitest (`tests/`) |
+| `npm run audit` | Simulations d'économie : Mines, Comptoir, colporteur, succès, missions, Donjon, Reliquaire |
+| `npm run apercu` | Aperçu en ligne d'une branche (voir plus bas) |
+| `npm run roster -- <fichier.xlsx> <id>` | Roster d'une extension depuis Excel |
+| `npm run portraits` / `portraits:publier` | Portraits en WebP, puis publication sur `images.thalazur.io` |
 
 ---
 
-## Les pages
+## Le jeu
 
-| Adresse | Page | Ce qu'on y fait |
-|---------|------|-----------------|
-| `#/` | Accueil | Écran de présentation de la campagne, et par où entrer |
-| `#/boutique` | Boutique | L'étagère des extensions |
-| `#/boutique/<id>` | Ouverture | Le sachet se déchire, les cartes montent une par une |
-| `#/bibliotheque` | Bibliothèque | Le set entier, obtenu ou non, et les exemplaires en trop |
-| `#/comptoir` | Le Comptoir | Marché de l'occasion : vendre ses doublons, acheter au rayon du jour |
-| `#/mines` | Les Mines de Kazim | Module idle : frapper le filon, embaucher, vendre l'étoile |
-| `#/donjon` | Le Donjon | Donjon du jour : carte à la Slay the Spire, combats à l'initiative avec ses propres cartes, butin versé à la bourse |
-| `#/expeditions` | Expéditions | Envoyer le banc sur les routes de ses Lieux, en temps réel : peu d'or par carte, de l'XP pour tous, des vestiges ; chaque Lieu progresse jusqu'à son rainbow. Le retour s'annonce dans une fenêtre, jamais pendant un combat ni une ouverture |
-| `#/reliquaire` | Reliquaire | Dissoudre ses exemplaires en trop en vestiges, forger une carte qui manque |
-| `#/missions` | Missions | Bodégué confie trois missions par jour et une par semaine, payées en PO et en boosters au choix ; une mission remplaçable par jour |
-| `#/succes` | Succès | Paliers Global et Collection à réclamer contre des PO et des sachets offerts ; titres |
-| `#/succes/classement` | Classement | Progression des joueurs connectés qui ont choisi d'y figurer, générale et par extension |
-| `#/profil` | Profil | Connexion Google, pseudo, classement et titre, synchronisation, export et suppression du compte, préférences (animations, doublons, son, cookies) |
-| `#/reglages` | Réglages MJ | **Développement seulement** (`npm run dev`) : roster, portraits, taux, mode test. Absente du site publié ; l'ancienne adresse renvoie au profil |
-| `#/confidentialite` | Confidentialité | Données, stockages, droits, mentions légales |
+| Page | Adresse | En une ligne |
+|---|---|---|
+| Boutique | `#/boutique` | L'étagère des extensions ; le sachet se déchire, les cartes montent une à une |
+| Bibliothèque | `#/bibliotheque` | Le set entier, obtenu ou non, et les doublons |
+| Comptoir | `#/comptoir` | Vendre ses doublons aux acheteurs du jour, acheter au rayon |
+| Mines de Kazim | `#/mines` | Idle : filons, compagnons, commandes de Tafix, Faveur du Fossoyeur |
+| Donjon | `#/donjon` | Mode principal : carte de passages, combats à l'initiative avec ses cartes |
+| Expéditions | `#/expeditions` | Envoyer le banc sur les routes de ses Lieux, en temps réel |
+| Reliquaire | `#/reliquaire` | Dissoudre ses doublons en vestiges, forger les cartes qui manquent |
+| Missions | `#/missions` | Trois missions par jour et une par semaine, confiées par Bodégué |
+| Succès | `#/succes` | Paliers à réclamer, titres, classement des joueurs connectés |
+| Profil | `#/profil` | Compte, pseudo, synchro, export, préférences |
+
+`#/reglages` (outils MJ) n'existe qu'en développement. Le raisonnement de
+chaque module est dans [`docs/conception/`](docs/conception/).
 
 ---
 
-## Structure
+## Architecture
 
 ```
 src/
-  App.jsx              coque : bandeau, navigation, aiguillage, pied de page
-  main.jsx             point d'entrée, polices et feuilles de style
-  extensions/          une extension par dossier (voir plus bas)
-    index.js           catalogue construit à partir des dossiers
-  jeu/
-    Jeu.jsx            l'état du jeu, partagé par les pages
-    reglages.js        préférences du joueur, leviers MJ
-    marche.js          ventes, achats et échanges sur la collection
-    colporteur.js      passage de Mirko
-    mine.js            crédit des PO de la mine
-    Compte.jsx         compte Google et synchronisation
-  expeditions/
-    regles.js          Les Expéditions : départ, estimation, retour — formules pures, testées
-  reliquaire/
-    regles.js          Le Reliquaire : dissolution et forge — formules pures, testées
-  missions/
-    regles.js          Les missions de Bodégué : tirage, progression, réclamation — formules pures, testées
-  donjon/
-    regles.js          Le Donjon : carte, combat, rencontres — formules pures, testées
-    Donjon.jsx         l'interface et les animations
-  mines/
-    donnees.js         strates, compagnons, équipement, talents, lexique
-    regles.js          économie de la mine : formules pures, testées
-    sauvegarde.js      la partie de mine et sa relecture
-    format.js          nombres et durées à la française
-    MinesDeKazim.jsx   l'interface
-  comptoir/            marché, acheteurs, négoce
-  succes/              succès et classement : catalogue, règles pures, ligne publique
-  routes/              une page par adresse
-  components/          cartes, sachet, ouverture, bibliothèque, bandeau cookies…
-  config/              paliers, économie, colporteur, cadre, PJ, mentions légales
-  lib/
-    sauvegarde/schema.js  format des sauvegardes et migrations
-    storage.js         stockage local, export, import
-    nuage/             Firebase (chargé à la demande) et fusion entre appareils
-    mesure.js          mesure d'audience, après consentement
-    …                  routeur, tirage, roster, audio, images
-  styles/              jetons, coque, cartes, modules
-tests/                 Vitest
-scripts/               roster, audits, purge annuelle des comptes
-public/                cadre et dos de carte, portraits du Comptoir, vignettes de la mine, 404
-                       (portraits/ : portraits des cartes, hors Git, rempli par npm run portraits)
-docs/
-  conception/          le pourquoi de chaque partie du jeu
-  charte-graphique.md  palette, typographie, mouvement — le code fait foi
-  audit-*.md           audits d'économie, de sécurité et de structure
+  jeu/          l'état du jeu partagé par les pages (Jeu.jsx) et le compte (Compte.jsx)
+  <module>/     donjon, mines, comptoir, expeditions, reliquaire, missions, succes
+                — chacun avec ses règles pures (regles.js), testées à nu
+  extensions/   une extension par dossier
+  lib/          stockage et migrations, synchro (nuage/), tirage, routeur, audio
+  routes/       une page par adresse
+  components/   cartes, ouverture, bibliothèque, fenêtres partagées
+  config/       paliers, économie, mentions légales
+tests/          Vitest
+scripts/        roster, portraits, audits d'économie, purge des comptes
+docs/           conception, charte graphique, audits
 ```
 
-### Les sauvegardes
+**Règles pures d'abord.** Tout ce qui calcule (tirage, combats, prix, gains)
+vit dans des fonctions sans React ni navigateur, couvertes par `tests/`.
+Les composants ne font que les brancher.
 
-Un seul numéro de format, `SCHEMA`, pour l'état du jeu, la mine, le compte et
-les fichiers exportés (`src/lib/sauvegarde/schema.js`).
+**Local d'abord.** La partie est dans le `localStorage` ; le compte en reçoit
+une copie. Deux appareils, ou deux onglets, se réconcilient par une fusion à
+trois voies (`src/lib/nuage/fusion.js`) : les compteurs s'additionnent, rien
+n'est payé deux fois. Détails dans
+[comptes et confidentialité](docs/conception/comptes-et-confidentialite.md).
 
-- **Ajouter un champ** : lui donner une valeur par défaut dans `etatVide()`
+### Sauvegardes
+
+Des joueurs ont une partie sur leur compte : **ne jamais la casser**. Un seul
+numéro de format, `SCHEMA` (`src/lib/sauvegarde/schema.js`).
+
+- **Ajouter un champ** : une valeur par défaut dans `etatVide()`
   (`lib/storage.js`) ou `etatNeuf()` (`mines/sauvegarde.js`). Rien d'autre.
-- **Changer le sens d'un champ** : monter `SCHEMA`, écrire la migration dans
-  `MIGRATIONS`, ajouter un test dans `tests/sauvegarde.test.js`.
+- **Changer le sens d'un champ** : monter `SCHEMA`, écrire la migration,
+  ajouter un test dans `tests/sauvegarde.test.js`. Un onglet resté sur
+  l'ancienne version se fige alors de lui-même et demande de recharger.
 
-### Les extensions
+### Extensions
 
 ```
 src/extensions/<id>/
@@ -155,35 +120,42 @@ src/extensions/<id>/
   roster.json    seulement pour une extension ouverte
 ```
 
-Ajouter un dossier suffit : aucune autre ligne de code.
+Ajouter le dossier suffit.
+
+---
+
+## Publier
+
+| Quoi | Comment |
+|---|---|
+| Le site | Automatique à chaque fusion dans `main` (GitHub Actions → GitHub Pages) |
+| Un aperçu de branche | `npm run apercu` : canal Firebase Hosting `recette`, valable 7 jours |
+| Les portraits | `npm run portraits:publier` (Firebase Hosting, cible `portraits`) |
+| Les règles Firestore | À la main, voir ci-dessous |
+
+**Aperçu.** Réunir les branches sur `recette`, avoir un `.env.local` rempli
+**sans** `VITE_FIREBASE_MEASUREMENT_ID`, puis `npm run apercu`. La première
+fois, ajouter l'adresse de l'aperçu dans Firebase → Authentication →
+Domaines autorisés. L'aperçu parle à la **même base** que la production : une
+branche qui monte `SCHEMA` ne s'y teste pas sans précaution.
+
+**Règles Firestore** (`firestore.rules`, projet `thalazur-tcg` déjà désigné
+par `.firebaserc`) :
+
+```powershell
+npx firebase-tools login                                  # première fois seulement
+npx firebase-tools deploy --only firestore:rules --dry-run # compile sans publier
+npx firebase-tools deploy --only firestore:rules          # publie
+```
+
+À publier **après** la mise en ligne du code qui en dépend, et jamais depuis
+une branche non fusionnée.
 
 ---
 
 ## Documentation
 
-- [Conception](docs/conception/) : boutique et tirage, bibliothèque, Comptoir
-  et colporteur, Mines, Donjon, Expéditions et Reliquaire, missions, succès et classement, comptes, accessibilité, roster
-  et portraits, notes.
-- [Charte graphique](docs/charte-graphique.md)
-- Audits : [économie](docs/audit-economie.md), [expéditions et reliquaire](docs/audit-expeditions-reliquaire.md), [sécurité](docs/audit-securite.md),
-  [structure](docs/audit-structure.md)
-
-## Aperçu en ligne avant `main`
-
-La production (thalazur.io) ne se déploie que depuis `main`. Pour voir des
-branches en ligne avant de les y fusionner :
-
-1. Réunir les branches sur `recette` (`git switch -c recette …`, puis `git merge`).
-2. Avoir un `.env.local` rempli (voir `.env.example`), **sans**
-   `VITE_FIREBASE_MEASUREMENT_ID` pour ne pas mêler l'aperçu aux statistiques.
-3. `npm run apercu` : vérifie, construit, et publie sur un canal d'aperçu
-   Firebase Hosting, à une adresse `…--recette-….web.app` valable 7 jours.
-
-Première fois seulement : `npx firebase-tools login` (le projet `thalazur-tcg`
-est déjà désigné par `.firebaserc`), puis ajouter l'adresse de l'aperçu dans Firebase →
-Authentication → Paramètres → Domaines autorisés, sinon la connexion Google
-est refusée.
-
-L'aperçu parle à la **même base Firestore** que la production : on y joue avec
-son vrai compte. Une branche qui monte `SCHEMA` ne se teste donc pas ainsi
-sans précaution.
+- [Conception](docs/conception/) — le pourquoi de chaque module
+- [Charte graphique](docs/charte-graphique.md) — palette, typographie, mouvement ; le code fait foi
+- Audits : [économie](docs/audit-economie.md) · [Comptoir](docs/audit-comptoir.md) · [Expéditions et Reliquaire](docs/audit-expeditions-reliquaire.md) · [sécurité](docs/audit-securite.md) · [structure](docs/audit-structure.md)
+- [Confidentialité](https://thalazur.io/#/confidentialite) — données, stockages, mentions légales
