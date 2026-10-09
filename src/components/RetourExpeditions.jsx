@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useJeu } from "../jeu/Jeu.jsx";
-import { rentrees } from "../expeditions/regles.js";
+import { etatExpeditions, rentrees } from "../expeditions/regles.js";
 import "../styles/expeditions.css";
 
 const IMG = `${import.meta.env.BASE_URL}expeditions/`;
@@ -37,6 +37,17 @@ export default function RetourExpeditions({ occupe }) {
   }, []);
 
   const dues = rentrees(etat).length;
+  // Et à la fin exacte de la prochaine route : le retour s'annonce aussitôt,
+  // sans laisser 30 s pendant lesquelles la page montrerait encore « Rappeler ».
+  const prochaine = Math.min(...etatExpeditions(etat).routes.map((r) => r.fin));
+  useEffect(() => {
+    if (!Number.isFinite(prochaine)) return undefined;
+    // setTimeout ne dépasse pas 24 jours ; au-delà, l'intervalle suffit.
+    const delai = prochaine - Date.now() + 200;
+    if (delai <= 0 || delai > 2 ** 31 - 1) return undefined;
+    const t = setTimeout(() => setTic((n) => n + 1), delai);
+    return () => clearTimeout(t);
+  }, [prochaine]);
   useEffect(() => {
     // Pas par-dessus une autre fenêtre (l'ouverture du Reliquaire) : le guetteur repassera.
     if (occupe || bilans || !dues || document.querySelector("dialog[open]")) return;

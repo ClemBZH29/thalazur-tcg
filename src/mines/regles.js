@@ -299,6 +299,12 @@ export function simulerAbsence(S, ms, rendement = rendementAbsence(S), alea = Ma
    (`audit-economie.mjs`). */
 export const jourLocal = (d = new Date()) => d.toLocaleDateString("sv");
 
+/** Le jour suivant `jour` (AAAA-MM-JJ, local). */
+export function lendemain(jour) {
+  const [a, m, j] = jour.split("-").map(Number);
+  return jourLocal(new Date(a, m - 1, j + 1));
+}
+
 /** Les commandes du jour, tirées à la première visite du jour. */
 /* Ce que sort le joueur par seconde, page ouverte : l'équipe, plus une
    frappe toutes les cinq secondes. Sans la frappe, la demande ignorait ce
@@ -327,12 +333,34 @@ export function commandesDuJour(S, jour = jourLocal()) {
   return { jour, liste };
 }
 
-/** Rafraîchit les commandes si le jour a changé. Rend `true` s'il y en a de nouvelles. */
+/** Rafraîchit les commandes si un jour nouveau s'est levé. Rend `true` s'il y en a de nouvelles. */
 export function majCommandes(S, jour = jourLocal()) {
-  if (S.commandes && S.commandes.jour === jour) return false;
+  /* Seulement si le jour est *postérieur* à celui des commandes (les dates
+     AAAA-MM-JJ se comparent comme des chaînes). Avec « différent », avancer
+     puis reculer l'horloge de l'appareil rendait trois commandes neuves à
+     chaque bascule : 2 200 PO pour dix aller-retour (audit du 09/10/2026).
+     Qui avance l'horloge prend de l'avance, puis attend ce jour-là. */
+  /* Un jour enregistré à plus d'un jour dans le futur vient d'une horloge
+     fausse, ici ou sur un autre appareil du compte (la synchro garde le jour
+     le plus récent) : on le ramène à aujourd'hui, sans commandes neuves.
+     Sinon plus aucune commande jusqu'à cette date (relecture, 09/10/2026). */
+  if (S.commandes && S.commandes.jour > lendemain(jour)) S.commandes = { ...S.commandes, jour };
+  if (S.commandes && !(jour > S.commandes.jour)) return false;
   S.commandes = commandesDuJour(S, jour);
   return true;
 }
+
+/** Le plus que les commandes d'un jour peuvent payer : toutes livrées, la
+    quatrième (Faveur « quatrieme », une petite de plus) comprise. L'application
+    n'en crédite pas davantage par jour (src/jeu/mine.js). */
+export const PO_COMMANDES_JOUR = COMMANDES.reduce((t, c) => t + c.po * (c.id === "petite" ? 2 : 1), 0);
+
+/* L'étoile filante attrapée : frappes multipliées le temps de la frénésie. */
+export const FRENESIE = { duree: 15000, mult: 7 };
+/** La frénésie court-elle à l'instant `t` ? Sa fin ne peut pas être plus loin
+    que sa durée : une étoile attrapée horloge avancée, puis l'horloge remise à
+    l'heure, laissait sinon la frénésie courir des heures. */
+export const enFrenesie = (fin, t = Date.now()) => fin > t && fin - t <= FRENESIE.duree;
 
 /** Minutes de mine (page ouverte et visible) passées depuis l'arrivée d'une commande. */
 export const presencePour = (S, c) => Math.max(0, ((S.presence || 0) - (c.depart || 0)) / 60);

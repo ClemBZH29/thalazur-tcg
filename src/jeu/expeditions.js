@@ -70,12 +70,20 @@ export function useExpeditions(etat, setEtat, pret = true) {
   const reliquaireOuvert = R.estOuvert(etat);
   const seuilReliquaire = useMemo(() => R.seuilAtteint({ collections }, PAR_EXTENSION), [collections]);
   const ouvrirReliquaire = useCallback(() => setEtat((e) => R.ouvrir(e)), [setEtat]);
+  // Le jour courant est relu au geste : la page peut tendre encore l'offre
+  // de la veille juste après minuit, et elle est alors refusée.
   const forgerOffre = useCallback((offre, options) => {
-    const ok = R.peutForgerOffre(etat, offre, options);
-    if (ok) setEtat((e) => R.forgerOffre(e, offre, options));
+    const o = { ...options, jour: R.jourDe() };
+    const ok = R.peutForgerOffre(etat, offre, o);
+    if (ok) setEtat((e) => R.forgerOffre(e, offre, o));
     return ok;
   }, [etat, setEtat]);
-  const revelerOffre = useCallback((offre) => setEtat((e) => R.reveler(e, offre)), [setEtat]);
+  const revelerOffre = useCallback((offre) => {
+    const jour = R.jourDe();
+    const ok = R.reveler(etat, offre, jour) !== etat;
+    if (ok) setEtat((e) => R.reveler(e, offre, jour));
+    return ok;
+  }, [etat, setEtat]);
 
   /* ── Entraînement : des doublons contre de l'expérience ─────────────── */
   /**
@@ -106,8 +114,11 @@ export function useExpeditions(etat, setEtat, pret = true) {
   const acheterRangCarte = useCallback((c, ligne) => operer((e) => F.acheterRang(e, c, ligne)), [operer]);
   const changerCompetenceCarte = useCallback((c, id) => operer((e) => F.changerCompetence(e, c, id)), [operer]);
   const etoilerCarte = useCallback((c, ligne) => operer((e) => F.etoiler(e, c, ligne)), [operer]);
-  // Une carte en expédition ne se remet pas à zéro : la route la rendrait.
-  const resetStarCarte = useCallback((c) => !X.enRoute(etat).has(cleXP(c)) && operer((e) => F.resetStar(e, c)), [etat, operer]);
+  // Une carte en expédition ne se remet pas à zéro : la route la rendrait. Ni
+  // une carte engagée dans la descente en cours (équipe, source, laissée
+  // derrière) : la fin de descente lui rendrait expérience et repos.
+  const resetStarCarte = useCallback((c) => !X.enRoute(etat).has(cleXP(c)) && !X.auDonjon(etat).has(cleXP(c))
+    && operer((e) => F.resetStar(e, c)), [etat, operer]);
 
   return {
     expeditions: ex,
@@ -117,6 +128,7 @@ export function useExpeditions(etat, setEtat, pret = true) {
     partirExpedition, rappelerExpedition, accueillirExpeditions,
     empechementExpedition: empechement,
     enExpedition: (c) => X.enRoute(etat).has(cleXP(c)),
+    enDescente: (c) => X.auDonjon(etat).has(cleXP(c)),
     vestiges: R.vestiges(etat),
     dissoudreCarte, forgerOffre, revelerOffre, entrainerCarte,
     reliquaireOuvert, seuilReliquaire, ouvrirReliquaire,

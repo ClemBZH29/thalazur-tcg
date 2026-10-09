@@ -502,9 +502,13 @@ export function prendreRelique(partie, a) {
   if (partie.reliques.length >= RELIQUES_MAX) {
     return { ...a, vendue: gagner(partie, (PRIX_RELIQUE[a.tier] || 6) * partie.etage) };
   }
+  // L'INI ajoutée est l'écart des pouvoirs de l'équipe avant et après : entre
+  // reliques, seule la plus forte compte, sous le plafond (meilleursEffets).
+  // Additionnées, quatre Sceaux de Valéran donnaient +8 au lieu de +2.
+  const iniAvant = modsEquipe(partie).ini || 0;
   partie.reliques.push(a);
   const b = BONUS_ARTEFACT[a.tier] || BONUS_ARTEFACT.commun;
-  const ini = effetsArtefact(a).filter((e) => e.mec === "ini").reduce((x, e) => x + e.val, 0);
+  const ini = (modsEquipe(partie).ini || 0) - iniAvant;
   for (const u of partie.equipe) { u.pvMax += b.pv; if (!u.ko) u.pv += b.pv; u.ini += ini; }
   return a;
 }
@@ -1057,20 +1061,28 @@ export const peutFuir = (partie, C) => partie.mode !== "infini" && C.genre !== "
 /**
  * La retraite coûte cher. Deux cinquièmes du sac tombent dans la débandade,
  * chacun y laisse un sixième de ses PV, et le compagnon le plus mal en point
- * reste derrière pour couvrir les autres : il quitte l'expédition, et sa
+ * (hors recrue ramassée en route) reste derrière pour couvrir les autres : il quitte l'expédition, et sa
  * carte part en convalescence un jour (voir `convalescences`).
  */
 export function fuir(partie) {
   const perte = Math.round(partie.sac * 0.4);
   partie.sac -= perte;
   for (const u of vivants(partie.equipe)) u.pv = Math.max(1, u.pv - Math.ceil(u.pvMax / 6));
-  const reste = [...vivants(partie.equipe)].sort((a, b) => a.pv / a.pvMax - b.pv / b.pvMax)[0];
+  // Le sacrifié est choisi parmi les cartes du joueur : la recrue, ramassée à
+  // mi-PV, était presque toujours la plus mal en point, et partait alors en
+  // convalescence et en expérience sur une carte qu'on ne possède pas
+  // forcément (voire en expédition). Une recrue ne reste derrière que s'il
+  // n'y a qu'elles debout (deux recrues ramassées), et ne coûte alors rien.
+  const parPv = (l) => [...l].sort((a, b) => a.pv / a.pvMax - b.pv / b.pvMax)[0];
+  const reste = parPv(vivants(partie.equipe).filter((u) => !u.recrue)) || parPv(vivants(partie.equipe));
   partie.equipe = partie.equipe.filter((u) => u !== reste);
-  partie.perdus.push(reste.c);
-  // Le compagnon resté derrière garde ce qu'il a appris jusque-là.
-  partie.xpPerdus = { ...(partie.xpPerdus || {}), [`${reste.c.ext}:${reste.c.id}`]: reste.xp || 0 };
+  if (!reste.recrue) {
+    partie.perdus.push(reste.c);
+    // Le compagnon resté derrière garde ce qu'il a appris jusque-là.
+    partie.xpPerdus = { ...(partie.xpPerdus || {}), [`${reste.c.ext}:${reste.c.id}`]: reste.xp || 0 };
+  }
   partie.stats.fuites = (partie.stats.fuites || 0) + 1;
-  return { titre: "Repli", texte: `Vous battez en retraite. ${perte} pièce${perte > 1 ? "s" : ""} glisse${perte > 1 ? "nt" : ""} du sac dans la débandade, chacun y laisse des plumes, et ${reste.c.nom} reste derrière pour couvrir les autres : retour au camp demain.` };
+  return { titre: "Repli", texte: `Vous battez en retraite. ${perte} pièce${perte > 1 ? "s" : ""} glisse${perte > 1 ? "nt" : ""} du sac dans la débandade, chacun y laisse des plumes, et ${reste.c.nom} reste derrière pour couvrir les autres${reste.recrue ? "." : " : retour au camp demain."}` };
 }
 
 /**
@@ -1152,6 +1164,42 @@ export function compositionDuJour(jour, allies, lieux = []) {
   const tri = [...lieux].sort((a, b) => `${a.ext}:${a.id}`.localeCompare(`${b.ext}:${b.id}`));
   const lieu = tri.length ? tri[Math.floor(r() * tri.length)] : null;
   return { roles, lieu: lieu ? `${lieu.ext}:${lieu.id}` : null };
+}
+
+const cleCarte = (c) => `${c.ext}:${c.id}`;
+/**
+ * L'imposition du jour tient-elle encore ? Elle est figée à la première
+ * visite, mais une carte peut sortir de la collection depuis (STAR RESET,
+ * vente) ou partir au repos (chute au donjon infini) : la composition ne
+ * pouvait plus être remplie, et le donjon du jour restait bloqué jusqu'au
+ * lendemain. `allies` : les alliés possédés qui peuvent encore descendre
+ * aujourd'hui (une carte en expédition compte, on peut la rappeler) ;
+ * `lieux` : les lieux possédés.
+ */
+export function impositionTenable(i, allies, lieux = []) {
+  if (!i?.roles) return false;
+  if (i.lieu && !lieux.some((l) => cleCarte(l) === i.lieu)) return false;
+  const n = {};
+  for (const c of allies) n[roleCarte(c)] = (n[roleCarte(c)] || 0) + 1;
+  return Object.entries(i.roles).every(([r, k]) => (n[r] || 0) >= k);
+}
+
+/**
+ * Ce qui manque côté source pour descendre, ou null. Au donjon du jour, le
+ * lieu imposé (« expedition » s'il est sur les routes, « perdu » s'il n'est
+ * plus dans la collection). Ailleurs, un lieu n'est exigé que si l'un d'eux
+ * est disponible : tous en expédition, on descend sans source, comme un
+ * joueur qui n'en a pas.
+ */
+export function manqueSource({ impose = null, lieux = [], cle = null, enExpedition = () => false }) {
+  if (impose) {
+    if (!impose.lieu) return null;
+    const l = lieux.find((x) => cleCarte(x) === impose.lieu);
+    return !l ? "perdu" : enExpedition(l) ? "expedition" : null;
+  }
+  const dispo = lieux.filter((l) => !enExpedition(l));
+  if (!dispo.length) return null;
+  return dispo.some((l) => cleCarte(l) === cle) ? null : "choisir";
 }
 
 /**

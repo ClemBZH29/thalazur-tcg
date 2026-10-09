@@ -40,6 +40,7 @@ import {
   coutN, nbAbordable, genererEclats, strate,
   naitreFilon, briser, simulerAbsence, rendementAbsence, absenceMax,
   majCommandes, livrer, livrable, manque, presencePour, effondrer as effondrerMine,
+  FRENESIE, enFrenesie,
 } from "./regles.js";
 import {
   BRANCHES, FAVEUR_PAR_ID, offrir, eclatsLibres, faveurAbordable, faveurOuverte,
@@ -47,7 +48,7 @@ import {
 } from "./faveur.js";
 import { Tafix, Fossoyeur, Grotte } from "./Personnages.jsx";
 import { fmt, fmtEnt, fmtDuree } from "./format.js";
-import { etatNeuf, relireMine } from "./sauvegarde.js";
+import { estFuture, etatNeuf, relireMine } from "./sauvegarde.js";
 import { comparerMines } from "../lib/nuage/fusion.js";
 
 /** Au-delà, la boucle n'a pas tourné : le navigateur avait suspendu l'onglet. */
@@ -56,7 +57,6 @@ const TAFIX_VIDE = { vus: [], onglets: [], muet: false };
 const auHasard = (liste) => liste[Math.floor(Math.random() * liste.length)];
 /** Une étoile filante toutes les trois à six minutes de présence, quinze secondes de frénésie. */
 const FILANTE_ECART = [180000, 360000];
-const FRENESIE = { duree: 15000, mult: 7 };
 
 /**
  * Effets actifs par défaut ?
@@ -127,6 +127,11 @@ function MinesDeKazim({
      « nouveaux » à chaque chargement d'une partie avancée. La détection n'est
      armée qu'une fois la lecture du magasin terminée. */
   const [charge, setCharge] = useState(false);
+  /* La sauvegarde vient d'une version plus récente du site (un autre onglet,
+     un autre appareil) : ce vieil onglet ne sait pas la lire, et ne doit
+     surtout pas la remplacer par une mine neuve. Il se fige — rien ne
+     s'écrit plus (`relue` reste faux) — et demande de recharger la page. */
+  const [gelee, setGelee] = useState(false);
   /* L'infobulle des jetons. Une seconde d'attente, parce qu'un survol de
      passage en traverse six sans vouloir en lire aucun. */
   const [survol, setSurvol] = useState(null);
@@ -312,7 +317,7 @@ function MinesDeKazim({
     const crit = Math.random() * 100 < critChance(s);
     // God-Pioche : exactement ce qui reste au filon, pour qu'il se brise sans
     // que le surplus ne file dans les suivants.
-    const frenesie = frenesieRef.current > Date.now() ? FRENESIE.mult : 1;
+    const frenesie = enFrenesie(frenesieRef.current) ? FRENESIE.mult : 1;
     const d = godPioche ? Math.max(1, s.pv) : degatsClic(s) * (crit ? critMult(s) : 1) * frenesie;
     appliquerDegats(d);
     if (effetsRef.current) {
@@ -365,7 +370,7 @@ function MinesDeKazim({
       rattraper(ecart, 1, ecart > 60000 ? "Onglet en arrière-plan pendant" : null);
     } else {
       /* L'équipe, et la Pioche enchantée qui frappe seule (sans critique). */
-      const auto = frappesAuto(s) * degatsClic(s) * (frenesieRef.current > t ? FRENESIE.mult : 1);
+      const auto = frappesAuto(s) * degatsClic(s) * (enFrenesie(frenesieRef.current, t) ? FRENESIE.mult : 1);
       const p = dps(s) + auto;
       if (p > 0) appliquerDegats(p * (ecart / 1000));
       // Le temps de mine, page ouverte et visible : la grosse commande le lit.
@@ -417,11 +422,18 @@ function MinesDeKazim({
      ses sauvegardes périodiques écrasaient celle de l'onglet où l'on jouait —
      des achats qui disparaissaient. Il sauve une fois en se cachant (`force`),
      et reprend au retour la partie la plus avancée (voir `reprendre`). */
+  const geler = useCallback(() => {
+    relue.current = false;
+    setGelee(true);
+  }, []);
   const sauver = useCallback((force = false) => {
     if (!relue.current) return;
     if (!force && document.hidden) return;
+    /* Une version plus récente du site a écrit entre-temps (autre fenêtre) :
+       on ne l'écrase pas avec l'ancien format. */
+    if (storage.voir && estFuture(storage.voir())) { geler(); return; }
     try { storage.set(JSON.stringify(S.current)); } catch { /* la partie continue */ }
-  }, [storage]);
+  }, [storage, geler]);
 
   useEffect(() => {
     let vivant = true;
@@ -429,6 +441,7 @@ function MinesDeKazim({
       .then(() => storage.get())
       .then((brut) => {
       if (!vivant) return;
+      if (estFuture(brut)) { geler(); return; }
       const d = relireMine(brut);
       if (d) {
         const avant = d.dernierTick;
@@ -464,7 +477,9 @@ function MinesDeKazim({
        avancée, remplace celle qu'on avait laissée. */
     const reprendre = () => {
       if (!relue.current || !storage.voir) return;
-      const d = relireMine(storage.voir());
+      const brut = storage.voir();
+      if (estFuture(brut)) { geler(); return; }
+      const d = relireMine(brut);
       if (!d || comparerMines(d, S.current) <= 0) return;
       S.current = d;
       if (!S.current.pvMax) nouveauFilon();
@@ -482,7 +497,7 @@ function MinesDeKazim({
       // Le prochain montage relira la sauvegarde avant d'avoir le droit d'écrire.
       relue.current = false;
     };
-  }, [storage, sauver, rattraper, nouveauFilon]);
+  }, [storage, sauver, rattraper, nouveauFilon, geler]);
 
   /* ---------- actions ---------- */
 
@@ -537,7 +552,9 @@ function MinesDeKazim({
     setReplique(auHasard(s.commandes.liste.every((c) => c.livree)
       ? REPLIQUES_COMMANDES.fini : REPLIQUES_COMMANDES.livree));
     if (typeof onCommande === "function") {
-      try { onCommande(po); } catch (err) { console.error("[Kazim] onCommande", err); }
+      // Le jour de la commande, pas celui du crédit : livrée juste après
+      // minuit, une commande de la veille compte au plafond de la veille.
+      try { onCommande(po, s.commandes.jour); } catch (err) { console.error("[Kazim] onCommande", err); }
     }
     sauver();
     forcer();
@@ -967,6 +984,28 @@ function MinesDeKazim({
     ),
   };
 
+  if (gelee) {
+    return (
+      <div className="kz">
+        <div className="kz-wrap">
+          <div className="kz-remise-bloc" role="alert">
+            <h3>Une version plus récente du site est passée par ici</h3>
+            <p>
+              Votre mine a été enregistrée par une version plus récente du site, que
+              cette page ne sait pas encore lire. Rechargez la page pour la retrouver :
+              rien n'a été effacé.
+            </p>
+            <p>
+              <button type="button" className="kz-btn" onClick={() => window.location.reload()}>
+                Recharger la page
+              </button>
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={"kz" + (effets ? "" : " kz-sobre")}
          style={{ "--kz-teinte": teinteFortune(s) }}>
@@ -1237,7 +1276,7 @@ function MinesDeKazim({
                 </svg>
               </button>
             )}
-            {frenesieRef.current > Date.now() && (
+            {enFrenesie(frenesieRef.current) && (
               <p className="kz-frenesie" aria-hidden="true">
                 {"Frénésie \u00d7" + FRENESIE.mult + " \u00b7 " + Math.ceil((frenesieRef.current - Date.now()) / 1000) + " s"}
               </p>

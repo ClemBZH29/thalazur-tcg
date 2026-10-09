@@ -46,7 +46,11 @@ graine du jour suivie du numéro de remplacement.
 
 **On ne confie que le possible.** Chaque type déclare `dispo` : pas de vente
 au Comptoir sans dix doublons, pas de Donjon sans quatre PNJ, pas de
-Reliquaire avant son ouverture. Les « cartes nouvelles » se jugent en
+Reliquaire avant son ouverture. Les PNJ comptés sont les **alliés** : un PNJ
+hostile (Créature, Animal, Criminel, `HOSTILES` du Donjon) n'entre ni dans une
+équipe du Donjon ni dans une expédition. Le surplus de la dissolution est
+celui que le Reliquaire accepte (`dissolubles`) : exemplaires normaux en trop
+des quatre paliers, sans cartes PJ, full art ni rainbow (09/10/2026). Les « cartes nouvelles » se jugent en
 espérance : ce qu'un booster apporte de cartes nouvelles (pour chaque
 palier, les cartes qu'il en tire multipliées par la part qui manque,
 `nouvellesParBooster`), fois les boosters que le gain passif ouvre sur la
@@ -57,8 +61,15 @@ quand même trois missions, la troisième dans un mode déjà pris.
 
 **Rien de gagné ne se perd.** Au changement de jour ou de semaine, une
 mission remplie et pas réclamée est payée au passage. Le passage est vérifié
-au premier rendu, puis chaque minute pour une page restée ouverte
-(`src/jeu/missions.js`).
+au premier rendu, puis chaque minute, à minuit pile (`delaiControle`), et au
+retour sur l'onglet (`src/jeu/missions.js`). Réclamer et remplacer font
+toujours passer le jour d'abord : juste après minuit, un clic sur une mission
+de la veille la paie par le passage au lieu de viser celle du même rang du
+nouveau jour ; un remplacement dont l'animation finit après minuit est refusé
+(`remplacerMission` reçoit le jour des billets affichés). Limite qui reste :
+un geste qui fait bouger un compteur dans le quart de seconde qui suit minuit,
+ou au réveil d'un ordinateur avant que le minuteur ne repasse, compte encore
+pour la veille.
 
 **Sauvegarde.** `etat.missions = { jour, remplacees, quotidiennes, semaine,
 hebdo }`, valeur par défaut `null` dans `etatVide()` ; aucune montée de
@@ -75,10 +86,10 @@ quelques dizaines de PO.
 | Ajouter des cartes nouvelles | 2 | 40 PO | un booster en apporte au moins 0,67 en espérance (jusque vers 80 % de complétion) |
 | Vendre au Comptoir | 5 | 40 PO | au moins 10 doublons |
 | Livrer des commandes à Tafix | 3 | 40 PO | toujours (la grosse demande un quart d'heure de mine ; depuis le 07/10/2026, à la place de « Rapporter 60 PO des Mines ») |
-| Descendre au Donjon | 1 | 40 PO | au moins 4 PNJ |
-| Vaincre des gardiens | 2 | 50 PO | 4 PNJ et 3 descentes jouées |
-| Accueillir une expédition | 1 | 30 PO | un Lieu et 4 PNJ |
-| Dissoudre au Reliquaire | 10 | 30 PO | Reliquaire ouvert, 15 doublons |
+| Descendre au Donjon | 1 | 40 PO | au moins 4 PNJ alliés |
+| Vaincre des gardiens | 2 | 50 PO | 4 PNJ alliés et 3 descentes jouées |
+| Accueillir une expédition | 1 | 30 PO | un Lieu et 4 PNJ alliés |
+| Dissoudre au Reliquaire | 10 | 30 PO | Reliquaire ouvert, 15 exemplaires dissolubles |
 
 La mission de la semaine reprend les mêmes types à plus grande échelle
 (15 boosters, 12 cartes nouvelles, 40 ventes, 15 commandes de Tafix, 5 descentes,

@@ -22,7 +22,7 @@ import { useJeu } from "../jeu/Jeu.jsx";
  * « réserve pleine, 720 PO » qui contredisait la pastille du bandeau.
  */
 export default function Caisse() {
-  const { bourse, gratuit } = useJeu();
+  const { bourse, gratuit, etat } = useJeu();
   const [maintenant, setMaintenant] = useState(() => Date.now());
 
   useEffect(() => {
@@ -46,6 +46,9 @@ export default function Caisse() {
   const enPoche = Math.floor(bourse.po);
   const abordables = Math.floor(bourse.po / prix);
   const attente = attenteAvantAchat(bourse);
+  // Les sachets offerts par les succès et les missions s'ouvrent sans payer :
+  // annoncer « prochain dans 3 h » à qui en a en réserve était faux.
+  const offerts = Object.values(etat.sachets || {}).reduce((n, v) => n + Math.max(0, Number(v) || 0), 0);
 
   const depuis = Math.min(bourse.credite || maintenant, maintenant);
   const po = bourse.po >= plafond
@@ -72,8 +75,13 @@ export default function Caisse() {
 
       <div className="caisse-bloc">
         <span className="caisse-quoi">Boosters abordables</span>
-        {abordables > 0
-          ? <b className="caisse-valeur">{abordables}</b>
+        {abordables > 0 || offerts > 0
+          ? (
+            <b className="caisse-valeur">
+              {abordables}
+              {offerts > 0 && <span className="caisse-offerts"> + {offerts} offert{offerts > 1 ? "s" : ""}</span>}
+            </b>
+          )
           : <b className="caisse-valeur petit">prochain dans {formatDuree(attente)}</b>}
       </div>
 

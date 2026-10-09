@@ -2,8 +2,8 @@
 import { test } from "vitest";
 import assert from "node:assert/strict";
 import {
-  fusionner3, fusionnerDonjon, fusionnerExpeditions, fusionnerMine, fusionnerMissions, fusionnerParCle,
-  fusionnerPity, fusionnerReliquaire, signature,
+  fusionner3, fusionnerDonjon, fusionnerExpeditions, fusionnerMine, fusionnerMissions,
+  fusionnerComptoir, fusionnerPity, fusionnerReliquaire, signature,
 } from "../src/lib/nuage/fusion.js";
 import { ECONOMIE } from "../src/config/tiers.js";
 
@@ -235,7 +235,7 @@ test("donjon : les convalescences s'unissent", () => {
 
 test("comptoir : chaque extension suit le côté qui l'a touchée", () => {
   const b = { tro: { v: 1 }, nak: { v: 1 } };
-  const f = fusionnerParCle(b, { ...b, tro: { v: 2 } }, { ...b, nak: { v: 3 } });
+  const f = fusionnerComptoir(b, { ...b, tro: { v: 2 } }, { ...b, nak: { v: 3 } });
   assert.deepEqual(f, { tro: { v: 2 }, nak: { v: 3 } });
 });
 
@@ -245,4 +245,106 @@ test("garantie de légendaire : les boosters des deux côtés comptent, une lég
   const f = fusionnerPity(b, { t: { depuis: 1, vu: true } }, { t: { depuis: 13, vu: false } });
   assert.equal(f.t.depuis, 1);
   assert.equal(f.t.vu, true);
+});
+
+test("deux appareils vendent chacun leurs doublons : la dernière carte reste", () => {
+  const b = { ...vide, collections: { t: { a: carte("a", 3, 3) } } };
+  const i = { ...vide, collections: { t: { a: carte("a", 1, 1) } } };
+  const l = { ...vide, collections: { t: { a: carte("a", 1, 1) } } };
+  const f = fusionner3(b, i, l, vide);
+  assert.equal(f.collections.t.a.normale, 1);
+  assert.equal(f.collections.t.a.rainbow, 1);
+});
+
+test("un STAR RESET d'un côté (case vidée) n'est pas défait par le plancher", () => {
+  const b = { ...vide, collections: { t: { a: carte("a", 3, 1) } } };
+  const i = { ...vide, collections: { t: { a: carte("a", 0, 0) } } };
+  const f = fusionner3(b, i, b, vide);
+  assert.equal(f.collections.t.a.normale, 0);
+  assert.equal(f.collections.t.a.rainbow, 0);
+});
+
+/** Un marché sérialisé (voir Marche.serialiser), réduit à ce que la fusion lit. */
+const marche = (jour, o = {}) => ({
+  jour, stock: { "x#n": 4 }, stockPrec: { "x#n": 4 }, fonds: 10000, verses: 0, encaisses: 0,
+  marchandages: {}, achats: {}, achatsJoueur: {}, vitrine: null, journal: [], ...o,
+});
+
+test("comptoir : le même jour, les quotas pris des deux côtés s'additionnent", () => {
+  const b = { t: marche(300, { achats: { lise: 2 } }) };
+  const i = { t: marche(300, { achats: { lise: 20 }, marchandages: { "lise|x#n": { ok: true } }, achatsJoueur: { "y#n": true },
+    stock: { "x#n": 22 }, fonds: 9000, verses: 1000 }) };
+  const l = { t: marche(300, { achats: { lise: 20, ysee: 3 }, marchandages: { "ysee|x#n": { ok: false } }, achatsJoueur: { "z#n": true },
+    stock: { "x#n": 25 }, fonds: 8000, verses: 2000 }) };
+  const f = fusionnerComptoir(b, i, l).t;
+  assert.deepEqual(f.achats, { lise: 38, ysee: 3 });
+  assert.deepEqual(Object.keys(f.marchandages).sort(), ["lise|x#n", "ysee|x#n"]);
+  assert.deepEqual(f.achatsJoueur, { "y#n": true, "z#n": true });
+  // La caisse et le rayon portent les ventes des deux côtés.
+  assert.equal(f.fonds, 7000);
+  assert.equal(f.verses, 3000);
+  assert.equal(f.stock["x#n"], 43);
+});
+
+test("comptoir : base d'un autre jour, chaque côté compte tout son quota", () => {
+  const b = { t: marche(299, { achats: { lise: 15 } }) };
+  const f = fusionnerComptoir(b, { t: marche(300, { achats: { lise: 20 } }) }, { t: marche(300, { achats: { lise: 20 } }) }).t;
+  assert.equal(f.achats.lise, 40);
+});
+
+test("comptoir : jours différents, le plus récent l'emporte ; un côté inchangé suit l'autre", () => {
+  const b = { t: marche(299) };
+  const recent = marche(300, { achats: { lise: 4 } });
+  assert.deepEqual(fusionnerComptoir(b, { t: marche(299, { achats: { lise: 9 } }) }, { t: recent }).t, recent);
+  assert.deepEqual(fusionnerComptoir(b, { t: recent }, { t: marche(299, { achats: { lise: 9 } }) }).t, recent);
+  assert.deepEqual(fusionnerComptoir(b, b, { t: recent }).t, recent);
+  assert.deepEqual(fusionnerComptoir(b, { t: recent }, b).t, recent);
+  assert.deepEqual(fusionnerComptoir({}, { t: recent }, {}).t, recent);
+});
+
+/* ── Mines entre deux appareils (audit du 09/10/2026) ─────────────────── */
+
+const commande = (id, livree) => ({ id, taille: id, demande: 100, po: 40, presence: 0, depart: 0, livree });
+const mineAvec = (brisesTotal, jour, livrees) => JSON.stringify({
+  regles: 3, brisesTotal, etoileTotale: brisesTotal * 10,
+  commandes: { jour, liste: ["petite", "moyenne", "grosse"].map((id) => commande(id, livrees.includes(id))) },
+});
+
+test("Mines : une commande livrée sur l'appareil le moins avancé ne se livre pas une seconde fois", () => {
+  // Ici, plus avancé, n'a rien livré ; là a livré la petite (la bourse l'a déjà additionnée).
+  const ici = mineAvec(50, "2026-10-09", []);
+  const la = mineAvec(20, "2026-10-09", ["petite", "grosse"]);
+  const f = JSON.parse(fusionnerMine(ici, la));
+  assert.equal(f.brisesTotal, 50);                     // la plus avancée l'emporte toujours
+  assert.deepEqual(f.commandes.liste.filter((c) => c.livree).map((c) => c.id), ["petite", "grosse"]);
+  // Dans l'autre sens aussi.
+  const g = JSON.parse(fusionnerMine(la, ici));
+  assert.equal(g.brisesTotal, 50);
+  assert.deepEqual(g.commandes.liste.filter((c) => c.livree).map((c) => c.id), ["petite", "grosse"]);
+});
+
+test("Mines : de deux jours de commandes, le plus récent l'emporte", () => {
+  const ici = mineAvec(50, "2026-10-08", ["petite"]);
+  const la = mineAvec(20, "2026-10-09", ["moyenne"]);
+  const f = JSON.parse(fusionnerMine(ici, la));
+  assert.equal(f.brisesTotal, 50);
+  assert.equal(f.commandes.jour, "2026-10-09");
+  assert.deepEqual(f.commandes.liste.filter((c) => c.livree).map((c) => c.id), ["moyenne"]);
+});
+
+test("Mines : le solde de remise payé sur deux appareils avant la synchro n'est versé qu'une fois", () => {
+  const b = { ...vide, bourse: { po: 100, credite: 0, gagne: 0 }, mine: null };
+  // « Rouvrir » sur les deux appareils : chacun a versé 150 PO.
+  const ici = { ...b, bourse: { po: 250, credite: 0, gagne: 150 }, mine: { regles: 3, solde: 150 } };
+  const la = { ...b, bourse: { po: 250, credite: 0, gagne: 150 }, mine: { regles: 3, solde: 150 } };
+  const f = fusionner3(b, ici, la, vide);
+  assert.equal(f.bourse.po, 250);
+  assert.deepEqual(f.mine, { regles: 3, solde: 150 });
+  // Payé d'un seul côté : rien à reprendre.
+  const seul = fusionner3(b, ici, { ...b }, vide);
+  assert.equal(seul.bourse.po, 250);
+  // Payé avant la base : rien à reprendre non plus.
+  const paye = { ...b, bourse: { po: 250, credite: 0, gagne: 150 }, mine: { regles: 3, solde: 150 } };
+  const ensuite = fusionner3(paye, { ...paye, bourse: { ...paye.bourse, po: 260 } }, paye, vide);
+  assert.equal(ensuite.bourse.po, 260);
 });

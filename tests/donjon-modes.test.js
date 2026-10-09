@@ -3,7 +3,7 @@ import { describe, expect, test } from "vitest";
 import { readFileSync } from "node:fs";
 import extension from "../src/extensions/troupe-valeran/extension.js";
 import {
-  IMPOSES, ROLES, cartesDonjon, compositionDuJour, creerPartie, demarrerCombat, gainsXP, peutFuir, rapporte, roleCarte, tirage,
+  IMPOSES, ROLES, allie, cartesDonjon, modsEquipe, prendreRelique, compositionDuJour, convalescences, fuir, creerPartie, demarrerCombat, gainsXP, impositionTenable, manqueSource, peutFuir, rapporte, roleCarte, tirage,
 } from "../src/donjon/regles.js";
 import { DONJON, poDuButin } from "../src/config/tiers.js";
 
@@ -75,5 +75,85 @@ describe("les rôles imposés à la main (roles-cartes.json)", () => {
   test("sans entrée, le rôle vient de l'archétype", () => {
     const c = POOLS.allies.find((x) => !IMPOSES[`${x.ext}:${x.id}`]);
     expect(roleCarte(c)).toBe(roleCarte({ rep1: c.rep1 }));
+  });
+});
+
+describe("la source au départ", () => {
+  const lieux = POOLS.lieux.slice(0, 3);
+  const cle = (c) => `${c.ext}:${c.id}`;
+  test("tous les lieux en expédition : l'infini descend sans source", () => {
+    expect(manqueSource({ lieux, cle: null, enExpedition: () => true })).toBeNull();
+    expect(manqueSource({ lieux, cle: cle(lieux[0]), enExpedition: () => true })).toBeNull();
+  });
+  test("un lieu disponible : il faut le choisir", () => {
+    const enExp = (l) => l !== lieux[2];
+    expect(manqueSource({ lieux, cle: null, enExpedition: enExp })).toBe("choisir");
+    expect(manqueSource({ lieux, cle: cle(lieux[0]), enExpedition: enExp })).toBe("choisir");
+    expect(manqueSource({ lieux, cle: cle(lieux[2]), enExpedition: enExp })).toBeNull();
+  });
+  test("au donjon du jour, le lieu imposé : en expédition, ou perdu", () => {
+    const impose = { roles: {}, lieu: cle(lieux[0]) };
+    expect(manqueSource({ impose, lieux, enExpedition: (l) => l === lieux[0] })).toBe("expedition");
+    expect(manqueSource({ impose, lieux: lieux.slice(1) })).toBe("perdu");
+    expect(manqueSource({ impose, lieux })).toBeNull();
+    expect(manqueSource({ impose: { roles: {}, lieu: null }, lieux })).toBeNull();
+  });
+});
+
+describe("l'imposition du jour, quand la collection change", () => {
+  const allies = POOLS.allies.slice(0, 40), lieux = POOLS.lieux.slice(0, 6);
+  const i = compositionDuJour("2026-10-06", allies, lieux);
+  test("elle tient tant que ses cartes sont là", () => {
+    expect(impositionTenable(i, allies, lieux)).toBe(true);
+  });
+  test("le lieu imposé sorti de la collection (STAR RESET) : elle ne tient plus", () => {
+    expect(impositionTenable(i, allies, lieux.filter((l) => `${l.ext}:${l.id}` !== i.lieu))).toBe(false);
+  });
+  test("plus assez de compagnons d'un rôle imposé : elle ne tient plus", () => {
+    const [role] = Object.keys(i.roles);
+    expect(impositionTenable(i, allies.filter((c) => roleCarte(c) !== role), lieux)).toBe(false);
+  });
+  test("retirée au sort sur ce qui reste, elle tient de nouveau", () => {
+    const reste = lieux.filter((l) => `${l.ext}:${l.id}` !== i.lieu);
+    const j = compositionDuJour("2026-10-06", allies, reste);
+    expect(impositionTenable(j, allies, reste)).toBe(true);
+  });
+});
+
+describe("la recrue, à la fuite", () => {
+  const avecRecrue = () => {
+    const p = partie("jour");
+    const u = allie(p, POOLS.allies[10]); u.recrue = true; u.pv = Math.ceil(u.pvMax * 0.5);
+    p.equipe.push(u);
+    for (const x of p.equipe) x.xp = 12;
+    return { p, u };
+  };
+  test("le compagnon laissé derrière n'est jamais la recrue", () => {
+    const { p, u } = avecRecrue();
+    fuir(p);
+    expect(p.equipe).toContain(u);
+    expect(p.perdus.map((c) => c.id)).not.toContain(u.c.id);
+  });
+  test("la recrue ne reçoit ni repos ni expérience", () => {
+    const { p, u } = avecRecrue();
+    fuir(p);
+    const cle = `${u.c.ext}:${u.c.id}`;
+    for (const iss of ["sortie", "defaite"]) {
+      expect(convalescences(p, iss).map((x) => x.cle)).not.toContain(cle);
+      expect(gainsXP(p, iss).map((x) => `${x.c.ext}:${x.c.id}`)).not.toContain(cle);
+    }
+  });
+});
+
+describe("l'initiative des reliques", () => {
+  test("quatre Sceaux de Valéran : la plus forte seulement, pas la somme", () => {
+    const sceau = POOLS.artefacts.find((a) => a.nom.startsWith("Sceau de Val"));
+    expect(sceau).toBeTruthy();
+    const p = partie("jour");
+    const avant = p.equipe.map((u) => u.ini);
+    for (let i = 0; i < 4; i++) prendreRelique(p, sceau);
+    const gain = modsEquipe(p).ini || 0;
+    expect(gain).toBeGreaterThan(0);
+    expect(p.equipe.map((u) => u.ini)).toEqual(avant.map((x) => x + gain));
   });
 });

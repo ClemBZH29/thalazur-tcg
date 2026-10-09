@@ -116,6 +116,16 @@ chercher lui-même — une vente au Comptoir, une pesée d'étoile chez les kobo
 se cumule sans limite. Le crédit passif se calcule sur un horodatage, donc il
 continue de courir fenêtre fermée.
 
+**Le règlement d'une ouverture** (`src/jeu/recolte.js`, 09/10/2026) est relu
+sur la partie au moment où le booster est versé : le sachet offert d'abord,
+s'il en reste ; sinon le vrai prix (étagère ou botte du colporteur). Un
+sachet consommé entre-temps par un autre onglet ne donne donc plus un booster
+gratuit, et une bourse qui ne couvre plus le prix refuse l'ouverture — le
+sachet se remet à neuf au lieu de dérouler des cartes jamais acquises. La
+botte compte comme affaire du colporteur à ce moment-là, et seulement si
+l'achat a lieu. Quitter la page pendant les 640 ms où le papier tombe annule
+l'ouverture, qui n'est alors ni tirée ni débitée.
+
 ### Les doublons s'accumulent
 
 Un exemplaire tombant dans une case déjà remplie **reste dans l'inventaire**.
@@ -215,6 +225,11 @@ rythme de « Ouvrir sans glisser ». Un glissement vertical reste un défilement
 | Espace / Entrée / Flèche droite | équivalents clavier |
 | Échap | ferme le plein écran |
 
+Une carte ne se dégage qu'une fois : deux « Suivante » dans les 240 ms du
+glissement, ou Espace qui déclenche aussi le clic natif du bouton, sautaient
+une carte et pouvaient finir sur un écran vide. Une touche maintenue ne répète
+plus le geste.
+
 L'irisation n'est pas une animation en boucle : la position des dégradés est
 calculée depuis les mêmes variables CSS que la rotation 3D. Rien ne bouge tant
 que la main ne bouge pas.
@@ -243,6 +258,11 @@ empilés.
 
 Le délai avant le prochain booster n'est plus répété sur la vignette : la caisse
 le donne, une fois.
+
+Les sachets offerts (succès, missions) s'ajoutent au compte des boosters
+abordables, « + 2 offerts » : la caisse annonçait « prochain dans 3 h » à qui
+en avait en réserve. Devant un sachet du colporteur, le délai affiché à
+l'ouverture se calcule sur le prix de la botte.
 
 Le plafond de 720 PO borne le **gain passif**, pas la bourse : ventes et mine
 peuvent la porter au-delà. L'ancien libellé « Réserve pleine, 720 PO »

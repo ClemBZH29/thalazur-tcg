@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import Curseur from "../components/Curseur.jsx";
 import { temoinEffets, temoinMusique } from "../son/index.js";
-import { CLE_SECOURS, compterCartes, useCompte } from "../jeu/Compte.jsx";
+import { compterCartes, useCompte } from "../jeu/Compte.jsx";
 import { useJeu } from "../jeu/Jeu.jsx";
 import { Lien } from "../lib/routeur.jsx";
-import { effacer, exporter, importer } from "../lib/storage.js";
+import { ecrireMine, effacer, exporter, importer, lireSecours, restaurerSecours } from "../lib/storage.js";
 import { REVENTE } from "../config/tiers.js";
 import { mesureDisponible, rouvrirBandeau, useConsentement } from "../lib/mesure.js";
 import { LEGAL } from "../config/legal.js";
@@ -243,14 +243,26 @@ function Connecte() {
  * plus publique — importer depuis la bibliothèque ne disait donc rien.
  */
 function Sauvegarde() {
-  const { etat, setEtat } = useJeu();
+  const { etat, setEtat, rechargerMine } = useJeu();
   const fichierRef = useRef(null);
   const [message, setMessage] = useState(null);
 
   // La copie gardée par l'appareil avant qu'une synchronisation ne lui retire
   // des cartes (voir `adopter`, src/jeu/Compte.jsx).
-  const secours = (() => { try { return JSON.parse(localStorage.getItem(CLE_SECOURS)); } catch { return null; } })();
+  const secours = lireSecours();
   const nSecours = secours ? compterCartes(secours.jeu) : 0;
+
+  // Restaurer, pas importer : la copie est une version antérieure de cette
+  // même partie. L'import en fusion additionnait (10 et 9 → 19, puis 29 au
+  // second clic) ; ici chaque compteur garde le plus grand des deux, et la
+  // copie s'efface une fois reprise.
+  const restaurer = () => {
+    const r = restaurerSecours(etat, secours);
+    if (!r) { setMessage({ ok: false, texte: "La copie de secours est illisible." }); return; }
+    setEtat(r.jeu);
+    if (r.mine) { ecrireMine(r.mine); rechargerMine(); }
+    setMessage({ ok: true, texte: "Copie de secours restaurée : ce qu'elle avait de plus a rejoint la partie." });
+  };
 
   const charger = async (f, mode) => {
     try {
@@ -288,9 +300,8 @@ function Sauvegarde() {
         <p className="avis">
           Copie de secours du {new Date(secours.t).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })} :
           {" "}{nSecours} exemplaire{nSecours > 1 ? "s" : ""}, gardée par cet appareil avant qu'une synchronisation ne lui retire des cartes.
-          {" "}<button type="button" className="lien lien-bouton"
-            onClick={() => charger(new Blob([JSON.stringify(secours)], { type: "application/json" }), "fusion")}>
-            La fusionner avec la partie
+          {" "}<button type="button" className="lien lien-bouton" onClick={restaurer}>
+            La restaurer dans la partie
           </button>
         </p>
       )}

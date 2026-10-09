@@ -35,8 +35,18 @@ Raisonnement de conception : ce que fait cette partie du site, et pourquoi elle 
 - **Donjon, Comptoir, garantie de légendaire** ont aussi leur fusion : les
   tentatives du jour s'additionnent, une descente terminée sur le compte ne
   se rejoue pas ailleurs, les convalescences s'unissent ; le Comptoir se
-  fusionne extension par extension ; les boosters ouverts des deux côtés
-  comptent pour la garantie. Restent des valeurs : réglages, profil,
+  fusionne extension par extension, et le même jour les quotas des acheteurs
+  s'additionnent (vingt cartes vendues à Lise sur chaque appareil font
+  quarante, pas vingt), marchandages et achats au rayon s'unissent, la caisse
+  et le rayon reçoivent les ventes des deux côtés ; d'un jour à l'autre, le
+  plus récent l'emporte ; les boosters ouverts des deux côtés
+  comptent pour la garantie.
+- **Les exemplaires ont un plancher** (09/10/2026) : une case présente dans
+  la base et des deux côtés ne descend pas sous un exemplaire. Deux appareils
+  qui vendaient chacun les deux doublons d'une carte à trois exemplaires
+  donnaient 1 + 1 − 3 = 0 : la dernière carte disparaissait. Aucune action ne
+  prend le dernier exemplaire d'une case sauf le STAR RESET, qui la vide —
+  elle est alors à zéro de ce côté, et le plancher ne joue pas. Restent des valeurs : réglages, profil,
   colporteur, ouverture en cours.
 - **Retour sur un onglet resté en arrière-plan plus d'une minute** (le
   téléphone ressorti de la poche) : même attente qu'à l'ouverture, le compte
@@ -46,8 +56,27 @@ Raisonnement de conception : ce que fait cette partie du site, et pourquoi elle 
   Avant, l'onglet oublié réécrivait sa vieille partie toutes les vingt
   secondes (gain passif), et la fusion suivante la lisait comme des cartes
   vendues : le compte les perdait.
+- **Onglets de deux versions du site** (après une montée de `SCHEMA`,
+  09/10/2026). L'onglet resté sur l'ancienne version ne lit pas ce qu'écrit
+  la nouvelle, mais réécrivait sa vieille partie toutes les vingt secondes ;
+  l'onglet à jour l'adoptait, migrée, et perdait sa progression. Désormais :
+  une écriture d'un format plus ancien n'est pas adoptée (l'onglet à jour
+  réécrit la sienne, et remet sa mine) ; un onglet qui voit une partie, une
+  base ou une mine d'un format **plus récent** — dans le stockage partagé, au
+  chargement, ou sur le compte — se **gèle** (`src/lib/gel.js`) : plus aucune
+  écriture locale ni aucun envoi, et un bandeau « Recharger ». Les règles
+  Firestore refusent aussi qu'un document redescende de format.
 - **Première connexion** : la partie jouée sans compte s'ajoute au compte.
-  **Déconnexion** : l'appareil est vidé, la partie reste sur le compte.
+  **Déconnexion** : l'appareil est vidé, la partie reste sur le compte. Un
+  envoi en cours est attendu avant de juger s'il reste des changements non
+  envoyés. Le vidage ne garde pas de copie de secours : elle appartiendrait
+  au joueur qui s'en va.
+- **Compte supprimé depuis un autre appareil** : un appareil resté connecté
+  (le jeton Firebase survit jusqu'à une heure) recréait le document et la
+  ligne du classement. Un document absent alors que l'appareil en
+  connaissait une révision vaut maintenant suppression : rien n'est écrit,
+  l'appareil est vidé et déconnecté. La suppression elle-même attend la fin
+  d'un envoi en cours.
 - **Le SDK n'est chargé qu'au besoin** (clic sur « Se connecter », ou session
   déjà ouverte) : un visiteur sans compte ne contacte jamais Google. Les
   polices sont servies par le site (`@fontsource`), pour la même raison. C'est
@@ -71,9 +100,17 @@ Sans `VITE_FIREBASE_MEASUREMENT_ID`, ni bandeau ni mesure.
 (`vite.config.js`, GitHub Pages ne permettant pas d'en-têtes HTTP). Règles
 Firestore : un document par joueur, lisible et modifiable par lui seul,
 forme et taille vérifiées, écriture refusée si elle ne part pas de la
-dernière révision. Les leviers de meneur (taux, mode test, roster) sont
-ignorés en production. `public/404.html` renvoie `/comptoir` vers
-`/#/comptoir` et affiche une page d'erreur pour le reste.
+dernière révision ou si elle fait reculer le format. L'échéance `expire`
+n'est bornée qu'entre un jour et dix ans : calculée sur l'horloge de
+l'appareil, des bornes à quelques jours de cinq ans refusaient en boucle
+les appareils mal réglés. Les lignes du classement lues chez les autres
+joueurs sont assainies côté client (`assainirLigne`), les règles ne sachant
+pas typer les valeurs d'une table. Les leviers de meneur (taux, mode test, roster) sont
+ignorés en production. `public/404.html` renvoie `/comptoir` (et chaque page de `App.jsx`, vérifié
+par `tests/routes.test.js`) vers `/#/comptoir` et affiche une page d'erreur
+pour le reste. Une erreur d'affichage ou un module qui ne se charge pas ne
+laisse plus d'écran blanc : une limite d'erreur (`LimiteErreur.jsx`) propose
+de recharger et d'exporter sa partie.
 
 **Conservation : cinq ans sans utilisation.** `scripts/purge-comptes.mjs`,
 lancé une fois par an, supprime les comptes sans connexion depuis cinq ans,
@@ -103,7 +140,11 @@ Correctifs (`src/jeu/Compte.jsx`) :
   à la révision connue : si elle porte encore la collection, elle revient ;
 - **copie de secours** : avant d'adopter une version qui compte moins
   d'exemplaires que l'appareil, celui-ci garde ce qu'il remplace
-  (`brume-thalazur:secours`), que le profil propose de fusionner.
+  (`brume-thalazur:secours`), que le profil propose de **restaurer** : la
+  copie est une version antérieure de la même partie, chaque compteur garde
+  donc le plus grand des deux (la fusionner comme un import additionnait :
+  10 et 9 donnaient 19), la mine la plus avancée reste, puis la copie est
+  effacée. Elle part aussi avec la partie à la déconnexion (`effacer()`).
 
 Règle pour la suite : **ne jamais comparer un numéro de format avec `===`** ;
 toute lecture passe par `migrer()`.

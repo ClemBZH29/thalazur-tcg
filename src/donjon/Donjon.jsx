@@ -10,6 +10,7 @@ import {
   gestes, graineDuJour, issue, ouverts, parUid, prochain, rapporte, repos, resoudre,
   tresor, victoire, vivants, allie, compositionDuJour, ciblesPossibles, convalescences, fiche, peutFuir, gainsXP,
   apprentissage, descentesJouees, brume, tirage, BRUME_TOUR, COMPETENCES, techDe, unites, roleCarte, RELIQUES_MAX,
+  impositionTenable, manqueSource,
 } from "./regles.js";
 import { etoiles, ficheDe, fichesDe } from "./fiches.js";
 import { effetsArtefact, effetsSource, sourceDe, texteEffets } from "./pouvoirs.js";
@@ -19,6 +20,7 @@ import "../styles/donjon.css";
 import "../styles/donjon-animations.css";
 import * as Son from "../son/index.js";
 import { creerAnimationsDonjon } from "./animations.js";
+import { idPartie } from "../jeu/donjon.js";
 
 /**
  * Le Donjon : l'interface.
@@ -47,6 +49,11 @@ const poGagne = (p, n) => poDuButin(p.sac, p.mode) - poDuButin(Math.max(0, p.sac
 const initiales = (n) => String(n).split(/[\s,'’-]+/).filter(Boolean).slice(0, 2).map((m) => m[0].toUpperCase()).join("");
 const nouvelleGraine = () => Math.floor(Math.random() * 4294967296) >>> 0;
 const pourcent = (x) => `${Math.round(x * 100)} %`;
+/**
+ * L'écran où reprend une partie enregistrée : la carte, ou le choix de la
+ * sortie si le gardien venait de tomber ; les autres écrans ne se sauvent pas.
+ */
+const ecranDe = (p) => (!p ? "preparation" : p.ecran === "sortie" ? "sortie" : p.combat ? "combat" : p.rencontre ? "rencontre" : "carte");
 /** La rencontre d'une salle, rebâtie de sa graine : même texte, mêmes choix, mêmes issues. */
 function monterRencontre(p) {
   const { id, graine } = p.rencontre;
@@ -358,16 +365,9 @@ export default function Donjon({ jeu }) {
   const partieRef = useRef(donjon.partie ? structuredClone(donjon.partie) : null);
   const combatRef = useRef(null);
   const [, redessiner] = useReducer((x) => x + 1, 0);
-  // Une partie reprise revient à la carte, ou au choix de la sortie si le
-  // gardien venait de tomber : les autres écrans ne se sauvent pas.
-  const [ecran, setEcran] = useState(() => {
-    const p = donjon.partie;
-    if (!p) return "preparation";
-    if (p.ecran === "sortie") return "sortie";
-    if (p.combat) return "combat";
-    if (p.rencontre) return "rencontre";
-    return "carte";
-  });
+  const [ecran, setEcran] = useState(() => ecranDe(donjon.partie));
+  // Un mot à la préparation : la descente close ou reprise dans un autre onglet.
+  const [avis, setAvis] = useState(null);
   const [choix, setChoix] = useState([]);
   // Le donjon du jour d'abord, tant qu'il reste sa descente.
   const [mode, setMode] = useState(() => (tentativesRestantes > 0 ? "jour" : "infini"));
@@ -408,8 +408,17 @@ export default function Donjon({ jeu }) {
 
   const partie = partieRef.current;
   const C = combatRef.current;
-  const differer = (fn, ms) => { const id = setTimeout(fn, ms); minuteurs.current.push(id); };
-  useEffect(() => () => minuteurs.current.forEach(clearTimeout), []);
+  // La page est-elle encore là ? Un geste en cours (`executer`) continue ses
+  // await après le départ du joueur : sans ce garde, il concluait le combat
+  // après le nettoyage, et programmait une fin de descente hors de la page.
+  const monte = useRef(false);
+  const differer = (fn, ms) => { const id = setTimeout(() => { if (monte.current) fn(); }, ms); minuteurs.current.push(id); };
+  useEffect(() => {
+    monte.current = true;
+    return () => { monte.current = false; minuteurs.current.forEach(clearTimeout); minuteurs.current = []; };
+  }, []);
+  /** Le combat `CC` est-il toujours celui de la page ? Vérifié après chaque attente. */
+  const vif = (CC) => monte.current && combatRef.current === CC;
 
   const aller = useCallback((e) => {
     setEcran(e);
@@ -435,12 +444,17 @@ export default function Donjon({ jeu }) {
   // Sans lieu, pas de donjon du jour : sa source est imposée parmi les lieux.
   const sansLieu = collection.lieux.length === 0;
   useEffect(() => { if (sansLieu && mode === "jour") setMode("infini"); }, [sansLieu, mode]);
+  // L'imposition figée ne vaut que tant qu'elle peut être remplie : une carte
+  // sortie de la collection (STAR RESET) ou partie au repos la rend caduque,
+  // et elle est alors retirée au sort sur ce qui reste (voir impositionTenable).
+  const imposeDuJour = imposition && impositionTenable(imposition, collection.allies.filter((c) => illimite || !convalescence(c)), collection.lieux)
+    ? imposition : null;
   useEffect(() => {
-    if (sansLieu || imposition || partieRef.current || tentativesRestantes <= 0) return;
+    if (sansLieu || imposeDuJour || partieRef.current || tentativesRestantes <= 0) return;
     const i = compositionDuJour(aujourdhui(), collection.allies.filter(disponible), collection.lieux.filter((l) => !enExpedition?.(l)));
     if (i) fixerImposition(i);
-  }, [sansLieu, imposition, tentativesRestantes, collection]); // eslint-disable-line react-hooks/exhaustive-deps
-  const impose = mode === "jour" ? imposition : null;
+  }, [sansLieu, imposeDuJour, tentativesRestantes, collection]); // eslint-disable-line react-hooks/exhaustive-deps
+  const impose = mode === "jour" ? imposeDuJour : null;
   const quota = impose?.roles || null;
   const parRoleChoisi = (ids) => {
     const m = {};
@@ -454,7 +468,7 @@ export default function Donjon({ jeu }) {
   const cleSource = impose ? impose.lieu : sourceCle;
   const choisirMode = (m) => {
     setMode(m);
-    const q = m === "jour" ? imposition?.roles : null;
+    const q = m === "jour" ? imposeDuJour?.roles : null;
     if (!q) return;
     // On garde ce qui entre dans la composition du jour, dans l'ordre du choix.
     setChoix((l) => {
@@ -471,20 +485,26 @@ export default function Donjon({ jeu }) {
     const equipe = choix.map((id) => collection.allies.find((c) => c.id === id)).filter((c) => c && !enExpedition?.(c));
     if (equipe.length !== TAILLE_EQUIPE || (mode === "jour" && (sansLieu || tentativesRestantes <= 0 || !impose || !compoFaite))) return;
     if (mode === "infini" && !peutPayerInfini) return;
+    if (manqueSource({ impose, lieux: collection.lieux, cle: cleSource, enExpedition })) return;
     const jour = aujourdhui();
     const niveaux = Object.fromEntries(equipe.map((c) => [`${c.ext}:${c.id}`, niveauCarte(c)]));
     const fiches = fichesDe(etat, equipe);
     const M = DONJON.modes[mode];
     const graine = mode === "infini" ? graineInfinie() : graineDuJour(jour);
     const lieu = cleSource ? collection.lieux.find((l) => `${l.ext}:${l.id}` === cleSource && !enExpedition?.(l)) : null;
-    if ((impose ? impose.lieu : collection.lieux.length) && !lieu) return;
     const source = lieu ? { c: lieu, niveau: niveauCarte(lieu), etoile: !!ficheDe(etat, lieu).etoiles?.source } : null;
     // L'apprentissage adoucit les adversaires partout, mais ne rogne le butin qu'au
     // donjon du jour : l'infini se paie à l'entrée.
     const ap = mode === "infini" ? { ...apprenti, gain: 1 } : apprenti;
     const p = creerPartie({ equipe, source, graine, jour, pools: POOLS, niveaux, fiches, apprenti: ap, mode, gainMode: M.gain, xpMode: M.xp });
+    // L'identité de la descente : la graine ne suffit pas (celle du jour est la
+    // même pour toutes les descentes du jour, en mode test). C'est elle qui
+    // empêche un autre onglet de la sauver par-dessus une autre, ou de se la
+    // faire payer deux fois (voir jeu/donjon.js).
+    p.id = `${graine.toString(36)}-${Date.now().toString(36)}-${nouvelleGraine().toString(36)}`;
+    if (!commencerDonjon(structuredClone(p))) { setAvis("Une descente est déjà en cours dans un autre onglet."); return; }
     partieRef.current = p;
-    commencerDonjon(structuredClone(p));
+    setAvis(null);
     setEcran("carte");
     window.scrollTo({ top: 0 });
   };
@@ -548,6 +568,7 @@ export default function Donjon({ jeu }) {
     setEcran("combat");
     window.scrollTo({ top: 0 });
     differer(async () => {
+      CC.lance = true;
       // La première salve s'affiche, puis le premier tour ; elle peut avoir tout fini.
       // La source s'annonce au premier tour ; la première salve part.
       animRef.current.animerSource?.(p.source ? { ...p.source, pouvoir: sourceDe(p.source.c).nom } : null, CC);
@@ -559,8 +580,10 @@ export default function Donjon({ jeu }) {
         requestAnimationFrame(() => montrer(CC.ouverture.flatMap((o) => o.effets)));
         // Les tombés de la salve chutent quand elle arrive, pas avant.
         if (CC.ennemis.some((x) => x.ko)) await new Promise((ok) => setTimeout(ok, 480 / vitesseRef.current));
+        if (!vif(CC)) return;
       }
       const fin = await passerLaMain(p, CC);
+      if (!vif(CC)) return;
       if (fin) return conclure(fin, p, CC);
       setOccupe(false); redessiner();
     }, 500);
@@ -587,7 +610,9 @@ export default function Donjon({ jeu }) {
     const repos = convalescences(p, iss);
     const infini = p.mode === "infini";
     const record = infini && p.stats.gardiens > recordInfini;
-    const { po, bilan } = terminerDonjon(butin, { issue: iss, etage: p.etage, gardiens: p.stats.gardiens, complete, mode: p.mode || "jour" }, repos, gainsXP(p, iss));
+    const { po, bilan, refusee } = terminerDonjon(butin, { issue: iss, etage: p.etage, gardiens: p.stats.gardiens, complete, mode: p.mode || "jour", id: idPartie(p) }, repos, gainsXP(p, iss));
+    // Close ou remplacée ailleurs entre-temps : rien n'est payé, pas de bilan.
+    if (refusee) return fermerDescente();
     const noms = new Map([...p.equipe.map((u) => u.c), ...p.perdus].map((c) => [`${c.ext}:${c.id}`, c.nom]));
     setFin({ issue: iss, butin, perdu: p.sac - butin, po, stats: { ...p.stats }, etage: p.etage, debout: vivants(p.equipe).length,
       mode: p.mode || "jour", record,
@@ -598,6 +623,40 @@ export default function Donjon({ jeu }) {
     setEcran("fin");
     window.scrollTo({ top: 0 });
   };
+
+  // `executer` est figé (useCallback) et conclut par `terminer` : il le lit
+  // ici, à jour, pour que le bilan d'expérience et le record se calculent sur
+  // l'état du moment, pas sur celui de son premier rendu.
+  const terminerRef = useRef(terminer); terminerRef.current = terminer;
+
+  /**
+   * La descente affichée a été close ou remplacée ailleurs (autre onglet,
+   * synchronisation du compte) : on la referme sans rien payer ni sauver, et
+   * l'on revient à la préparation.
+   */
+  const fermerDescente = () => {
+    minuteurs.current.forEach(clearTimeout); minuteurs.current = [];
+    if (combatRef.current) combatRef.current.fini = "ailleurs";
+    combatRef.current = null;
+    partieRef.current = null;
+    setResultat(null); setRencontre(null); setFin(null); setOccupe(false); setGeste(null); setChoix([]);
+    setAvis("La descente s'est poursuivie dans un autre onglet.");
+    setEcran("preparation");
+  };
+  // La partie enregistrée change d'identité ou disparaît sans venir de cette
+  // page : la nôtre est fermée. Si une descente commence ailleurs pendant
+  // qu'on prépare la sienne, on la reprend, comme après un rechargement.
+  const idEnregistree = idPartie(donjon.partie);
+  useEffect(() => {
+    if (idPartie(partieRef.current) === idEnregistree) return;
+    if (partieRef.current) { fermerDescente(); return; }
+    if (donjon.partie && ecran === "preparation") {
+      const p = structuredClone(donjon.partie);
+      partieRef.current = p;
+      setRencontre(p.rencontre ? monterRencontre(p) : null);
+      setEcran(ecranDe(p));
+    }
+  }, [idEnregistree]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ── Combat : le fil ─────────────────────────────────────────────── */
   const el = (uid) => zone.current?.querySelector(`.dj-u[data-uid="${uid}"]`);
@@ -791,6 +850,7 @@ export default function Donjon({ jeu }) {
     // La capacité d'un rôle sonne avec son geste (son élan précède l'impact).
     if (COMPETENCES[g]?.place === "tech" && ROLES[u.role]) Son.jouer(`donjon.capacite.${u.role}`, u.camp === "e" ? { camp: "adverse" } : {});
     await animerGeste(u, g, cible);
+    if (!vif(CC)) return;
     const avant = aTerre();
     const res = resoudre(p, CC, u, g, cible, rngCombat.current);
     setJournal((j) => [res.note, ...j].slice(0, 12));
@@ -799,11 +859,13 @@ export default function Donjon({ jeu }) {
     animerPouvoirs(res.pouvoirs);
     if (res.renvoi && cible) await animRef.current.animerEvenement("renvoi", cible, { attaquant: u });
     await animerChutes(avant);
+    if (!vif(CC)) return;
     redessiner();
     await new Promise((ok) => setTimeout(ok, 560 / vitesseRef.current));
-    if (combatRef.current !== CC) return;
+    if (!vif(CC)) return;
     let fin = issue(p, CC);
     if (!fin) fin = await passerLaMain(p, CC);
+    if (!vif(CC)) return;
     if (!fin) { setOccupe(false); redessiner(); return; }
     conclure(fin, p, CC);
   }, [aller]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -856,7 +918,7 @@ export default function Donjon({ jeu }) {
       }, 450 / vitesseRef.current);
       return;
     }
-    if (fin === "defaite") { CC.fini = "defaite"; Son.jouer("donjon.combat.defaite"); differer(() => terminer("defaite"), 700); }
+    if (fin === "defaite") { CC.fini = "defaite"; Son.jouer("donjon.combat.defaite"); differer(() => terminerRef.current("defaite"), 700); }
   };
 
   // À chaque passage de main : l'adversaire joue seul, le pilote automatique
@@ -912,8 +974,13 @@ export default function Donjon({ jeu }) {
   useEffect(() => {
     if (ecran !== "combat" || combatRef.current) return;
     const p = partieRef.current;
-    if (p?.combat) lancerCombat(p.combat.genre, p.combat);
-    else setEcran("carte");
+    if (!p?.combat) { setEcran("carte"); return; }
+    lancerCombat(p.combat.genre, p.combat);
+    // En développement, StrictMode démonte et remonte aussitôt : le démontage
+    // annule le premier tour programmé, et le combat restait figé. Un combat
+    // qui n'a pas encore commencé est donc oublié, et se relance au remontage.
+    const CC = combatRef.current;
+    return () => { if (combatRef.current === CC && !CC.lance) combatRef.current = null; };
   }, [ecran]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (ecran === "rencontre" && !rencontre) setEcran("carte"); }, [ecran, rencontre]);
   // Au téléphone, chaque écran s'ouvre sur ce qui compte : l'arène centrée au combat, la prochaine salle sur la carte.
@@ -942,7 +1009,7 @@ export default function Donjon({ jeu }) {
         </span>
       )}
       {(partie.difficulte ?? 1) < 1 && (
-        <span className="pastille" title="Adversaires affaiblis et butin réduit, jusqu'au jeu normal au fil des boosters ouverts.">
+        <span className="pastille" title="Adversaires affaiblis et butin réduit, jusqu'au jeu normal au fil des descentes jouées.">
           Apprentissage · {pourcent(partie.difficulte)}
         </span>
       )}
@@ -952,7 +1019,7 @@ export default function Donjon({ jeu }) {
   if (ecran === "preparation" || (!partie && ecran !== "fin")) {
     const n = choix.length;
     const plus = mode === "infini" ? peutPayerInfini : tentativesRestantes > 0 && !!impose;
-    const sourceManque = (impose ? !!impose.lieu : collection.lieux.length > 0) && !collection.lieux.some((l) => `${l.ext}:${l.id}` === cleSource && !enExpedition?.(l));
+    const sourceManque = manqueSource({ impose, lieux: collection.lieux, cle: cleSource, enExpedition });
     // Les cartes indisponibles (en expédition, au repos) passent en fin de
     // rangée, toujours grisées : on ne fait pas défiler pour trouver qui peut descendre.
     // Une carte déjà choisie reste à sa place, même si elle est indisponible (mode test).
@@ -972,11 +1039,11 @@ export default function Donjon({ jeu }) {
     const lieuSource = cleSource ? collection.lieux.find((l) => `${l.ext}:${l.id}` === cleSource) : null;
     const effSource = lieuSource ? effetsSource(lieuSource, niveauCarte(lieuSource), !!ficheDe(etat, lieuSource).etoiles?.source) : [];
     const etatJour = sansLieu ? "Découvrez un lieu dans un booster pour profiter du donjon du jour"
-      : illimite ? "Mode test" : tentativesRestantes <= 0 ? "Déjà tenté" : imposition ? "Disponible" : "Pas assez de compagnons";
+      : illimite ? "Mode test" : tentativesRestantes <= 0 ? "Déjà tenté" : imposeDuJour ? "Disponible" : "Pas assez de compagnons";
     const bouton = mode === "infini" && !peutPayerInfini ? `Il faut ${entreeInfini} PO`
       : !plus ? (tentativesRestantes > 0 ? "Pas assez de compagnons" : "Déjà tenté aujourd'hui")
       : n !== TAILLE_EQUIPE ? `${n} / ${TAILLE_EQUIPE}`
-      : sourceManque ? (impose ? "Lieu en expédition" : "Choisissez un lieu")
+      : sourceManque ? { expedition: "Lieu en expédition", perdu: "Lieu indisponible", choisir: "Choisissez un lieu" }[sourceManque]
       : mode === "infini" ? `Descendre · ${entreeInfini} PO` : "Descendre";
     const premiere = !Object.keys(etat.xp || {}).length;
     return (
@@ -1005,10 +1072,11 @@ export default function Donjon({ jeu }) {
           </button>
         </div>
         {apprenti.avance < 1 && (
-          <p className="dj-bandeau" title="Tant que la collection est jeune, les adversaires sont affaiblis et le butin réduit. Tout revient à la normale au fil des boosters ouverts. L'expérience est entière.">
+          <p className="dj-bandeau" title="Tant que la collection est jeune, les adversaires sont affaiblis et le butin réduit. Tout revient à la normale au fil des descentes jouées, victoires ou chutes. L'expérience est entière.">
             <b>Apprentissage</b> · adversaires {pourcent(apprenti.difficulte)} · butin {pourcent(apprenti.gain)} · encore {apprenti.restant} descente{apprenti.restant > 1 ? "s" : ""}
           </p>
         )}
+        {avis && <p className="dj-bandeau" role="status">{avis}</p>}
         {donjon.dernier && donjon.dernier.jour === aujourdhui() && (
           <p className="dj-bandeau">Dernière descente · {donjon.dernier.issue === "defaite" ? "tombée" : "remontée"} à l'étage {donjon.dernier.etage} · +{donjon.dernier.po} PO</p>
         )}

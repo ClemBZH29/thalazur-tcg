@@ -322,6 +322,7 @@ a { color: inherit; text-decoration: none; }
 }
 .caisse-valeur.or { color: var(--lamp); }
 .caisse-valeur.petit { font-size: 18px; color: var(--ink3); }
+.caisse-valeur .caisse-offerts { font-size: 18px; color: var(--ink3); }
 .caisse-jauge { display: block; height: 6px; border-radius: 6px; background: var(--edge); overflow: hidden; }
 .caisse-jauge span { display: block; height: 100%; border-radius: 6px; background: var(--lamp);
   transition: width 1s linear; }

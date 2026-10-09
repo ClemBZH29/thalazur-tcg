@@ -26,7 +26,12 @@ rôles (deux fois le même au plus) et un lieu parmi les cartes **disponibles**
 du joueur (ni en expédition, ni au repos). La graine est la même pour tous ;
 le résultat dépend de la collection, il est donc toujours faisable. Il est
 figé dans `donjon.imposition` jusqu'au lendemain : envoyer des cartes en
-expédition ne le fait pas changer. La préparation n'affiche que les rangées
+expédition ne le fait pas changer (on peut les rappeler). Depuis le
+09/10/2026, s'il ne peut plus être rempli — lieu imposé sorti de la
+collection par un STAR RESET, compagnons d'un rôle au repos après une chute
+à l'infini — il est retiré au sort sur ce qui reste (`impositionTenable`) ;
+il bloquait le donjon du jour jusqu'au lendemain, avec un faux « Lieu en
+expédition ». La préparation n'affiche que les rangées
 des rôles imposés, chacune avec son quota, et la source est posée d'office.
 Sans aucun lieu dans la collection, le donjon du jour est grisé (« Découvrez
 un lieu dans un booster pour profiter du donjon du jour ») et l'infini est
@@ -227,7 +232,9 @@ souffle : les tombés se relèvent à un quart de leurs PV.
 
 **Fuir coûte cher** : deux cinquièmes du sac, un sixième des PV de chacun, et
 le compagnon le plus mal en point reste derrière pour couvrir la retraite — il
-quitte l'expédition. On ne fuit ni un gardien, ni seul.
+quitte l'expédition. La recrue ramassée en chemin n'est pas choisie (09/10/2026) :
+ramassée à mi-PV, c'était presque toujours elle, et elle partait en
+convalescence et en expérience sur une carte qu'on ne possède pas forcément. On ne fuit ni un gardien, ni seul.
 
 **Convalescence**, à la manière de Darkest Dungeon. Si l'équipe tombe, il ne
 reste qu'un quart du sac, et ses cartes restent au repos **un jour par étage
@@ -388,7 +395,12 @@ niveau du lieu (×1 au niveau 1, ×2 au niveau 100) × étoile (×1,5).
 - **Le volet « Source de pouvoir »**, à gauche de la carte agrandie d'un lieu,
   montre le pouvoir à son niveau, ce qu'il sera au niveau 100, et l'étoile.
 - Les effets sont **figés au départ** dans la partie (`partie.source`) ; un
-  lieu en expédition ne peut pas servir de source.
+  lieu en expédition ne peut pas servir de source. À l'infini, la source
+  n'est exigée que si un lieu est **disponible** : tous en expédition, on
+  descend sans source, comme un joueur qui n'en a pas (`manqueSource`). En
+  retour, le lieu source d'une descente en cours ne part pas en expédition
+  (`auDonjon`, src/expeditions/regles.js) : il gagnait l'expérience des deux
+  côtés.
 
 | Lieu | Rareté | Pouvoir | Niveau 1 | Niveau 100 ★ |
 |---|---|---|---|---|
@@ -586,7 +598,9 @@ normales et rainbow : la case redevient vide, comme si on ne l'avait jamais
 eue : le niveau repart à 1, paliers payés compris (irisation, niveau 100),
 et les vestiges dépensés ne sont pas rendus. Ouvert à toute carte possédée, étoilée ou non :
 on n'attend pas d'avoir fini une carte pour la recommencer. Refusé si la
-carte est en expédition. Double confirmation : le bouton, un premier
+carte est en expédition, ou engagée dans la descente en cours (équipe,
+source, compagnon laissé derrière : la fin de descente lui rendrait
+expérience et repos). Double confirmation : le bouton, un premier
 avertissement (fiche et exemplaires perdus) à confirmer, un second (niveau
 perdu, vestiges non rendus, suppression définitive) à confirmer encore ; la loupe se ferme ensuite (`resetStar`, fiches.js). La
 fiche garde la date de la remise (`remise`) : entre deux appareils, la
@@ -694,6 +708,20 @@ modes est un donjon du jour). La partie est un objet
 simple, sauvé à chaque changement d'écran : un onglet fermé ne coûte pas la
 tentative. Entre deux appareils, `donjon` est une valeur : celle de l'appareil
 qui l'a changée l'emporte.
+
+**Une descente, une identité (09/10/2026).** La partie porte un `id`, tiré
+au départ (une partie plus ancienne garde sa graine pour identité,
+`idPartie`, src/jeu/donjon.js). La page du Donjon tient la partie en
+mémoire ; un autre onglet ou la synchronisation du compte peuvent la
+remplacer ou la clore entre-temps. Un onglet resté sur une descente
+terminée ailleurs la rejouait, et se la faisait payer une seconde fois.
+Désormais, sur l'état le plus frais : on ne commence pas une descente
+quand une autre est en cours ; on ne sauve que la partie enregistrée ; et
+la fin ne paie rien si la partie enregistrée n'est plus celle-là. La page
+referme la descente affichée quand la partie enregistrée change ou
+disparaît sans venir d'elle (retour à la préparation, « La descente s'est
+poursuivie dans un autre onglet »), et reprend celle qui commence ailleurs
+pendant qu'on prépare la sienne. Tests : `tests/donjon-onglets.test.js`.
 
 **Recharger ne sert à rien.** Un combat est sauvé à son entrée, avant le
 premier coup, avec sa graine (`partie.combat = { genre, graine }`) ; tous

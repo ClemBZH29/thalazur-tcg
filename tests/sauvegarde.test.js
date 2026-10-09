@@ -5,7 +5,7 @@ import ROSTER from "../src/extensions/troupe-valeran/roster.json";
 import TABLE from "../src/lib/sauvegarde/renumerotation-troupe.json";
 import { slug } from "../src/lib/roster.js";
 import { etatVide, fusionner, relireJeu } from "../src/lib/storage.js";
-import { etatNeuf, relireMine } from "../src/mines/sauvegarde.js";
+import { estFuture, etatNeuf, relireMine } from "../src/mines/sauvegarde.js";
 import TROUPE from "../src/extensions/troupe-valeran/extension.js";
 import { specialesPour } from "../src/config/speciales.js";
 
@@ -220,5 +220,22 @@ describe("mine", () => {
     expect(relireMine(JSON.stringify({ v: 1, etoile: 5 }))).toBeNull();
     expect(relireMine("{pas du json")).toBeNull();
     expect(relireMine(null)).toBeNull();
+  });
+
+  test("une mine d'un format futur se reconnaît, et n'est jamais remise à zéro (audit 09/10/2026)", () => {
+    const S = { ...etatNeuf(), brisesTotal: 900, effondrements: 4 };
+    // Schéma futur : illisible ici, mais reconnue comme future, pas comme cassée.
+    const schemaFutur = JSON.stringify({ ...S, schema: SCHEMA + 1 });
+    expect(relireMine(schemaFutur)).toBeNull();
+    expect(estFuture(schemaFutur)).toBe(true);
+    // Règles futures : ni lue ni remise à zéro (la remise, c'est pour les règles antérieures).
+    const reglesFutures = JSON.stringify({ ...S, regles: S.regles + 1 });
+    expect(relireMine(reglesFutures)).toBeNull();
+    expect(estFuture(reglesFutures)).toBe(true);
+    // Le courant, l'ancien et l'illisible ne sont pas futurs.
+    expect(estFuture(JSON.stringify(S))).toBe(false);
+    expect(estFuture(JSON.stringify({ ...S, regles: 2 }))).toBe(false);
+    expect(estFuture("{pas du json")).toBe(false);
+    expect(estFuture(null)).toBe(false);
   });
 });

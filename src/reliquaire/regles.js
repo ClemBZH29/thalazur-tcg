@@ -163,9 +163,19 @@ export const offrePrise = (etat, offre) =>
 export const offreRevelee = (etat, offre) =>
   !!offre && (etatReliquaire(etat).reveles?.[offre.ext] === offre.jour || offrePrise(etat, offre));
 
-/** Retourne la carte du jour : gratuit, mais le prix moyen est perdu pour la journée. */
-export function reveler(etat, offre) {
-  if (!offre || offreRevelee(etat, offre)) return etat;
+/**
+ * Une offre qui n'est plus celle du jour : la page ne relit le jour que toutes
+ * les 30 s, et juste après minuit elle tend encore la carte de la veille. Sans
+ * `jour` (les audits, les tests), rien n'est vérifié.
+ */
+const perimee = (offre, jour) => !!jour && offre.jour !== jour;
+
+/**
+ * Retourne la carte du jour : gratuit, mais le prix moyen est perdu pour la
+ * journée. `jour` : le jour courant, pour refuser l'offre de la veille.
+ */
+export function reveler(etat, offre, jour) {
+  if (!offre || perimee(offre, jour) || offreRevelee(etat, offre)) return etat;
   const R = etatReliquaire(etat);
   return { ...etat, reliquaire: { ...R, reveles: { ...(R.reveles || {}), [offre.ext]: offre.jour } } };
 }
@@ -173,8 +183,8 @@ export function reveler(etat, offre) {
 /** Le prix demandé : le prix moyen face cachée, le prix réel une fois retournée. */
 export const prixDemande = (offre, aveugle = false) => (aveugle ? offre.prixAveugle : offre.prix);
 
-export const peutForgerOffre = (etat, offre, { aveugle = false } = {}) =>
-  !!offre && !offrePrise(etat, offre) && !(aveugle && offreRevelee(etat, offre))
+export const peutForgerOffre = (etat, offre, { aveugle = false, jour } = {}) =>
+  !!offre && !perimee(offre, jour) && !offrePrise(etat, offre) && !(aveugle && offreRevelee(etat, offre))
   && Number.isFinite(prixDemande(offre, aveugle)) && vestiges(etat) >= prixDemande(offre, aveugle);
 
 /**
@@ -182,9 +192,10 @@ export const peutForgerOffre = (etat, offre, { aveugle = false } = {}) =>
  * retournée (à son prix). On peut la forger même si on la possède : elle
  * s'ajoute aux exemplaires (ou à la case irisée). Pas de cycle possible : la
  * dissoudre rend au mieux la moitié du prix moyen (une commune : 5 pour 100).
+ * `jour` : le jour courant ; l'offre d'un autre jour est refusée.
  */
-export function forgerOffre(etat, offre, { aveugle = false } = {}) {
-  if (!peutForgerOffre(etat, offre, { aveugle })) return etat;
+export function forgerOffre(etat, offre, { aveugle = false, jour } = {}) {
+  if (!peutForgerOffre(etat, offre, { aveugle, jour })) return etat;
   const { ext, c, rainbow } = offre;
   const prix = prixDemande(offre, aveugle);
   const R = etatReliquaire(etat);

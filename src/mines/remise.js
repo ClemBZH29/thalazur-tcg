@@ -45,7 +45,13 @@ export function derniereVente(d) {
 
 /** Ce que reçoit le joueur pour sa partie ancienne. */
 export function soldeRemise(d) {
-  const etoile = Number.isFinite(d.etoile) ? Math.min(SOLDE_ETOILE_MAX, derniereVente(d) * 15) : SOLDE_ETOILE_MAX;
+  /* Seule une étoile infinie paie le maximum. JSON écrit l'infini « null » :
+     une étoile nulle l'est donc aussi quand le cumul l'est (on ne déborde pas
+     l'un sans l'autre). Une étoile absente, ou nulle à côté d'un cumul fini
+     (un NaN sauvé), ne vaut rien : elle payait 240 PO (audit du 09/10/2026). */
+  const infinie = d.etoile === Infinity
+    || (d.etoile === null && (d.etoileTotale === null || d.etoileTotale === Infinity));
+  const etoile = infinie ? SOLDE_ETOILE_MAX : Math.min(SOLDE_ETOILE_MAX, derniereVente(d) * 15);
   const eff = Math.max(0, Math.floor(d.effondrements || 0)) * SOLDE_PAR_EFFONDREMENT;
   const total = Math.min(SOLDE_MAX, etoile + eff);
   return { etoile, effondrements: Math.max(0, Math.floor(d.effondrements || 0)), partEffondrements: eff, total };

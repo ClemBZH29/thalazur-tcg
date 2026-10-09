@@ -165,21 +165,52 @@ export function mesuresExtension(ext, collection = {}) {
 }
 
 /**
- * Pour chaque famille, le plus haut seuil déjà réclamé. Quand le barème
- * déplace ses seuils (07/10/2026 : les types passent de 5, 10, 25… à des
- * parts du roster), un palier nouveau sous un seuil déjà payé compte comme
- * réclamé : on ne repaie pas un chemin déjà fait sous un autre nom.
+ * Les réclamations faites sous un autre barème, par famille : leurs seuils.
+ *
+ * Quand le barème déplace ses seuils (07/10/2026 : les types passent de 5,
+ * 10, 25… à des parts du roster), un palier nouveau sous un seuil déjà payé
+ * compte comme réclamé : on ne repaie pas un chemin déjà fait sous un autre
+ * nom. Seules ces réclamations-là couvrent les paliers inférieurs. Une
+ * réclamation du barème actuel ne couvre qu'elle-même : sinon réclamer
+ * « 100 boosters » avant « 25 » marquait 25 comme payé sans l'avoir payé.
+ *
+ * Une réclamation est « d'un autre barème » quand son palier n'est plus au
+ * catalogue, ou quand la récompense qu'elle a enregistrée n'est plus celle du
+ * palier (strate 12 payait 720 PO, elle paie aujourd'hui deux sachets).
  */
-function seuilsReclames(reclames) {
+function seuilsAnciens(catalogue, reclames) {
   const m = new Map();
-  for (const id of Object.keys(reclames)) {
+  for (const [id, r] of Object.entries(reclames)) {
     const i = id.lastIndexOf("@");
     if (i < 0) continue;
+    const actuel = catalogue.parId.get(id)?.palier;
+    if (actuel) {
+      const rec = actuel.recompense || {};
+      if ((r?.po || 0) === (rec.po || 0) && (r?.n || 0) === (rec.sachets || 0)) continue;
+    }
     const fam = id.slice(0, i), seuil = Number(id.slice(i + 1));
-    if (Number.isFinite(seuil) && seuil > (m.get(fam) || 0)) m.set(fam, seuil);
+    if (!Number.isFinite(seuil)) continue;
+    if (!m.has(fam)) m.set(fam, []);
+    m.get(fam).push(seuil);
   }
   return m;
 }
+
+/**
+ * Un seuil ancien couvre les paliers à son niveau ou en dessous, et un palier
+ * à peine au-dessus. Ce second cas est celui du roster qui grandit : les
+ * paliers de type et de légendaires sont des parts du roster, quatre PNJ de
+ * plus font glisser « la moitié » de 100 à 102, et l'identifiant change avec
+ * le seuil. Sans cette marge, le même palier se payait deux fois. Un dixième
+ * du seuil (une carte au moins) absorbe une retouche de roster sans couvrir
+ * le palier suivant du barème, toujours bien plus haut.
+ */
+const couvre = (anciens, seuil) =>
+  anciens.some((s) => seuil <= s + Math.max(1, Math.round(s / 10)));
+
+/** Un palier est réclamé s'il l'a été lui-même, ou couvert par un ancien seuil. */
+const estReclame = (reclames, anciens, f, p) =>
+  Boolean(reclames[p.id]) || couvre(anciens.get(f.id) || [], p.seuil);
 
 const lire = (mesures, chemin) => chemin.split(".").reduce((o, k) => (o ? o[k] : 0), mesures) || 0;
 
@@ -190,14 +221,13 @@ const lire = (mesures, chemin) => chemin.split(".").reduce((o, k) => (o ? o[k] :
 export function evaluer(catalogue, etat, mine) {
   const reclames = etat.succes || {};
   const g = mesuresGlobales(etat, mine);
-  const plafonds = seuilsReclames(reclames);
+  const anciens = seuilsAnciens(catalogue, reclames);
   const juger = (f, mesures) => {
     const valeur = lire(mesures, f.mesure);
-    const deja = plafonds.get(f.id) || 0;
     return {
       ...f, valeur,
       paliers: f.paliers.map((p) => ({
-        ...p, atteint: valeur >= p.seuil, reclame: Boolean(reclames[p.id]) || p.seuil <= deja,
+        ...p, atteint: valeur >= p.seuil, reclame: estReclame(reclames, anciens, f, p),
       })),
     };
   };
@@ -239,12 +269,17 @@ export function reclamer(catalogue, etat, ids, mine, maintenant = Date.now()) {
   return { etat: { ...etat, succes, sachets, bourse: crediterGain(etat.bourse, po) }, gagnes, po };
 }
 
-/** Les titres gagnés, dans l'ordre du catalogue. */
+/**
+ * Les titres gagnés, dans l'ordre du catalogue. Un palier couvert par un
+ * ancien seuil garde son titre : sinon le titre « tous les PNJ » se perdait
+ * dès qu'une carte s'ajoutait au roster, sans pouvoir être réclamé de nouveau.
+ */
 export function titresObtenus(catalogue, etat) {
   const reclames = etat.succes || {};
+  const anciens = seuilsAnciens(catalogue, reclames);
   const sortie = [];
-  for (const [id, { palier }] of catalogue.parId) {
-    if (palier.titre && reclames[id]) sortie.push({ id, titre: palier.titre });
+  for (const [id, { famille, palier }] of catalogue.parId) {
+    if (palier.titre && estReclame(reclames, anciens, famille, palier)) sortie.push({ id, titre: palier.titre });
   }
   return sortie;
 }

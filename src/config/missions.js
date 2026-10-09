@@ -95,7 +95,9 @@ export const TYPES = [
     id: "dissous", mode: "reliquaire", mesure: "dissous",
     quoi: "Dissoudre {n} exemplaire{s} au Reliquaire",
     jour: { n: 10, po: 30 }, semaine: { n: 60 },
-    dispo: (c) => c.reliquaire && c.surplus >= 15,
+    // `dissolubles` et non `surplus` : rainbow, cartes PJ et full art en trop
+    // ne passent pas au Reliquaire (09/10/2026, audit des modules).
+    dispo: (c) => c.reliquaire && c.dissolubles >= 15,
   },
   {
     id: "forges", mode: "reliquaire", mesure: "forges",

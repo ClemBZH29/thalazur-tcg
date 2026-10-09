@@ -61,8 +61,21 @@ export function estimer(etat, lieu, cartes, heures) {
 /** Clés de toutes les cartes occupées par une route. */
 export const enRoute = (etat) => new Set(etatExpeditions(etat).routes.flatMap((r) => [...r.cartes, r.lieu]));
 
-/** Cartes engagées dans la descente en cours du Donjon. */
-export const auDonjon = (etat) => new Set((etat.donjon?.partie?.equipe || []).map((u) => cleXP(u.c)));
+/**
+ * Cartes engagées dans la descente en cours du Donjon : l'équipe, la source
+ * de pouvoir et les compagnons laissés derrière, qui tous gagnent de
+ * l'expérience (ou un repos) à la fin. La recrue ramassée en route n'en
+ * gagne pas : la carte du joueur, si elle l'a, reste libre.
+ */
+export function auDonjon(etat) {
+  const p = etat.donjon?.partie;
+  if (!p) return new Set();
+  return new Set([
+    ...(p.equipe || []).filter((u) => !u.recrue).map((u) => u.c),
+    ...(p.source?.c ? [p.source.c] : []),
+    ...(p.perdus || []),
+  ].map(cleXP));
+}
 
 /** Pourquoi une carte ne peut pas partir, ou null. */
 export function empechement(etat, c, maintenant = Date.now()) {
@@ -85,6 +98,8 @@ export function partir(etat, { lieu, cartes, heures, pool = [], maintenant = Dat
   if (!EXPEDITION.durees[heures]) return { erreur: "duree" };
   if (!cartes.length) return { erreur: "vide" };
   if (ex.routes.some((r) => r.lieu === cleXP(lieu))) return { erreur: "lieu" };
+  // Le Lieu aussi peut être pris ailleurs : source de la descente en cours.
+  if (empechement(etat, lieu, maintenant)) return { erreur: "lieu" };
   if (cartes.length > capacite(etat, lieu)) return { erreur: "capacite" };
   if (new Set(cartes.map(cleXP)).size !== cartes.length) return { erreur: "doublon" };
   if (cartes.some((c) => empechement(etat, c, maintenant))) return { erreur: "occupee" };
@@ -107,9 +122,16 @@ export function partir(etat, { lieu, cartes, heures, pool = [], maintenant = Dat
   return { route, etat: { ...etat, expeditions: { ...ex, seq: ex.seq + 1, routes: [...ex.routes, route] } } };
 }
 
-/** Rappel : les cartes rentrent, sans rien rapporter. */
-export function rappeler(etat, id) {
+/**
+ * Rappel : les cartes rentrent, sans rien rapporter. Refusé (état rendu tel
+ * quel) pour une route déjà rentrée : la page ne relit l'heure que toutes les
+ * 20 s, et un « Rappeler » cliqué juste après la fin effaçait tout le butin.
+ * Une route rentrée passe par l'accueil (`crediterRoute`).
+ */
+export function rappeler(etat, id, maintenant = Date.now()) {
   const ex = etatExpeditions(etat);
+  const route = ex.routes.find((r) => r.id === id);
+  if (!route || route.fin <= maintenant) return etat;
   return { ...etat, expeditions: { ...ex, routes: ex.routes.filter((r) => r.id !== id) } };
 }
 

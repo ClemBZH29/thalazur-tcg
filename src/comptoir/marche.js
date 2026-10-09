@@ -174,15 +174,34 @@ export class Marche {
       this.achatsJoueur = sauve.achatsJoueur || {};
       this.vitrine = sauve.vitrine || null;
       this.journal = sauve.journal || [];
+      // Jour enregistré à plus d'un jour dans le futur : horloge fausse, ici
+      // ou sur un autre appareil du compte. On le tient pour aujourd'hui, sans
+      // rien remettre à zéro : le marché ne reste pas bloqué jusqu'à cette
+      // date, et l'aller-retour d'horloge ne rend toujours rien.
+      if (sauve.jour > jour + 1) sauve = { ...sauve, jour };
       const ecoules = jour - sauve.jour;
       if (ecoules > 0) this.avancer(sauve.jour, Math.min(ecoules, 21));
-      else if (ecoules < 0) this.avancer(jour, 1);  // horloge reculée : on repart
+      // Horloge reculée (ou voyage vers l'ouest) : on ne touche à rien. Le
+      // marché « repartait » d'un jour, et l'aller-retour suffisait à rendre
+      // quotas, marchandages et pièce du jour, et à regarnir la caisse — sans
+      // limite. Seul un jour plus grand que le plus grand déjà vu avance.
     } else {
       // Première visite : le rayon est déjà garni, on n'ouvre pas une échoppe vide.
       articles.forEach((a) => { this.stock[a.id] = a.equilibre; });
       this.avancer(jour - 3, 3);
     }
-    this.jour = jour;
+    this.jour = sauve && sauve.jour ? Math.max(jour, sauve.jour) : jour;
+    // L'état en mémoire est celui que relira le prochain chargement : sans
+    // cela, le stock arrondi à l'écriture changeait les prix au rechargement
+    // (jusqu'à cent PO sur une carte PJ, dont le rayon tient sous l'unité).
+    this.arrondir();
+  }
+
+  /** Stock au millième, en place : ce qui est affiché est ce qui est sauvé. */
+  arrondir() {
+    for (const o of [this.stock, this.stockPrec]) {
+      for (const [k, v] of Object.entries(o)) o[k] = Math.round(v * 1000) / 1000;
+    }
   }
 
   /** Rejoue les journées écoulées : dérive du rayon, bourse renflouée. */
@@ -271,8 +290,7 @@ export class Marche {
    *   annoncé, puis raboté au paiement par le plafond de l'échoppe) ;
    * - un acheteur ne paie jamais moins que l'échoppe, même après un échec.
    */
-  prixAcheteur(a, acheteur, stock, facteur = 1) {
-    const aff = this.affinite(a, acheteur);
+  prixAcheteur(a, acheteur, stock, facteur = 1, aff = this.affinite(a, acheteur)) {
     if (!aff) return 0;
     const { bid } = this.cotation(a, stock);
     const offre = Math.min(bid * acheteur.mult * aff, this.plafondDe(a, acheteur));
@@ -284,12 +302,38 @@ export class Marche {
   /**
    * Un lot ne se paie pas au prix unitaire : chaque exemplaire supplémentaire
    * garnit le rayon, donc fait baisser le suivant. Vendre gros a un coût.
+   *
+   * L'affinité est figée au début du lot, ici comme dans `vendreLot` : la
+   * prime « hausse » d'Ysée et de Voren tombe dès que la vente regarnit le
+   * rayon, et le lot se payait jusqu'à 10 % de moins que son annonce. Le prix
+   * annoncé est le prix payé.
    */
   offreLot(a, acheteur, qte, facteur = 1) {
     const base = this.stock[a.id] ?? a.equilibre;
+    const aff = this.affinite(a, acheteur);
     let total = 0;
-    for (let k = 0; k < qte; k++) total += this.prixAcheteur(a, acheteur, base + k, facteur);
+    for (let k = 0; k < qte; k++) total += this.prixAcheteur(a, acheteur, base + k, facteur, aff);
     return total;
+  }
+
+  /**
+   * Vend un lot à un acheteur, au prix de `offreLot`, et le compte sur son
+   * quota. S'arrête quand la caisse est à sec : `caisseVide` le dit, pour que
+   * la page l'annonce au lieu de ne rien faire.
+   */
+  vendreLot(a, acheteur, qte, facteur = 1) {
+    const aff = this.affinite(a, acheteur);
+    let gain = 0;
+    let vendus = 0;
+    for (let k = 0; k < qte; k++) {
+      const paye = this.payer(a, this.prixAcheteur(a, acheteur, this.stock[a.id] ?? a.equilibre, facteur, aff));
+      if (paye === null) break;
+      gain += paye;
+      vendus++;
+    }
+    if (!vendus) return qte > 0 ? { vendus: 0, gain: 0, caisseVide: true } : { vendus: 0, gain: 0 };
+    this.compterAchat(acheteur, vendus);
+    return { vendus, gain };
   }
 
   /** Ce que l'échoppe paierait pour le même lot, à la même pente. */
@@ -486,17 +530,17 @@ export class Marche {
     return v.length ? v[Math.floor(v.length / 2)] : 0;
   }
 
-  /** Ce qui part dans le stockage local : deux tableaux et quatre nombres. */
+  /**
+   * Ce qui part dans le stockage local : deux tableaux et quatre nombres. Le
+   * stock est arrondi au millième et l'objet relit cet arrondi (`arrondir`) :
+   * les prix d'après le rechargement sont ceux d'avant.
+   */
   serialiser() {
-    const arrondir = (o) => {
-      const out = {};
-      for (const [k, v] of Object.entries(o)) out[k] = Math.round(v * 100) / 100;
-      return out;
-    };
+    this.arrondir();
     return {
       jour: this.jour,
-      stock: arrondir(this.stock),
-      stockPrec: arrondir(this.stockPrec),
+      stock: { ...this.stock },
+      stockPrec: { ...this.stockPrec },
       fonds: Math.round(this.fonds),
       verses: Math.round(this.verses),
       encaisses: Math.round(this.encaisses),

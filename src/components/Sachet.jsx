@@ -37,7 +37,20 @@ export default function Sachet({ booster, sfx, ouverts, prix, onRupture, onToutO
   // chacun refermait sur un `ouvert` périmé : deux boosters tirés, deux débits.
   const verrou = useRef(false);
   const minuteur = useRef(null);
-  useEffect(() => () => clearInterval(minuteur.current), []);
+  /**
+   * La rupture laisse 640 ms au papier pour tomber avant d'ouvrir. Quitter la
+   * page dans cet intervalle ouvrait (et débitait) quand même le booster :
+   * le délai est annulé au démontage. Il appelle aussi la dernière version
+   * d'`onRupture`, pas celle du moment de la déchirure : le prix ou le sachet
+   * offert ont pu changer entre-temps.
+   */
+  const rupture = useRef(null);
+  const surRupture = useRef(onRupture);
+  surRupture.current = onRupture;
+  useEffect(() => () => {
+    clearInterval(minuteur.current);
+    clearTimeout(rupture.current);
+  }, []);
 
   const declencher = useCallback((fn) => {
     if (verrou.current) return;
@@ -52,9 +65,12 @@ export default function Sachet({ booster, sfx, ouverts, prix, onRupture, onToutO
       ref.current = v;
       setDechire(v);
       if (v > dernier.current + 0.1) { dernier.current = v; sfx.fissure(); }
-      if (v >= 1) declencher(() => { sfx.rupture(); setTimeout(onRupture, 640); });
+      if (v >= 1) declencher(() => {
+        sfx.rupture();
+        rupture.current = setTimeout(() => surRupture.current(), 640);
+      });
     },
-    [declencher, onRupture, sfx]
+    [declencher, sfx]
   );
 
   const forcer = () => {

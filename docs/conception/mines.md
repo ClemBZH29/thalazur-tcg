@@ -123,8 +123,56 @@ Deux pièges : la fusion entre appareils garde d'abord la copie aux règles les
 plus récentes (`comparerMines`), sinon une vieille copie plus avancée
 l'emporterait et serait remise à zéro à chaque relecture ; et le solde n'est
 versé qu'une fois par compte, la marque vivant dans l'état du jeu
-(`etat.mine.regles`), qu'une vieille copie de la mine ne peut pas écraser. Le
+(`etat.mine.regles`, et le solde versé `etat.mine.solde`), qu'une vieille
+copie de la mine ne peut pas écraser. Le
 solde ne compte pas pour les missions.
+
+### Horloge, appareils, versions (audit du 09/10/2026)
+
+Sept défauts relevés par l'audit de synchronisation, tous reproduits par un
+test avant d'être corrigés.
+
+- **L'horloge reculée ne rend plus de commandes.** `majCommandes` renouvelait
+  dès que le jour *différait* : avancer puis reculer l'horloge de l'appareil
+  donnait trois commandes neuves à chaque bascule (2 200 PO pour dix
+  aller-retour). Elle ne renouvelle plus que si le jour est *postérieur*
+  (les dates AAAA-MM-JJ se comparent comme des chaînes). Même cause pour la
+  frénésie de l'étoile filante : sa fin, posée horloge avancée, la faisait
+  durer des heures ; `enFrenesie` refuse une fin plus lointaine que sa durée.
+- **Un plafond quotidien, en garde-fou.** L'application ne crédite pas plus de
+  PO de commandes par jour que n'en paient toutes les commandes d'un jour, la
+  quatrième comprise (`PO_COMMANDES_JOUR`, 270 PO ; `crediterLivraison`,
+  `src/jeu/mine.js`). Il ferme les autres portes — une vieille copie de la
+  mine réimportée avec ses commandes du matin — et ne mord jamais sur le jeu
+  normal (l'audit plafonne à 266 PO/j à trois heures par jour). Le compte du
+  jour vit dans la marque : `etat.mine.livre = { jour, po }`.
+- **Les commandes se fusionnent à part.** La copie la plus avancée l'emporte
+  toujours entière, *sauf* ses commandes (`fusionnerCommandes`,
+  `src/lib/nuage/fusion.js`) : le même jour, une commande livrée d'un côté
+  l'est des deux ; de deux jours, le plus récent. Sinon la bourse additionnait
+  une livraison faite sur l'appareil le moins avancé, et la commande se
+  livrait une seconde fois sur l'autre.
+- **Le solde de remise n'est versé qu'une fois, même payé sur deux appareils
+  avant la synchro.** La marque retient le solde versé (`etat.mine = { regles,
+  solde }`) ; quand les deux côtés l'ont payé depuis la base, `fusionner3`
+  en reprend un, comme un succès réclamé deux fois.
+- **Une mine d'une version future fige le module.** Un vieil onglet qui
+  adoptait une mine au format plus récent la lisait comme illisible, repartait
+  d'une mine neuve et la sauvait par-dessus : partie perdue. `estFuture`
+  (`src/mines/sauvegarde.js`) distingue le futur de l'illisible ; sur une
+  sauvegarde future, le module ne sauve plus rien et demande de recharger la
+  page. Il vérifie aussi avant chaque sauvegarde qu'une version plus récente
+  n'a pas écrit entre-temps. Et la remise à zéro ne touche que les règles
+  *antérieures* (`regles < REGLES_VERSION`) : des règles futures étaient
+  remises à zéro comme des anciennes.
+- **L'adoption en attente ne l'emporte plus sur plus avancé.** `magasinKazim`
+  servait d'abord la mine adoptée onglet caché, même si un autre onglet avait
+  écrit plus avancé depuis ; il rend la plus avancée des deux (`comparerMines`).
+- **Les très grands nombres.** `fmt` passe au suffixe suivant quand l'arrondi
+  atteint mille (999 999 donnait « 1000 K ») et, au-delà de « Qi », écrit en
+  notation scientifique (« 1,23e300 »). Le solde de remise ne paie plus
+  240 PO pour une étoile absente : seule une étoile infinie paie le maximum
+  (JSON l'écrit `null` : étoile *et* cumul nuls).
 
 ### Missions de Bodégué
 
@@ -358,6 +406,8 @@ aperçu, qui partagent le compte), c'est **la plus avancée** qui l'emporte —
 effondrements, puis filons brisés, puis étoile sortie au total
 (`comparerMines`, `src/lib/nuage/fusion.js`) — et non plus la plus récemment
 sauvée : un vieil onglet oublié effaçait ainsi des talents et des achats.
+Les commandes du jour font exception : elles se fusionnent à part (voir
+« Horloge, appareils, versions »).
 
 ### Les éclats ne s'emballent plus (septembre 2026, remplacé le 07/10/2026)
 

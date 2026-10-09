@@ -83,9 +83,19 @@ Snap et MTG Arena tiennent tous la même ligne :
   5, 10, 25, 50, 100 cartes ; 30, 60, 120 PO, un sachet, trois sachets ;
 - **complétion** : rééquilibrée vers la fin (1, 2, 4, 6 + 240 PO,
   12 + 600 PO) ;
-- un palier dont le seuil a bougé sous un palier **déjà réclamé** de la même
-  famille compte comme réclamé (`seuilsReclames`) : personne ne se fait
-  repayer un chemin déjà fait sous un autre nom.
+- un palier dont le seuil a bougé sous un palier **réclamé sous l'ancien
+  barème** de la même famille compte comme réclamé (`seuilsAnciens`) :
+  personne ne se fait repayer un chemin déjà fait sous un autre nom. Une
+  réclamation est « de l'ancien barème » quand son palier n'est plus au
+  catalogue, ou quand la récompense qu'elle a enregistrée n'est plus celle du
+  palier. Une réclamation du barème actuel ne couvre qu'elle-même : réclamer
+  « 100 boosters » avant « 25 » laisse « 25 » à réclamer (09/10/2026 ; un
+  joueur que l'ancienne règle en avait privé le retrouve en attente).
+- les paliers de type et de légendaires sont des parts du roster : quand le
+  roster grandit, « la moitié des PNJ » glisse de 100 à 102 et change
+  d'identifiant. Un ancien seuil couvre donc aussi un palier à peine
+  au-dessus de lui (un dixième du seuil, une carte au moins) : le même palier
+  ne se paie pas deux fois, et son titre reste acquis.
 
 Mesuré par `scripts/audit-succes.mjs` sur le roster de La Troupe, en ouvrant
 aussi les sachets offerts et sans rien acheter au Comptoir :
@@ -189,6 +199,13 @@ par son seul propriétaire, et vérifient sa forme et ses bornes (pseudo de 2 à
 24 caractères, score sur dix mille…). Elles ne prétendent pas empêcher la
 triche : la partie vit dans le navigateur, et l'audit d'économie a déjà jugé
 la chose sans importance entre amis. Un classement la rend seulement visible.
+
+Tricher ne doit pas, en revanche, casser la page des autres. Les règles ne
+savent pas typer les valeurs des tables `extensions` et `premiers` : une
+ligne où `pct` était un objet faisait tomber le classement chez tous les
+joueurs (écran blanc). Chaque ligne lue passe donc par `assainirLigne`
+(`src/succes/classement.js`) : nombres finis et bornés, chaînes, 40 entrées
+au plus — le reste est remis à zéro ou écarté (09/10/2026).
 
 ## Le pseudo, demandé à la première connexion
 
