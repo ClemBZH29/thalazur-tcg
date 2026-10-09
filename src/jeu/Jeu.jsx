@@ -3,8 +3,12 @@ import { BOOSTER_DEFAUT, BOOSTER_PAR_ID } from "../extensions/index.js";
 import { specialesPour } from "../config/speciales.js";
 import { ECONOMIE, GARANTIES, TIER_ORDER, TIERS_ROSTER } from "../config/tiers.js";
 import { construirePool, deduireGrades } from "../lib/roster.js";
-import { CLE_MINE, CLE_PARTIE, charger, classerTexte, ecrireMine, etatVide, relireJeu, retablirMine, sauver } from "../lib/storage.js";
+import {
+  CLE_MINE, CLE_PARTIE, charger, classerTexte, ecrireMine, etatVide, lireEcriture, noterEcriture, plusRecente,
+  relireJeu, retablirMine, sauver,
+} from "../lib/storage.js";
 import { geler } from "../lib/gel.js";
+import { mineMoinsAvancee, seuleLaBourse } from "./onglets.js";
 import { crediter, peutAcheter } from "../lib/economie.js";
 import { appliquerOuverture, reglementOuverture } from "./recolte.js";
 import { useReglages } from "./reglages.js";
@@ -50,8 +54,16 @@ export function Jeu({ children }) {
   // Le texte de la partie écrit par un autre onglet, adopté ici (voir plus bas).
   const recuDAilleurs = useRef(null);
   const etatCourant = useRef(etat);
+  const dernierSauve = useRef(null);
   useEffect(() => {
     etatCourant.current = etat;
+    // Un onglet en arrière-plan n'écrit pas son seul gain passif : c'est
+    // l'écriture qui, partie d'une copie en retard d'un instant, effaçait ce
+    // que l'onglet joué venait de faire. Le gain n'est pas perdu : il court
+    // sur l'horloge et sera crédité au prochain tour.
+    const avant = dernierSauve.current;
+    if (avant && document.hidden && seuleLaBourse(avant, etat)) return;
+    dernierSauve.current = etat;
     setStockageKo(!sauver(etat, recuDAilleurs.current));
   }, [etat]);
 
@@ -108,11 +120,14 @@ export function Jeu({ children }) {
       if (ev.key === CLE_PARTIE) {
         const genre = classerTexte(ev.newValue);
         if (genre === "futur") { geler("onglet"); return; }
-        if (genre === "ancien") {
+        // Plus ancienne que ce qu'on a (onglet en retard, ancien code) : on ne
+        // l'adopte pas, et on réécrit la nôtre pour reprendre la main.
+        if (genre === "ancien" || !plusRecente(lireEcriture(ev.newValue))) {
           recuDAilleurs.current = null;
           sauver(etatCourant.current);
           return;
         }
+        noterEcriture(lireEcriture(ev.newValue));
         let suite = null;
         try { suite = ev.newValue ? relireJeu(JSON.parse(ev.newValue)) : etatVide(); } catch { /* illisible */ }
         if (!suite) return;
@@ -128,6 +143,10 @@ export function Jeu({ children }) {
           if (classerTexte(ev.oldValue) === "courant") retablirMine(ev.oldValue);
           return;
         }
+        // Une mine moins avancée que celle qu'elle recouvre vient d'un onglet
+        // en retard (les compteurs d'une mine ne reculent jamais) : on remet
+        // l'autre, sinon les Mines la reliraient à leur prochaine ouverture.
+        if (mineMoinsAvancee(ev.newValue, ev.oldValue)) { retablirMine(ev.oldValue); return; }
         if (!document.hidden) return;
         ecrireMine(ev.newValue);
         rechargerMine();

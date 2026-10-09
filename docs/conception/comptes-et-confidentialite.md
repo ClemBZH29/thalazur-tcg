@@ -53,6 +53,13 @@ Raisonnement de conception : ce que fait cette partie du site, et pourquoi elle 
   est relu avant tout tirage ou retour d'expédition.
 - **Plusieurs onglets** partagent le stockage : chacun adopte la partie
   qu'un autre vient d'écrire, et la marque de synchronisation qui va avec.
+  Chaque écriture porte un numéro croissant (`ecriture`, dans
+  `src/lib/storage.js`) : un onglet n'adopte que plus récent que ce qu'il a
+  vu, et réécrit la sienne sinon. Un onglet caché n'écrit pas son seul gain
+  passif, et une mine moins avancée que celle qu'elle recouvre est remise.
+  Sans cela, un onglet en retard — ou ouvert avant une mise en ligne, avec
+  l'ancien code — réécrivait sa vieille partie et l'onglet joué l'adoptait :
+  un booster ouvert disparaissait et ses PO revenaient (09/10/2026).
   Avant, l'onglet oublié réécrivait sa vieille partie toutes les vingt
   secondes (gain passif), et la fusion suivante la lisait comme des cartes
   vendues : le compte les perdait.

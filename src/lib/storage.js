@@ -81,6 +81,10 @@ const vide = () => ({
   // Missions de Bodégué : { jour, remplacees, quotidiennes, semaine, hebdo }
   // (voir src/missions/regles.js).
   missions: null,
+  // Numéro de la dernière écriture locale : { n, onglet } (voir `sauver`).
+  // Il départage les onglets ouverts sur le site ; il ne compte pas pour la
+  // synchronisation (exclu de `signature`).
+  ecriture: null,
 });
 
 export const etatVide = vide;
@@ -166,6 +170,7 @@ export function charger() {
   try {
     nettoyerPerimees();
     const brut = localStorage.getItem(CLE);
+    noterEcriture(lireEcriture(brut));
     // Une partie (ou une mine) d'un format plus récent : un autre onglet tourne
     // sur la nouvelle version. On ne la lit pas, et surtout on ne réécrit pas
     // par-dessus une partie vide : l'onglet se gèle et demande à recharger.
@@ -179,6 +184,47 @@ export function charger() {
   }
 }
 
+/* ── Plusieurs onglets ──────────────────────────────────────────────────────
+ *
+ * Chaque écriture de la partie porte un numéro qui ne fait que monter,
+ * `{ n, onglet }`. Un onglet n'adopte que ce qui est plus récent que ce qu'il
+ * a déjà vu ou écrit lui-même. Sans lui, la dernière écriture gagnait, d'où
+ * qu'elle vienne : un onglet resté en arrière-plan — ou ouvert avant une mise
+ * en ligne, avec l'ancien code qui n'écoute pas les autres onglets — réécrivait
+ * sa vieille partie, et l'onglet joué l'adoptait. Un booster ouvert
+ * disparaissait, ses PO revenaient (signalé le 09/10/2026).
+ */
+const ONGLET = Math.random().toString(36).slice(2, 10);
+let derniere = { n: 0, onglet: "" };
+
+/** Le numéro d'écriture d'un texte de partie, ou null. */
+export function lireEcriture(texte) {
+  try {
+    const e = JSON.parse(texte)?.ecriture;
+    return e && Number.isFinite(e.n) ? { n: e.n, onglet: String(e.onglet || "") } : null;
+  } catch { return null; }
+}
+
+/** Retient un numéro vu (chargement, adoption) : la prochaine écriture le dépasse. */
+export function noterEcriture(e) {
+  if (e && e.n > derniere.n) derniere = { ...e };
+}
+
+/**
+ * Une écriture venue d'un autre onglet est-elle plus récente que tout ce que
+ * cet onglet a vu ? Sans numéro (ancien code) : non. À numéro égal (deux
+ * onglets ont écrit au même instant) : l'identifiant d'onglet départage, pour
+ * que l'un cède et que l'autre ne réécrive pas en boucle.
+ */
+export function plusRecente(e, vue = derniere, moi = ONGLET) {
+  if (!e) return false;
+  if (e.n !== vue.n) return e.n > vue.n;
+  return e.onglet !== vue.onglet && e.onglet > moi;
+}
+
+/** Pour les tests : remet le compteur de cet onglet. */
+export function _remettreEcriture(e = { n: 0, onglet: "" }) { derniere = { ...e }; }
+
 /** Clés partagées entre les onglets ouverts sur le site (voir Jeu.jsx). */
 export const CLE_PARTIE = CLE;
 export const CLE_MINE = CLE_MINE_STOCKAGE;
@@ -191,7 +237,9 @@ export function sauver(etat, dejaLa = null) {
   if (estGele()) return true; // pas une panne : l'onglet attend d'être rechargé
   try {
     const texte = JSON.stringify({ ...etat, schema: SCHEMA });
-    if (texte !== dejaLa) localStorage.setItem(CLE, texte);
+    if (texte === dejaLa) return true;
+    derniere = { n: derniere.n + 1, onglet: ONGLET };
+    localStorage.setItem(CLE, JSON.stringify({ ...etat, schema: SCHEMA, ecriture: derniere }));
     return true;
   } catch {
     return false; // quota dépassé
