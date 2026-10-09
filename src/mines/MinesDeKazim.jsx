@@ -50,6 +50,7 @@ import { Tafix, Fossoyeur, Grotte } from "./Personnages.jsx";
 import { fmt, fmtEnt, fmtDuree } from "./format.js";
 import { estFuture, etatNeuf, relireMine } from "./sauvegarde.js";
 import { comparerMines } from "../lib/nuage/fusion.js";
+import { surVidageMine } from "../lib/storage.js";
 
 /** Au-delà, la boucle n'a pas tourné : le navigateur avait suspendu l'onglet. */
 const TROU = 3000;
@@ -412,6 +413,9 @@ function MinesDeKazim({
      suite, ou le double montage de React en développement — enregistrait la
      mine neuve du montage par-dessus la vraie partie. */
   const relue = useRef(false);
+  // Le dernier texte de mine lu ou écrit ici : une différence avec le
+  // stockage veut dire qu'une autre fenêtre a écrit depuis.
+  const ecrit = useRef(null);
 
   /* `dernierTick` n'est touché que par la boucle : c'est l'instant jusqu'où
      le temps a été joué. La sauvegarde le posait à « maintenant », ce qui
@@ -429,10 +433,18 @@ function MinesDeKazim({
   const sauver = useCallback((force = false) => {
     if (!relue.current) return;
     if (!force && document.hidden) return;
+    /* Fenêtre visible mais sans le focus (deux fenêtres côte à côte) : si une
+       autre a écrit depuis notre dernière lecture, on ne l'écrase pas — Jeu.jsx
+       nous fait adopter la sienne. */
+    if (!force && storage.voir && !document.hasFocus() && storage.voir() !== ecrit.current) return;
     /* Une version plus récente du site a écrit entre-temps (autre fenêtre) :
        on ne l'écrase pas avec l'ancien format. */
     if (storage.voir && estFuture(storage.voir())) { geler(); return; }
-    try { storage.set(JSON.stringify(S.current)); } catch { /* la partie continue */ }
+    try {
+      const texte = JSON.stringify(S.current);
+      storage.set(texte);
+      ecrit.current = texte;
+    } catch { /* la partie continue */ }
   }, [storage, geler]);
 
   useEffect(() => {
@@ -442,6 +454,7 @@ function MinesDeKazim({
       .then((brut) => {
       if (!vivant) return;
       if (estFuture(brut)) { geler(); return; }
+      ecrit.current = brut;
       const d = relireMine(brut);
       if (d) {
         const avant = d.dernierTick;
@@ -473,6 +486,8 @@ function MinesDeKazim({
         forcer();
       });
     const horloge = setInterval(() => sauver(), 5000);
+    // La synchronisation lit la mine stockée : on lui écrit d'abord la nôtre.
+    const plusVidage = surVidageMine(() => sauver(true));
     /* Au retour, une autre fenêtre a pu jouer entre-temps : sa partie, plus
        avancée, remplace celle qu'on avait laissée. */
     const reprendre = () => {
@@ -482,6 +497,7 @@ function MinesDeKazim({
       const d = relireMine(brut);
       if (!d || comparerMines(d, S.current) <= 0) return;
       S.current = d;
+      ecrit.current = brut;
       if (!S.current.pvMax) nouveauFilon();
       formeRef.current = genererEclats();
       forcer();
@@ -492,6 +508,7 @@ function MinesDeKazim({
       vivant = false;
       clearInterval(horloge);
       document.removeEventListener("visibilitychange", surVisibilite);
+      plusVidage();
       Object.keys(minuteurs.current).forEach((k) => clearTimeout(minuteurs.current[k]));
       sauver(true);
       // Le prochain montage relira la sauvegarde avant d'avoir le droit d'écrire.

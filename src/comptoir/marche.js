@@ -169,11 +169,13 @@ export class Marche {
       this.fonds = typeof sauve.fonds === "number" ? sauve.fonds : this.fonds;
       this.verses = sauve.verses || 0;
       this.encaisses = sauve.encaisses || 0;
-      this.marchandages = sauve.marchandages || {};
-      this.achats = sauve.achats || {};
-      this.achatsJoueur = sauve.achatsJoueur || {};
+      // Copiés pour la même raison qu'à `serialiser` : ne jamais modifier
+      // sur place les objets de la sauvegarde.
+      this.marchandages = { ...(sauve.marchandages || {}) };
+      this.achats = { ...(sauve.achats || {}) };
+      this.achatsJoueur = { ...(sauve.achatsJoueur || {}) };
       this.vitrine = sauve.vitrine || null;
-      this.journal = sauve.journal || [];
+      this.journal = [...(sauve.journal || [])];
       // Jour enregistré à plus d'un jour dans le futur : horloge fausse, ici
       // ou sur un autre appareil du compte. On le tient pour aujourd'hui, sans
       // rien remettre à zéro : le marché ne reste pas bloqué jusqu'à cette
@@ -544,11 +546,14 @@ export class Marche {
       fonds: Math.round(this.fonds),
       verses: Math.round(this.verses),
       encaisses: Math.round(this.encaisses),
-      marchandages: this.marchandages,
-      achats: this.achats,
-      achatsJoueur: this.achatsJoueur,
+      // Des copies : l'objet Marche modifie ces tables sur place, et l'état
+      // React (ainsi que la base de synchronisation) gardait sinon les mêmes
+      // objets — la fusion n'y voyait plus aucune vente (09/10/2026).
+      marchandages: { ...this.marchandages },
+      achats: { ...this.achats },
+      achatsJoueur: { ...this.achatsJoueur },
       vitrine: this.vitrine,
-      journal: this.journal,
+      journal: [...this.journal],
     };
   }
 }

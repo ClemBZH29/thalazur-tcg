@@ -740,3 +740,13 @@ sauvée avant eux se reprend telle quelle.
 
 Deux succès globaux s'y rattachent (`gardiens`, `remontees`), comptés à la
 remontée dans `etat.stats`.
+
+### Le pas de la partie (09/10/2026)
+
+Chaque sauvegarde de la descente fait monter `partie.pas`. Une copie plus
+ancienne de la même descente — un onglet resté à l'étage 1 pendant qu'on
+jouait l'étage 3 ailleurs — ne peut ni la sauver (elle la ferait reculer), ni
+la terminer (elle paierait un butin périmé). La page qui voit la descente
+avancer ailleurs reprend la copie la plus récente. L'entrée de l'infini se
+revérifie sur la bourse du moment.
+

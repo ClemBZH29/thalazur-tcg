@@ -39,17 +39,30 @@ function avecDonjon(e, champs) {
 /** Commence une descente, sauf si une autre est en cours. */
 export function commencer(e, partie, entree = 0) {
   if (e.donjon?.partie) return e;
-  if (partie.mode === "infini") return avecDonjon({ ...e, bourse: debiterLibre(e.bourse, entree) }, { partie });
+  if (partie.mode === "infini") {
+    // L'entrée se paie sur la bourse du moment : insuffisante, on ne descend pas.
+    if ((e.bourse?.po || 0) < entree) return e;
+    return avecDonjon({ ...e, bourse: debiterLibre(e.bourse, entree) }, { partie });
+  }
   return avecDonjon(e, (d) => ({ tentatives: (d.tentatives || 0) + 1, partie }));
 }
 
-/** Sauve la partie, si c'est bien elle qui est en cours. */
-export const sauver = (e, partie) => (enCours(e, idPartie(partie)) ? avecDonjon(e, { partie }) : e);
+/**
+ * Le pas de la partie : il monte à chaque sauvegarde (Donjon.jsx). Un onglet
+ * resté sur une copie plus ancienne de la même descente ne la fait pas
+ * reculer — étage, sac, PV — et ne se la fait pas payer.
+ */
+const pasDe = (p) => p?.pas || 0;
+const aJour = (e, pas) => (pas ?? 0) >= pasDe(e.donjon?.partie);
+
+/** Sauve la partie, si c'est bien elle qui est en cours et qu'elle avance. */
+export const sauver = (e, partie) => (enCours(e, idPartie(partie)) && pasDe(partie) > pasDe(e.donjon.partie)
+  ? avecDonjon(e, { partie }) : e);
 
 /** Clôt la partie `resume.id` et crédite son butin ; rien si elle n'est plus en cours. */
 export function terminer(e0, { butin, resume, repos = [], gains = [] }) {
-  if (!enCours(e0, resume.id)) return e0;
-  const { id: _id, ...res } = resume;
+  if (!enCours(e0, resume.id) || !aJour(e0, resume.pas)) return e0;
+  const { id: _id, pas: _pas, ...res } = resume;
   const infini = res.mode === "infini";
   const po = poDuButin(butin, res.mode || "jour");
   const { etat: e, po: bonus } = crediterXP(e0, gains);
@@ -123,7 +136,7 @@ export function useDonjon(etat, setEtat, test) {
   const terminerDonjon = useCallback((butin, resume, repos = [], gains = []) => {
     // Le bilan d'expérience se lit sur l'état du moment ; le setter le refait
     // sur l'état le plus frais, qui est le même au clic près.
-    if (!enCours(etat, resume.id)) return { po: 0, bilan: [], poXP: 0, refusee: true };
+    if (!enCours(etat, resume.id) || !aJour(etat, resume.pas)) return { po: 0, bilan: [], poXP: 0, refusee: true };
     const po = poDuButin(butin, resume.mode || "jour");
     const { bilan, po: poXP } = crediterXP(etat, gains);
     setEtat((e0) => terminer(e0, { butin, resume, repos, gains }));

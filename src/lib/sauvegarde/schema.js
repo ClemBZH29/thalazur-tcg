@@ -34,8 +34,14 @@
  *        Leur identifiant découle du nom et de la série
  *        (« fa-selssy-sable-chaud » devient « fa-selsy-sable-chaud ») : même
  *        remplacement partout, et les instantanés reprennent nom et série.
+ * 10     Aucun champ ne change de sens (pas de migration) : la montée sert à
+ *        figer les onglets restés sur la version précédente. Ils lisaient le
+ *        numéro d'écriture (`ecriture`) comme une clé inconnue et le
+ *        réécrivaient tel quel ; l'onglet à jour les rejetait, et eux
+ *        adoptaient sa réécriture par-dessus leurs propres actions. Au format
+ *        10, ils se gèlent et demandent à recharger (09/10/2026).
  */
-export const SCHEMA = 9;
+export const SCHEMA = 10;
 
 /** Première version encore lisible. En dessous, on repart d'une partie neuve. */
 export const SCHEMA_MIN = 6;

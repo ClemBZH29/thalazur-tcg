@@ -3,7 +3,9 @@ import { useJeu } from "./Jeu.jsx";
 import { CLE_COMPTE, chargerFirebase, nuageConfigure, sessionMemorisee } from "../lib/nuage/firebase.js";
 import { empreinte, fusionner3, fusionnerMine, signature } from "../lib/nuage/fusion.js";
 import { assainirLigne, ligneClassement, pseudoValide } from "../succes/classement.js";
-import { CLE_SECOURS, classerDonnees, effacer, ecrireMine, etatVide, lireMine, relireJeu, suivreMine } from "../lib/storage.js";
+import {
+  CLE_SECOURS, classerDonnees, effacer, ecrireMine, etatVide, lireMine, relireJeu, suivreMine, viderMine,
+} from "../lib/storage.js";
 import { estGele, geler } from "../lib/gel.js";
 import { SCHEMA, migrer } from "../lib/sauvegarde/schema.js";
 import { LEGAL } from "../config/legal.js";
@@ -216,7 +218,7 @@ export function Compte({ children }) {
   }, []);
 
   /** Remplace l'état local par une version réconciliée. */
-  const adopter = useCallback((nouvel, mine) => {
+  const adopter = useCallback((nouvel, mine, rejouer = null) => {
     // Filet : une version qui compte moins de cartes que l'appareil n'entre
     // pas sans qu'une copie de ce qu'on remplace soit gardée à part
     // (`brume-thalazur:secours`, que le profil propose de fusionner).
@@ -226,7 +228,11 @@ export function Compte({ children }) {
       try { mineAvant = JSON.parse(lireMine()); } catch { /* pas de mine */ }
       ecrireJSON(CLE_SECOURS, { t: Date.now(), format: "brume-thalazur", schema: SCHEMA, jeu: avant, mine: mineAvant });
     }
-    setEtat(nouvel);
+    // Fonctionnel : une action de cet appareil encore en attente d'être
+    // appliquée (l'ouverture lancée après l'animation du sachet, la fin d'un
+    // combat) n'est pas écrasée par la copie du compte ; elle est rejouée
+    // dessus par la fusion (`rejouer`).
+    setEtat((cur) => (cur === avant || !rejouer ? nouvel : rejouer(cur)));
     etatRef.current = nouvel;
     if ((mine || null) !== (lireMine() || null)) {
       ecrireMine(mine);
@@ -258,6 +264,8 @@ export function Compte({ children }) {
    * connaît. Renvoie vrai si l'appareil a encore quelque chose à envoyer.
    */
   const reconcilier = useCallback((doc) => {
+    // Les Mines écrivent d'abord ce qu'elles ont en mémoire (voir viderMine).
+    viderMine();
     const { jeu: la, mine: laMine, lisible, futur } = lireCompte(doc);
     // Jamais une copie illisible à la place de la partie de l'appareil.
     if (futur) {
@@ -272,15 +280,16 @@ export function Compte({ children }) {
       return true;
     }
     const b = base.current;
+    const rejouer = (cur) => fusionner3(b ? b.etat : null, cur, la, etatVide());
     if (!aChange()) {
-      adopter(la, laMine);
+      adopter(la, laMine, rejouer);
       retenir(doc.revision, la, laMine);
       return false;
     }
     const ici = etatRef.current;
     const fusion = fusionner3(b ? b.etat : null, ici, la, etatVide());
     const mine = fusionnerMine(lireMine(), laMine);
-    adopter(fusion, mine);
+    adopter(fusion, mine, rejouer);
     retenir(doc.revision, la, laMine);
     return signature(fusion, mine) !== signature(la, laMine);
   }, [adopter, aChange, retenir]);
@@ -355,6 +364,7 @@ export function Compte({ children }) {
     if (!user.current || !fb.current || estGele() || suppression.current) return;
     clearTimeout(minuteur.current); minuteur.current = null;
     if (enVol.current) { relancer.current = true; return; }
+    viderMine();
     if (!force && !aChange()) { setSync("a-jour"); return; }
     enVol.current = true;
     setSync("envoi");

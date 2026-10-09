@@ -60,6 +60,16 @@ Raisonnement de conception : ce que fait cette partie du site, et pourquoi elle 
   Sans cela, un onglet en retard — ou ouvert avant une mise en ligne, avec
   l'ancien code — réécrivait sa vieille partie et l'onglet joué l'adoptait :
   un booster ouvert disparaissait et ses PO revenaient (09/10/2026).
+  Compléments du même jour : une écriture numérote toujours au-dessus de ce
+  qui est stocké (même sans en avoir reçu l'événement) ; l'onglet qui s'ouvre
+  ne réécrit pas la partie qu'il vient de lire ; une partie effacée ailleurs
+  (réinitialisation, déconnexion) est vidée ici aussi ; un onglet rendu par le
+  cache de navigation ou redevenu visible relit le stockage ; une adoption
+  (autre onglet ou copie du compte) ne recouvre pas une action locale encore
+  en attente, elle est rejouée dessus. Le format est passé à 10 pour figer
+  les onglets restés sur la version précédente. Les Mines écrivent leur
+  partie avant que la synchronisation ne la lise (`viderMine`), et une
+  fenêtre visible sans le focus n'écrase pas la mine d'une autre fenêtre.
   Avant, l'onglet oublié réécrivait sa vieille partie toutes les vingt
   secondes (gain passif), et la fusion suivante la lisait comme des cartes
   vendues : le compte les perdait.

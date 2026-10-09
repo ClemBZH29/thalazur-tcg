@@ -65,7 +65,8 @@ describe("une descente, deux onglets", () => {
   test("la même descente se sauve normalement", () => {
     const X = partie("x");
     const s = stockage({ ...etatVide(), donjon: { jour, tentatives: 1, partie: X } });
-    s.onglet().sauverPartie({ ...X, etage: 2 });
+    // Chaque sauvegarde fait avancer le pas de la partie (Donjon.jsx).
+    s.onglet().sauverPartie({ ...X, etage: 2, pas: (X.pas || 0) + 1 });
     expect(s.etat.donjon.partie.etage).toBe(2);
   });
 

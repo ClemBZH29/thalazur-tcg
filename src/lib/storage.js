@@ -225,6 +225,21 @@ export function plusRecente(e, vue = derniere, moi = ONGLET) {
 /** Pour les tests : remet le compteur de cet onglet. */
 export function _remettreEcriture(e = { n: 0, onglet: "" }) { derniere = { ...e }; }
 
+/**
+ * Le module des Mines garde sa partie en mémoire et ne l'écrit que toutes
+ * les cinq secondes. Avant de lire la mine stockée pour la fusionner ou
+ * l'envoyer, la synchronisation lui demande de l'écrire : sinon les achats des
+ * dernières secondes partaient avec la copie remplacée.
+ */
+let vidageMine = null;
+export function surVidageMine(fn) {
+  vidageMine = fn;
+  return () => { if (vidageMine === fn) vidageMine = null; };
+}
+export function viderMine() {
+  try { vidageMine?.(); } catch { /* la mine écrira à son prochain tour */ }
+}
+
 /** Clés partagées entre les onglets ouverts sur le site (voir Jeu.jsx). */
 export const CLE_PARTIE = CLE;
 export const CLE_MINE = CLE_MINE_STOCKAGE;
@@ -238,6 +253,10 @@ export function sauver(etat, dejaLa = null) {
   try {
     const texte = JSON.stringify({ ...etat, schema: SCHEMA });
     if (texte === dejaLa) return true;
+    // Un autre onglet a pu écrire sans que l'événement soit encore arrivé :
+    // on numérote au-dessus de ce qui est stocké, pour ne jamais égaler une
+    // écriture qu'on n'a pas vue.
+    noterEcriture(lireEcriture(localStorage.getItem(CLE)));
     derniere = { n: derniere.n + 1, onglet: ONGLET };
     localStorage.setItem(CLE, JSON.stringify({ ...etat, schema: SCHEMA, ecriture: derniere }));
     return true;

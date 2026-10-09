@@ -43,6 +43,11 @@ export function Jauge({ restant, quota, large = false }) {
  * focus rendu à l'appelant par la page.
  */
 export default function Negoce({ M, acheteur, articles, surplus, cfgImage, fichiers, onVendre, onMarchander, onFermer }) {
+  // Le marché du dernier rendu : s'il a été reconstruit pendant la pesée
+  // (vente dans un autre onglet, synchronisation, minuit), on ne marchande pas
+  // sur l'ancien, qui serait réécrit par-dessus.
+  const marcheCourant = useRef(M);
+  marcheCourant.current = M;
   const [carte, setCarte] = useState(null);      // id de l'article en marchandage (écran B)
   const [recherche, setRecherche] = useState("");
   const [tri, setTri] = useState("prix");
@@ -156,6 +161,7 @@ export default function Negoce({ M, acheteur, articles, surplus, cfgImage, fichi
                 // Une demi-seconde de pesée : le temps que la proposition soit
                 // examinée. Sans elle, rien ne signalait qu'un dé était jeté.
                 chrono.current.push(setTimeout(() => {
+                  if (marcheCourant.current !== M) { setPese(false); return; }
                   const r = M.marchander(acheteur, article, maniere);
                   setPese(false);
                   setEclat(r.ok ? "ok" : "ko");

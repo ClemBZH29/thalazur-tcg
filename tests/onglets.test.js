@@ -8,6 +8,7 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
 import { mineMoinsAvancee, seuleLaBourse } from "../src/jeu/onglets.js";
 import { signature } from "../src/lib/nuage/fusion.js";
+import { SCHEMA } from "../src/lib/sauvegarde/schema.js";
 
 function stockageFactice() {
   const m = new Map();
@@ -61,7 +62,7 @@ describe("numéro d'écriture", () => {
   });
 
   test("la réécriture d'une partie adoptée telle quelle ne crée pas d'écriture", () => {
-    const texte = JSON.stringify({ ...S.etatVide(), schema: 9, ecriture: { n: 3, onglet: "x" } });
+    const texte = JSON.stringify({ ...S.etatVide(), schema: SCHEMA, ecriture: { n: 3, onglet: "x" } });
     localStorage.setItem(S.CLE_PARTIE, texte);
     S.sauver(JSON.parse(texte), texte);
     expect(localStorage.getItem(S.CLE_PARTIE)).toBe(texte);
@@ -96,5 +97,51 @@ describe("onglet caché, mine en retard", () => {
     expect(mineMoinsAvancee(m(10), m(50))).toBe(true);
     expect(mineMoinsAvancee(m(60), m(50))).toBe(false);
     expect(mineMoinsAvancee(m(10), null)).toBe(false);
+  });
+});
+
+describe("écritures concurrentes", () => {
+  test("une écriture numérote au-dessus de ce qui est stocké, même sans l'avoir vu", async () => {
+    // Un autre onglet a écrit n = 5 ; l'événement n'est pas encore arrivé ici.
+    localStorage.setItem(S.CLE_PARTIE, JSON.stringify({ ...S.etatVide(), schema: SCHEMA, ecriture: { n: 5, onglet: "zz" } }));
+    S.sauver({ ...S.etatVide(), boosters: { t: 1 } });
+    expect(S.lireEcriture(localStorage.getItem(S.CLE_PARTIE)).n).toBe(6);
+  });
+});
+
+describe("Donjon : une copie plus ancienne de la descente", () => {
+  test("ne la fait pas reculer et ne se la fait pas payer", async () => {
+    const { sauver, terminer } = await import("../src/jeu/donjon.js");
+    const jour = new Date().toLocaleDateString("sv");
+    const avancee = { id: "d1", pas: 5, etage: 3, sac: 500 };
+    const e = { ...S.etatVide(), donjon: { jour, tentatives: 1, partie: avancee } };
+    // L'onglet resté à l'étage 1 sauve sa copie : refusée.
+    expect(sauver(e, { id: "d1", pas: 2, etage: 1, sac: 20 })).toBe(e);
+    // L'onglet à jour avance : acceptée.
+    expect(sauver(e, { ...avancee, pas: 6, etage: 4 }).donjon.partie.etage).toBe(4);
+    // Terminer depuis la vieille copie : rien n'est payé, la descente reste.
+    const resume = { id: "d1", pas: 2, mode: "jour", etage: 1, gardiens: 0 };
+    expect(terminer(e, { butin: { po: 20 }, resume })).toBe(e);
+  });
+
+  test("l'entrée de l'infini ne se paie pas avec une bourse insuffisante", async () => {
+    const { commencer } = await import("../src/jeu/donjon.js");
+    const e = { ...S.etatVide(), bourse: { po: 10, credite: 0, gagne: 0 } };
+    expect(commencer(e, { id: "i1", mode: "infini" }, 50)).toBe(e);
+  });
+});
+
+describe("Comptoir : le marché ne partage plus ses tables avec l'état", () => {
+  test("une vente après la sauvegarde ne modifie pas la sauvegarde", async () => {
+    const { Marche } = await import("../src/comptoir/marche.js");
+    const M = new Marche([], null, 300);
+    const sauve = M.serialiser();
+    M.achats.lise = 4;
+    M.journal.unshift({ t: "vente" });
+    expect(sauve.achats.lise).toBeUndefined();
+    expect(sauve.journal).toHaveLength(0);
+    const N = new Marche([], sauve, 300);
+    N.achats.lise = 7;
+    expect(sauve.achats.lise).toBeUndefined();
   });
 });
