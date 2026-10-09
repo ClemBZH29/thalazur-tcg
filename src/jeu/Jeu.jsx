@@ -1,9 +1,9 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { BOOSTER_DEFAUT, BOOSTER_PAR_ID } from "../extensions/index.js";
 import { specialesPour } from "../config/speciales.js";
 import { ECONOMIE, GARANTIES, TIER_ORDER, TIERS_ROSTER } from "../config/tiers.js";
 import { construirePool, deduireGrades } from "../lib/roster.js";
-import { charger, sauver } from "../lib/storage.js";
+import { CLE_MINE, CLE_PARTIE, charger, ecrireMine, etatVide, relireJeu, sauver } from "../lib/storage.js";
 import { crediter, crediterGain, debiterLibre, peutAcheter, valeurRevente } from "../lib/economie.js";
 import { useReglages } from "./reglages.js";
 import { useMine } from "./mine.js";
@@ -45,7 +45,9 @@ export function Jeu({ children }) {
   const [nbImages, setNbImages] = useState(0);
   const [stockageKo, setStockageKo] = useState(false);
 
-  useEffect(() => { setStockageKo(!sauver(etat)); }, [etat]);
+  // Le texte de la partie écrit par un autre onglet, adopté ici (voir plus bas).
+  const recuDAilleurs = useRef(null);
+  useEffect(() => { setStockageKo(!sauver(etat, recuDAilleurs.current)); }, [etat]);
 
   /*
    * Un appareil qui suit un compte ne fait rien de lui-même avant d'avoir lu
@@ -57,6 +59,7 @@ export function Jeu({ children }) {
    */
   const [compteLu, setCompteLu] = useState(() => !compteSuivi());
   const lireCompteFait = useCallback(() => setCompteLu(true), []);
+  const attendreCompte = useCallback(() => setCompteLu(false), []);
 
   // Gain passif : crédité au chargement puis toutes les vingt secondes.
   useEffect(() => {
@@ -75,6 +78,34 @@ export function Jeu({ children }) {
   // chercher, et si l'image existe (inventaire publié avec les portraits).
   const cfgImage = { ...cfgImageBase, extension: boosterId, inventaire };
   const { crediterCommande, crediterRemise, remisePayee, majTafix, versionMine, rechargerMine } = useMine(etat, setEtat);
+
+  /*
+   * Plusieurs onglets ouverts sur le site partagent le même stockage, mais
+   * chacun avait sa partie en mémoire. L'onglet oublié, en créditant son gain
+   * passif toutes les vingt secondes, réécrivait sa vieille partie par-dessus
+   * celle de l'onglet joué ; au lancement suivant, la fusion lisait cette
+   * vieille partie comme des cartes vendues, et le compte les perdait. Chaque
+   * onglet adopte donc ce qu'un autre vient d'écrire : ils avancent ensemble.
+   * La mine, elle, n'est adoptée que par un onglet en arrière-plan : la
+   * recharger sous les yeux du joueur couperait son tour.
+   */
+  useEffect(() => {
+    const ecouter = (ev) => {
+      if (ev.storageArea !== localStorage) return;
+      if (ev.key === CLE_PARTIE) {
+        let suite = null;
+        try { suite = ev.newValue ? relireJeu(JSON.parse(ev.newValue)) : etatVide(); } catch { /* illisible */ }
+        if (!suite) return;
+        recuDAilleurs.current = ev.newValue;
+        setEtat(suite);
+      } else if (ev.key === CLE_MINE && document.hidden) {
+        ecrireMine(ev.newValue);
+        rechargerMine();
+      }
+    };
+    window.addEventListener("storage", ecouter);
+    return () => window.removeEventListener("storage", ecouter);
+  }, [rechargerMine]);
 
   const donnees = MJ ? etat.rosters[boosterId] : null;
   const roster = BOOSTER_PAR_ID[boosterId]?.roster;
@@ -269,7 +300,7 @@ export function Jeu({ children }) {
   const achetable = peutAcheter(etat.bourse, gratuit);
 
   const valeur = {
-    etat, setEtat, stockageKo, versionMine, rechargerMine, compteLu, lireCompteFait,
+    etat, setEtat, stockageKo, versionMine, rechargerMine, compteLu, lireCompteFait, attendreCompte,
     boosterId, setBoosterId, booster,
     reglages, son, reglageSon, reventeAuto, taux, cfgImage, test, gratuit, majReglages,
     animations, sobreSysteme, mouvementReduit,

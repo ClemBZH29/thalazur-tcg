@@ -111,9 +111,18 @@ export function charger() {
   }
 }
 
-export function sauver(etat) {
+/** Clés partagées entre les onglets ouverts sur le site (voir Jeu.jsx). */
+export const CLE_PARTIE = CLE;
+export const CLE_MINE = CLE_MINE_STOCKAGE;
+
+/**
+ * `dejaLa` : le texte qu'un autre onglet vient d'écrire et que cet onglet a
+ * adopté. Le réécrire tel quel relancerait l'adoption dans l'autre onglet.
+ */
+export function sauver(etat, dejaLa = null) {
   try {
-    localStorage.setItem(CLE, JSON.stringify({ ...etat, schema: SCHEMA }));
+    const texte = JSON.stringify({ ...etat, schema: SCHEMA });
+    if (texte !== dejaLa) localStorage.setItem(CLE, texte);
     return true;
   } catch {
     return false; // quota dépassé

@@ -2,7 +2,8 @@
 import { test } from "vitest";
 import assert from "node:assert/strict";
 import {
-  fusionner3, fusionnerExpeditions, fusionnerMine, fusionnerMissions, fusionnerReliquaire, signature,
+  fusionner3, fusionnerDonjon, fusionnerExpeditions, fusionnerMine, fusionnerMissions, fusionnerParCle,
+  fusionnerPity, fusionnerReliquaire, signature,
 } from "../src/lib/nuage/fusion.js";
 import { ECONOMIE } from "../src/config/tiers.js";
 
@@ -201,4 +202,47 @@ test("expéditions : la même carte partie des deux côtés, la route du compte 
   const ici = { routes: [route("t:l2", 150, ["t:a"], 1)], seq: 2 };
   const f = fusionnerExpeditions({ routes: [], seq: 1 }, ici, la);
   assert.deepEqual(f.routes.map((r) => r.lieu), ["t:l1"]);
+});
+
+/* ── Donjon, Comptoir, garantie de légendaire ─────────────────────────────── */
+
+test("donjon : les tentatives du jour s'additionnent, la composition du compte reste", () => {
+  const b = { jour: "2026-10-09", tentatives: 1, imposition: { jour: "2026-10-09", x: 1 } };
+  const ici = { ...b, tentatives: 2 };
+  const la = { ...b, tentatives: 3 };
+  assert.equal(fusionnerDonjon(b, ici, la).tentatives, 4);
+  const hier = { jour: "2026-10-08", tentatives: 3 };
+  const f = fusionnerDonjon(hier, { jour: "2026-10-09", tentatives: 1, imposition: { a: 1 } },
+    { jour: "2026-10-09", tentatives: 2, imposition: { b: 2 } });
+  assert.equal(f.tentatives, 3);
+  assert.deepEqual(f.imposition, { b: 2 });
+});
+
+test("donjon : une descente terminée sur le compte ne se rejoue pas ici", () => {
+  const p = { salle: 2 };
+  const b = { jour: "2026-10-09", tentatives: 1, partie: p };
+  const ici = { ...b, partie: { salle: 3 } };           // avancée ici
+  const la = { ...b, partie: null, dernier: { po: 40 } }; // terminée là-bas
+  assert.equal(fusionnerDonjon(b, ici, la).partie, null);
+  assert.deepEqual(fusionnerDonjon(b, ici, b).partie, { salle: 3 }, "avancée ici seulement : elle suit");
+});
+
+test("donjon : les convalescences s'unissent", () => {
+  const f = fusionnerDonjon({}, { convalescence: { a: "2026-10-11", b: "2026-10-10" } },
+    { convalescence: { b: "2026-10-12", c: "2026-10-10" } });
+  assert.deepEqual(f.convalescence, { a: "2026-10-11", b: "2026-10-12", c: "2026-10-10" });
+});
+
+test("comptoir : chaque extension suit le côté qui l'a touchée", () => {
+  const b = { tro: { v: 1 }, nak: { v: 1 } };
+  const f = fusionnerParCle(b, { ...b, tro: { v: 2 } }, { ...b, nak: { v: 3 } });
+  assert.deepEqual(f, { tro: { v: 2 }, nak: { v: 3 } });
+});
+
+test("garantie de légendaire : les boosters des deux côtés comptent, une légendaire remet à zéro", () => {
+  const b = { t: { depuis: 10, vu: false } };
+  assert.equal(fusionnerPity(b, { t: { depuis: 12, vu: false } }, { t: { depuis: 13, vu: false } }).t.depuis, 15);
+  const f = fusionnerPity(b, { t: { depuis: 1, vu: true } }, { t: { depuis: 13, vu: false } });
+  assert.equal(f.t.depuis, 1);
+  assert.equal(f.t.vu, true);
 });

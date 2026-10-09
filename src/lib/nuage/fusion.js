@@ -388,9 +388,81 @@ export function fusionnerExpeditions(base, ici, la) {
   return { ...la, ...ici, routes, seq, orJour };
 }
 
+/**
+ * Le Donjon. Traité comme une valeur, le côté qui l'avait touché l'emportait
+ * entier : les tentatives du jour prises ailleurs revenaient, une descente
+ * terminée ailleurs pouvait se rejouer (et payer son butin une seconde fois),
+ * une convalescence disparaissait.
+ * - Le jour le plus récent porte les tentatives et la composition imposée ;
+ *   au même jour, les tentatives s'additionnent comme un compteur et la
+ *   composition tirée la première (celle du compte) reste.
+ * - La partie en cours suit le côté qui l'a fait avancer. Avancée des deux
+ *   côtés, et terminée sur le compte : terminée.
+ * - Convalescences : l'union, la date la plus lointaine.
+ */
+export function fusionnerDonjon(base, ici, la) {
+  if (!ici) return la || null;
+  if (!la) return ici;
+  const b = base || {};
+  const sortie = { ...la };
+  if ((ici.jour || "") > (la.jour || "")) {
+    Object.assign(sortie, { jour: ici.jour, tentatives: ici.tentatives || 0, imposition: ici.imposition || null });
+  } else if (ici.jour === la.jour) {
+    const depuis = b.jour === ici.jour ? b.tentatives || 0 : 0;
+    sortie.tentatives = (la.tentatives || 0) + Math.max(0, (ici.tentatives || 0) - depuis);
+    sortie.imposition = la.imposition || ici.imposition || null;
+  }
+  const changeIci = !meme(ici.partie, b.partie), changeLa = !meme(la.partie, b.partie);
+  // Avancée des deux côtés : celle du compte (terminée là-bas, elle le reste).
+  sortie.partie = (changeIci && !changeLa ? ici.partie : la.partie) ?? null;
+  if (!meme(ici.dernier, b.dernier) && meme(la.dernier, b.dernier)) sortie.dernier = ici.dernier;
+  const conv = { ...(la.convalescence || {}) };
+  for (const [k, fin] of Object.entries(ici.convalescence || {})) {
+    if (!INTERDITES.has(k) && (!conv[k] || conv[k] < fin)) conv[k] = fin;
+  }
+  sortie.convalescence = conv;
+  const record = Math.max(ici.recordInfini || 0, la.recordInfini || 0);
+  if (record) sortie.recordInfini = record;
+  return sortie;
+}
+
+/**
+ * Le Comptoir, extension par extension : le marché d'une extension suit le
+ * côté qui l'a touché. Il était fusionné d'un bloc : visiter le Comptoir de
+ * La Troupe sur le téléphone effaçait les ventes faites ailleurs au Comptoir
+ * d'une autre extension.
+ */
+export function fusionnerParCle(base = {}, ici = {}, la = {}) {
+  const sortie = {};
+  for (const k of cles(ici, la)) {
+    const v = !meme(ici?.[k], base?.[k]) ? ici?.[k] : la?.[k];
+    if (v !== undefined) sortie[k] = v;
+  }
+  return sortie;
+}
+
+/**
+ * Garantie de légendaire, par extension. `depuis` compte les boosters
+ * ouverts depuis la dernière légendaire : les boosters ouverts des deux
+ * côtés s'ajoutent ; une légendaire tirée d'un côté (le compteur est
+ * redescendu) remet ce côté-là à sa valeur. `vu` est acquis dès qu'un côté
+ * l'a.
+ */
+export function fusionnerPity(base = {}, ici = {}, la = {}) {
+  const sortie = {};
+  for (const k of cles(ici, la)) {
+    const b = base?.[k] || { depuis: 0 }, i = ici?.[k], l = la?.[k];
+    if (!i || !l) { sortie[k] = i || l; continue; }
+    const di = (i.depuis || 0) - (b.depuis || 0), dl = (l.depuis || 0) - (b.depuis || 0);
+    const depuis = di < 0 ? i.depuis : dl < 0 ? l.depuis : (b.depuis || 0) + di + dl;
+    sortie[k] = { ...l, depuis, vu: !!(i.vu || l.vu) };
+  }
+  return sortie;
+}
+
 const COMPTEURS = new Set([
   "collections", "boosters", "bourse", "mine", "tafix", "schema", "succes", "sachets", "stats", "xp", "reliquaire", "fiches",
-  "missions", "expeditions",
+  "missions", "expeditions", "donjon", "comptoir", "pity",
 ]);
 
 /**
@@ -414,6 +486,9 @@ export function fusionner3(base, ici, la, vide) {
   sortie.reliquaire = fusionnerReliquaire(b.reliquaire, ici.reliquaire, la.reliquaire);
   sortie.fiches = fusionnerFiches(b.fiches, ici.fiches, la.fiches);
   sortie.expeditions = fusionnerExpeditions(b.expeditions, ici.expeditions, la.expeditions);
+  sortie.donjon = fusionnerDonjon(b.donjon, ici.donjon, la.donjon);
+  sortie.comptoir = fusionnerParCle(b.comptoir, ici.comptoir, la.comptoir);
+  sortie.pity = fusionnerPity(b.pity, ici.pity, la.pity);
   const { succes, doublons } = fusionnerSucces(b.succes, ici.succes, la.succes);
   sortie.succes = succes;
   const m = fusionnerMissions(b.missions, ici.missions, la.missions, base ? b : null);
