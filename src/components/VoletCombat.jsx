@@ -115,7 +115,7 @@ function ChoixCompetence({ c, place, actuelle, vestiges, onChoisir, onFermer }) 
  * bouton, un premier avertissement, un second, puis la suppression.
  */
 function StarReset({ c, niveau, onFermer, fiche }) {
-  const { etat, resetStarCarte, enExpedition } = useJeu();
+  const { etat, resetStarCarte, enExpedition, enDescente } = useJeu();
   const [reset, setReset] = useState(0); // 0, puis les deux avertissements
   const nNorm = etat.collections?.[c.ext]?.[c.id]?.normale || 0;
   const nRb = etat.collections?.[c.ext]?.[c.id]?.rainbow || 0;
@@ -123,8 +123,8 @@ function StarReset({ c, niveau, onFermer, fiche }) {
   return (
         <section className={`volet fc-reset${reset ? ` etape-${reset}` : ""}`}>
           {!reset && (
-            <button type="button" className="btn quiet sm fc-reset-bouton" disabled={enExpedition?.(c)}
-              title={enExpedition?.(c) ? "La carte est en expédition." : undefined}
+            <button type="button" className="btn quiet sm fc-reset-bouton" disabled={enExpedition?.(c) || enDescente?.(c)}
+              title={enExpedition?.(c) ? "La carte est en expédition." : enDescente?.(c) ? "La carte est engagée dans la descente en cours." : undefined}
               onClick={() => setReset(1)}>
               <Etoile taille={11} /> STAR RESET
             </button>

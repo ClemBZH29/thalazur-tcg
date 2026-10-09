@@ -105,7 +105,13 @@ export default function PageExpeditions() {
   const partir = () => {
     if (partirExpedition(lieu, equipe, heures)) { setLieuId(null); setChoix([]); setMaintenant(Date.now()); window.scrollTo({ top: 0, behavior: "smooth" }); }
   };
-  const orRestant = EXPEDITION.or.plafondJour - (expeditions.orJour?.jour === jourDe(maintenant) ? expeditions.orJour.credite : 0);
+  // Borné à 0 : après une fusion entre appareils, le crédité du jour peut
+  // dépasser le plafond.
+  const orRestant = Math.max(0, EXPEDITION.or.plafondJour - (expeditions.orJour?.jour === jourDe(maintenant) ? expeditions.orJour.credite : 0));
+  // Une route peut être rentrée sans que la page l'ait vu (elle relit l'heure
+  // toutes les 20 s) : le rappel est alors refusé, et l'heure relue montre la
+  // route rentrée ; la fenêtre de retour crédite son butin.
+  const rappeler = (id) => { rappelerExpedition(id); setMaintenant(Date.now()); };
 
   return (
     <main className="view large exp-page" id="contenu">
@@ -128,7 +134,7 @@ export default function PageExpeditions() {
         {routes.length ? (
           <div className="exp-routes">
             {routes.map((r) => (
-              <Route key={r.id} r={r} lieu={indexCartes[r.lieu]} maintenant={maintenant} onRappel={rappelerExpedition}
+              <Route key={r.id} r={r} lieu={indexCartes[r.lieu]} maintenant={maintenant} onRappel={rappeler}
                 noms={r.cartes.map((k) => indexCartes[k]?.nom).filter(Boolean)} />
             ))}
           </div>
@@ -154,12 +160,13 @@ export default function PageExpeditions() {
             <h3 className="exp-etape">Destination</h3>
             <div className="exp-lieux">
               {lieuxTries.map((l) => {
-                const k = cleXP(l), occ = occupes.has(k);
+                // Source de la descente en cours : le Lieu est au Donjon, il ne part pas.
+                const k = cleXP(l), auDonjon = empechementExpedition(l) === "donjon", occ = occupes.has(k) || auDonjon;
                 const affines = compagnons.filter((c) => affine(c, l)).length;
                 return (
                   <button type="button" key={k} className={`exp-choix xr-${l.tier}`} aria-pressed={lieuId === k} disabled={occ} onClick={() => choisirLieu(l)}>
                     <strong>{l.nom}</strong>
-                    <span className="exp-meta">{l.rep1} · {l.rep3 || "Lieu"} · {NOM_PALIER[l.tier]}{occ ? " · en expédition" : ""}</span>
+                    <span className="exp-meta">{l.rep1} · {l.rep3 || "Lieu"} · {NOM_PALIER[l.tier]}{auDonjon ? " · au Donjon" : occ ? " · en expédition" : ""}</span>
                     <span className="exp-meta">{capacite(etat, l)} places · {affines} compagnon{affines > 1 ? "s" : ""} de {l.rep1}</span>
                     <Progression etat={etat} lieu={l} />
                   </button>

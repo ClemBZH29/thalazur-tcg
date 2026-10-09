@@ -36,10 +36,14 @@ export const crediterRevente = crediterGain;
 export const debiterLibre = (bourse, montant) =>
   montant <= 0 ? bourse : { ...bourse, po: Math.max(0, bourse.po - montant) };
 
-/** Temps restant avant de pouvoir s'offrir un booster, en millisecondes. */
-export function attenteAvantAchat(bourse) {
-  if (bourse.po >= ECONOMIE.prix) return 0;
-  return ((ECONOMIE.prix - bourse.po) / ECONOMIE.parHeure) * 3600000;
+/**
+ * Temps restant avant de pouvoir s'offrir un booster, en millisecondes. Le
+ * prix se passe quand ce n'est pas celui de l'étagère : la botte du
+ * colporteur en a un autre.
+ */
+export function attenteAvantAchat(bourse, prix = ECONOMIE.prix) {
+  if (bourse.po >= prix) return 0;
+  return ((prix - bourse.po) / ECONOMIE.parHeure) * 3600000;
 }
 
 export function formatDuree(ms) {

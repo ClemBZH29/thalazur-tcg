@@ -51,14 +51,18 @@ puis les plus puissantes ; aucune carte n'est réservée d'office au Donjon.
 **Le butin est fixé au départ** : estimation et trouvailles sont calculées et
 tirées (graine : Lieu, heure de départ, équipe) quand l'équipe part, et sauvées
 dans la route. Recharger ne change rien. Un rappel fait rentrer l'équipe sans
-rien.
+rien ; il est **refusé pour une route déjà rentrée** (`rappeler` compare à
+l'heure du geste, 09/10/2026) : la page ne relit l'heure que toutes les 20 s,
+et un « Rappeler » cliqué juste après la fin effaçait tout le butin. La route
+passe alors par la fenêtre de retour.
 
 **La fenêtre de retour** vit dans la coque du site : elle s'ouvre d'elle-même
 quand une route est rentrée, sur n'importe quelle page, et regroupe les retours
 arrivés ensemble. Elle attend si le joueur est **occupé** : ouverture de booster
 en cours (`etat.enCours`), page d'ouverture (cérémonie et bilan, où passe le
 colporteur), ou page du Donjon avec une descente en cours. Le guetteur regarde
-toutes les 30 secondes et au retour sur l'onglet. Le crédit se fait une fois, à
+toutes les 30 secondes, au retour sur l'onglet, et à la fin exacte de la
+prochaine route (un minuteur réglé dessus). Le crédit se fait une fois, à
 l'annonce ; « Renvoyer la même équipe » relance la route d'un clic.
 
 ---
@@ -70,7 +74,10 @@ l'écran tant qu'aucune extension n'est complétée à 60 % (`RELIQUAIRE.ouvertu
 avant, les boosters complètent mieux que lui. Le seuil franchi, une fenêtre
 l'annonce (`src/components/AnnonceReliquaire.jsx`), avec les mêmes égards que le
 retour d'expédition : jamais pendant une ouverture ni un combat, jamais par-dessus
-une autre fenêtre. L'annonce note `reliquaire.ouvert` : il ne se referme plus.
+une autre fenêtre. Tant qu'une route est rentrée et pas encore accueillie,
+l'annonce attend la fenêtre de retour : les deux se décidaient dans le même
+rendu, où aucune n'était encore ouverte, et s'empilaient (09/10/2026).
+L'annonce note `reliquaire.ouvert` : il ne se referme plus.
 
 **Refonte du 30/09/2026 : une carte par jour.** L'étal tenait deux listes de
 deux cents lignes (dissoudre, forger), avec recherche et filtres, et l'on y
@@ -81,7 +88,10 @@ choisissait sa carte manquante parmi toutes. Il ne reste qu'une carte :
   collection. Elle est tirée **comme dans un booster** : chaque carte pèse la
   fréquence de son palier par sachet (3 communes, 1,71 peu commune, 0,24 rare,
   0,05 légendaire, lues dans `SLOTS`), partagée entre les cartes du palier ;
-  puis elle est irisée au taux du booster (3 %).
+  puis elle est irisée au taux du booster (3 %). Forger et retourner
+  revérifient le jour au geste (`jour` de `forgerOffre`, `reveler`) : juste
+  après minuit, la page tend encore l'offre de la veille (elle relit le jour
+  toutes les 30 s) ; elle est refusée, et la page relit l'heure.
 - **Prix relevés** de deux fois et demie : 50, 100, 250, 1 000 vestiges ; une
   version irisée coûte cinq fois plus. On peut la forger même si on la possède
   (elle s'ajoute aux exemplaires) : la dissoudre ne rend qu'un dixième. Face

@@ -11,10 +11,18 @@ import { createContext, useContext, useEffect, useMemo, useState } from "react";
 
 const Ctx = createContext(null);
 
-const lire = () => {
-  const h = decodeURI(window.location.hash.replace(/^#/, ""));
+/**
+ * Le chemin porté par un fragment (« #/comptoir » → « /comptoir »). Un
+ * fragment mal encodé (`#/%`) faisait lever `decodeURI` au premier rendu :
+ * écran blanc. Il ramène à l'accueil.
+ */
+export function cheminDuFragment(hash) {
+  let h;
+  try { h = decodeURI(String(hash || "").replace(/^#/, "")); } catch { return "/"; }
   return h.startsWith("/") ? h : "/";
-};
+}
+
+const lire = () => cheminDuFragment(window.location.hash);
 
 export function Routeur({ children }) {
   const [chemin, setChemin] = useState(lire);

@@ -21,7 +21,7 @@ const part = (p) => Object.fromEntries(ROSTER.filter((c) => Number(c.id.split("-
   .map((c) => [c.id, { normale: 1, rainbow: 0, carte: { type: "pnj" } }]));
 
 const passif = ECONOMIE.parHeure * 24;
-const coll = (n, type, ex = 1) => Object.fromEntries(Array.from({ length: n }, (_, i) => [`${type}${i}`, { normale: ex, rainbow: 0, carte: { type } }]));
+const coll = (n, type, ex = 1) => Object.fromEntries(Array.from({ length: n }, (_, i) => [`${type}${i}`, { normale: ex, rainbow: 0, carte: { type, tier: "commun" } }]));
 const PROFILS = [
   ["Débutant (un booster ouvert)", { boosters: { t: 1 }, collections: { t: coll(5, "pnj") }, stats: {} }],
   ["Sans Reliquaire, 40 boosters", { boosters: { t: 40 }, collections: { t: { ...coll(90, "pnj", 2), ...coll(10, "lieu") } }, stats: { descentes: 2 } }],

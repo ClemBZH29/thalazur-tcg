@@ -3,8 +3,10 @@ import { BOOSTER_DEFAUT, BOOSTER_PAR_ID } from "../extensions/index.js";
 import { specialesPour } from "../config/speciales.js";
 import { ECONOMIE, GARANTIES, TIER_ORDER, TIERS_ROSTER } from "../config/tiers.js";
 import { construirePool, deduireGrades } from "../lib/roster.js";
-import { CLE_MINE, CLE_PARTIE, charger, ecrireMine, etatVide, relireJeu, sauver } from "../lib/storage.js";
-import { crediter, crediterGain, debiterLibre, peutAcheter, valeurRevente } from "../lib/economie.js";
+import { CLE_MINE, CLE_PARTIE, charger, classerTexte, ecrireMine, etatVide, relireJeu, retablirMine, sauver } from "../lib/storage.js";
+import { geler } from "../lib/gel.js";
+import { crediter, peutAcheter } from "../lib/economie.js";
+import { appliquerOuverture, reglementOuverture } from "./recolte.js";
 import { useReglages } from "./reglages.js";
 import { useMine } from "./mine.js";
 import { useMouvements } from "./marche.js";
@@ -47,7 +49,11 @@ export function Jeu({ children }) {
 
   // Le texte de la partie écrit par un autre onglet, adopté ici (voir plus bas).
   const recuDAilleurs = useRef(null);
-  useEffect(() => { setStockageKo(!sauver(etat, recuDAilleurs.current)); }, [etat]);
+  const etatCourant = useRef(etat);
+  useEffect(() => {
+    etatCourant.current = etat;
+    setStockageKo(!sauver(etat, recuDAilleurs.current));
+  }, [etat]);
 
   /*
    * Un appareil qui suit un compte ne fait rien de lui-même avant d'avoir lu
@@ -88,17 +94,41 @@ export function Jeu({ children }) {
    * onglet adopte donc ce qu'un autre vient d'écrire : ils avancent ensemble.
    * La mine, elle, n'est adoptée que par un onglet en arrière-plan : la
    * recharger sous les yeux du joueur couperait son tour.
+   *
+   * Sauf entre deux versions du site (après une montée de `SCHEMA`). Un onglet
+   * resté sur l'ancienne ne lit pas ce qu'écrit la nouvelle, mais continuait à
+   * réécrire sa vieille partie ; l'onglet à jour l'adoptait, migrée, et perdait
+   * sa progression. Désormais une écriture d'un format plus ancien n'est pas
+   * adoptée — l'onglet à jour réécrit la sienne pour reprendre la main — et
+   * une écriture d'un format plus récent gèle cet onglet-ci (src/lib/gel.js).
    */
   useEffect(() => {
     const ecouter = (ev) => {
       if (ev.storageArea !== localStorage) return;
       if (ev.key === CLE_PARTIE) {
+        const genre = classerTexte(ev.newValue);
+        if (genre === "futur") { geler("onglet"); return; }
+        if (genre === "ancien") {
+          recuDAilleurs.current = null;
+          sauver(etatCourant.current);
+          return;
+        }
         let suite = null;
         try { suite = ev.newValue ? relireJeu(JSON.parse(ev.newValue)) : etatVide(); } catch { /* illisible */ }
         if (!suite) return;
         recuDAilleurs.current = ev.newValue;
         setEtat(suite);
-      } else if (ev.key === CLE_MINE && document.hidden) {
+      } else if (ev.key === CLE_MINE) {
+        const genre = classerTexte(ev.newValue);
+        if (genre === "futur") { geler("onglet"); return; }
+        // Une mine d'un onglet en retard ne s'adopte pas : on remet celle
+        // qu'elle a recouverte, sans quoi les Mines la reliraient à leur
+        // prochaine ouverture.
+        if (genre === "ancien") {
+          if (classerTexte(ev.oldValue) === "courant") retablirMine(ev.oldValue);
+          return;
+        }
+        if (!document.hidden) return;
         ecrireMine(ev.newValue);
         rechargerMine();
       }
@@ -162,9 +192,17 @@ export function Jeu({ children }) {
    * Renvoie l'ensemble des cases nouvellement remplies, calculé sur la
    * collection telle qu'elle est *avant* la mise à jour — c'est ce qui permet
    * d'afficher le badge « New » au moment de la révélation.
+   *
+   * `prix` est le vrai prix (étagère ou botte), jamais zéro pour dire
+   * « offert » : c'est le sachet, relu dans la partie, qui décide. Rend `null`
+   * si l'ouverture n'est pas payable, pour que l'écran revienne au sachet au
+   * lieu de dérouler des cartes jamais acquises. Le règlement est refait dans
+   * le setter, sur la partie du moment : un double clic ou un autre onglet ne
+   * consomme pas un sachet qui n'existe plus et ne débite pas une bourse vide.
    */
   const recolter = useCallback(
-    (booster, prix = ECONOMIE.prix, sachet = null) => {
+    (booster, prix = ECONOMIE.prix, sachet = null, botte = false) => {
+      if (!reglementOuverture(etat, { prix, sachet, gratuit })) return null;
       const avant = etat.collections[boosterId] || {};
       const nouvelles = new Set();
       booster.cards.forEach((c) => {
@@ -172,52 +210,9 @@ export function Jeu({ children }) {
         if (!(avant[c.id] && avant[c.id][cle])) nouvelles.add(`${c.id}:${cle}`);
       });
 
-      setEtat((e) => {
-        const coll = { ...(e.collections[boosterId] || {}) };
-        let revente = 0;
-        booster.cards.forEach((c) => {
-          const { rainbow, slot, ...carte } = c;
-          const cle = rainbow ? "rainbow" : "normale";
-          const a = coll[c.id];
-          const dejaLa = a && a[cle] > 0;
-          if (dejaLa && reventeAuto) {
-            // Réglage éteint par défaut : le doublon partait à l'échoppe pour
-            // deux PO alors qu'il vaut le double au Comptoir.
-            revente += valeurRevente(c.tier);
-            return;
-          }
-          coll[c.id] = {
-            normale: 0, rainbow: 0, ...(a || {}),
-            [cle]: ((a && a[cle]) || 0) + 1,
-            carte,
-          };
-        });
-        const leg = booster.cards.some((c) => c.tier === "legendaire");
-        const p = e.pity[boosterId] || { depuis: 0, vu: false };
-        // Sachet offert par un succès : il remplace le prix, s'il en reste.
-        // Relu ici et non à l'appel, pour qu'un double clic n'en consomme
-        // pas un qui n'existe plus.
-        const offert = !gratuit && sachet && ((e.sachets || {})[sachet] || 0) > 0;
-        const sachets = offert
-          ? { ...e.sachets, [sachet]: e.sachets[sachet] - 1 }
-          : (e.sachets || {});
-        return {
-          ...e,
-          sachets,
-          collections: { ...e.collections, [boosterId]: coll },
-          boosters: { ...e.boosters, [boosterId]: (e.boosters[boosterId] || 0) + 1 },
-          pity: { ...e.pity, [boosterId]: { depuis: leg ? 0 : p.depuis + 1, vu: p.vu || leg } },
-          // `debiterLibre` et non `debiter` : le prix n'est plus une constante
-          // depuis que le colporteur vend un sachet sous le manteau.
-          bourse: crediterGain(debiterLibre(e.bourse, gratuit || offert ? 0 : prix), revente),
-          enCours: {
-            boosterId,
-            tirage: booster,
-            index: 0,
-            nouvelles: Array.from(nouvelles),
-          },
-        };
-      });
+      setEtat((e) => appliquerOuverture(e, {
+        boosterId, booster, prix, sachet, gratuit, reventeAuto, botte, nouvelles,
+      }));
 
       return nouvelles;
     },

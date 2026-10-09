@@ -17,6 +17,8 @@ import { QUOTIDIENNES, RECOMPENSE_SEMAINE, REMPLACEMENTS, RYTHME, TYPES } from "
 import { SLOTS } from "../config/tiers.js";
 import { crediterGain } from "../lib/economie.js";
 import { descentesJouees } from "../lib/compteurs.js";
+import { HOSTILES } from "../donjon/regles.js";
+import { eligible } from "../reliquaire/regles.js";
 
 export const TYPE_PAR_ID = Object.fromEntries(TYPES.map((t) => [t.id, t]));
 
@@ -44,6 +46,14 @@ export function echeances(d = new Date()) {
   const lundi = new Date(d.getFullYear(), d.getMonth(), d.getDate() + (7 - ((d.getDay() + 6) % 7)));
   return { jour: minuit - d, semaine: lundi - d };
 }
+
+/**
+ * Dans combien de temps revérifier le passage du jour : chaque minute, ou à
+ * minuit (un quart de seconde après, pour tomber sûrement le lendemain) s'il
+ * vient avant. Sans ce rendez-vous, la minute qui suit minuit comptait pour
+ * la veille.
+ */
+export const delaiControle = (d = new Date()) => Math.min(60000, echeances(d).jour + 250);
 
 /* ── Ce que la partie mesure ─────────────────────────────────────────────── */
 
@@ -95,20 +105,26 @@ export function nouvellesParBooster(collection = {}, roster = []) {
  * le palier de chaque carte.
  */
 export function contexte(etat, extensions = []) {
-  let surplus = 0, pnj = 0, lieux = 0, possedees = 0;
+  let surplus = 0, dissolubles = 0, pnj = 0, lieux = 0, possedees = 0;
   for (const coll of Object.values(etat.collections || {})) {
-    for (const e of Object.values(coll || {})) {
-      surplus += Math.max(0, (e?.normale || 0) - 1) + Math.max(0, (e?.rainbow || 0) - 1);
+    for (const [id, e] of Object.entries(coll || {})) {
+      const enTrop = Math.max(0, (e?.normale || 0) - 1);
+      // Le Comptoir rachète tout exemplaire en trop, rainbow comprise ; le
+      // Reliquaire ne dissout que les normales de ses paliers (ni PJ, ni full art).
+      surplus += enTrop + Math.max(0, (e?.rainbow || 0) - 1);
+      if (eligible({ id, tier: e?.carte?.tier })) dissolubles += enTrop;
       if ((e?.normale || 0) > 0) {
         possedees++;
-        if (e.carte?.type === "pnj") pnj++;
+        // Le Donjon et les Expéditions ne prennent que des alliés : un PNJ du
+        // bestiaire ou de la pègre ne fait pas une équipe (`cartesDonjon`).
+        if (e.carte?.type === "pnj" && !HOSTILES.has(e.carte.rep1)) pnj++;
         if (e.carte?.type === "lieu") lieux++;
       }
     }
   }
   const totalRoster = extensions.reduce((n, e) => n + (e.roster?.length || 0), 0);
   return {
-    surplus, pnj, lieux,
+    surplus, dissolubles, pnj, lieux,
     manquantes: Math.max(0, totalRoster - possedees),
     // L'extension la plus généreuse : le joueur choisit ce qu'il ouvre.
     nouvellesParBooster: extensions.reduce(
@@ -289,11 +305,15 @@ export function reclamerMission(etat, index, mesures) {
  * Remplace une mission du jour pas encore remplie, une fois par jour, par
  * une mission d'un autre mode que les deux qui restent. Rend l'état tel
  * quel si ce n'est pas permis ou si rien d'autre n'est possible.
+ * `jour` : le jour des missions que le joueur avait sous les yeux. Le geste
+ * finit après une animation : passé minuit, il viserait la mission du même
+ * rang du nouveau jour, qu'il n'a jamais vue.
  */
-export function remplacerMission(etat, index, { mesures, ctx }) {
+export function remplacerMission(etat, index, { mesures, ctx, jour }) {
   const M = etat.missions;
   const brute = M?.quotidiennes?.[index];
   if (!brute || (M.remplacees || 0) >= REMPLACEMENTS) return etat;
+  if (jour && M.jour !== jour) return etat;
   if (juger(brute, mesures).atteinte) return etat;
   const autres = M.quotidiennes.filter((_, i) => i !== index);
   const [neuve] = tirerQuotidiennes(

@@ -14,7 +14,7 @@
  *   Deux cartes tirées ici et trois là donnent cinq, pas trois.
  * - La bourse aussi, sauf le gain passif : il court sur l'horloge, pas sur
  *   l'appareil, et l'additionner deux fois paierait double les mêmes heures.
- * - Tout le reste (réglages, marché, colporteur, ouverture en cours…) est une
+ * - Tout le reste (réglages, colporteur, ouverture en cours…) est une
  *   valeur : si l'appareil l'a changée, sa version gagne, sinon celle du compte.
  *
  * Aucune fonction ici ne touche au réseau ni au stockage : on les teste à nu.
@@ -55,6 +55,16 @@ export const cles = (...objets) =>
 
 const meme = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
 
+/**
+ * Exemplaires : compteurs à trois voies, avec un plancher. Une case (normale
+ * ou rainbow) présente dans la base, ici ET là ne descend pas sous 1 : deux
+ * appareils qui vendent chacun les deux doublons d'une carte à trois
+ * exemplaires donnaient 1 + 1 − 3 = 0, et la dernière carte disparaissait.
+ * Aucune action ne retire le dernier exemplaire d'une case en gardant
+ * l'autre côté à 1 ou plus : Comptoir, colporteur, Reliquaire, entraînement
+ * et étoile du Donjon ne prennent que des doublons. Seul le STAR RESET vide
+ * la case — elle est alors à 0 de ce côté, et le plancher ne s'applique pas.
+ */
 function fusionnerCollections(base = {}, ici = {}, la = {}) {
   const sortie = {};
   const boosters = cles(ici, la);
@@ -64,7 +74,10 @@ function fusionnerCollections(base = {}, ici = {}, la = {}) {
     const coll = {};
     for (const cid of cartes) {
       const eb = b[cid] || {}, ei = i[cid] || {}, el = l[cid] || {};
-      const compte = (v) => Math.max(0, (el[v] || 0) + (ei[v] || 0) - (eb[v] || 0));
+      const compte = (v) => {
+        const plancher = (eb[v] || 0) >= 1 && (ei[v] || 0) >= 1 && (el[v] || 0) >= 1 ? 1 : 0;
+        return Math.max(plancher, (el[v] || 0) + (ei[v] || 0) - (eb[v] || 0));
+      };
       coll[cid] = {
         ...el, ...ei,
         normale: compte("normale"),
@@ -109,14 +122,44 @@ function fusionnerBourse(base, ici, la) {
 
 /**
  * Ce que le jeu retient des Mines, hors de la partie : la version des règles
- * dont la remise à zéro est déjà payée (`regles`). Elle ne fait que monter :
- * on garde la plus haute, sinon le solde serait versé une seconde fois.
+ * dont la remise à zéro est déjà payée (`regles`) et le solde versé alors
+ * (`solde`) ; le compte des PO de commandes du jour (`livre`, plafond
+ * quotidien, src/jeu/mine.js).
+ *
+ * `regles` ne fait que monter : on garde la plus haute, sinon le solde serait
+ * versé une seconde fois. Le solde suit la marque gardée. `livre` : le jour le
+ * plus récent ; le même jour, le plus haut des deux — c'est un garde-fou, les
+ * commandes elles-mêmes se fusionnent dans la mine (`fusionnerMine`).
  * (Le champ portait jusqu'au 07/10/2026 le plafond quotidien, `{ jour,
  * credite }`, parti avec la vente aux kobolds.)
  */
 function fusionnerMarqueMine(ici, la) {
-  const r = Math.max(ici?.regles || 0, la?.regles || 0);
-  return r ? { regles: r } : null;
+  const ri = ici?.regles || 0, rl = la?.regles || 0;
+  const r = Math.max(ri, rl);
+  const sortie = {};
+  if (r) {
+    sortie.regles = r;
+    const solde = ri >= rl ? ici?.solde : la?.solde;
+    if (Number.isFinite(solde)) sortie.solde = solde;
+  }
+  const li = ici?.livre, ll = la?.livre;
+  if (li || ll) {
+    sortie.livre = !ll || (li && li.jour > ll.jour) ? li
+      : !li || ll.jour > li.jour ? ll
+        : { jour: li.jour, po: Math.max(li.po || 0, ll.po || 0) };
+  }
+  return Object.keys(sortie).length ? sortie : null;
+}
+
+/**
+ * Le solde de remise payé des deux côtés depuis la base : chaque appareil a
+ * crédité sa bourse, et la fusion de la bourse additionne les deux. Rend ce
+ * qu'il faut reprendre (lu dans la marque, comme un succès réclamé deux fois).
+ */
+function soldeEnDouble(base, ici, la) {
+  const rb = base?.regles || 0, ri = ici?.regles || 0, rl = la?.regles || 0;
+  if (!(ri > rb) || ri !== rl) return 0;
+  return Number.isFinite(ici?.solde) ? ici.solde : 0;
 }
 
 /**
@@ -149,18 +192,42 @@ export function comparerMines(a, b) {
 }
 
 /**
- * La sauvegarde du module de la mine : la plus avancée l'emporte, entière.
+ * La sauvegarde du module de la mine : la plus avancée l'emporte, entière —
+ * sauf ses commandes du jour, fusionnées à part (`fusionnerCommandes`).
  *
  * C'était la plus récemment sauvegardée. Or un onglet oublié en arrière-plan
  * — ou le site ouvert à deux adresses, qui partagent le compte — sauvait sa
  * vieille partie avec l'heure du moment, et effaçait sur le compte les achats
  * faits ailleurs entre-temps : des talents et une foreuse qui disparaissent.
+ *
+ * Les commandes à part (audit du 09/10/2026) : la bourse additionne les
+ * livraisons des deux appareils, mais la partie gardée entière gardait aussi
+ * ses commandes non livrées — une commande livrée sur l'appareil le moins
+ * avancé se livrait une seconde fois sur l'autre.
  */
 export function fusionnerMine(ici, la) {
   if (!ici) return la || null;
   if (!la) return ici;
   const lire = (s) => { try { return JSON.parse(s); } catch { return null; } };
-  return comparerMines(lire(ici), lire(la)) >= 0 ? ici : la;
+  const a = lire(ici), b = lire(la);
+  const [gagnante, brut, autre] = comparerMines(a, b) >= 0 ? [a, ici, b] : [b, la, a];
+  if (!gagnante || !autre) return brut;
+  const commandes = fusionnerCommandes(gagnante.commandes, autre.commandes);
+  if (JSON.stringify(commandes ?? null) === JSON.stringify(gagnante.commandes ?? null)) return brut;
+  return JSON.stringify({ ...gagnante, commandes });
+}
+
+/**
+ * Les commandes de Tafix de deux copies : le jour le plus récent l'emporte ;
+ * le même jour, une commande livrée d'un côté l'est des deux (elle a été
+ * payée, la bourse l'a comptée).
+ */
+export function fusionnerCommandes(x, y) {
+  if (!x?.liste) return y?.liste ? y : x ?? null;
+  if (!y?.liste) return x;
+  if (x.jour !== y.jour) return x.jour > y.jour ? x : y;
+  const livrees = new Set(y.liste.filter((c) => c.livree).map((c) => c.id));
+  return { ...x, liste: x.liste.map((c) => (!c.livree && livrees.has(c.id) ? { ...c, livree: true } : c)) };
 }
 
 /**
@@ -427,21 +494,6 @@ export function fusionnerDonjon(base, ici, la) {
 }
 
 /**
- * Le Comptoir, extension par extension : le marché d'une extension suit le
- * côté qui l'a touché. Il était fusionné d'un bloc : visiter le Comptoir de
- * La Troupe sur le téléphone effaçait les ventes faites ailleurs au Comptoir
- * d'une autre extension.
- */
-export function fusionnerParCle(base = {}, ici = {}, la = {}) {
-  const sortie = {};
-  for (const k of cles(ici, la)) {
-    const v = !meme(ici?.[k], base?.[k]) ? ici?.[k] : la?.[k];
-    if (v !== undefined) sortie[k] = v;
-  }
-  return sortie;
-}
-
-/**
  * Garantie de légendaire, par extension. `depuis` compte les boosters
  * ouverts depuis la dernière légendaire : les boosters ouverts des deux
  * côtés s'ajoutent ; une légendaire tirée d'un côté (le compteur est
@@ -456,6 +508,64 @@ export function fusionnerPity(base = {}, ici = {}, la = {}) {
     const di = (i.depuis || 0) - (b.depuis || 0), dl = (l.depuis || 0) - (b.depuis || 0);
     const depuis = di < 0 ? i.depuis : dl < 0 ? l.depuis : (b.depuis || 0) + di + dl;
     sortie[k] = { ...l, depuis, vu: !!(i.vu || l.vu) };
+  }
+  return sortie;
+}
+
+/**
+ * Le marché d'une extension (voir `Marche.serialiser`). Traité comme une
+ * valeur, le côté qui l'avait touché l'emportait entier : le même jour, deux
+ * appareils vendaient chacun vingt cartes à Lise, et la fusion gardait
+ * `achats: { lise: 20 }` — le quota valait par appareil.
+ * - Un côté inchangé depuis la base suit l'autre.
+ * - Jours différents : le plus récent l'emporte (l'autre n'a pas encore
+ *   changé de jour, ses ventes de la veille sont déjà payées).
+ * - Même jour : les quotas s'additionnent (l'écart depuis la base si elle
+ *   est du même jour, tout le quota d'ici sinon) ; marchandages et achats au
+ *   rayon s'unissent, un marchandage déjà tiré sur le compte restant le sien.
+ *   Si la base est du même jour, la caisse et le rayon reçoivent aussi
+ *   l'écart d'ici : la caisse ne se vide pas deux fois en entier. Sinon les
+ *   deux côtés ont rejoué la nuit chacun de leur côté, et ceux du compte
+ *   font foi.
+ */
+function fusionnerMarche(b, i, l) {
+  if (!i) return l;
+  if (!l || meme(l, b)) return i;
+  if (meme(i, b)) return l;
+  if ((i.jour || 0) !== (l.jour || 0)) return (i.jour || 0) > (l.jour || 0) ? i : l;
+  const memeJour = !!b && b.jour === i.jour;
+  const bb = memeJour ? b : {};
+  const achats = { ...(l.achats || {}) };
+  for (const k of cles(i.achats)) {
+    achats[k] = (achats[k] || 0) + Math.max(0, (i.achats[k] || 0) - ((bb.achats || {})[k] || 0));
+  }
+  const sortie = {
+    ...l,
+    achats,
+    marchandages: { ...(i.marchandages || {}), ...(l.marchandages || {}) },
+    achatsJoueur: { ...(i.achatsJoueur || {}), ...(l.achatsJoueur || {}) },
+  };
+  if (memeJour) {
+    const ecart = (k) => (i[k] || 0) - (b[k] || 0);
+    sortie.fonds = Math.max(0, (l.fonds || 0) + ecart("fonds"));
+    sortie.verses = Math.max(0, (l.verses || 0) + ecart("verses"));
+    sortie.encaisses = Math.max(0, (l.encaisses || 0) + ecart("encaisses"));
+    const stock = { ...(l.stock || {}) };
+    for (const k of cles(i.stock)) {
+      if (!(k in stock)) continue;
+      stock[k] = Math.max(0, stock[k] + (i.stock[k] || 0) - ((b.stock || {})[k] ?? i.stock[k]));
+    }
+    sortie.stock = stock;
+  }
+  return sortie;
+}
+
+/** Le Comptoir, extension par extension (voir `fusionnerMarche`). */
+export function fusionnerComptoir(base = {}, ici = {}, la = {}) {
+  const sortie = {};
+  for (const k of cles(ici, la)) {
+    const v = fusionnerMarche(base?.[k], ici?.[k], la?.[k]);
+    if (v !== undefined) sortie[k] = v;
   }
   return sortie;
 }
@@ -487,10 +597,11 @@ export function fusionner3(base, ici, la, vide) {
   sortie.fiches = fusionnerFiches(b.fiches, ici.fiches, la.fiches);
   sortie.expeditions = fusionnerExpeditions(b.expeditions, ici.expeditions, la.expeditions);
   sortie.donjon = fusionnerDonjon(b.donjon, ici.donjon, la.donjon);
-  sortie.comptoir = fusionnerParCle(b.comptoir, ici.comptoir, la.comptoir);
+  sortie.comptoir = fusionnerComptoir(b.comptoir, ici.comptoir, la.comptoir);
   sortie.pity = fusionnerPity(b.pity, ici.pity, la.pity);
   const { succes, doublons } = fusionnerSucces(b.succes, ici.succes, la.succes);
   sortie.succes = succes;
+  doublons.po += soldeEnDouble(b.mine, ici.mine, la.mine);
   const m = fusionnerMissions(b.missions, ici.missions, la.missions, base ? b : null);
   sortie.missions = m.missions;
   doublons.po += m.doublons.po;

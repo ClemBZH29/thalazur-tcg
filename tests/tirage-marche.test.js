@@ -33,6 +33,19 @@ describe("tirage", () => {
     }
   });
 
+  test("un roster sans rare ni légendaire s'ouvre quand même", () => {
+    // La recherche du palier voisin montait jusqu'aux full art, absents du pool.
+    const partiel = { commun: pool.commun, peucommun: pool.peucommun, rare: [], legendaire: [] };
+    for (let i = 0; i < 50; i++) {
+      const b = ouvrirBooster(partiel, { ...TAUX_DEFAUT, appel: 1 }, { rng: graine(i + 3) });
+      expect(b.cards).toHaveLength(5);
+      b.cards.forEach((c) => expect(["commun", "peucommun"]).toContain(c.tier));
+    }
+    const g = ouvrirBooster(partiel, TAUX_DEFAUT, { garantirLegendaire: true, rng: graine(5) });
+    expect(g.cards).toHaveLength(5);
+    expect(g.garanti).toBe(false);
+  });
+
   test("à graine égale, tirage égal", () => {
     const a = ouvrirBooster(pool, TAUX_DEFAUT, { speciales, rng: graine(42) });
     const b = ouvrirBooster(pool, TAUX_DEFAUT, { speciales, rng: graine(42) });

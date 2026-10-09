@@ -1,4 +1,7 @@
-import { SLOTS, TABLE_APPEL, TIER_ORDER } from "../config/tiers.js";
+import { SLOTS, TABLE_APPEL, TIERS_ROSTER } from "../config/tiers.js";
+
+/** Les paliers que le pool peut contenir ; les full art et les PJ n'y sont jamais. */
+const ORDRE = TIERS_ROSTER.map((t) => t.id);
 
 function tirerPalier(table, rng) {
   const entries = Object.entries(table);
@@ -10,15 +13,22 @@ function tirerPalier(table, rng) {
   return entries[entries.length - 1][0];
 }
 
-/** Si un palier est vide dans le roster chargé, on glisse vers le plus proche. */
+/**
+ * Si un palier est vide dans le roster chargé, on glisse vers le plus proche.
+ * La recherche reste dans les paliers du roster : elle montait jusqu'aux full
+ * art, absents du pool, et un roster sans rare ni légendaire plantait
+ * l'ouverture.
+ */
 function palierDisponible(pool, tier) {
-  if (pool[tier] && pool[tier].length) return tier;
-  const i = TIER_ORDER.indexOf(tier);
-  for (let d = 1; d < TIER_ORDER.length; d++) {
-    const bas = TIER_ORDER[i - d];
-    if (bas && pool[bas].length) return bas;
-    const haut = TIER_ORDER[i + d];
-    if (haut && pool[haut].length) return haut;
+  const a = (t) => (pool[t] || []).length > 0;
+  if (a(tier)) return tier;
+  const i = ORDRE.indexOf(tier);
+  if (i < 0) return ORDRE.find(a) || null;
+  for (let d = 1; d < ORDRE.length; d++) {
+    const bas = ORDRE[i - d];
+    if (bas && a(bas)) return bas;
+    const haut = ORDRE[i + d];
+    if (haut && a(haut)) return haut;
   }
   return null;
 }

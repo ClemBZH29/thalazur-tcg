@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useJeu } from "../jeu/Jeu.jsx";
 import { useRoute } from "../lib/routeur.jsx";
 import { RELIQUAIRE } from "../config/reliquaire.js";
+import { rentrees } from "../expeditions/regles.js";
 import "../styles/expeditions.css";
 
 const IMG = `${import.meta.env.BASE_URL}reliquaire/`;
@@ -17,23 +18,27 @@ const IMG = `${import.meta.env.BASE_URL}reliquaire/`;
  * disparaît plus.
  */
 export default function AnnonceReliquaire({ occupe }) {
-  const { reliquaireOuvert, seuilReliquaire, ouvrirReliquaire } = useJeu();
+  const { etat, reliquaireOuvert, seuilReliquaire, ouvrirReliquaire } = useJeu();
   const { aller } = useRoute();
   const [visible, setVisible] = useState(false);
   const [tic, setTic] = useState(0);
   const dlg = useRef(null);
 
+  // Une route rentrée et pas encore accueillie : sa fenêtre de retour va
+  // s'ouvrir. Les deux effets tournent dans le même rendu, où ni l'une ni
+  // l'autre n'est encore `open` : sans cette attente, elles s'empilaient.
+  const retourEnAttente = rentrees(etat).length > 0;
   // Une autre fenêtre (retour d'expédition) peut être ouverte : on repasse plus tard.
   useEffect(() => {
     if (reliquaireOuvert || !seuilReliquaire || occupe || visible) return undefined;
-    if (document.querySelector("dialog[open]")) {
+    if (retourEnAttente || document.querySelector("dialog[open]")) {
       const t = setTimeout(() => setTic((n) => n + 1), 2000);
       return () => clearTimeout(t);
     }
     setVisible(true);
     ouvrirReliquaire();
     return undefined;
-  }, [reliquaireOuvert, seuilReliquaire, occupe, visible, tic, ouvrirReliquaire]);
+  }, [reliquaireOuvert, seuilReliquaire, occupe, visible, tic, retourEnAttente, ouvrirReliquaire]);
 
   useEffect(() => {
     if (visible && dlg.current && !dlg.current.open) dlg.current.showModal();

@@ -2,8 +2,9 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { useJeu } from "./Jeu.jsx";
 import { CLE_COMPTE, chargerFirebase, nuageConfigure, sessionMemorisee } from "../lib/nuage/firebase.js";
 import { empreinte, fusionner3, fusionnerMine, signature } from "../lib/nuage/fusion.js";
-import { ligneClassement, pseudoValide } from "../succes/classement.js";
-import { effacer, ecrireMine, etatVide, lireMine, relireJeu, suivreMine } from "../lib/storage.js";
+import { assainirLigne, ligneClassement, pseudoValide } from "../succes/classement.js";
+import { CLE_SECOURS, classerDonnees, effacer, ecrireMine, etatVide, lireMine, relireJeu, suivreMine } from "../lib/storage.js";
+import { estGele, geler } from "../lib/gel.js";
 import { SCHEMA, migrer } from "../lib/sauvegarde/schema.js";
 import { LEGAL } from "../config/legal.js";
 
@@ -102,7 +103,7 @@ export function lireCompte(doc) {
   return { jeu: jeu || etatVide(), mine: jeu ? migrerMine(doc.mine) : null, lisible: !!jeu, futur };
 }
 
-export const CLE_SECOURS = "brume-thalazur:secours";
+export { CLE_SECOURS };
 /** Nombre d'exemplaires détenus, toutes extensions et versions confondues. */
 export const compterCartes = (etat) => Object.values(etat?.collections || {})
   .reduce((n, coll) => n + Object.values(coll || {}).reduce((m, e) => m + (e?.normale || 0) + (e?.rainbow || 0), 0), 0);
@@ -124,6 +125,36 @@ function serialiser(etat) {
 
 class Conflit extends Error {
   constructor(donnees) { super("revision"); this.donnees = donnees; }
+}
+
+/** Le document du compte a disparu sous les pieds de cet appareil. */
+class CompteSupprime extends Error {
+  constructor() { super("compte supprimé"); }
+}
+
+/**
+ * Ce que l'envoi doit faire, vu le document du compte lu dans la transaction.
+ *
+ * `connue` : la révision que cet appareil a vue en dernier (0 s'il n'en a vu
+ * aucune). Un document absent alors que l'appareil en connaissait une
+ * révision, c'est un compte supprimé depuis un autre appareil : le recréer
+ * (révision 1, que les règles acceptent) ferait renaître la partie et la
+ * ligne du classement que le joueur venait d'effacer.
+ */
+export function decisionEnvoi(existe, actuelle, connue) {
+  if (!existe) return connue > 0 ? "supprime" : "ecrire";
+  return actuelle === connue ? "ecrire" : "conflit";
+}
+
+/**
+ * Attend qu'un envoi en cours (`enVol.current`) se termine, `max` ms au plus.
+ * Se déconnecter ou supprimer le compte pendant un envoi faisait conclure à
+ * tort que des changements étaient perdus, ou laissait l'envoi recréer le
+ * compte juste après sa suppression.
+ */
+export async function attendreEnvoi(enVol, max = 20000, pas = 100) {
+  const fin = Date.now() + max;
+  while (enVol.current && Date.now() < fin) await new Promise((r) => setTimeout(r, pas));
 }
 
 /** Messages lisibles pour les erreurs qu'un joueur peut rencontrer. */
@@ -164,6 +195,8 @@ export function Compte({ children }) {
   const enVol = useRef(false);
   const relancer = useRef(false);
   const ecoute = useRef(null);
+  const suppression = useRef(false); // suppression du compte en cours : plus d'envoi
+  const surSuppression = useRef(null); // compte supprimé ailleurs (voir plus bas)
   const relecture = useRef(false);  // relecture du compte au retour sur l'onglet
   const cacheDepuis = useRef(0);    // quand l'onglet est passé en arrière-plan
 
@@ -175,6 +208,7 @@ export function Compte({ children }) {
   const refDoc = useCallback(() => fb.current.F.doc(fb.current.db, "joueurs", user.current.uid), []);
 
   const retenir = useCallback((revision, etatBase, mineBase) => {
+    if (estGele()) return;
     marque.current = { uid: user.current.uid, revision };
     base.current = { etat: etatBase, mine: mineBase };
     ecrireJSON(CLE_COMPTE, marque.current);
@@ -200,6 +234,20 @@ export function Compte({ children }) {
     }
   }, [setEtat, rechargerMine]);
 
+  /**
+   * Vide la partie de l'appareil (déconnexion, compte supprimé, autre
+   * compte). Volontaire : ne passe pas par le filet d'`adopter`, qui gardait
+   * sinon la partie du joueur qui s'en va dans la copie de secours, à la vue
+   * du suivant sur un ordinateur partagé.
+   */
+  const vider = useCallback(() => {
+    const neuf = etatVide();
+    setEtat(neuf);
+    etatRef.current = neuf;
+    ecrireMine(null);
+    rechargerMine();
+  }, [setEtat, rechargerMine]);
+
   const aChange = useCallback(() => {
     const b = base.current;
     return !b || signature(etatRef.current, lireMine()) !== signature(b.etat, b.mine);
@@ -213,6 +261,8 @@ export function Compte({ children }) {
     const { jeu: la, mine: laMine, lisible, futur } = lireCompte(doc);
     // Jamais une copie illisible à la place de la partie de l'appareil.
     if (futur) {
+      // Plus rien ne part ni ne s'écrit d'ici : voir src/lib/gel.js.
+      geler("compte");
       setErreur("Votre compte a été enregistré par une version plus récente du site. Rechargez la page pour continuer à synchroniser.");
       return false;
     }
@@ -245,7 +295,7 @@ export function Compte({ children }) {
    * conséquence : la prochaine synchronisation réessaiera.
    */
   const publierClassement = useCallback(async () => {
-    if (!user.current || !fb.current) return;
+    if (!user.current || !fb.current || suppression.current || estGele()) return;
     const { F, db } = fb.current;
     const uid = user.current.uid;
     const e = etatRef.current;
@@ -266,6 +316,17 @@ export function Compte({ children }) {
       const ligne = ligneClassement(s.catalogue, e, s.mine, s.titres);
       const emp = empreinte(JSON.stringify(ligne));
       if (avant?.empreinte === emp && Date.now() - avant.t < RAFRAICHIR) return;
+      // Un compte supprimé depuis un autre appareil ne doit pas retrouver sa
+      // ligne publique : on vérifie que sa partie existe encore (une lecture,
+      // seulement quand la ligne a changé).
+      if (marque.current?.uid === uid && marque.current.revision > 0) {
+        const j = await F.getDoc(F.doc(db, "joueurs", uid));
+        // Pendant notre propre suppression, le document vient de disparaître :
+        // ce n'est pas « un autre appareil ».
+        if (!j.exists()) { if (!suppression.current) surSuppression.current?.(); return; }
+      }
+      // La suppression du compte a pu commencer pendant ces lectures.
+      if (suppression.current) return;
       await F.setDoc(ref, {
         ...ligne,
         maj: F.serverTimestamp(),
@@ -280,15 +341,18 @@ export function Compte({ children }) {
     if (!user.current || !fb.current) throw new Error("non connecté");
     const { F, db } = fb.current;
     const snap = await F.getDocs(F.collection(db, "classement"));
+    // Chaque ligne est écrite par un autre joueur : on n'en garde que des
+    // valeurs de la forme attendue (voir assainirLigne). Une ligne falsifiée
+    // faisait sinon tomber la page pour tout le monde.
     return snap.docs.map((d) => {
       const x = d.data();
-      return { ...x, uid: d.id, maj: x.maj?.toMillis ? x.maj.toMillis() : 0, expire: undefined };
+      return { ...assainirLigne(x), uid: d.id, maj: x.maj?.toMillis ? x.maj.toMillis() : 0 };
     });
   }, []);
 
   /** Envoie l'état local sur le compte, si quelque chose a changé. */
   const envoyer = useCallback(async (force = false) => {
-    if (!user.current || !fb.current) return;
+    if (!user.current || !fb.current || estGele() || suppression.current) return;
     clearTimeout(minuteur.current); minuteur.current = null;
     if (enVol.current) { relancer.current = true; return; }
     if (!force && !aChange()) { setSync("a-jour"); return; }
@@ -304,7 +368,9 @@ export function Compte({ children }) {
           const revision = await F.runTransaction(db, async (tx) => {
             const snap = await tx.get(refDoc());
             const actuelle = snap.exists() ? snap.data().revision : 0;
-            if (snap.exists() && actuelle !== connue) throw new Conflit(snap.data());
+            const decision = decisionEnvoi(snap.exists(), actuelle, connue);
+            if (decision === "supprime") throw new CompteSupprime();
+            if (decision === "conflit") throw new Conflit(snap.data());
             tx.set(refDoc(), {
               schema: SCHEMA,
               revision: actuelle + 1,
@@ -329,6 +395,7 @@ export function Compte({ children }) {
       }
       throw new Error("Trop de conflits successifs");
     } catch (e) {
+      if (e instanceof CompteSupprime) { surSuppression.current?.(); return; }
       const horsLigne = e?.code === "unavailable" || (typeof navigator !== "undefined" && !navigator.onLine);
       setSync(horsLigne ? "hors-ligne" : "erreur");
       if (!horsLigne) setErreur(expliquer(e));
@@ -341,7 +408,7 @@ export function Compte({ children }) {
   }, [aChange, reconcilier, refDoc, retenir, publierClassement]);
 
   const planifier = useCallback(() => {
-    if (!user.current) return;
+    if (!user.current || estGele()) return;
     if (!aChange()) return;
     setSync((s) => (s === "envoi" ? s : "en-attente"));
     if (!minuteur.current) minuteur.current = setTimeout(() => envoyer(), DELAI_ENVOI);
@@ -356,13 +423,20 @@ export function Compte({ children }) {
       ecrireJSON(CLE_BASE, null);
       base.current = null;
       marque.current = null;
-      adopter(etatVide(), null);
+      vider();
     }
     const premiere = !marque.current;
     user.current = u;
     setSync("envoi");
     try {
       const snap = await F.getDoc(refDoc());
+      // `?.` : un autre onglet a pu se déconnecter pendant la lecture.
+      if (!snap.exists() && !premiere && marque.current?.revision > 0) {
+        // L'appareil connaissait une partie sur ce compte, et elle n'y est
+        // plus : le compte a été supprimé ailleurs. Ne pas la recréer.
+        surSuppression.current?.();
+        return;
+      }
       if (!snap.exists()) {
         // Compte neuf : il reçoit ce que l'appareil avait déjà, s'il y avait quelque chose.
         marque.current = { uid: u.uid, revision: 0 };
@@ -385,6 +459,7 @@ export function Compte({ children }) {
             // ferait gagner la bourse de départ d'une partie jamais jouée.
             const { jeu: la, mine: laMine, lisible, futur } = lireCompte(doc);
             if (futur) {
+              geler("compte");
               setErreur("Votre compte a été enregistré par une version plus récente du site. Rechargez la page.");
               setSync("erreur");
               return;
@@ -425,7 +500,7 @@ export function Compte({ children }) {
         setDerniere(new Date());
       }
     }, () => { /* hors ligne : on réessaiera à l'envoi */ });
-  }, [adopter, envoyer, planifier, reconcilier, refDoc, retenir, publierClassement]);
+  }, [adopter, vider, envoyer, planifier, reconcilier, refDoc, retenir, publierClassement]);
 
   const brancher = useCallback(async () => {
     if (fb.current) return fb.current;
@@ -490,11 +565,26 @@ export function Compte({ children }) {
    * de la partie locale, qu'on vient d'adopter (voir Jeu.jsx). Garder les
    * siennes ferait prendre à cet onglet la partie commune pour la sienne.
    */
+  /*
+   * Sauf si cet autre onglet tourne sur une autre version du site : la base
+   * qu'il vient d'écrire dit laquelle. Plus ancienne, on n'adopte ni sa marque
+   * ni sa base et l'on remet les nôtres (le compte, s'il a bougé, se
+   * réconciliera au prochain envoi) ; plus récente, cet onglet se gèle.
+   */
   useEffect(() => {
     const ecouter = (ev) => {
       if (ev.storageArea !== localStorage) return;
-      if (ev.key === CLE_COMPTE) marque.current = lireJSON(CLE_COMPTE);
-      else if (ev.key === CLE_BASE) base.current = lireBase();
+      if (ev.key !== CLE_COMPTE && ev.key !== CLE_BASE) return;
+      const genre = classerDonnees(lireJSON(CLE_BASE)?.etat);
+      if (genre === "futur") { geler("onglet"); return; }
+      if (genre === "ancien") {
+        if (estGele()) return;
+        ecrireJSON(CLE_COMPTE, marque.current);
+        ecrireJSON(CLE_BASE, base.current);
+        return;
+      }
+      marque.current = lireJSON(CLE_COMPTE);
+      base.current = lireBase();
     };
     window.addEventListener("storage", ecouter);
     return () => window.removeEventListener("storage", ecouter);
@@ -580,10 +670,24 @@ export function Compte({ children }) {
     marque.current = null;
     base.current = null;
     user.current = null;
-    adopter(etatVide(), null);
+    // La copie de secours appartient au joueur qui s'en va (effacer() l'a
+    // emportée) ; vider sans passer par adopter pour qu'elle ne revienne pas.
+    vider();
     setSync("a-jour");
     setDerniere(null);
-  }, [adopter]);
+  }, [vider]);
+
+  // Compte supprimé depuis un autre appareil (détecté à l'envoi, à
+  // l'ouverture de session ou en publiant le classement) : on fait comme
+  // après une suppression ici — appareil vidé, session fermée.
+  useEffect(() => {
+    surSuppression.current = async () => {
+      oublierAppareil();
+      setErreur(null);
+      setAnnonce("Ce compte a été supprimé depuis un autre appareil. Cet appareil a été vidé et déconnecté.");
+      try { await fb.current?.A.signOut(fb.current.auth); } catch { /* la session tombera d'elle-même */ }
+    };
+  }, [oublierAppareil]);
 
   /**
    * La déconnexion vide l'appareil : la partie est sur le compte, et un
@@ -592,7 +696,17 @@ export function Compte({ children }) {
    */
   const deconnecter = useCallback(async () => {
     if (!fb.current) return;
+    // Un onglet gelé (une version plus récente tourne ailleurs) n'efface pas
+    // le stockage partagé : l'onglet à jour y perdrait sa partie non envoyée.
+    if (estGele()) {
+      setErreur("Une version plus récente du site est ouverte dans un autre onglet : rechargez cette page avant de vous déconnecter.");
+      return;
+    }
+    // Un envoi déjà parti n'est pas un échec : on attend sa fin (et celle
+    // de l'envoi qu'il aurait relancé) avant de juger ce qui reste.
+    await attendreEnvoi(enVol);
     if (aChange()) await envoyer();
+    await attendreEnvoi(enVol);
     if (aChange() && !window.confirm("Les derniers changements n'ont pas pu être envoyés sur votre compte et seront perdus sur cet appareil. Se déconnecter quand même ?")) return;
     oublierAppareil();
     await fb.current.A.signOut(fb.current.auth);
@@ -612,13 +726,20 @@ export function Compte({ children }) {
       const u = auth.currentUser;
       await A.reauthenticateWithPopup(u, new A.GoogleAuthProvider());
       ecoute.current?.(); ecoute.current = null;
+      // Plus d'envoi à partir d'ici, et celui qui volerait encore doit
+      // atterrir avant l'effacement : sinon il recrée le document.
+      suppression.current = true;
+      clearTimeout(minuteur.current); minuteur.current = null;
+      await attendreEnvoi(enVol);
       await F.deleteDoc(F.doc(fb.current.db, "classement", u.uid));
       await F.deleteDoc(refDoc());
       await A.deleteUser(u);
       oublierAppareil();
+      suppression.current = false;
       setAnnonce("Votre compte et votre partie ont été supprimés.");
       return true;
     } catch (e) {
+      suppression.current = false;
       setErreur(expliquer(e) || "Suppression annulée.");
       return false;
     }

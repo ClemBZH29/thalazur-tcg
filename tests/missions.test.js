@@ -1,7 +1,7 @@
 /** Les missions de Bodégué : tirage, progression, réclamation, remplacement. */
 import { describe, expect, test } from "vitest";
 import {
-  contexte, evaluerMissions, nouvellesParBooster, mesuresMissions, mettreAJour, reclamerMission, remplacerMission,
+  contexte, delaiControle, evaluerMissions, nouvellesParBooster, mesuresMissions, mettreAJour, reclamerMission, remplacerMission,
   semaineLocale, tirerQuotidiennes, TYPE_PAR_ID,
 } from "../src/missions/regles.js";
 import { QUOTIDIENNES, RECOMPENSE_SEMAINE, REMPLACEMENTS, TYPES } from "../src/config/missions.js";
@@ -20,7 +20,7 @@ const possede = (parPalier) => Object.fromEntries(ROSTER
 /** Un joueur qui a tout ouvert : quelques PNJ, un Lieu, des doublons, le Reliquaire. */
 function joueur(champs = {}) {
   const coll = {};
-  for (let i = 0; i < 30; i++) coll[`p${i}`] = { normale: 3, rainbow: 0, carte: { type: "pnj" } };
+  for (let i = 0; i < 30; i++) coll[`p${i}`] = { normale: 3, rainbow: 0, carte: { type: "pnj", tier: "commun" } };
   coll.l0 = { normale: 2, rainbow: 0, carte: { type: "lieu" } };
   return {
     ...etatVide(),
@@ -81,6 +81,46 @@ describe("tirage", () => {
     }
     const q = tirerQuotidiennes("x", contexte(joueur(), EXTS), mesuresMissions(joueur()));
     expect(q.every((m) => m.depart >= 0)).toBe(true);
+  });
+});
+
+describe("seulement des missions faisables", () => {
+  /** Les types tirés sur quatre semaines de jours et de semaines. */
+  const tires = (e) => {
+    const types = new Set();
+    for (let j = 1; j <= 28; j++) {
+      const m = mettreAJour(e, { ...autour(e), maintenant: new Date(2026, 9, j, 9) }).missions;
+      m.quotidiennes.forEach((q) => types.add(q.type));
+      if (m.hebdo) types.add(m.hebdo.type);
+    }
+    return types;
+  };
+
+  test("les PNJ hostiles ne comptent pas comme alliés (Donjon, Expéditions)", () => {
+    // Que des créatures et des criminels : le Donjon et les Expéditions ne les prennent pas.
+    const coll = { l0: { normale: 1, rainbow: 0, carte: { type: "lieu", tier: "commun" } } };
+    ["Créature", "Animal", "Criminel"].forEach((rep1, k) => {
+      for (let i = 0; i < 4; i++) coll[`h${k}${i}`] = { normale: 1, rainbow: 0, carte: { type: "pnj", tier: "commun", rep1 } };
+    });
+    const e = { ...etatVide(), collections: { troupe: coll }, boosters: { troupe: 5 }, stats: { descentes: 6 } };
+    expect(contexte(e, EXTS).pnj).toBe(0);
+    const types = tires(e);
+    for (const t of ["descentes", "gardiens", "expeditions"]) expect(types.has(t)).toBe(false);
+  });
+
+  test("dissoudre : seuls les exemplaires normaux éligibles au Reliquaire comptent", () => {
+    // Beaucoup en trop, mais rien de dissoluble : des rainbow, des cartes PJ, des full art.
+    const coll = {
+      a: { normale: 1, rainbow: 20, carte: { type: "pnj", tier: "commun" } },
+      "pj-1": { normale: 20, rainbow: 0, carte: { type: "pnj", tier: "pj" } },
+      f: { normale: 20, rainbow: 0, carte: { type: "pnj", tier: "fullart" } },
+    };
+    const e = { ...etatVide(), collections: { troupe: coll }, boosters: { troupe: 5 }, reliquaire: { ouvert: 1 } };
+    expect(contexte(e, EXTS).dissolubles).toBe(0);
+    expect(tires(e).has("dissous")).toBe(false);
+    // Quinze communes en trop : la mission redevient possible.
+    const f = { ...e, collections: { troupe: { ...coll, b: { normale: 16, rainbow: 0, carte: { type: "pnj", tier: "commun" } } } } };
+    expect(contexte(f, EXTS).dissolubles).toBe(15);
   });
 });
 
@@ -189,6 +229,21 @@ describe("remplacement", () => {
     expect(new Set(modes).size).toBe(QUOTIDIENNES);
     expect(remplacerMission(r, 0, autour(r))).toBe(r);
     expect(evaluerMissions(r, mesuresMissions(r)).remplacements).toBe(REMPLACEMENTS - 1);
+  });
+});
+
+describe("passage de minuit", () => {
+  test("le prochain contrôle tombe à minuit quand minuit est dans moins d'une minute", () => {
+    expect(delaiControle(new Date(2026, 9, 5, 10, 0))).toBe(60000);
+    const d = delaiControle(new Date(2026, 9, 5, 23, 59, 50));
+    expect(d).toBeGreaterThan(10000);
+    expect(d).toBeLessThan(11000);
+  });
+
+  test("un remplacement demandé la veille ne touche pas les missions du jour", () => {
+    const e = mettreAJour(joueur(), { ...autour(joueur()), maintenant: mardi });
+    expect(remplacerMission(e, 1, { ...autour(e), jour: "2026-10-05" })).toBe(e);
+    expect(remplacerMission(e, 1, { ...autour(e), jour: "2026-10-06" })).not.toBe(e);
   });
 });
 

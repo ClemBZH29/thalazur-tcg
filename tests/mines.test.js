@@ -10,6 +10,8 @@ import * as R from "../src/mines/regles.js";
 import * as F from "../src/mines/faveur.js";
 import { etatNeuf } from "../src/mines/sauvegarde.js";
 import { fmt, fmtEnt } from "../src/mines/format.js";
+import { soldeRemise } from "../src/mines/remise.js";
+import { crediterLivraison, crediterSolde } from "../src/jeu/mine.js";
 
 const partie = (patch = {}) => ({ ...etatNeuf(), ...patch });
 
@@ -70,6 +72,17 @@ describe("format", () => {
     expect(fmt(1500)).toBe("1,5 K");
     expect(fmt(100e6)).toBe("100 M");
     expect(fmt(-2500)).toBe("−2,5 K");
+  });
+
+  test("l'arrondi qui atteint mille passe au suffixe suivant", () => {
+    expect(fmt(999999)).toBe("1 M");
+    expect(fmt(999.6e6)).toBe("1 Md");
+  });
+
+  test("au-delà du dernier suffixe, la notation scientifique", () => {
+    expect(fmt(1e25)).toBe("1e25");
+    expect(fmt(1.234e300)).toBe("1,23e300");
+    expect(fmt(999.9999e21)).toBe("1e24");
     expect(fmtEnt(1234567)).toBe("1 234 567");
   });
 });
@@ -211,6 +224,26 @@ describe("commandes de Tafix", () => {
     expect(R.majCommandes(S, "2026-10-09")).toBe(true);
   });
 
+  test("reculer l'horloge ne rend pas de commandes neuves (audit 09/10/2026)", () => {
+    const S = partie();
+    R.majCommandes(S, jour);
+    S.commandes.liste.forEach((c) => { c.livree = true; });
+    // Avancer d'un jour donne les commandes de ce jour-là…
+    expect(R.majCommandes(S, "2026-10-09")).toBe(true);
+    S.commandes.liste.forEach((c) => { c.livree = true; });
+    // … mais revenir à la vraie date ne les renouvelle pas une seconde fois.
+    expect(R.majCommandes(S, jour)).toBe(false);
+    expect(S.commandes.jour).toBe("2026-10-09");
+    expect(S.commandes.liste.every((c) => c.livree)).toBe(true);
+  });
+
+  test("une frénésie posée dans le futur (horloge reculée) ne dure pas plus que sa durée", () => {
+    const t = 1_000_000_000;
+    expect(R.enFrenesie(t + R.FRENESIE.duree, t)).toBe(true);
+    expect(R.enFrenesie(t - 1, t)).toBe(false);
+    expect(R.enFrenesie(t + 86_400_000, t)).toBe(false);
+  });
+
   test("la demande suit la production de l'équipe, avec un plancher", () => {
     const vide = partie();
     R.majCommandes(vide, jour);
@@ -249,4 +282,54 @@ describe("commandes de Tafix", () => {
     expect(mine.commandes.liste[0].demande).toBe(avant[0]);          // livrée : rien ne bouge
     expect(mine.commandes.liste[1].demande).toBeLessThan(avant[1]);  // à faire : à la mesure de la mine neuve
   });
+});
+
+describe("solde de la remise à zéro", () => {
+  test("une étoile absente ou nulle ne paie rien ; seule une étoile infinie paie le maximum", () => {
+    const ancienne = { brisesTotal: 10, profondeurMax: 3, etoileTotale: 1e6 };
+    expect(soldeRemise({ ...ancienne }).etoile).toBe(0);
+    expect(soldeRemise({ ...ancienne, etoile: null }).etoile).toBe(0);
+    expect(soldeRemise({ ...ancienne, etoile: Infinity }).etoile).toBe(240);
+    // JSON écrit l'infini « null » : une étoile et un cumul tous deux nuls sont l'infini débordé.
+    expect(soldeRemise({ ...ancienne, etoile: null, etoileTotale: null }).etoile).toBe(240);
+  });
+});
+
+describe("ce que l'application crédite (src/jeu/mine.js)", () => {
+  const etat = () => ({ bourse: { po: 0, credite: 0, gagne: 0 }, stats: {}, mine: { regles: R.REGLES_VERSION } });
+
+  test("jamais plus par jour que ce que les commandes d'un jour peuvent payer", () => {
+    let e = etat();
+    for (let i = 0; i < 10; i++) e = crediterLivraison(e, 120, "2026-10-09");
+    expect(e.bourse.po).toBe(R.PO_COMMANDES_JOUR);
+    expect(e.mine.regles).toBe(R.REGLES_VERSION);            // la marque de remise est gardée
+    // Le lendemain, le compteur repart.
+    e = crediterLivraison(e, 40, "2026-10-10");
+    expect(e.bourse.po).toBe(R.PO_COMMANDES_JOUR + 40);
+    expect(e.stats.commandes).toBe(Math.ceil(R.PO_COMMANDES_JOUR / 120) + 1);
+  });
+
+  test("le solde de remise se verse une fois, et la marque le retient", () => {
+    let e = { ...etat(), mine: null };
+    e = crediterSolde(e, 150);
+    e = crediterSolde(e, 150);
+    expect(e.bourse.po).toBe(150);
+    expect(e.mine).toEqual({ regles: R.REGLES_VERSION, solde: 150 });
+  });
+});
+
+test("un jour de commandes venu d'une horloge en avance ne bloque pas les commandes", () => {
+  expect(R.lendemain("2026-12-31")).toBe("2027-01-01");
+  const S = { ...etatNeuf(), commandes: { jour: "2027-01-01", liste: [{ id: "petite", livree: true }] } };
+  expect(R.majCommandes(S, "2026-10-10")).toBe(false); // pas de commandes neuves pour autant
+  expect(S.commandes.jour).toBe("2026-10-10");
+  expect(R.majCommandes(S, "2026-10-11")).toBe(true); // le lendemain, elles reviennent
+});
+
+test("une commande de la veille livrée après minuit n'entame pas le plafond du jour", () => {
+  let e = { bourse: { po: 0, credite: 0, gagne: 0 }, stats: {}, mine: null };
+  e = crediterLivraison(e, R.PO_COMMANDES_JOUR, "2026-10-10");
+  e = crediterLivraison(e, 120, "2026-10-09");
+  expect(e.bourse.po).toBe(R.PO_COMMANDES_JOUR + 120);
+  expect(e.mine.livre.jour).toBe("2026-10-10");
 });

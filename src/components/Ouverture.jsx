@@ -14,7 +14,7 @@ export default function Ouverture({
   booster, pool, speciales, taux, test, gratuit, bourse, garantirLegendaire,
   cfgImage, fichiers, sfx, ouverts, enCours, collection, mouvementReduit,
   onRecolte, onLoupe, onRetour, onBibliotheque, onProgres, onFini,
-  onColporteur, onAffaire, onBotte, sachet = null,
+  onColporteur, onAffaire, sachet = null,
 }) {
   /**
    * Une ouverture laissée en plan est reprise là où elle s'était arrêtée. Les
@@ -48,6 +48,14 @@ export default function Ouverture({
    */
   const offert = !gratuit && botte == null && sachet ? sachet : null;
   const prixCourant = offert ? 0 : (botte ?? ECONOMIE.prix);
+  /**
+   * Ce que l'ouverture coûterait sans sachet offert. C'est lui qui part au
+   * règlement, avec la clé du sachet : si le sachet a disparu entre-temps
+   * (autre onglet), le booster se paie au lieu d'être gratuit.
+   */
+  const prixAchat = botte ?? ECONOMIE.prix;
+  /** Change quand une ouverture est refusée : le sachet repart à neuf. */
+  const [essai, setEssai] = useState(0);
   const peutOuvrir = gratuit || bourse.po >= prixCourant;
 
   /** Un roster vide ne peut rien produire : on l'annonce au lieu de bloquer. */
@@ -119,12 +127,16 @@ export default function Ouverture({
       garantirLegendaire,
     });
     if (!t.cards.length) return;
+    // Le règlement d'abord : refusé (bourse vidée ailleurs), on ne déroule pas
+    // des cartes jamais acquises, et le sachet déchiré se remet à neuf.
+    const acquises = onRecolte(t, prixAchat, offert ? offert.cle : null, botte != null);
+    if (!acquises) { setEssai((k) => k + 1); return; }
     setTirage(t);
     setBotte(null);
     setIndex(0);
     setEtat("dos");
     setPhase("sortie");
-    setNouvelles(onRecolte(t, prixCourant, offert ? offert.cle : null) || new Set());
+    setNouvelles(acquises);
     sfx.deroule();
     // Un frottement par carte, calé sur sa sortie du sachet.
     t.cards.forEach((_, i) => differer(() => sfx.glisse(), 240 + i * 72));
@@ -147,7 +159,7 @@ export default function Ouverture({
     } else {
       differer(() => setPhase("revelation"), 1060);
     }
-  }, [pool, videPool, speciales, taux, test, garantirLegendaire, onRecolte, sfx, onFini, prixCourant, offert]);
+  }, [pool, videPool, speciales, taux, test, garantirLegendaire, onRecolte, sfx, onFini, prixAchat, offert, botte]);
 
   /**
    * L'arrivée du colporteur, une fois par ouverture. Le garde par référence
@@ -185,21 +197,33 @@ export default function Ouverture({
     }, t.tele);
   }, [etat, courant, sfx, cer]);
 
+  /**
+   * Dégager la carte vue. Deux « Suivante » dans les 240 ms du glissement
+   * (double clic, Espace qui déclenche aussi le clic natif du bouton)
+   * programmaient deux avancées depuis le même index : une carte sautée, et
+   * depuis l'avant-dernière, un index hors du tirage — écran vide. Le verrou
+   * tient jusqu'à ce que l'index (ou le tirage) ait changé, et l'index visé
+   * est absolu : rejoué, il ne va pas plus loin.
+   */
+  const enSortie = useRef(false);
+  useEffect(() => { enSortie.current = false; }, [index, tirage]);
   const degager = useCallback(() => {
-    if (!tirage) return;
+    if (!tirage || etat !== "face" || enSortie.current) return;
+    enSortie.current = true;
     cer.degager();
     sfx.glisse();
+    const suivant = index + 1;
     differer(() => {
-      if (index < tirage.cards.length - 1) {
-        setIndex((i) => i + 1);
+      if (suivant < tirage.cards.length) {
+        setIndex(suivant);
         setEtat("dos");
-        onProgres(index + 1);
+        onProgres(suivant);
       } else {
         setPhase("bilan");
         onFini();
       }
     }, 240);
-  }, [tirage, index, sfx, onProgres, onFini, cer]);
+  }, [tirage, etat, index, sfx, onProgres, onFini, cer]);
 
   /**
    * Sauter la révélation en cours. Les cartes sont déjà acquises et débitées
@@ -231,9 +255,12 @@ export default function Ouverture({
     setPhase("sachet");
   };
 
-  /** Il sort un sachet du ballot : on repart au sachet, à son prix. */
+  /**
+   * Il sort un sachet du ballot : on repart au sachet, à son prix. L'affaire
+   * ne compte qu'à l'achat (`onRecolte`) : prendre la botte puis repartir
+   * n'en conclut aucune.
+   */
   const prendreBotte = (prix) => {
-    onBotte?.();
     setBotte(prix);
     relancer();
   };
@@ -241,6 +268,9 @@ export default function Ouverture({
   useEffect(() => {
     const k = (e) => {
       if (phase !== "revelation") return;
+      // Une touche maintenue répète : elle enchaînait retournements et
+      // dégagements sans qu'on voie les cartes.
+      if (e.repeat) return;
       if (e.key === " " || e.key === "Enter") {
         e.preventDefault();
         if (etat === "dos") reveler();
@@ -300,6 +330,7 @@ export default function Ouverture({
                 </p>
               )}
               <Sachet
+                key={essai}
                 booster={booster} sfx={sfx} ouverts={ouverts}
                 prix={gratuit || offert ? null : prixCourant}
                 onRupture={() => ouvrir(false)}
@@ -310,7 +341,7 @@ export default function Ouverture({
             <div className="vide">
               <p>Il te manque {Math.ceil(prixCourant - bourse.po)} PO pour ce booster.</p>
               <p className="muted">
-                Prochain booster dans {formatDuree(attenteAvantAchat(bourse))} — {ECONOMIE.parHeure} PO
+                Prochain booster dans {formatDuree(attenteAvantAchat(bourse, prixCourant))} — {ECONOMIE.parHeure} PO
                 sont créditées chaque heure, même fenêtre fermée.
               </p>
               <button className="btn quiet" onClick={onBibliotheque}>Voir la bibliothèque</button>

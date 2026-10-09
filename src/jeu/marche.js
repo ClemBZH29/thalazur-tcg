@@ -5,24 +5,38 @@ import { crediterGain, debiterLibre } from "../lib/economie.js";
 export const compte = (e, cle, n = 1) => ({ ...(e.stats || {}), [cle]: ((e.stats || {})[cle] || 0) + n });
 
 /**
+ * Vente au Comptoir : au plus les doublons de la case quittent l'inventaire,
+ * et les PO entrent au prorata de ce qui est réellement parti.
+ *
+ * Le setter retirait `n` sans plancher et créditait tout le prix : deux
+ * onglets, ou une vente lancée sur un inventaire déjà allégé ailleurs,
+ * pouvaient vendre le dernier exemplaire — et le payer sans l'avoir. Le
+ * Comptoir ne vend que des doublons, normales comme rainbow (une full art ou
+ * une PJ n'a que sa case normale, la règle est la même).
+ */
+export function retirerVente(e, boosterId, carteId, version, n, po) {
+  const coll = { ...(e.collections[boosterId] || {}) };
+  const a = coll[carteId];
+  if (!a || n < 1) return e;
+  const vendus = Math.min(n, Math.max(0, (a[version] || 0) - 1));
+  if (!vendus) return e;
+  coll[carteId] = { ...a, [version]: a[version] - vendus };
+  return {
+    ...e,
+    collections: { ...e.collections, [boosterId]: coll },
+    bourse: crediterGain(e.bourse, Math.round((po * vendus) / n)),
+    stats: compte(e, "ventes", vendus),
+  };
+}
+
+/**
  * Les mouvements d'inventaire et de bourse du Comptoir et du colporteur,
  * sur l'extension courante.
  */
 export function useMouvements(setEtat, boosterId) {
-  /** Vente au Comptoir : n exemplaires quittent l'inventaire, les PO entrent. */
+  /** Vente au Comptoir : voir `retirerVente`. */
   const vendreExemplaires = useCallback((carteId, version, n, po) => {
-    setEtat((e) => {
-      const coll = { ...(e.collections[boosterId] || {}) };
-      const a = coll[carteId];
-      if (!a) return e;
-      coll[carteId] = { ...a, [version]: Math.max(0, (a[version] || 0) - n) };
-      return {
-        ...e,
-        collections: { ...e.collections, [boosterId]: coll },
-        bourse: crediterGain(e.bourse, po),
-        stats: compte(e, "ventes", n),
-      };
-    });
+    setEtat((e) => retirerVente(e, boosterId, carteId, version, n, po));
   }, [setEtat, boosterId]);
 
   /** Achat d'une carte à l'échoppe : les PO sortent, l'exemplaire entre. */

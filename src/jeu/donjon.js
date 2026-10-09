@@ -13,6 +13,67 @@ export function plusJours(jour, n) {
 }
 
 /**
+ * L'identité d'une partie : son `id`, tiré au départ. Une partie sauvée
+ * avant lui garde sa graine, qui ne change pas en chemin.
+ */
+export const idPartie = (p) => (p ? (p.id ?? `graine:${p.graine}`) : null);
+
+/** La partie enregistrée est-elle bien celle-là ? */
+const enCours = (e, id) => !!e.donjon?.partie && idPartie(e.donjon.partie) === id;
+
+/** Le donjon du jour : la veille, les tentatives et l'imposition repartent de zéro. */
+function avecDonjon(e, champs) {
+  const j = aujourdhui();
+  const d = e.donjon && e.donjon.jour === j ? e.donjon : { ...(e.donjon || {}), jour: j, tentatives: 0, imposition: null };
+  return { ...e, donjon: { ...d, ...(typeof champs === "function" ? champs(d) : champs) } };
+}
+
+/*
+ * Les règles d'état de la partie en cours, pures : chacune s'applique sur
+ * l'état le plus frais, celui que d'autres onglets ou la synchronisation du
+ * compte ont pu changer depuis que la page a lu le sien. Un onglet resté sur
+ * une descente close ailleurs ne peut donc ni la reprendre, ni la sauver
+ * par-dessus une autre, ni se la faire payer une seconde fois.
+ */
+
+/** Commence une descente, sauf si une autre est en cours. */
+export function commencer(e, partie, entree = 0) {
+  if (e.donjon?.partie) return e;
+  if (partie.mode === "infini") return avecDonjon({ ...e, bourse: debiterLibre(e.bourse, entree) }, { partie });
+  return avecDonjon(e, (d) => ({ tentatives: (d.tentatives || 0) + 1, partie }));
+}
+
+/** Sauve la partie, si c'est bien elle qui est en cours. */
+export const sauver = (e, partie) => (enCours(e, idPartie(partie)) ? avecDonjon(e, { partie }) : e);
+
+/** Clôt la partie `resume.id` et crédite son butin ; rien si elle n'est plus en cours. */
+export function terminer(e0, { butin, resume, repos = [], gains = [] }) {
+  if (!enCours(e0, resume.id)) return e0;
+  const { id: _id, ...res } = resume;
+  const infini = res.mode === "infini";
+  const po = poDuButin(butin, res.mode || "jour");
+  const { etat: e, po: bonus } = crediterXP(e0, gains);
+  const d = e.donjon || { jour: aujourdhui(), tentatives: 0 };
+  const stats = { ...(e.stats || {}) };
+  // Toute descente compte, victoire ou chute : c'est elle qui efface
+  // l'apprentissage (voir DONJON.apprentissage).
+  stats.descentes = descentesJouees(stats) + 1;
+  stats.gardiens = (stats.gardiens || 0) + (res.gardiens || 0);
+  if (res.complete) stats.remontees = (stats.remontees || 0) + 1;
+  // Convalescences : la carte revient le jour indiqué. Les échéances
+  // passées sont retirées au passage, pour que la liste ne grossisse pas.
+  const j = aujourdhui();
+  const convalescence = Object.fromEntries(Object.entries(d.convalescence || {}).filter(([, fin]) => fin > j));
+  for (const { cle, jours } of repos) {
+    const fin = plusJours(j, jours);
+    if (!convalescence[cle] || convalescence[cle] < fin) convalescence[cle] = fin;
+  }
+  const suite = { ...d, partie: null, convalescence, dernier: { ...res, jour: j, butin, po, repos: repos.length } };
+  if (infini) suite.recordInfini = Math.max(d.recordInfini || 0, res.gardiens || 0);
+  return { ...e, bourse: crediterGain(e.bourse, po + bonus), stats, donjon: suite };
+}
+
+/**
  * Ce que l'application sait du Donjon : les tentatives du jour, la
  * partie en cours, et le crédit du butin.
  *
@@ -36,62 +97,36 @@ export function useDonjon(etat, setEtat, test) {
   // par jour, à la première visite, puis figées (voir compositionDuJour).
   const imposition = brut.imposition?.jour === brut.jour ? brut.imposition : null;
 
-  const majDonjon = useCallback((champs) => {
-    setEtat((e) => {
-      const j = aujourdhui();
-      const d = e.donjon && e.donjon.jour === j ? e.donjon : { ...(e.donjon || {}), jour: j, tentatives: 0, imposition: null };
-      return { ...e, donjon: { ...d, ...(typeof champs === "function" ? champs(d) : champs) } };
-    });
-  }, [setEtat]);
+  const majDonjon = useCallback((champs) => setEtat((e) => avecDonjon(e, champs)), [setEtat]);
 
   /**
    * Une tentative est prise à la descente, pas à la remontée : abandonner ne
-   * la rend pas. L'entrée de l'infini est payée au même moment.
+   * la rend pas. L'entrée de l'infini est payée au même moment. Refusée (rend
+   * false) si une descente est déjà en cours, ici ou dans un autre onglet.
    */
   const commencerDonjon = useCallback((partie) => {
-    if (partie.mode === "infini") {
-      setEtat((e) => ({ ...e, bourse: debiterLibre(e.bourse, entreeInfini) }));
-      majDonjon({ partie });
-    } else majDonjon((d) => ({ tentatives: (d.tentatives || 0) + 1, partie }));
-  }, [majDonjon, setEtat, entreeInfini]);
+    if (etat.donjon?.partie) return false;
+    setEtat((e) => commencer(e, partie, entreeInfini));
+    return true;
+  }, [setEtat, entreeInfini, etat]);
 
   const fixerImposition = useCallback((i) => majDonjon((d) => ({ imposition: { ...i, jour: d.jour } })), [majDonjon]);
 
-  const sauverPartie = useCallback((partie) => majDonjon({ partie }), [majDonjon]);
+  const sauverPartie = useCallback((partie) => setEtat((e) => sauver(e, partie)), [setEtat]);
 
   /**
    * Fin de descente : le butin rapporté part à la bourse, converti, et la
-   * partie se referme. Rend les PO créditées.
+   * partie se referme. Rend les PO créditées. `resume.id` : l'identité de la
+   * partie close ; si la partie enregistrée n'est plus celle-là, rien n'est
+   * payé (voir `terminer`).
    */
   const terminerDonjon = useCallback((butin, resume, repos = [], gains = []) => {
-    const infini = resume.mode === "infini";
-    const po = poDuButin(butin, resume.mode || "jour");
     // Le bilan d'expérience se lit sur l'état du moment ; le setter le refait
     // sur l'état le plus frais, qui est le même au clic près.
+    if (!enCours(etat, resume.id)) return { po: 0, bilan: [], poXP: 0, refusee: true };
+    const po = poDuButin(butin, resume.mode || "jour");
     const { bilan, po: poXP } = crediterXP(etat, gains);
-    setEtat((e0) => {
-      const { etat: e, po: bonus } = crediterXP(e0, gains);
-      const d = e.donjon || { jour: aujourdhui(), tentatives: 0 };
-      const stats = { ...(e.stats || {}) };
-      // Toute descente compte, victoire ou chute : c'est elle qui efface
-      // l'apprentissage (voir DONJON.apprentissage).
-      stats.descentes = descentesJouees(stats) + 1;
-      stats.gardiens = (stats.gardiens || 0) + (resume.gardiens || 0);
-      if (resume.complete) stats.remontees = (stats.remontees || 0) + 1;
-      // Convalescences : la carte revient le jour indiqué. Les échéances
-      // passées sont retirées au passage, pour que la liste ne grossisse pas.
-      const j = aujourdhui();
-      const convalescence = Object.fromEntries(Object.entries(d.convalescence || {}).filter(([, fin]) => fin > j));
-      for (const { cle, jours } of repos) {
-        const fin = plusJours(j, jours);
-        if (!convalescence[cle] || convalescence[cle] < fin) convalescence[cle] = fin;
-      }
-      const suite = { ...d, partie: null, convalescence, dernier: { ...resume, jour: j, butin, po, repos: repos.length } };
-      if (infini) {
-        suite.recordInfini = Math.max(d.recordInfini || 0, resume.gardiens || 0);
-      }
-      return { ...e, bourse: crediterGain(e.bourse, po + bonus), stats, donjon: suite };
-    });
+    setEtat((e0) => terminer(e0, { butin, resume, repos, gains }));
     return { po, bilan, poXP };
   }, [setEtat, etat]);
 

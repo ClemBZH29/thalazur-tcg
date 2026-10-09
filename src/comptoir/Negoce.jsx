@@ -51,6 +51,7 @@ export default function Negoce({ M, acheteur, articles, surplus, cfgImage, fichi
   const [pese, setPese] = useState(false);
   const [eclat, setEclat] = useState(null);
   const [conclue, setConclue] = useState(null);  // { vendus, gain } après une vente
+  const [caisseVide, setCaisseVide] = useState(false); // vente refusée : le Comptoir n'a plus de quoi payer
   const boite = useRef(null);
   const chrono = useRef([]);
   const venteRef = useRef(null);
@@ -93,9 +94,9 @@ export default function Negoce({ M, acheteur, articles, surplus, cfgImage, fichi
     setCarte(a.id);
     setQte(Math.max(1, Math.min(surplus(a), restant)));
     setManiere(M.marchandage(acheteur.id, a.id)?.maniere || null);
-    setPese(false); setEclat(null); setConclue(null);
+    setPese(false); setEclat(null); setConclue(null); setCaisseVide(false);
   };
-  const retourA = () => { setCarte(null); setConclue(null); };
+  const retourA = () => { setCarte(null); setConclue(null); setCaisseVide(false); };
 
   /* ── La réplique de la colonne du portrait ─────────────────────────── */
   const marche = article ? M.marchandage(acheteur.id, article.id) : null;
@@ -146,7 +147,7 @@ export default function Negoce({ M, acheteur, articles, surplus, cfgImage, fichi
             <EcranB
               M={M} acheteur={acheteur} article={article} surplus={surplus} restant={restant}
               qte={qte} setQte={setQte} maniere={maniere} setManiere={setManiere}
-              pese={pese} eclat={eclat} conclue={conclue} venteRef={venteRef}
+              pese={pese} eclat={eclat} conclue={conclue} caisseVide={caisseVide} venteRef={venteRef}
               cfgImage={cfgImage} fichiers={fichiers} prenom={prenom}
               onRetour={retourA}
               onMarchander={() => {
@@ -164,7 +165,8 @@ export default function Negoce({ M, acheteur, articles, surplus, cfgImage, fichi
               }}
               onVendre={(q, facteur) => {
                 const r = onVendre(article, acheteur, q, facteur, venteRef.current);
-                if (r) setConclue(r);
+                if (r?.caisseVide) setCaisseVide(true);
+                else if (r) setConclue(r);
               }}
             />
           )}
@@ -219,7 +221,7 @@ function EcranA({ visibles, total, M, acheteur, surplus, restant, recherche, set
   );
 }
 
-function EcranB({ M, acheteur, article, surplus, restant, qte, setQte, maniere, setManiere, pese, eclat, conclue, venteRef, cfgImage, fichiers, prenom, onRetour, onMarchander, onVendre }) {
+function EcranB({ M, acheteur, article, surplus, restant, qte, setQte, maniere, setManiere, pese, eclat, conclue, caisseVide, venteRef, cfgImage, fichiers, prenom, onRetour, onMarchander, onVendre }) {
   const dispo = surplus(article);
   const max = Math.max(0, Math.min(dispo, restant));
   const q = Math.max(1, Math.min(qte, max || 1));
@@ -235,6 +237,7 @@ function EcranB({ M, acheteur, article, surplus, restant, qte, setQte, maniere, 
   let ton = "";
   if (pese) { verdict = `${prenom} réfléchit…`; ton = "pese"; }
   else if (conclue) { verdict = `Vente conclue : +${PO(conclue.gain)}.`; ton = "conclue"; }
+  else if (caisseVide) { verdict = "La caisse du Comptoir est vide pour aujourd'hui."; ton = "ko"; }
   else if (marche?.ok) { verdict = `Offre relevée : ${PO(total)} au lieu de ${PO(base)}.`; ton = "ok"; }
   else if (marche && total <= echoppe) { verdict = `${prenom} ne paiera pas plus que l'échoppe aujourd'hui.`; ton = "ko"; }
   else if (marche) { verdict = `Offre baissée jusqu'à demain : ${PO(total)} au lieu de ${PO(base)}.`; ton = "ko"; }

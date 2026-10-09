@@ -95,6 +95,17 @@ describe("expéditions", () => {
     const { route } = X.partir(etatVide(), { lieu, cartes: equipe, heures: 24, pool, maintenant: T0 });
     expect(route.trouvees).toEqual(["x:c1", "x:c1"]);
   });
+
+  test("rappel : seulement en route ; une route rentrée garde son butin", () => {
+    const { etat } = X.partir(etatVide(), { lieu, cartes: equipe, heures: 4, maintenant: T0 });
+    const id = etat.expeditions.routes[0].id;
+    // En route : les cartes rentrent sans rien.
+    expect(X.rappeler(etat, id, T0 + H).expeditions.routes).toHaveLength(0);
+    // Rentrée (la page n'a pas encore vu la fin) : le rappel est refusé, l'accueil crédite.
+    expect(X.rappeler(etat, id, T0 + 4 * H)).toBe(etat);
+    expect(X.rappeler(etat, id, T0 + 4 * H + 5000)).toBe(etat);
+    expect(X.crediterRoute(etat, id, INDEX, T0 + 4 * H + 5000).bilan).not.toBeNull();
+  });
 });
 
 describe("reliquaire", () => {
@@ -187,6 +198,20 @@ describe("reliquaire", () => {
     expect(R.forgerOffre(e, o).reliquaire.vestiges).toBe(450);
     // Le lendemain, une nouvelle carte se présente face cachée.
     expect(R.offreRevelee(e, { ...o, jour: "2026-10-01" })).toBe(false);
+  });
+
+  test("l'offre d'hier ne se forge ni ne se retourne après minuit", () => {
+    // La page ne relit le jour que toutes les 30 s : juste après minuit, elle
+    // tend encore l'offre de la veille.
+    const hier = { ...offre("2026-09-30"), prix: 50, prixAveugle: 100 };
+    const e = avec({}, 500);
+    expect(R.peutForgerOffre(e, hier, { jour: "2026-10-01" })).toBe(false);
+    expect(R.forgerOffre(e, hier, { jour: "2026-10-01" })).toBe(e);
+    expect(R.forgerOffre(e, hier, { aveugle: true, jour: "2026-10-01" })).toBe(e);
+    expect(R.reveler(e, hier, "2026-10-01")).toBe(e);
+    // Le jour même, tout va.
+    expect(R.forgerOffre(e, hier, { jour: "2026-09-30" })).not.toBe(e);
+    expect(R.reveler(e, hier, "2026-09-30")).not.toBe(e);
   });
 
   test("rainbow et cartes de personnage restent hors du Reliquaire", () => {

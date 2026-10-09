@@ -284,8 +284,11 @@ export default function PageMissions() {
     const bod = q(".msn-bodegue")?.getBoundingClientRect();
     const r = art?.getBoundingClientRect();
     const versX = r && bod ? (bod.left + bod.width / 2 - (r.left + r.width / 2)) * 0.3 : 0;
+    // Le jour des billets affichés : si l'animation finit après minuit, le
+    // remplacement est refusé au lieu de toucher une mission du nouveau jour.
+    const jourVu = jour;
     const finir = () => {
-      remplacer(i);
+      remplacer(i, jourVu);
       setRemplacee(true); setApres(false);
       aJouer.current.push(() => {
         const nouveau = q(`[data-billet="${i}"]`);

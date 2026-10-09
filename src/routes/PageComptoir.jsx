@@ -102,19 +102,16 @@ export default function PageComptoir() {
     setTimeout(() => retour.current?.focus?.(), 0);
   };
 
-  /** La vente, à l'unité, bornée par le surplus et par le quota du jour. */
+  /**
+   * La vente, à l'unité, bornée par le surplus et par le quota du jour, au
+   * prix annoncé par `offreLot` (voir `vendreLot`). Caisse à sec : le négoce
+   * l'annonce, comme l'échoppe, au lieu de ne rien faire.
+   */
   const vendre = (a, b, qte, facteur, depuis) => {
     const q = Math.min(qte, surplus(a), M.restant(b));
-    let gain = 0;
-    let vendus = 0;
-    for (let k = 0; k < q; k++) {
-      const paye = M.payer(a, M.prixAcheteur(a, b, M.stock[a.id], facteur));
-      if (paye === null) break;
-      gain += paye;
-      vendus++;
-    }
+    const { vendus, gain, caisseVide } = M.vendreLot(a, b, q, facteur);
+    if (caisseVide) return { caisseVide };
     if (!vendus) return null;
-    M.compterAchat(b, vendus);
     vendreExemplaires(a.carteId, a.version, vendus, gain);
     M.noter(`${vendus} × ${a.carte.nom}${a.rainbow ? " (rainbow)" : ""} vendu${vendus > 1 ? "s" : ""} à ${b.nom}`, gain);
     volerVersBourse(depuis);

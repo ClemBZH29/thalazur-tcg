@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { Marche, construireMarche, jourCourant } from "./marche.js";
 import { acheteursDuJour } from "./acheteurs.js";
+import { suiviSauvegardes } from "./suivi.js";
 import { useJeu } from "../jeu/Jeu.jsx";
 
 /**
@@ -21,10 +22,15 @@ export function useMarche() {
   const ref = useRef(null);
   const cle = `${boosterId}|${jour}|${articles.length}`;
   const cleMontee = useRef(null);
+  const suivi = useRef(null);
+  if (!suivi.current) suivi.current = suiviSauvegardes();
 
-  if (cleMontee.current !== cle) {
+  // Remonté aussi quand la sauvegarde a changé hors de cet onglet (voir
+  // suivi.js) : sinon il vendait sur un quota périmé et écrasait l'autre.
+  if (cleMontee.current !== cle || suivi.current.etrangere(comptoirSauve)) {
     ref.current = new Marche(articles, comptoirSauve, jour);
     cleMontee.current = cle;
+    suivi.current.noter(comptoirSauve);
   }
 
   /* La page peut rester ouverte au passage de minuit : sans cette veille, les
@@ -39,19 +45,27 @@ export function useMarche() {
 
   const M = ref.current;
 
+  /** Écrit le marché, en notant la sauvegarde comme venant de cet onglet. */
+  const ecrire = useCallback(() => majComptoir(suivi.current.noter(M.serialiser())), [M, majComptoir]);
+
   /* Le rattrapage des jours écoulés se fait dans le constructeur : il faut
-     l'écrire, sinon la dérive du rayon serait rejouée à chaque visite. */
+     l'écrire, sinon la dérive du rayon serait rejouée à chaque visite. Le
+     jour du marché, pas celui de l'horloge : une horloge reculée garde le
+     jour enregistré (voir Marche), il n'y a rien à écrire. */
   const jourSauve = comptoirSauve?.jour;
   useEffect(() => {
-    if (jourSauve !== jour) majComptoir(M.serialiser());
-  }, [jour, jourSauve, M]);
+    if (jourSauve !== M.jour) ecrire();
+  }, [jourSauve, M, ecrire]);
 
-  const rafraichir = useCallback((ecrire = true) => {
-    if (ecrire) majComptoir(M.serialiser());
+  const rafraichir = useCallback((faut = true) => {
+    if (faut) ecrire();
     forcer();
-  }, [M, majComptoir]);
+  }, [ecrire]);
 
-  const acheteurs = useMemo(() => acheteursDuJour(jour), [jour]);
+  // Les acheteurs du jour du marché, pas de l'horloge : reculée, elle aurait
+  // ramené les spécialistes de la veille avec un quota neuf.
+  const jourMarche = M.jour;
+  const acheteurs = useMemo(() => acheteursDuJour(jourMarche), [jourMarche]);
 
-  return { M, jour, acheteurs, articles, rafraichir };
+  return { M, jour: jourMarche, acheteurs, articles, rafraichir };
 }

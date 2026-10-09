@@ -21,19 +21,29 @@ service cloud.firestore {
         && d.donnees is string && d.donnees.size() < 950000
         && (!('mine' in d) || d.mine == null || (d.mine is string && d.mine.size() < 60000))
         && d.maj == request.time
-        // Échéance de conservation : cinq ans (à quelques jours près, l'horloge
-        // de l'appareil n'étant pas celle du serveur). Politique TTL sur `expire`.
-        && d.expire is timestamp
-        && d.expire > request.time + duration.value(1810, 'd')
-        && d.expire < request.time + duration.value(1840, 'd');
+        && echeanceValide(d);
+    }
+
+    // Échéance de conservation (politique TTL sur `expire`). Le client la
+    // calcule sur l'horloge de l'appareil (maintenant + cinq ans) : des bornes
+    // serrées autour de cinq ans refusaient toute écriture d'un appareil dont
+    // l'horloge dérivait de plus de deux semaines, en boucle. Elles ne font
+    // qu'écarter l'absurde : entre un jour et dix ans.
+    function echeanceValide(d) {
+      return d.expire is timestamp
+        && d.expire > request.time + duration.value(1, 'd')
+        && d.expire < request.time + duration.value(3650, 'd');
     }
 
     match /joueurs/{uid} {
       allow read, delete: if proprietaire(uid);
       allow create: if proprietaire(uid) && formeValide()
         && request.resource.data.revision == 1;
+      // Le format ne recule jamais : un onglet resté sur une ancienne version
+      // du site ne réécrit pas par-dessus la partie d'une version plus récente.
       allow update: if proprietaire(uid) && formeValide()
-        && request.resource.data.revision == resource.data.revision + 1;
+        && request.resource.data.revision == resource.data.revision + 1
+        && request.resource.data.schema >= resource.data.schema;
     }
 
     // La ligne publique du classement : seulement pour qui a choisi d'y
@@ -41,11 +51,11 @@ service cloud.firestore {
     // connecté, écrite par son seul propriétaire. Les bornes empêchent les
     // valeurs absurdes ; elles ne prétendent pas empêcher la triche, la
     // partie vivant dans le navigateur.
-    function echeanceValide(d) {
-      return d.expire is timestamp
-        && d.expire > request.time + duration.value(1810, 'd')
-        && d.expire < request.time + duration.value(1840, 'd');
-    }
+    //
+    // Les valeurs des tables `extensions` et `premiers` ne sont pas typées :
+    // le langage des règles ne sait pas parcourir une table de clés
+    // quelconques. C'est le client qui les assainit à la lecture
+    // (assainirLigne, src/succes/classement.js).
 
     function entierBorne(v, max) {
       return v is int && v >= 0 && v <= max;

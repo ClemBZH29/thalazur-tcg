@@ -209,8 +209,10 @@ export default function PageReliquaire() {
   const lancer = (geste) => {
     if (anim || !offre) return;
     const v0 = vestiges;
-    if (geste === "reveler") revelerOffre(offre);
-    else if (!forgerOffre(offre, { aveugle: geste === "aveugle" })) return;
+    const fait = geste === "reveler" ? revelerOffre(offre) : forgerOffre(offre, { aveugle: geste === "aveugle" });
+    // Refusé : peut-être l'offre de la veille, la page n'ayant pas encore vu
+    // minuit. On relit l'heure, la carte du jour prend sa place.
+    if (!fait) { setMaintenant(Date.now()); return; }
     if (geste === "aveugle") setBilan({ paye: offre.prixAveugle, vaut: offre.prix });
     const c = geste === "aveugle" ? offre.prixAveugle : geste === "forger" ? offre.prix : 0;
     setConfirme(null);

@@ -103,6 +103,46 @@ describe("réclamation", () => {
     expect(ev.aReclamer).not.toContain("strate@5");
   });
 
+  test("réclamer un palier haut avant le bas laisse le bas à réclamer", () => {
+    // Les deux seuils sont au barème actuel : réclamer 100 ne doit pas
+    // marquer 25 comme payé sans l'avoir payé.
+    const e = partie(0, { boosters: { [TROUPE.id]: 120 } });
+    const r = reclamer(CAT, e, ["boosters@100"], null);
+    expect(r.gagnes).toEqual(["boosters@100"]);
+    expect(evaluer(CAT, r.etat, null).aReclamer).toContain("boosters@25");
+    const r2 = reclamer(CAT, r.etat, ["boosters@25"], null);
+    expect(r2.gagnes).toEqual(["boosters@25"]);
+    expect(r2.etat.sachets["*"]).toBe(1 + 3);
+  });
+
+  test("un roster qui grandit ne repaie pas un palier de type déjà réclamé", () => {
+    // Quatre PNJ de plus : les seuils en part du type glissent d'une carte
+    // ou deux, et l'identifiant du palier change avec eux.
+    const plus = [901, 902, 903, 904].map((n) => [String(n), `Ajout ${n}`, "", "Commune", "Ajout", "", "", "", ""]);
+    const GRAND = { ...TROUPE, roster: { ...roster, lignes: [...roster.lignes, ...plus] } };
+    const CAT2 = construireCatalogue([GRAND]);
+    const fam = (cat) => cat.extensions[0].familles.find((f) => f.id === `${TROUPE.id}:type-pnj`);
+    const avant = fam(CAT).paliers[2], apres = fam(CAT2).paliers[2];
+    expect(apres.id).not.toBe(avant.id);
+    // Une partie qui possède assez de PNJ pour les deux seuils.
+    const pnj = EXT.roster.filter((c) => c.type === "pnj").slice(0, apres.seuil);
+    const coll = Object.fromEntries(pnj.map((c) => [c.id, { normale: 1, rainbow: 0 }]));
+    const e = { ...etatVide(), collections: { [TROUPE.id]: coll } };
+    const r = reclamer(CAT, e, evaluer(CAT, e, null).aReclamer, null);
+    expect(r.gagnes).toContain(avant.id);
+    expect(evaluer(CAT2, r.etat, null).aReclamer).not.toContain(apres.id);
+  });
+
+  test("le titre d'un palier « tous » survit à la croissance du roster", () => {
+    const plus = [["901", "Ajout", "", "Commune", "Ajout", "", "", "", ""]];
+    const GRAND = { ...TROUPE, roster: { ...roster, lignes: [...roster.lignes, ...plus] } };
+    const CAT2 = construireCatalogue([GRAND]);
+    const e = partie(EXT.roster.length);
+    const r = reclamer(CAT, e, evaluer(CAT, e, null).aReclamer, null).etat;
+    const titres = titresObtenus(CAT2, r).map((t) => t.titre);
+    expect(titres).toContain(`Physionomiste de ${TROUPE.titre}`);
+  });
+
   test("un titre se gagne en réclamant son palier", () => {
     const e = partie(EXT.roster.length);
     expect(titresObtenus(CAT, e)).toEqual([]);

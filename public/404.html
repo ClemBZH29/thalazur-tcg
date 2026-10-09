@@ -11,9 +11,10 @@
     /* Le site route par fragment (#/comptoir). Une adresse « propre » comme
        /comptoir, tapée à la main ou venue d'un ancien lien, arrive ici :
        si elle correspond à une page connue, on la renvoie vers sa forme à
-       fragment plutôt que d'afficher une erreur. */
+       fragment plutôt que d'afficher une erreur. La liste suit les pages
+       de src/App.jsx (vérifié par tests/routes.test.js). */
     (function () {
-      var connues = ["boutique", "bibliotheque", "comptoir", "mines", "profil", "confidentialite", "reglages"];
+      var connues = ["boutique", "bibliotheque", "comptoir", "mines", "donjon", "expeditions", "reliquaire", "missions", "succes", "profil", "confidentialite", "reglages"];
       var p = location.pathname.replace(/\/+$/, "").replace(/^\/+/, "");
       var tete = p.split("/")[0];
       if (connues.indexOf(tete) >= 0) location.replace("/#/" + p);

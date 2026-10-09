@@ -74,6 +74,22 @@ demain, on ne rejoue pas la journée. Un marchandage ne survit pas à la nuit, c
 qui est exactement ce qui empêche de relancer le dé jusqu'à obtenir la bonne
 offre.
 
+**Le jour ne recule pas** (audit du 09/10/2026). Une date antérieure au jour
+enregistré ne touche à rien : le marché garde son état et son jour, et les
+acheteurs restent ceux de ce jour-là. Seule une date plus grande que le plus
+grand jour vu fait avancer. Avant, reculer l'horloge d'un jour puis la
+remettre (ou voyager vers l'ouest) rendait quotas, marchandages et pièce du
+jour, et regarnissait la caisse de 3 780 PO, à chaque aller-retour.
+
+**Un onglet suit ce que les autres écrivent.** Le marché d'un onglet est
+remonté dès que sa sauvegarde change ailleurs — un autre onglet, une fusion
+avec le compte (`src/comptoir/suivi.js`). Sinon l'onglet resté ouvert
+revendait à Lise sur un quota plein, et sa prochaine écriture effaçait
+l'autre. La sauvegarde est sans perte pour que cette relecture ne change
+rien : le stock est arrondi au millième **en mémoire comme à l'écriture**.
+Arrondi au centième à l'écriture seulement, il faisait bouger les prix au
+rechargement, jusqu'à cent PO sur une carte PJ.
+
 **Lise est là tous les jours.** Les communes et peu communes font 91 % des
 doublons : celui qui les achète porte le Comptoir à lui seul. L'ancien trio,
 trois acheteurs tirés parmi neuf par un pas de sept, laissait des jours où
@@ -163,7 +179,20 @@ mieux.
 marchandage compris, avec son plafond, et `payer` ne rabote plus rien. Avant,
 le paiement repassait par le plafond de l'échoppe : un marchandage réussi
 s'annonçait à 88 PO et en payait 63, sur la plupart des articles de Sorelle et
-de Voren.
+de Voren. Pour un lot, l'affinité de l'acheteur est **figée au premier
+exemplaire**, à l'annonce (`offreLot`) comme au paiement (`vendreLot`) : la
+prime « le rayon s'est vidé » d'Ysée et de Voren tombait dès que la vente
+regarnissait le rayon, et le lot se payait jusqu'à 10 % sous son annonce.
+
+**On ne vend que des doublons.** La vente retire au plus les exemplaires en
+trop de la case et ne paie que ceux-là (`retirerVente`,
+`src/jeu/marche.js`) : un deuxième onglet ou une vente lancée sur un
+inventaire déjà allégé ne peut plus emporter le dernier exemplaire. C'est
+vrai des normales, des rainbow, des full art et des cartes PJ.
+
+**Caisse vide.** Quand le Comptoir n'a plus de quoi payer, le négoce le dit
+(« La caisse du Comptoir est vide pour aujourd'hui. »), comme l'échoppe ; il
+ne faisait rien.
 
 **Un acheteur ne paie jamais moins que l'échoppe**, même après un échec : son
 offre s'arrête au prix de l'échoppe, et le verdict le dit.

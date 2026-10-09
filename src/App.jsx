@@ -25,6 +25,9 @@ import { demarrerMesure, mesureDisponible, pageVue, rouvrirBandeau } from "./lib
 import { precharger as prechargerImages } from "./lib/prechargement.js";
 import { BOOSTERS } from "./extensions/index.js";
 import { useBourseAffichee } from "./lib/bourseAffichee.js";
+import LimiteErreur from "./components/LimiteErreur.jsx";
+import BandeauVersion from "./components/BandeauVersion.jsx";
+import { exporter } from "./lib/storage.js";
 
 /* Les deux modules pèsent chacun plus que tout le reste de l'application :
    le Comptoir porte son moteur de marché, la mine son gréement d'animation.
@@ -350,7 +353,9 @@ function Coque() {
         </div>
 
         <div className="zone" ref={zone}>
-          <Route />
+          <LimiteErreur chemin={chemin} exporter={() => exporter(etat)}>
+            <Route />
+          </LimiteErreur>
           {/* Les pages tenues sur un seul écran n'ont pas de pied : la
               confidentialité y reste à un clic, depuis le profil et les
               réglages. */}
@@ -368,6 +373,7 @@ function Coque() {
       <RetourExpeditions occupe={occupe} />
       <AnnonceReliquaire occupe={occupe} />
       <BandeauCookies />
+      <BandeauVersion />
       <ChoixPseudo />
 
       {loupe && (

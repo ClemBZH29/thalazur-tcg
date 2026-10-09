@@ -91,7 +91,10 @@ function charger() {
 async function activer() {
   if (!mesureConfiguree) return;
   const m = await charger();
-  if (!m) return;
+  // Le module arrive après coup : entre-temps, le joueur a pu refuser
+  // (accepter puis refuser vite). Rallumer la collecte ici la remettait en
+  // marche après `desactiver()`.
+  if (!m || !etat.choix?.mesure) return;
   m.A.setAnalyticsCollectionEnabled(m.instance, true);
   // La page en cours a été affichée avant que le module n'arrive.
   const h = window.location.hash.replace(/^#/, "");
