@@ -4,19 +4,25 @@ import { evaluer, reclamer as reclamerPur, titresObtenus } from "../succes/regle
 import { lireMine, suivreMine } from "../lib/storage.js";
 
 /**
- * Ce que les succès lisent de la mine : deux compteurs qui ne reculent jamais.
+ * Ce que les succès lisent de la mine : trois compteurs qui ne reculent jamais
+ * (strate la plus profonde, effondrements, faveurs du Fossoyeur reçues).
  * La mine vit hors de l'état React et se sauve toutes les quinze secondes ;
  * on n'en retient que ces deux nombres, et l'état ne change que s'ils bougent.
  */
 function lireProgresMine(brut) {
   try {
     const m = JSON.parse(brut);
-    return m ? { profondeurMax: m.profondeurMax || 0, effondrements: m.effondrements || 0 } : null;
+    return m ? {
+      profondeurMax: m.profondeurMax || 0,
+      effondrements: m.effondrements || 0,
+      faveurs: Array.isArray(m.faveurs) ? m.faveurs.length : 0,
+    } : null;
   } catch { return null; }
 }
 
 const memeMine = (a, b) =>
-  (a?.profondeurMax || 0) === (b?.profondeurMax || 0) && (a?.effondrements || 0) === (b?.effondrements || 0);
+  (a?.profondeurMax || 0) === (b?.profondeurMax || 0) && (a?.effondrements || 0) === (b?.effondrements || 0)
+  && (a?.faveurs || 0) === (b?.faveurs || 0);
 
 export function useSucces(etat, setEtat, versionMine) {
   const [mine, setMine] = useState(() => lireProgresMine(lireMine()));

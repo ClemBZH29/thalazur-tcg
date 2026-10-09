@@ -365,7 +365,9 @@ export function fusionnerFiches(base = {}, ici = {}, la = {}, rangMax = 3) {
  * succès.
  */
 export function fusionnerMissions(base, ici, la, etatBase) {
-  const doublons = { po: 0, sachets: 0 };
+  // `missions` et `semaines` : les missions payées des deux côtés, que
+  // `stats` (un compteur additionné) aurait comptées deux fois.
+  const doublons = { po: 0, sachets: 0, missions: 0, semaines: 0 };
   if (!ici) return { missions: la || null, doublons };
   if (!la) return { missions: ici, doublons };
   const b = base || {};
@@ -377,7 +379,11 @@ export function fusionnerMissions(base, ici, la, etatBase) {
     if (ki !== kl) return ki > kl ? lire(ici) : lire(la);
     // Les deux ont changé de période chacun de leur côté : chacun a payé, en
     // passant, ce qui était rempli et pas réclamé dans la base.
-    if (kb !== kl && kb && evBase) doublons[prix.cle] += payeeBase();
+    if (kb !== kl && kb && evBase) {
+      const { valeur, n } = payeeBase();
+      doublons[prix.cle] += valeur;
+      doublons[prix.compte] += n;
+    }
     const commun = kb === kl;
     const li = lire(ici), ll = lire(la), lb = commun ? lire(b) : { liste: [] };
     const liste = ll.liste.map((ml, n) => {
@@ -389,7 +395,10 @@ export function fusionnerMissions(base, ici, la, etatBase) {
         return commun && mb && mb.type === ml.type ? mi : ml;
       }
       const depuisBase = (m) => m.reclamee && !(commun && mb?.type === m.type && mb.reclamee);
-      if (depuisBase(mi) && depuisBase(ml)) doublons[prix.cle] += prix.de(ml);
+      if (depuisBase(mi) && depuisBase(ml)) {
+        doublons[prix.cle] += prix.de(ml);
+        doublons[prix.compte] += 1;
+      }
       return { ...ml, reclamee: !!(ml.reclamee || mi.reclamee) };
     });
     return ecrire(ll, liste, li);
@@ -398,13 +407,17 @@ export function fusionnerMissions(base, ici, la, etatBase) {
   const jour = periode("jour",
     (m) => ({ jour: m.jour, remplacees: m.remplacees || 0, liste: m.quotidiennes || [] }),
     (ll, liste, li) => ({ jour: ll.jour, remplacees: Math.max(ll.remplacees, li.remplacees), quotidiennes: liste }),
-    () => evBase.quotidiennes.filter((m) => m.atteinte && !m.reclamee).reduce((s, m) => s + (m.po || 0), 0),
-    { cle: "po", de: (m) => m.po || 0 });
+    () => {
+      const dues = evBase.quotidiennes.filter((m) => m.atteinte && !m.reclamee);
+      return { valeur: dues.reduce((s, m) => s + (m.po || 0), 0), n: dues.length };
+    },
+    { cle: "po", compte: "missions", de: (m) => m.po || 0 });
   const semaine = periode("semaine",
     (m) => ({ semaine: m.semaine, liste: [m.hebdo] }),
     (ll, liste) => ({ semaine: ll.semaine, hebdo: liste[0] || null }),
-    () => (evBase.hebdo?.atteinte && !evBase.hebdo.reclamee ? RECOMPENSE_SEMAINE.sachets || 0 : 0),
-    { cle: "sachets", de: () => RECOMPENSE_SEMAINE.sachets || 0 });
+    () => (evBase.hebdo?.atteinte && !evBase.hebdo.reclamee
+      ? { valeur: RECOMPENSE_SEMAINE.sachets || 0, n: 1 } : { valeur: 0, n: 0 }),
+    { cle: "sachets", compte: "semaines", de: () => RECOMPENSE_SEMAINE.sachets || 0 });
 
   // `vu` ne sert qu'à animer la progression : celui de l'appareil, il se
   // recalera de lui-même (il porte son jour et sa semaine).
@@ -607,6 +620,9 @@ export function fusionner3(base, ici, la, vide) {
   sortie.missions = m.missions;
   doublons.po += m.doublons.po;
   if (m.doublons.sachets) doublons.sachets["*"] = (doublons.sachets["*"] || 0) + m.doublons.sachets;
+  for (const k of ["missions", "semaines"]) {
+    if (m.doublons[k] && sortie.stats[k]) sortie.stats[k] = Math.max(0, sortie.stats[k] - m.doublons[k]);
+  }
   // Les sachets s'additionnent toujours, y compris à la première connexion :
   // un doublon s'y reprend toujours. La bourse, elle, n'est additionnée
   // qu'avec une base ; sans base on garde la plus garnie, il n'y a rien à

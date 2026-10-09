@@ -15,12 +15,22 @@
  * reprendre sans relire le barème (voir `fusionnerSucces`).
  */
 import { construirePool, deduireGrades } from "../lib/roster.js";
-import { specialesPour } from "../config/speciales.js";
+import { PJ, specialesPour } from "../config/speciales.js";
 import { crediterGain } from "../lib/economie.js";
-import { COLLECTION, GLOBAL, POIDS_SCORE, SACHET_LIBRE } from "../config/succes.js";
+import { CHAPITRES, COLLECTION, GLOBAL, POIDS_SCORE, SACHET_LIBRE, TITRES_ANCIENS, pointsDe } from "../config/succes.js";
 import { niveauDe } from "../donjon/experience.js";
+import { FAVEURS } from "../mines/faveur.js";
 
 const PALIERS = ["commun", "peucommun", "rare", "legendaire"];
+
+/** Un mot de repère, sans accent ni casse : « Säab » et « Saäb » se rejoignent. */
+const norm = (s) => String(s ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+
+/** La faction d'une carte, comme au Comptoir : la province d'un Lieu, la faction d'un PNJ ou d'un artéfact. */
+export const factionDe = (c) => norm(c.type === "lieu" ? c.rep1 : c.rep3);
+
+/** Ce que vaut « tous » dans une famille globale : les PJ, les faveurs du Fossoyeur. */
+const TOUS = { pj: PJ.length, faveurs: FAVEURS.length };
 
 const avecN = (texte, n) => texte.replaceAll("{n}", String(n)).replaceAll("{s}", n > 1 ? "s" : "");
 
@@ -37,8 +47,17 @@ export function cartesExtension(ext) {
 function famille(id, categorie, def, paliers, extension = null) {
   return {
     id, categorie, extension, nom: def.nom, mesure: def.mesure,
-    paliers: paliers.map((p) => ({ ...p, id: `${id}@${p.seuil}` })),
+    chapitre: def.chapitre || extension,
+    paliers: paliers.map((p) => ({ ...p, id: `${id}@${p.seuil}`, points: pointsDe(p.recompense) })),
   };
+}
+
+/** Les provinces d'une extension qui ont assez de cartes pour une famille. */
+export function provincesDe(roster) {
+  const P = COLLECTION.provinces;
+  return P.liste
+    .map((p) => ({ ...p, cartes: roster.filter((c) => p.factions.includes(factionDe(c))).map((c) => c.id) }))
+    .filter((p) => p.cartes.length >= P.min);
 }
 
 /**
@@ -48,7 +67,10 @@ function famille(id, categorie, def, paliers, extension = null) {
  */
 export function construireCatalogue(extensions) {
   const global = GLOBAL.map((f) => famille(f.id, "global", f,
-    f.paliers.map((p) => ({ ...p, quoi: avecN(f.quoi, p.seuil) }))));
+    f.paliers.map((p) => {
+      if (p.seuil !== "tous") return { ...p, quoi: avecN(f.quoi, p.seuil) };
+      return { ...p, seuil: TOUS[f.mesure], quoi: f.tous };
+    })));
 
   const parExtension = extensions
     .filter((e) => e.statut === "ouvert" && e.roster)
@@ -88,24 +110,36 @@ export function construireCatalogue(extensions) {
           })));
       }
 
-      const irisables = roster.length + fullart.length;
-      ajouter("irisees", { nom: C.irisees.nom, mesure: "irisees" },
-        C.irisees.paliers.filter((p) => p.seuil <= irisables)
-          .map((p) => ({ ...p, quoi: avecN(C.irisees.quoi, p.seuil) })));
+      // Rainbow : des nombres, puis la moitié du roster et le roster entier.
+      // Un nombre qui atteint la moitié s'efface devant elle.
+      const moitie = Math.ceil(roster.length / 2);
+      const iris = C.irisees.paliers.filter((p) => p.seuil < moitie)
+        .map((p) => ({ ...p, quoi: avecN(C.irisees.quoi, p.seuil) }));
+      if (moitie > 0 && moitie < roster.length) iris.push({ seuil: moitie, ...C.irisees.moitie, quoi: `Posséder ${C.irisees.moitie.quoi}` });
+      if (roster.length) iris.push({ seuil: roster.length, ...C.irisees.tout, quoi: `Posséder ${C.irisees.tout.quoi}` });
+      ajouter("irisees", { nom: C.irisees.nom, mesure: "irisees" }, iris);
 
       if (fullart.length) {
-        ajouter("fullart", { nom: C.fullart.nom, mesure: "fullart" },
-          C.fullart.paliers.map((p) => ({ ...p, quoi: avecN(C.fullart.quoi, p.seuil) })));
+        const fa = C.fullart.paliers.map((p) => ({ ...p, quoi: avecN(C.fullart.quoi, p.seuil) }));
+        if (fullart.length > 1) fa.push({ seuil: fullart.length, ...C.fullart.toutes, quoi: `Obtenir ${C.fullart.toutes.quoi}` });
+        ajouter("fullart", { nom: C.fullart.nom, mesure: "fullart" }, fa);
       }
 
-      return { id: ext.id, titre: ext.titre, roster, fullart, familles };
+      // Les provinces : toutes leurs cartes.
+      for (const pr of provincesDe(roster)) {
+        ajouter(`province-${pr.id}`, { nom: pr.nom, mesure: `province.${pr.id}` }, [
+          { seuil: pr.cartes.length, ...C.provinces.toutes, quoi: `Posséder toutes les cartes de ${pr.nom}`, titre: pr.titre },
+        ]);
+      }
+
+      return { id: ext.id, titre: ext.titre, roster, fullart, provinces: provincesDe(roster), familles };
     });
 
   const parId = new Map();
   for (const f of [...global, ...parExtension.flatMap((e) => e.familles)]) {
     for (const p of f.paliers) parId.set(p.id, { famille: f, palier: p });
   }
-  return { global, extensions: parExtension, parId };
+  return { global, extensions: parExtension, parId, chapitres: CHAPITRES };
 }
 
 /* ── Ce que la partie mesure ─────────────────────────────────────────────── */
@@ -135,6 +169,12 @@ export function mesuresGlobales(etat, mine) {
     lieuxRainbow: etat.stats?.lieuxRainbow || 0,
     dissous: etat.stats?.dissous || 0,
     forges: etat.stats?.forges || 0,
+    commandes: etat.stats?.commandes || 0,
+    faveurs: Array.isArray(mine?.faveurs) ? mine.faveurs.length : Number(mine?.faveurs) || 0,
+    recordInfini: etat.donjon?.recordInfini || 0,
+    achats: etat.stats?.achats || 0,
+    missions: etat.stats?.missions || 0,
+    semaines: etat.stats?.semaines || 0,
     niveauMax: xp.reduce((m, e) => Math.max(m, niveauDe(e?.xp || 0)), 0),
     rainbowXP: xp.filter((e) => e?.irisee).length,
     centenaires: xp.filter((e) => e?.cent).length,
@@ -152,12 +192,16 @@ export function mesuresExtension(ext, collection = {}) {
   const possedees = ext.roster.filter((c) => a(c, "normale"));
   const type = {};
   for (const c of possedees) type[c.type] = (type[c.type] || 0) + 1;
+  const tenues = new Set(possedees.map((c) => c.id));
+  const province = {};
+  for (const p of ext.provinces || []) province[p.id] = p.cartes.filter((id) => tenues.has(id)).length;
   return {
     nb: possedees.length,
     total: ext.roster.length,
     // Arrondi par défaut : 100 veut dire toutes, jamais 219 sur 220.
     pct: ext.roster.length ? Math.floor((possedees.length * 100) / ext.roster.length) : 0,
     type,
+    province,
     legendaires: possedees.filter((c) => c.tier === "legendaire").length,
     irisees: [...ext.roster, ...ext.fullart].filter((c) => a(c, "rainbow")).length,
     fullart: ext.fullart.filter((c) => a(c, "normale") || a(c, "rainbow")).length,
@@ -280,6 +324,11 @@ export function titresObtenus(catalogue, etat) {
   const sortie = [];
   for (const [id, { famille, palier }] of catalogue.parId) {
     if (palier.titre && estReclame(reclames, anciens, famille, palier)) sortie.push({ id, titre: palier.titre });
+  }
+  // Un titre retiré du barème avec son palier reste à qui l'avait gagné,
+  // sous son ancien identifiant (celui que `profil.titre` désigne).
+  for (const [id, titre] of Object.entries(TITRES_ANCIENS)) {
+    if (reclames[id] && !catalogue.parId.has(id)) sortie.push({ id, titre });
   }
   return sortie;
 }

@@ -244,12 +244,17 @@ export function dejaVu(M, index) {
 
 /** Paie une mission jugée. */
 function payer(etat, m) {
+  // Les missions accomplies se comptent pour les succès (« Au service de
+  // Bodégué », « La grande commande »).
+  const stats = { ...(etat.stats || {}) };
+  const cle = m.semaine ? "semaines" : "missions";
+  stats[cle] = (stats[cle] || 0) + 1;
   if (m.semaine) {
     const s = { ...(etat.sachets || {}) };
     s["*"] = (s["*"] || 0) + (RECOMPENSE_SEMAINE.sachets || 0);
-    return { ...etat, sachets: s };
+    return { ...etat, sachets: s, stats };
   }
-  return { ...etat, bourse: crediterGain(etat.bourse, m.po || 0) };
+  return { ...etat, bourse: crediterGain(etat.bourse, m.po || 0), stats };
 }
 
 /**

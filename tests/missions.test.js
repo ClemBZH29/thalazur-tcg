@@ -188,6 +188,9 @@ describe("progression et réclamation", () => {
     expect(reclamerMission(r, 0, mes)).toBe(r);
     const h = reclamerMission(r, "hebdo", mes);
     expect(h.sachets["*"]).toBe(RECOMPENSE_SEMAINE.sachets);
+    // Comptées pour les succès « Au service de Bodégué » et « La grande commande ».
+    expect(h.stats.missions).toBe((e.stats?.missions || 0) + 1);
+    expect(h.stats.semaines).toBe((e.stats?.semaines || 0) + 1);
     expect(evaluerMissions(h, mes).aReclamer).toBe(QUOTIDIENNES - 1);
   });
 
