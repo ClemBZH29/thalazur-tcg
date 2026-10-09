@@ -24,7 +24,7 @@ const PAR_EXTENSION = POOLS.toutes.reduce((m, c) => ({ ...m, [c.ext]: [...(m[c.e
 
 const possede = (collections, c) => (collections?.[c.ext]?.[c.id]?.normale || 0) > 0;
 
-export function useExpeditions(etat, setEtat) {
+export function useExpeditions(etat, setEtat, pret = true) {
   const ex = X.etatExpeditions(etat);
 
   const collections = etat.collections;
@@ -47,6 +47,8 @@ export function useExpeditions(etat, setEtat) {
    * du moment, le setter refait le crédit sur l'état le plus frais.
    */
   const accueillirExpeditions = useCallback(() => {
+    // Pas avant d'avoir lu le compte : la route a pu être créditée ailleurs.
+    if (!pret) return [];
     const t = Date.now();
     const dues = X.rentrees(etat, t);
     if (!dues.length) return [];
@@ -59,7 +61,7 @@ export function useExpeditions(etat, setEtat) {
     }
     setEtat((e0) => dues.reduce((acc, r) => X.crediterRoute(acc, r.id, INDEX, t).etat, e0));
     return bilans;
-  }, [etat, setEtat]);
+  }, [etat, setEtat, pret]);
 
   const empechement = useCallback((c) => X.empechement(etat, c), [etat]);
 

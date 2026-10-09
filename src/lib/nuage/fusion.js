@@ -20,6 +20,8 @@
  * Aucune fonction ici ne touche au réseau ni au stockage : on les teste à nu.
  */
 import { ECONOMIE } from "../../config/tiers.js";
+import { RECOMPENSE_SEMAINE } from "../../config/missions.js";
+import { evaluerMissions, mesuresMissions } from "../../missions/regles.js";
 
 /** Empreinte courte d'une chaîne (FNV-1a 32 bits) : de quoi voir qu'elle a bougé. */
 export function empreinte(texte) {
@@ -271,8 +273,196 @@ export function fusionnerFiches(base = {}, ici = {}, la = {}, rangMax = 3) {
   return sortie;
 }
 
+/**
+ * Missions de Bodégué. Elles étaient traitées comme une valeur : « l'appareil
+ * l'a changée, sa version gagne ». Or un appareil qui s'ouvre un autre jour
+ * tire aussitôt ses missions du jour — il a donc « changé » les missions, et
+ * sa version, tirée sur une partie en retard et sans rien de réclamé,
+ * effaçait celles jouées ailleurs (signalé par les testeurs, 09/10/2026).
+ *
+ * Le jour et la semaine se fusionnent à part, chacun selon sa période :
+ * - périodes différentes : la plus récente l'emporte (l'autre côté n'a pas
+ *   encore changé de jour) ;
+ * - même période, tirage commun (la base l'avait déjà) : mission par
+ *   mission, « réclamée » d'un côté l'est pour les deux ; une mission
+ *   remplacée suit le côté qui l'a remplacée ;
+ * - même période, deux tirages séparés (les deux appareils ont changé de jour
+ *   chacun de leur côté) : la copie du compte fait foi — elle a été tirée la
+ *   première, sur la partie la plus à jour —, et ce que cet appareil a
+ *   réclamé sur la même mission s'y ajoute.
+ *
+ * Une mission réclamée des deux côtés a été payée deux fois ; une mission
+ * remplie et non réclamée, payée au changement de jour par chacun des deux
+ * appareils, aussi. `doublons` rend ce qu'il faut reprendre, comme pour les
+ * succès.
+ */
+export function fusionnerMissions(base, ici, la, etatBase) {
+  const doublons = { po: 0, sachets: 0 };
+  if (!ici) return { missions: la || null, doublons };
+  if (!la) return { missions: ici, doublons };
+  const b = base || {};
+  const evBase = etatBase && base ? evaluerMissions(etatBase, mesuresMissions(etatBase)) : null;
+
+  /** Une période : `cle` (jour ou semaine), et les missions qu'elle porte. */
+  const periode = (cle, lire, ecrire, payeeBase, prix) => {
+    const ki = ici[cle] || "", kl = la[cle] || "", kb = b[cle] || "";
+    if (ki !== kl) return ki > kl ? lire(ici) : lire(la);
+    // Les deux ont changé de période chacun de leur côté : chacun a payé, en
+    // passant, ce qui était rempli et pas réclamé dans la base.
+    if (kb !== kl && kb && evBase) doublons[prix.cle] += payeeBase();
+    const commun = kb === kl;
+    const li = lire(ici), ll = lire(la), lb = commun ? lire(b) : { liste: [] };
+    const liste = ll.liste.map((ml, n) => {
+      const mi = li.liste[n], mb = lb.liste[n];
+      if (!ml) return mi || null;
+      if (!mi) return ml;
+      if (mi.type !== ml.type) {
+        // Remplacée ici depuis le tirage commun : la version d'ici.
+        return commun && mb && mb.type === ml.type ? mi : ml;
+      }
+      const depuisBase = (m) => m.reclamee && !(commun && mb?.type === m.type && mb.reclamee);
+      if (depuisBase(mi) && depuisBase(ml)) doublons[prix.cle] += prix.de(ml);
+      return { ...ml, reclamee: !!(ml.reclamee || mi.reclamee) };
+    });
+    return ecrire(ll, liste, li);
+  };
+
+  const jour = periode("jour",
+    (m) => ({ jour: m.jour, remplacees: m.remplacees || 0, liste: m.quotidiennes || [] }),
+    (ll, liste, li) => ({ jour: ll.jour, remplacees: Math.max(ll.remplacees, li.remplacees), quotidiennes: liste }),
+    () => evBase.quotidiennes.filter((m) => m.atteinte && !m.reclamee).reduce((s, m) => s + (m.po || 0), 0),
+    { cle: "po", de: (m) => m.po || 0 });
+  const semaine = periode("semaine",
+    (m) => ({ semaine: m.semaine, liste: [m.hebdo] }),
+    (ll, liste) => ({ semaine: ll.semaine, hebdo: liste[0] || null }),
+    () => (evBase.hebdo?.atteinte && !evBase.hebdo.reclamee ? RECOMPENSE_SEMAINE.sachets || 0 : 0),
+    { cle: "sachets", de: () => RECOMPENSE_SEMAINE.sachets || 0 });
+
+  // `vu` ne sert qu'à animer la progression : celui de l'appareil, il se
+  // recalera de lui-même (il porte son jour et sa semaine).
+  const missions = { ...la, ...jour, ...semaine };
+  if (ici.vu) missions.vu = ici.vu;
+  return { missions, doublons };
+}
+
+/**
+ * Expéditions. Une route se reconnaît à son Lieu et à son heure de départ.
+ * Fusion d'ensemble à trois voies : une route de la base absente d'un côté
+ * est rentrée (créditée ou rappelée) — elle ne revient pas, sinon elle se
+ * paierait deux fois ; une route partie d'un côté depuis la base s'ajoute.
+ * Deux routes parties chacune de son côté avec le même Lieu ou la même carte :
+ * celle du compte reste. L'or du jour s'additionne comme un compteur.
+ */
+export function fusionnerExpeditions(base, ici, la) {
+  if (!ici) return la || null;
+  if (!la) return ici;
+  const b = base || {};
+  const cle = (r) => `${r.lieu}|${r.depart}`;
+  const dansBase = new Set((b.routes || []).map(cle));
+  const dansIci = new Set((ici.routes || []).map(cle));
+  // Ce qui reste du compte : ses routes, moins celles rentrées ici.
+  const routes = (la.routes || []).filter((r) => !dansBase.has(cle(r)) || dansIci.has(cle(r)));
+  const prises = new Set(routes.flatMap((r) => [r.lieu, ...r.cartes]));
+  let seq = Math.max(la.seq || 1, ici.seq || 1);
+  const ids = new Set(routes.map((r) => r.id));
+  for (const r of ici.routes || []) {
+    if (dansBase.has(cle(r)) || routes.some((x) => cle(x) === cle(r))) continue;
+    if ([r.lieu, ...r.cartes].some((k) => prises.has(k))) continue;
+    // Les deux appareils numérotent à partir du même compteur.
+    const route = ids.has(r.id) ? { ...r, id: seq++ } : r;
+    ids.add(route.id);
+    [route.lieu, ...route.cartes].forEach((k) => prises.add(k));
+    routes.push(route);
+  }
+  seq = Math.max(seq, ...[...ids].map((id) => id + 1));
+
+  const oi = ici.orJour, ol = la.orJour, ob = b.orJour;
+  let orJour = ol || oi || null;
+  if (oi && ol) {
+    if (oi.jour !== ol.jour) orJour = oi.jour > ol.jour ? oi : ol;
+    else {
+      const depuis = ob?.jour === oi.jour ? ob.credite || 0 : 0;
+      orJour = { jour: ol.jour, credite: (ol.credite || 0) + Math.max(0, (oi.credite || 0) - depuis) };
+    }
+  }
+  return { ...la, ...ici, routes, seq, orJour };
+}
+
+/**
+ * Le Donjon. Traité comme une valeur, le côté qui l'avait touché l'emportait
+ * entier : les tentatives du jour prises ailleurs revenaient, une descente
+ * terminée ailleurs pouvait se rejouer (et payer son butin une seconde fois),
+ * une convalescence disparaissait.
+ * - Le jour le plus récent porte les tentatives et la composition imposée ;
+ *   au même jour, les tentatives s'additionnent comme un compteur et la
+ *   composition tirée la première (celle du compte) reste.
+ * - La partie en cours suit le côté qui l'a fait avancer. Avancée des deux
+ *   côtés, et terminée sur le compte : terminée.
+ * - Convalescences : l'union, la date la plus lointaine.
+ */
+export function fusionnerDonjon(base, ici, la) {
+  if (!ici) return la || null;
+  if (!la) return ici;
+  const b = base || {};
+  const sortie = { ...la };
+  if ((ici.jour || "") > (la.jour || "")) {
+    Object.assign(sortie, { jour: ici.jour, tentatives: ici.tentatives || 0, imposition: ici.imposition || null });
+  } else if (ici.jour === la.jour) {
+    const depuis = b.jour === ici.jour ? b.tentatives || 0 : 0;
+    sortie.tentatives = (la.tentatives || 0) + Math.max(0, (ici.tentatives || 0) - depuis);
+    sortie.imposition = la.imposition || ici.imposition || null;
+  }
+  const changeIci = !meme(ici.partie, b.partie), changeLa = !meme(la.partie, b.partie);
+  // Avancée des deux côtés : celle du compte (terminée là-bas, elle le reste).
+  sortie.partie = (changeIci && !changeLa ? ici.partie : la.partie) ?? null;
+  if (!meme(ici.dernier, b.dernier) && meme(la.dernier, b.dernier)) sortie.dernier = ici.dernier;
+  const conv = { ...(la.convalescence || {}) };
+  for (const [k, fin] of Object.entries(ici.convalescence || {})) {
+    if (!INTERDITES.has(k) && (!conv[k] || conv[k] < fin)) conv[k] = fin;
+  }
+  sortie.convalescence = conv;
+  const record = Math.max(ici.recordInfini || 0, la.recordInfini || 0);
+  if (record) sortie.recordInfini = record;
+  return sortie;
+}
+
+/**
+ * Le Comptoir, extension par extension : le marché d'une extension suit le
+ * côté qui l'a touché. Il était fusionné d'un bloc : visiter le Comptoir de
+ * La Troupe sur le téléphone effaçait les ventes faites ailleurs au Comptoir
+ * d'une autre extension.
+ */
+export function fusionnerParCle(base = {}, ici = {}, la = {}) {
+  const sortie = {};
+  for (const k of cles(ici, la)) {
+    const v = !meme(ici?.[k], base?.[k]) ? ici?.[k] : la?.[k];
+    if (v !== undefined) sortie[k] = v;
+  }
+  return sortie;
+}
+
+/**
+ * Garantie de légendaire, par extension. `depuis` compte les boosters
+ * ouverts depuis la dernière légendaire : les boosters ouverts des deux
+ * côtés s'ajoutent ; une légendaire tirée d'un côté (le compteur est
+ * redescendu) remet ce côté-là à sa valeur. `vu` est acquis dès qu'un côté
+ * l'a.
+ */
+export function fusionnerPity(base = {}, ici = {}, la = {}) {
+  const sortie = {};
+  for (const k of cles(ici, la)) {
+    const b = base?.[k] || { depuis: 0 }, i = ici?.[k], l = la?.[k];
+    if (!i || !l) { sortie[k] = i || l; continue; }
+    const di = (i.depuis || 0) - (b.depuis || 0), dl = (l.depuis || 0) - (b.depuis || 0);
+    const depuis = di < 0 ? i.depuis : dl < 0 ? l.depuis : (b.depuis || 0) + di + dl;
+    sortie[k] = { ...l, depuis, vu: !!(i.vu || l.vu) };
+  }
+  return sortie;
+}
+
 const COMPTEURS = new Set([
   "collections", "boosters", "bourse", "mine", "tafix", "schema", "succes", "sachets", "stats", "xp", "reliquaire", "fiches",
+  "missions", "expeditions", "donjon", "comptoir", "pity",
 ]);
 
 /**
@@ -295,8 +485,16 @@ export function fusionner3(base, ici, la, vide) {
   sortie.xp = fusionnerXP(b.xp, ici.xp, la.xp);
   sortie.reliquaire = fusionnerReliquaire(b.reliquaire, ici.reliquaire, la.reliquaire);
   sortie.fiches = fusionnerFiches(b.fiches, ici.fiches, la.fiches);
+  sortie.expeditions = fusionnerExpeditions(b.expeditions, ici.expeditions, la.expeditions);
+  sortie.donjon = fusionnerDonjon(b.donjon, ici.donjon, la.donjon);
+  sortie.comptoir = fusionnerParCle(b.comptoir, ici.comptoir, la.comptoir);
+  sortie.pity = fusionnerPity(b.pity, ici.pity, la.pity);
   const { succes, doublons } = fusionnerSucces(b.succes, ici.succes, la.succes);
   sortie.succes = succes;
+  const m = fusionnerMissions(b.missions, ici.missions, la.missions, base ? b : null);
+  sortie.missions = m.missions;
+  doublons.po += m.doublons.po;
+  if (m.doublons.sachets) doublons.sachets["*"] = (doublons.sachets["*"] || 0) + m.doublons.sachets;
   // Les sachets s'additionnent toujours, y compris à la première connexion :
   // un doublon s'y reprend toujours. La bourse, elle, n'est additionnée
   // qu'avec une base ; sans base on garde la plus garnie, il n'y a rien à

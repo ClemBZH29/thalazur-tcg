@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useJeu } from "./Jeu.jsx";
-import { chargerFirebase, nuageConfigure, sessionMemorisee } from "../lib/nuage/firebase.js";
+import { CLE_COMPTE, chargerFirebase, nuageConfigure, sessionMemorisee } from "../lib/nuage/firebase.js";
 import { empreinte, fusionner3, fusionnerMine, signature } from "../lib/nuage/fusion.js";
 import { ligneClassement, pseudoValide } from "../succes/classement.js";
 import { effacer, ecrireMine, etatVide, lireMine, relireJeu, suivreMine } from "../lib/storage.js";
@@ -43,7 +43,6 @@ import { LEGAL } from "../config/legal.js";
  * de la dernière révision : deux envois simultanés ne s'écrasent jamais.
  */
 
-const CLE_COMPTE = "brume-thalazur:compte";      // { uid, revision }
 const CLE_BASE = "brume-thalazur:compte-base";   // { etat, mine } vus en dernier
 const CLE_CLASSEMENT = "brume-thalazur:classement"; // { uid, empreinte, t } publiés en dernier
 const DELAI_ENVOI = 30000;
@@ -139,7 +138,7 @@ function expliquer(e) {
 }
 
 export function Compte({ children }) {
-  const { etat, setEtat, rechargerMine, succes } = useJeu();
+  const { etat, setEtat, rechargerMine, succes, compteLu, lireCompteFait, attendreCompte } = useJeu();
 
   // inactif : pas de Firebase dans ce build · invite : personne n'est connecté
   // ouverture : le SDK arrive ou la session se rétablit · connecte
@@ -165,6 +164,8 @@ export function Compte({ children }) {
   const enVol = useRef(false);
   const relancer = useRef(false);
   const ecoute = useRef(null);
+  const relecture = useRef(false);  // relecture du compte au retour sur l'onglet
+  const cacheDepuis = useRef(0);    // quand l'onglet est passé en arrière-plan
 
   useEffect(() => { etatRef.current = etat; }, [etat]);
   const succesRef = useRef(succes);
@@ -464,6 +465,16 @@ export function Compte({ children }) {
     return () => { vivant = false; };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // La partie du compte est lue (ou ne le sera pas : personne de connecté) :
+  // le jeu peut reprendre ce qu'il fait de lui-même. Si le serveur ne répond
+  // pas, on n'attend pas indéfiniment — la fusion saura rattraper.
+  useEffect(() => {
+    if (compteLu || relecture.current) return;
+    if (sessionPrete || statut === "invite" || statut === "inactif") { lireCompteFait(); return; }
+    const t = setTimeout(lireCompteFait, 15000);
+    return () => clearTimeout(t);
+  }, [compteLu, sessionPrete, statut, lireCompteFait]);
+
   // Se montrer ou se retirer du classement n'attend pas le prochain envoi.
   const profil = etat.profil || {};
   useEffect(() => {
@@ -473,6 +484,57 @@ export function Compte({ children }) {
   // Chaque changement de partie, et chaque sauvegarde de la mine, programme un envoi.
   useEffect(() => { planifier(); }, [etat, planifier]);
   useEffect(() => suivreMine(() => planifier()), [planifier]);
+
+  /*
+   * Un autre onglet a synchronisé : sa marque et sa base sont désormais celles
+   * de la partie locale, qu'on vient d'adopter (voir Jeu.jsx). Garder les
+   * siennes ferait prendre à cet onglet la partie commune pour la sienne.
+   */
+  useEffect(() => {
+    const ecouter = (ev) => {
+      if (ev.storageArea !== localStorage) return;
+      if (ev.key === CLE_COMPTE) marque.current = lireJSON(CLE_COMPTE);
+      else if (ev.key === CLE_BASE) base.current = lireBase();
+    };
+    window.addEventListener("storage", ecouter);
+    return () => window.removeEventListener("storage", ecouter);
+  }, []);
+
+  /*
+   * Retour sur un onglet resté longtemps en arrière-plan (le téléphone qu'on
+   * ressort de la poche) : la page n'a pas été rechargée, mais la partie a pu
+   * avancer ailleurs. Comme à l'ouverture, rien d'automatique tant que la
+   * copie du compte n'est pas relue — l'écoute en direct, elle, met quelques
+   * secondes à se reconnecter.
+   */
+  const relire = useCallback(async () => {
+    if (relecture.current || !user.current || !fb.current) return;
+    relecture.current = true;
+    attendreCompte();
+    try {
+      const { F } = fb.current;
+      const delai = new Promise((_, non) => setTimeout(() => non(new Error("délai")), 10000));
+      const snap = await Promise.race([F.getDoc(refDoc()), delai]);
+      const d = snap.exists() ? snap.data() : null;
+      if (d && marque.current && d.revision > marque.current.revision && !enVol.current) {
+        if (reconcilier(d)) planifier();
+        setDerniere(new Date());
+      }
+    } catch { /* hors ligne : la fusion rattrapera à l'envoi */ }
+    relecture.current = false;
+    lireCompteFait();
+  }, [attendreCompte, lireCompteFait, planifier, reconcilier, refDoc]);
+
+  useEffect(() => {
+    const changer = () => {
+      if (document.visibilityState === "hidden") { cacheDepuis.current = Date.now(); return; }
+      const absent = cacheDepuis.current ? Date.now() - cacheDepuis.current : 0;
+      cacheDepuis.current = 0;
+      if (absent > 60000 && sessionPrete) relire();
+    };
+    document.addEventListener("visibilitychange", changer);
+    return () => document.removeEventListener("visibilitychange", changer);
+  }, [relire, sessionPrete]);
 
   // L'onglet qui passe en arrière-plan est souvent le dernier signe de vie.
   // On n'attend pas le délai d'envoi, et on ne compte pas sur un envoi déjà

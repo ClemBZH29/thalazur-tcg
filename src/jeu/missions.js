@@ -15,24 +15,27 @@ const autour = (e) => ({ mesures: mesuresMissions(e), ctx: contexte(e, EXTENSION
  * ouverte (vérifié chaque minute). Tout se recalcule dans le setter, sur
  * l'état du moment.
  */
-export function useMissions(etat, setEtat) {
+export function useMissions(etat, setEtat, pret = true) {
   const [horloge, setHorloge] = useState(() => Date.now());
   useEffect(() => {
     const iv = setInterval(() => setHorloge(Date.now()), 60000);
     return () => clearInterval(iv);
   }, []);
+  // `pret` : la copie du compte est lue (voir `compteLu` dans Jeu.jsx). Avant,
+  // ni tirage ni réclamation : ils porteraient sur une partie en retard.
   useEffect(() => {
+    if (!pret) return;
     setEtat((e) => mettreAJour(e, { ...autour(e), maintenant: new Date() }));
-  }, [horloge, setEtat]);
+  }, [horloge, pret, setEtat]);
 
   const evaluation = useMemo(() => evaluerMissions(etat, mesuresMissions(etat)), [etat]);
 
   const reclamer = useCallback((index) => {
-    setEtat((e) => reclamerMission(e, index, mesuresMissions(e)));
-  }, [setEtat]);
+    if (pret) setEtat((e) => reclamerMission(e, index, mesuresMissions(e)));
+  }, [pret, setEtat]);
   const remplacer = useCallback((index) => {
-    setEtat((e) => remplacerMission(e, index, autour(e)));
-  }, [setEtat]);
+    if (pret) setEtat((e) => remplacerMission(e, index, autour(e)));
+  }, [pret, setEtat]);
 
   /** Retient la progression affichée, pour l'animer au retour sur la page. */
   const noter = useCallback(() => {
