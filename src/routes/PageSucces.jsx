@@ -21,6 +21,9 @@ function libelleRecompense(r = {}, famille) {
 
 const unite = (f) => (f.mesure === "pct" ? " %" : "");
 
+/** Un exploit caché ne montre rien de lui tant qu'il n'est pas atteint. */
+const voile = (p) => p.cache && !p.atteint;
+
 /* ── Onglet Succès ─────────────────────────────────────────────────────── */
 
 function Famille({ f, onReclamer }) {
@@ -35,7 +38,7 @@ function Famille({ f, onReclamer }) {
         <h3>{f.nom}</h3>
         <span className="succes-valeur">
           {nombre(f.valeur)}{unite(f)}
-          {prochain && <span className="muted"> / {nombre(prochain.seuil)}{unite(f)}</span>}
+          {prochain && <span className="muted"> / {voile(prochain) ? "?" : `${nombre(prochain.seuil)}${unite(f)}`}</span>}
         </span>
       </header>
       <div className="succes-jauge" role="progressbar" aria-label={`${f.nom}, vers le palier suivant`}
@@ -45,10 +48,10 @@ function Famille({ f, onReclamer }) {
       <ol className="succes-paliers">
         {f.paliers.map((p) => (
           <li key={p.id} className={p.reclame ? "fait" : p.atteint ? "pret" : "verrou"}>
-            <span className="succes-quoi">{p.quoi}</span>
+            <span className="succes-quoi">{voile(p) ? "Exploit caché" : p.quoi}</span>
             <span className="succes-gain">
-              {libelleRecompense(p.recompense, f)}
-              {p.titre && <span className="succes-titre">Titre : {p.titre}</span>}
+              {voile(p) ? "?" : libelleRecompense(p.recompense, f)}
+              {p.titre && !voile(p) && <span className="succes-titre">Titre : {p.titre}</span>}
             </span>
             {p.reclame ? (
               <span className="succes-etat" aria-label="Réclamé">✓</span>
@@ -95,11 +98,19 @@ function OngletSucces() {
         )}
       </div>
 
-      <div className="section-titre sous-titre"><h2>Global</h2></div>
-      <p className="muted succes-intro">Ce que vous faites sur tout le site : boosters, Mines, Comptoir, colporteur.</p>
-      <div className="succes-grille">
-        {evaluation.global.map((f) => <Famille key={f.id} f={f} onReclamer={reclamer} />)}
-      </div>
+      {succes.catalogue.chapitres.map((c) => {
+        const familles = evaluation.global.filter((f) => f.chapitre === c.id);
+        if (!familles.length) return null;
+        return (
+          <section key={c.id}>
+            <div className="section-titre sous-titre"><h2>{c.nom}</h2></div>
+            <p className="muted succes-intro">{c.quoi}</p>
+            <div className="succes-grille">
+              {familles.map((f) => <Famille key={f.id} f={f} onReclamer={reclamer} />)}
+            </div>
+          </section>
+        );
+      })}
 
       {evaluation.extensions.map((e) => (
         <section key={e.id}>
@@ -116,8 +127,8 @@ function OngletSucces() {
       <p className="muted petit succes-note">
         Un booster offert s'ouvre sans payer, depuis la boutique : ceux d'une
         collection dans leur extension, ceux « au choix » dans n'importe
-        laquelle. Les ventes au Comptoir et les affaires du colporteur se
-        comptent depuis la mise en service des succès.
+        laquelle. Les missions de Bodégué se comptent depuis le 09/10/2026, les
+        commandes de Tafix depuis la refonte des Mines.
       </p>
     </>
   );

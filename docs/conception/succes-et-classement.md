@@ -8,19 +8,30 @@ Une page, `#/succes`, et une entrée de navigation partagée avec le
 classement. La pastille ambrée compte les paliers atteints qui attendent
 d'être réclamés.
 
-**Deux catégories.**
+**Des chapitres** (`CHAPITRES`, 09/10/2026), un par module, puis un par
+extension ouverte — la table des matières du futur grimoire :
 
-- **Global** : ce que l'on fait sur tout le site. Boosters ouverts (toutes
-  extensions), strate atteinte et effondrements aux Mines, exemplaires vendus
-  au Comptoir, affaires conclues avec Mirko, gardiens et remontées du Donjon,
-  expéditions accueillies et Lieux passés en rainbow par les routes,
-  exemplaires dissous et cartes forgées au Reliquaire, expérience des cartes
-  (niveau le plus haut, paliers rainbow atteints par l'XP, cartes au niveau
-  100 — Donjon et expéditions confondus), carte PJ. Le barème Global rend
-  144 boosters d'équivalent en tout, à gagner sur des mois.
-- **Collection**, par extension : complétion (25, 50, 75, 90, 100 %),
-  cartes par type (PNJ, artéfacts, lieux : 10, 25, 50, 75 % du type puis « tous »),
-  légendaires (une, la moitié, toutes), irisées, pleine illustration.
+| Chapitre | Familles |
+|---|---|
+| La Boutique | boosters ouverts, cartes PJ (exploit caché) |
+| Les Mines de Kazim | strate, effondrements, commandes de Tafix, faveurs du Fossoyeur |
+| Le Donjon | gardiens, donjon du jour mené au bout, record de l'infini |
+| Les Routes | expéditions, Lieux passés en rainbow |
+| Le Négoce | ventes et achats au Comptoir, affaires de Mirko |
+| Le Reliquaire | dissolutions, forges |
+| Les Missions | missions du jour, missions de la semaine |
+| Les Cartes | niveau le plus haut, paliers rainbow par l'expérience, centenaires |
+| *Une extension* | complétion, types, légendaires, rainbow jusqu'au set complet, pleine illustration, provinces |
+
+Les **provinces** reprennent les regroupements de Gaspard au Comptoir, plus
+la Troupe et le Bestiaire : un palier, toutes les cartes de la province, et
+son titre. Une province de moins de huit cartes dans l'extension n'a pas de
+famille.
+
+Un palier **caché** (`cache`) ne montre ni son seuil ni sa récompense avant
+d'être atteint : cartes PJ, full art, douze gardiens en une descente
+infinie. Ce sont des exploits — de la chance ou une équipe hors norme —, pas
+des objectifs.
 
 Le barème est dans `src/config/succes.js`. Les familles de collection sont
 **construites à partir du roster** (`src/succes/regles.js`) : une extension
@@ -114,7 +125,68 @@ Mines, la première heure du bêta-testeur rapporterait de l'ordre de
 1 100 PO et 5 sachets, un peu plus de trois jours de gain passif, au lieu
 de onze.
 
+### Le barème refait en chapitres (09/10/2026)
+
+L'audit du 09/10/2026 (`claude/audit-succes.md` dans le projet) a rejoué le
+barème du 07/10 sur trois habitudes de jeu, avec les rythmes mesurés par les
+autres audits (`scripts/audit-succes.mjs`, partie 3). Trois défauts :
+
+- **un stock vidé en un mois** : un joueur d'une heure par jour prenait
+  58 paliers sur 80 dans son premier mois, et il ne lui en restait que cinq
+  au-delà du troisième. Les missions donnent une raison de revenir chaque
+  jour ; les succès n'en donnaient plus aucune de viser loin ;
+- **un palier inatteignable** : la strate 16. La pente des Mines plafonne
+  vers la quinzième, quel que soit le temps de jeu (`audit-strates.mjs`) ;
+- **des modules absents** : rien pour les missions, les commandes de Tafix,
+  la Faveur du Fossoyeur, le donjon infini, les achats au Comptoir ; rien
+  par province ; les rainbow s'arrêtaient à 25 cartes sur 220.
+
+**Ce qui change** (`src/config/succes.js`) :
+
+- chaque famille a une **queue** de six mois à un an (2 500 boosters,
+  400 gardiens, 4 000 ventes, 1 000 missions…), les premiers paliers paient
+  en PO, les sachets viennent aux paliers qui demandent des semaines ;
+- strate : 5, 8, 11, 13, 15 ;
+- familles nouvelles : commandes de Tafix, faveurs du Fossoyeur, record du
+  donjon infini (le seul succès qui mesure la force de l'équipe), achats au
+  Comptoir, missions du jour et de la semaine, provinces, rainbow à la
+  moitié puis au set complet (le « master set » des TCG), toutes les full art ;
+- le palier de 10 % par type et le premier palier de province sont partis :
+  ils tombaient au premier booster ;
+- complétion : 120 PO à 25 %, puis 1, 3, 6 + 240 PO, 12 + 600 PO.
+
+Les missions accomplies se comptent dans `stats.missions` et
+`stats.semaines` (`payer`, `src/missions/regles.js`). Une mission payée sur
+deux appareils n'y compte qu'une fois : la fusion retire le doublon qu'elle
+reprend déjà en PO (`fusionnerMissions`).
+
+Chaque palier porte des **points de renommée** (`pointsDe`) : dix par booster
+d'équivalent qu'il rapporte, cinq au moins. La récompense grossit déjà avec
+la difficulté ; les points suivent sans second barème à tenir. Ils serviront
+au classement.
+
+| Habitude | 1er jour | 1re semaine | 1er mois | 3 mois | 1 an | au-delà |
+|---|---:|---:|---:|---:|---:|---:|
+| Régulier (1 h/j), avant | 13 | 22 | 23 | 17 | 2 | 3 |
+| Régulier (1 h/j), après | 11 | 24 | 25 | 34 | 21 | 3 |
+
+Paliers tombés dans chaque période (Global et La Troupe). Le barème rend
+288 boosters d'équivalent en Global et 110 par extension, dont les trois
+quarts après le premier mois. L'audit échoue si le joueur régulier prend
+plus de la moitié des paliers ou plus du quart de la valeur le premier mois,
+si sa première semaine rend plus d'un tiers des boosters qu'il ouvre, s'il
+lui reste moins d'un cinquième du barème après trois mois, ou si un palier
+visible est hors d'atteinte même d'un joueur assidu.
+
+Un palier déjà réclamé sous l'ancien barème couvre toujours les paliers
+nouveaux à son niveau (`seuilsAnciens`) : qui avait la strate 12 ne se fait
+pas repayer 11 ni 13. Un titre dont le palier a disparu (« Pourfendeur de
+gardiens » était à 15 gardiens, il est à 50) reste à qui l'avait gagné, sous
+son ancien identifiant (`TITRES_ANCIENS`).
+
 ### Prochaine étape proposée : un flux plutôt qu'un stock
+
+*Fait : les missions de Bodégué (`missions.md`).*
 
 Les succès restent un stock : une fois les paliers faciles pris, ils ne
 rapportent presque plus rien pendant des semaines, et le joueur n'a pas de
