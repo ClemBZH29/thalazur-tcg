@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useJeu } from "./Jeu.jsx";
-import { chargerFirebase, nuageConfigure, sessionMemorisee } from "../lib/nuage/firebase.js";
+import { CLE_COMPTE, chargerFirebase, nuageConfigure, sessionMemorisee } from "../lib/nuage/firebase.js";
 import { empreinte, fusionner3, fusionnerMine, signature } from "../lib/nuage/fusion.js";
 import { ligneClassement, pseudoValide } from "../succes/classement.js";
 import { effacer, ecrireMine, etatVide, lireMine, relireJeu, suivreMine } from "../lib/storage.js";
@@ -43,7 +43,6 @@ import { LEGAL } from "../config/legal.js";
  * de la dernière révision : deux envois simultanés ne s'écrasent jamais.
  */
 
-const CLE_COMPTE = "brume-thalazur:compte";      // { uid, revision }
 const CLE_BASE = "brume-thalazur:compte-base";   // { etat, mine } vus en dernier
 const CLE_CLASSEMENT = "brume-thalazur:classement"; // { uid, empreinte, t } publiés en dernier
 const DELAI_ENVOI = 30000;
@@ -139,7 +138,7 @@ function expliquer(e) {
 }
 
 export function Compte({ children }) {
-  const { etat, setEtat, rechargerMine, succes } = useJeu();
+  const { etat, setEtat, rechargerMine, succes, compteLu, lireCompteFait } = useJeu();
 
   // inactif : pas de Firebase dans ce build · invite : personne n'est connecté
   // ouverture : le SDK arrive ou la session se rétablit · connecte
@@ -463,6 +462,16 @@ export function Compte({ children }) {
     });
     return () => { vivant = false; };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // La partie du compte est lue (ou ne le sera pas : personne de connecté) :
+  // le jeu peut reprendre ce qu'il fait de lui-même. Si le serveur ne répond
+  // pas, on n'attend pas indéfiniment — la fusion saura rattraper.
+  useEffect(() => {
+    if (compteLu) return;
+    if (sessionPrete || statut === "invite" || statut === "inactif") { lireCompteFait(); return; }
+    const t = setTimeout(lireCompteFait, 15000);
+    return () => clearTimeout(t);
+  }, [compteLu, sessionPrete, statut, lireCompteFait]);
 
   // Se montrer ou se retirer du classement n'attend pas le prochain envoi.
   const profil = etat.profil || {};

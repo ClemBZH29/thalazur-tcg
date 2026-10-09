@@ -14,6 +14,7 @@ import { useSucces } from "./succes.js";
 import { useDonjon } from "./donjon.js";
 import { useExpeditions } from "./expeditions.js";
 import { useMissions } from "./missions.js";
+import { compteSuivi } from "../lib/nuage/firebase.js";
 const DEFAUT = BOOSTER_DEFAUT;
 
 
@@ -45,6 +46,17 @@ export function Jeu({ children }) {
   const [stockageKo, setStockageKo] = useState(false);
 
   useEffect(() => { setStockageKo(!sauver(etat)); }, [etat]);
+
+  /*
+   * Un appareil qui suit un compte ne fait rien de lui-même avant d'avoir lu
+   * la copie du compte (Compte.jsx lève l'attente). Sinon, le téléphone
+   * ouvert le lendemain tirait ses missions du jour sur une partie en retard,
+   * et ce tirage passait pour « joué ici » : il effaçait les missions
+   * réalisées sur l'ordinateur. Le gain passif, lui, continue : la fusion de
+   * la bourse sait qu'il court sur l'horloge.
+   */
+  const [compteLu, setCompteLu] = useState(() => !compteSuivi());
+  const lireCompteFait = useCallback(() => setCompteLu(true), []);
 
   // Gain passif : crédité au chargement puis toutes les vingt secondes.
   useEffect(() => {
@@ -237,8 +249,8 @@ export function Jeu({ children }) {
     useMouvements(setEtat, boosterId);
   const succes = useSucces(etat, setEtat, versionMine);
   const donjon = useDonjon(etat, setEtat, test);
-  const expeditions = useExpeditions(etat, setEtat);
-  const missions = useMissions(etat, setEtat);
+  const expeditions = useExpeditions(etat, setEtat, compteLu);
+  const missions = useMissions(etat, setEtat, compteLu);
 
   /**
    * Le sachet offert que l'ouverture de cette extension consommerait : un
@@ -257,7 +269,7 @@ export function Jeu({ children }) {
   const achetable = peutAcheter(etat.bourse, gratuit);
 
   const valeur = {
-    etat, setEtat, stockageKo, versionMine, rechargerMine,
+    etat, setEtat, stockageKo, versionMine, rechargerMine, compteLu, lireCompteFait,
     boosterId, setBoosterId, booster,
     reglages, son, reglageSon, reventeAuto, taux, cfgImage, test, gratuit, majReglages,
     animations, sobreSysteme, mouvementReduit,

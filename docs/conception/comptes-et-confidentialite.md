@@ -20,6 +20,20 @@ Raisonnement de conception : ce que fait cette partie du site, et pourquoi elle 
   compte par une fusion à trois voies (`src/lib/nuage/fusion.js`, testée par
   `tests/fusion.test.js`) : les exemplaires et boosters des deux côtés
   s'additionnent, le gain passif n'est pas payé deux fois.
+- **Rien d'automatique avant d'avoir lu le compte** (09/10/2026). Un appareil
+  qui suit un compte attend la copie du compte (15 s au plus) avant de tirer
+  les missions du jour ou d'accueillir les expéditions rentrées (`compteLu`
+  dans `src/jeu/Jeu.jsx`). Avant, le téléphone ouvert le lendemain tirait ses
+  missions sur une partie en retard ; la fusion y voyait « joué ici », et ce
+  tirage vide effaçait les missions réalisées sur l'ordinateur — la session
+  la moins avancée prenait le dessus.
+- **Missions et expéditions ne sont plus des valeurs** mais ont leur fusion :
+  missions par période (la plus récente l'emporte ; même jour, « réclamée »
+  d'un côté l'est des deux, et une récompense payée deux fois est reprise) ;
+  expéditions comme un ensemble de routes (une route rentrée d'un côté ne
+  revient pas, une route partie de l'autre s'ajoute). Les autres clés hors
+  compteurs (Donjon, Comptoir, colporteur, réglages) restent des valeurs :
+  seule une action du joueur les change, jamais l'ouverture de la page.
 - **Première connexion** : la partie jouée sans compte s'ajoute au compte.
   **Déconnexion** : l'appareil est vidé, la partie reste sur le compte.
 - **Le SDK n'est chargé qu'au besoin** (clic sur « Se connecter », ou session

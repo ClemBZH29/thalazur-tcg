@@ -30,6 +30,20 @@ export const nuageConfigure = Boolean(CONFIG.apiKey && CONFIG.projectId && CONFI
 /** La mesure d'audience demande en plus l'identifiant Google Analytics. */
 export const mesureConfiguree = nuageConfigure && Boolean(CONFIG.measurementId);
 
+/** La marque de l'appareil : `{ uid, revision }` du compte qu'il suit. */
+export const CLE_COMPTE = "brume-thalazur:compte";
+
+/**
+ * Cet appareil suit-il un compte ? Alors sa partie locale peut avoir du
+ * retard sur celle du compte, et rien d'automatique (tirage des missions du
+ * jour, retour des expéditions) ne doit s'y faire avant de l'avoir lue —
+ * voir `compteLu` dans src/jeu/Jeu.jsx.
+ */
+export function compteSuivi() {
+  if (!nuageConfigure) return false;
+  try { return Boolean(localStorage.getItem(CLE_COMPTE)); } catch { return false; }
+}
+
 let promesseApp = null;
 let promesse = null;
 
