@@ -42,6 +42,9 @@ export function useMouvements(setEtat, boosterId) {
   /** Achat d'une carte à l'échoppe : les PO sortent, l'exemplaire entre. */
   const acheterExemplaire = useCallback((carte, version, po) => {
     setEtat((e) => {
+      // Revérifié sur la bourse du moment : sinon la carte partait pour ce
+      // qu'il restait (debiterLibre s'arrête à 0).
+      if ((e.bourse?.po || 0) < po) return e;
       const coll = { ...(e.collections[boosterId] || {}) };
       const a = coll[carte.id];
       coll[carte.id] = {
@@ -71,6 +74,10 @@ export function useMouvements(setEtat, boosterId) {
   const appliquerMarche = useCallback(({ retire = [], ajoute = [], po = 0 }) => {
     setEtat((e) => {
       const coll = { ...(e.collections[boosterId] || {}) };
+      // L'affaire se revérifie sur la partie du moment (un autre onglet a pu
+      // vendre les doublons ou dépenser la bourse) : tout ou rien.
+      if (retire.some((r) => ((coll[r.carteId] || {})[r.version] || 0) < r.n)) return e;
+      if (po < 0 && (e.bourse?.po || 0) < -po) return e;
       for (const r of retire) {
         const a = coll[r.carteId];
         if (!a) continue;

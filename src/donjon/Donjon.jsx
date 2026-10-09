@@ -423,7 +423,7 @@ export default function Donjon({ jeu }) {
   const aller = useCallback((e) => {
     setEcran(e);
     const p = partieRef.current;
-    if (p) { p.ecran = e === "combat" ? "carte" : e; sauverPartie(structuredClone(p)); }
+    if (p) { p.ecran = e === "combat" ? "carte" : e; p.pas = (p.pas || 0) + 1; sauverPartie(structuredClone(p)); }
     window.scrollTo({ top: 0 });
   }, [sauverPartie]);
 
@@ -548,6 +548,7 @@ export default function Donjon({ jeu }) {
   const lancerCombat = (genre, reprise = null) => {
     const p = partieRef.current;
     p.combat = reprise || { genre, graine: nouvelleGraine() };
+    p.pas = (p.pas || 0) + 1;
     sauverPartie(structuredClone({ ...p, ecran: "combat" }));
     rngCombat.current = tirage(p.combat.graine);
     combatRef.current = demarrerCombat(p, p.combat.genre, rngCombat.current, POOLS);
@@ -610,7 +611,7 @@ export default function Donjon({ jeu }) {
     const repos = convalescences(p, iss);
     const infini = p.mode === "infini";
     const record = infini && p.stats.gardiens > recordInfini;
-    const { po, bilan, refusee } = terminerDonjon(butin, { issue: iss, etage: p.etage, gardiens: p.stats.gardiens, complete, mode: p.mode || "jour", id: idPartie(p) }, repos, gainsXP(p, iss));
+    const { po, bilan, refusee } = terminerDonjon(butin, { issue: iss, etage: p.etage, gardiens: p.stats.gardiens, complete, mode: p.mode || "jour", id: idPartie(p), pas: p.pas || 0 }, repos, gainsXP(p, iss));
     // Close ou remplacée ailleurs entre-temps : rien n'est payé, pas de bilan.
     if (refusee) return fermerDescente();
     const noms = new Map([...p.equipe.map((u) => u.c), ...p.perdus].map((c) => [`${c.ext}:${c.id}`, c.nom]));
@@ -647,8 +648,24 @@ export default function Donjon({ jeu }) {
   // page : la nôtre est fermée. Si une descente commence ailleurs pendant
   // qu'on prépare la sienne, on la reprend, comme après un rechargement.
   const idEnregistree = idPartie(donjon.partie);
+  const pasEnregistre = donjon.partie?.pas || 0;
   useEffect(() => {
-    if (idPartie(partieRef.current) === idEnregistree) return;
+    if (idPartie(partieRef.current) === idEnregistree) {
+      // Même descente, mais plus avancée ailleurs (autre onglet, autre
+      // appareil) : on reprend la copie la plus récente plutôt que de la
+      // faire reculer au prochain pas.
+      if (partieRef.current && pasEnregistre > (partieRef.current.pas || 0) && !occupe) {
+        minuteurs.current.forEach(clearTimeout); minuteurs.current = [];
+        if (combatRef.current) combatRef.current.fini = "ailleurs";
+        combatRef.current = null;
+        const p = structuredClone(donjon.partie);
+        partieRef.current = p;
+        setResultat(null); setFin(null); setGeste(null); setChoix([]);
+        setRencontre(p.rencontre ? monterRencontre(p) : null);
+        setEcran(ecranDe(p));
+      }
+      return;
+    }
     if (partieRef.current) { fermerDescente(); return; }
     if (donjon.partie && ecran === "preparation") {
       const p = structuredClone(donjon.partie);
@@ -656,7 +673,7 @@ export default function Donjon({ jeu }) {
       setRencontre(p.rencontre ? monterRencontre(p) : null);
       setEcran(ecranDe(p));
     }
-  }, [idEnregistree]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [idEnregistree, pasEnregistre]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ── Combat : le fil ─────────────────────────────────────────────── */
   const el = (uid) => zone.current?.querySelector(`.dj-u[data-uid="${uid}"]`);

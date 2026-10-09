@@ -40,7 +40,8 @@ export function empreinte(texte) {
  * compte passe de toute façon par une autre clé (collection, mine, marché).
  */
 export function signature(etat, mine) {
-  const { bourse, ...reste } = etat || {};
+  // `ecriture` : le numéro d'écriture locale, propre à chaque onglet (storage.js).
+  const { bourse, ecriture, ...reste } = etat || {};
   return empreinte(JSON.stringify(reste) + "|" + (mine || ""));
 }
 

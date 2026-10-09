@@ -3,8 +3,12 @@ import { BOOSTER_DEFAUT, BOOSTER_PAR_ID } from "../extensions/index.js";
 import { specialesPour } from "../config/speciales.js";
 import { ECONOMIE, GARANTIES, TIER_ORDER, TIERS_ROSTER } from "../config/tiers.js";
 import { construirePool, deduireGrades } from "../lib/roster.js";
-import { CLE_MINE, CLE_PARTIE, charger, classerTexte, ecrireMine, etatVide, relireJeu, retablirMine, sauver } from "../lib/storage.js";
+import {
+  CLE_MINE, CLE_PARTIE, charger, classerTexte, ecrireMine, etatVide, lireEcriture, noterEcriture, plusRecente,
+  relireJeu, retablirMine, sauver,
+} from "../lib/storage.js";
 import { geler } from "../lib/gel.js";
+import { mineMoinsAvancee, seuleLaBourse } from "./onglets.js";
 import { crediter, peutAcheter } from "../lib/economie.js";
 import { appliquerOuverture, reglementOuverture } from "./recolte.js";
 import { useReglages } from "./reglages.js";
@@ -50,8 +54,19 @@ export function Jeu({ children }) {
   // Le texte de la partie écrit par un autre onglet, adopté ici (voir plus bas).
   const recuDAilleurs = useRef(null);
   const etatCourant = useRef(etat);
+  // Initialisé avec la partie lue : l'onglet qui s'ouvre ne la réécrit pas
+  // aussitôt (avec un numéro qui pouvait égaler une écriture d'un autre onglet).
+  const dernierSauve = useRef(etat);
   useEffect(() => {
     etatCourant.current = etat;
+    // Un onglet en arrière-plan n'écrit pas son seul gain passif : c'est
+    // l'écriture qui, partie d'une copie en retard d'un instant, effaçait ce
+    // que l'onglet joué venait de faire. Le gain n'est pas perdu : il court
+    // sur l'horloge et sera crédité au prochain tour.
+    const avant = dernierSauve.current;
+    if (avant === etat) return;
+    if (avant && document.hidden && seuleLaBourse(avant, etat)) return;
+    dernierSauve.current = etat;
     setStockageKo(!sauver(etat, recuDAilleurs.current));
   }, [etat]);
 
@@ -85,6 +100,21 @@ export function Jeu({ children }) {
   const cfgImage = { ...cfgImageBase, extension: boosterId, inventaire };
   const { crediterCommande, crediterRemise, remisePayee, majTafix, versionMine, rechargerMine } = useMine(etat, setEtat);
 
+  /**
+   * Adopte la partie écrite par un autre onglet. Fonctionnel : si une action
+   * de cet onglet attend encore d'être appliquée (une ouverture déclenchée
+   * après l'animation du sachet), elle n'est pas écrasée — on garde la nôtre,
+   * qui s'écrira avec un numéro plus haut et que l'autre onglet adoptera.
+   */
+  const adopterPartie = useCallback((suite, texte) => {
+    setEtat((cur) => {
+      if (cur !== etatCourant.current) return cur;
+      recuDAilleurs.current = texte;
+      dernierSauve.current = suite;
+      return suite;
+    });
+  }, []);
+
   /*
    * Plusieurs onglets ouverts sur le site partagent le même stockage, mais
    * chacun avait sa partie en mémoire. L'onglet oublié, en créditant son gain
@@ -106,18 +136,23 @@ export function Jeu({ children }) {
     const ecouter = (ev) => {
       if (ev.storageArea !== localStorage) return;
       if (ev.key === CLE_PARTIE) {
+        // Partie effacée par un autre onglet (réinitialisation, déconnexion,
+        // compte supprimé) : on la vide ici aussi, sans quoi on la réécrirait.
+        if (ev.newValue === null) { adopterPartie(etatVide(), null); return; }
         const genre = classerTexte(ev.newValue);
         if (genre === "futur") { geler("onglet"); return; }
-        if (genre === "ancien") {
+        // Plus ancienne que ce qu'on a (onglet en retard, ancien code) : on ne
+        // l'adopte pas, et on réécrit la nôtre pour reprendre la main.
+        if (genre === "ancien" || !plusRecente(lireEcriture(ev.newValue))) {
           recuDAilleurs.current = null;
           sauver(etatCourant.current);
           return;
         }
+        noterEcriture(lireEcriture(ev.newValue));
         let suite = null;
-        try { suite = ev.newValue ? relireJeu(JSON.parse(ev.newValue)) : etatVide(); } catch { /* illisible */ }
+        try { suite = relireJeu(JSON.parse(ev.newValue)); } catch { /* illisible */ }
         if (!suite) return;
-        recuDAilleurs.current = ev.newValue;
-        setEtat(suite);
+        adopterPartie(suite, ev.newValue);
       } else if (ev.key === CLE_MINE) {
         const genre = classerTexte(ev.newValue);
         if (genre === "futur") { geler("onglet"); return; }
@@ -128,14 +163,38 @@ export function Jeu({ children }) {
           if (classerTexte(ev.oldValue) === "courant") retablirMine(ev.oldValue);
           return;
         }
-        if (!document.hidden) return;
+        // Une mine moins avancée que celle qu'elle recouvre vient d'un onglet
+        // en retard (les compteurs d'une mine ne reculent jamais) : on remet
+        // l'autre, sinon les Mines la reliraient à leur prochaine ouverture.
+        if (mineMoinsAvancee(ev.newValue, ev.oldValue)) { retablirMine(ev.oldValue); return; }
+        // La fenêtre où l'on joue garde sa mine ; une fenêtre cachée, ou
+        // visible mais sans le focus (deux fenêtres côte à côte), adopte.
+        if (!document.hidden && document.hasFocus()) return;
         ecrireMine(ev.newValue);
         rechargerMine();
       }
     };
+    // Onglet rendu par le cache de navigation (retour arrière) ou redevenu
+    // visible : il a pu manquer des écritures. On relit avant d'agir.
+    const relire = () => {
+      const texte = localStorage.getItem(CLE_PARTIE);
+      if (classerTexte(texte) !== "courant" || !plusRecente(lireEcriture(texte))) return;
+      noterEcriture(lireEcriture(texte));
+      let suite = null;
+      try { suite = relireJeu(JSON.parse(texte)); } catch { /* illisible */ }
+      if (suite) adopterPartie(suite, texte);
+    };
+    const surPage = (ev) => { if (ev.persisted) relire(); };
+    const surVisible = () => { if (!document.hidden) relire(); };
     window.addEventListener("storage", ecouter);
-    return () => window.removeEventListener("storage", ecouter);
-  }, [rechargerMine]);
+    window.addEventListener("pageshow", surPage);
+    document.addEventListener("visibilitychange", surVisible);
+    return () => {
+      window.removeEventListener("storage", ecouter);
+      window.removeEventListener("pageshow", surPage);
+      document.removeEventListener("visibilitychange", surVisible);
+    };
+  }, [rechargerMine, adopterPartie]);
 
   const donnees = MJ ? etat.rosters[boosterId] : null;
   const roster = BOOSTER_PAR_ID[boosterId]?.roster;
