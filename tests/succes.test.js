@@ -309,6 +309,9 @@ describe("classement", () => {
     // Vendue depuis : rien.
     expect(cartePreferee(partie(0, { profil: { carte: { ext: TROUPE.id, id: c.id } } }))).toBeNull();
     expect(carteDuCatalogue(CAT, TROUPE.id, c.id).nom).toBe(c.nom);
+    // Le cadrage choisi au profil part avec la carte, aplati.
+    const cadree = partie(1, { profil: { carte: { ext: TROUPE.id, id: c.id, cadre: { x: 20, y: 35, z: 150 } } } });
+    expect(cartePreferee(cadree)).toEqual({ ext: TROUPE.id, id: c.id, rainbow: false, x: 20, y: 35, z: 150 });
   });
 
   test("la première complétion revient à la date la plus ancienne", () => {

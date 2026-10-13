@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useJeu } from "../jeu/Jeu.jsx";
 import Artwork from "./Artwork.jsx";
+import CadrageCarte from "./CadrageCarte.jsx";
 import { cartePreferee, carteDuCatalogue } from "../succes/regles.js";
 
 /** L'ordre d'affichage : les plus rares d'abord, c'est ce qu'on veut montrer. */
@@ -27,7 +28,9 @@ export default function ChoixCartePreferee() {
   const { etat, setEtat, succes } = useJeu();
   const catalogue = succes.catalogue;
   const actuelle = cartePreferee(etat);
+  const base = actuelle && { ext: actuelle.ext, id: actuelle.id, rainbow: actuelle.rainbow };
   const [ouvert, setOuvert] = useState(false);
+  const [cadrer, setCadrer] = useState(false);
   const [filtre, setFiltre] = useState("toutes");
   const [q, setQ] = useState("");
 
@@ -51,12 +54,15 @@ export default function ChoixCartePreferee() {
   const choisir = (carte) => setEtat((s) => ({ ...s, profil: { ...(s.profil || {}), carte } }));
   const fiche = actuelle ? carteDuCatalogue(catalogue, actuelle.ext, actuelle.id) : null;
   const rainbowDispo = actuelle && (etat.collections?.[actuelle.ext]?.[actuelle.id]?.rainbow || 0) > 0;
+  // Le cadrage vit dans le profil avec la carte ; `cartePreferee` l'aplatit pour la publication.
+  const cadre = etat.profil?.carte?.cadre || null;
+  const titre = succes.titres.find((t) => t.id === etat.profil?.titre)?.titre || "";
 
   return (
     <div className="carte-preferee">
       <div className="carte-preferee-actuelle">
         {fiche ? (
-          <Artwork carte={fiche} ext={actuelle.ext} rainbow={actuelle.rainbow} className="carte-preferee-apercu" />
+          <Artwork carte={fiche} ext={actuelle.ext} rainbow={actuelle.rainbow} cadre={cadre} className="carte-preferee-apercu" />
         ) : (
           <span className="artwork sans-image carte-preferee-apercu" aria-hidden="true" />
         )}
@@ -64,17 +70,29 @@ export default function ChoixCartePreferee() {
           <p className="carte-preferee-nom">{fiche ? fiche.nom : "Aucune carte"}</p>
           <div className="cmp-puces">
             <button type="button" className="puce" aria-expanded={ouvert} aria-controls="carte-preferee-choix"
-              onClick={() => setOuvert((o) => !o)}>
+              onClick={() => { setOuvert((o) => !o); setCadrer(false); }}>
               {ouvert ? "Fermer" : fiche ? "Changer" : "Choisir"}
             </button>
+            {fiche && (
+              <button type="button" className="puce" aria-expanded={cadrer} onClick={() => { setCadrer((o) => !o); setOuvert(false); }}>
+                Cadrer
+              </button>
+            )}
             {rainbowDispo && (
               <button type="button" className="puce" aria-pressed={actuelle.rainbow}
-                onClick={() => choisir({ ...actuelle, rainbow: !actuelle.rainbow })}>Version rainbow</button>
+                onClick={() => choisir({ ...base, cadre: cadre || undefined, rainbow: !actuelle.rainbow })}>Version rainbow</button>
             )}
             {fiche && <button type="button" className="puce" onClick={() => choisir(undefined)}>Retirer</button>}
           </div>
         </div>
       </div>
+
+      {cadrer && fiche && (
+        <CadrageCarte carte={fiche} ext={actuelle.ext} rainbow={actuelle.rainbow} cadre={cadre}
+          pseudo={etat.profil?.pseudo || "Vous"} titre={titre}
+          onChange={(c) => choisir({ ...base, cadre: c || undefined })}
+          onFermer={() => setCadrer(false)} />
+      )}
 
       {ouvert && (
         <div id="carte-preferee-choix" className="carte-preferee-choix">
@@ -98,7 +116,7 @@ export default function ChoixCartePreferee() {
                 return (
                   <li key={`${x.ext}:${x.c.id}`}>
                     <button type="button" aria-pressed={choisie} title={x.c.nom} aria-label={x.c.nom}
-                      onClick={() => { choisir({ ext: x.ext, id: x.c.id, rainbow: false }); setOuvert(false); }}>
+                      onClick={() => { choisir({ ext: x.ext, id: x.c.id, rainbow: false }); setOuvert(false); setCadrer(true); }}>
                       <Artwork carte={x.c} ext={x.ext} vignette />
                     </button>
                   </li>

@@ -70,10 +70,13 @@ service cloud.firestore {
 
     function carteValide(d) {
       return !('carte' in d) || d.carte == null
-        || (d.carte is map && d.carte.keys().hasOnly(['ext', 'id', 'rainbow'])
+        || (d.carte is map && d.carte.keys().hasOnly(['ext', 'id', 'rainbow', 'x', 'y', 'z'])
             && d.carte.ext is string && d.carte.ext.size() <= 40
             && d.carte.id is string && d.carte.id.size() <= 80
-            && d.carte.rainbow is bool);
+            && d.carte.rainbow is bool
+            // Le cadrage de l'illustration (16/10/2026), facultatif.
+            && optionnelBorne(d.carte, 'x', 100) && optionnelBorne(d.carte, 'y', 100)
+            && (!('z' in d.carte) || (entierBorne(d.carte.z, 300) && d.carte.z >= 100)));
     }
 
     function ligneValide() {

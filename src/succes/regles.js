@@ -20,6 +20,7 @@ import { crediterGain } from "../lib/economie.js";
 import { CHAPITRES, COLLECTION, GLOBAL, POIDS_SCORE, SACHET_LIBRE, TITRES_ANCIENS, pointsDe } from "../config/succes.js";
 import { niveauDe } from "../donjon/experience.js";
 import { FAVEURS } from "../mines/faveur.js";
+import { cadrageValide } from "../lib/cadrage.js";
 
 const PALIERS = ["commun", "peucommun", "rare", "legendaire"];
 
@@ -366,7 +367,10 @@ export function cartePreferee(etat) {
   const e = etat.collections?.[c.ext]?.[c.id];
   const rainbow = (e?.rainbow || 0) > 0;
   if (c.rainbow ? !rainbow : !((e?.normale || 0) > 0 || rainbow)) return null;
-  return { ext: c.ext, id: c.id, rainbow: Boolean(c.rainbow) };
+  // Le cadrage choisi au profil ne part que s'il existe : sans lui, chaque
+  // client cadre sur le point focal de l'inventaire, comme une face de carte.
+  const cadre = cadrageValide(c.cadre);
+  return { ext: c.ext, id: c.id, rainbow: Boolean(c.rainbow), ...(cadre || {}) };
 }
 
 /** Une carte du catalogue par son extension et son identifiant : roster, full art ou PJ. */

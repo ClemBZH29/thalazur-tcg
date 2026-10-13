@@ -36,7 +36,8 @@ function Ligne({ l, rang, colonne, moi, badges, catalogue }) {
   const fiche = l.carte ? carteDuCatalogue(catalogue, l.carte.ext, l.carte.id) : null;
   return (
     <div role="row" className={`cl-ligne${moi ? " moi" : ""}${rang === 1 ? " premier" : ""}${fiche ? " illustree" : ""}`}>
-      {fiche && <Artwork carte={fiche} ext={l.carte.ext} rainbow={l.carte.rainbow} className="cl-art" />}
+      {fiche && <Artwork carte={fiche} ext={l.carte.ext} rainbow={l.carte.rainbow} className="cl-art"
+        cadre={typeof l.carte.x === "number" ? l.carte : null} />}
       <span role="cell" className="cl-rang">{rang}</span>
       <span role="cell" className="cl-joueur">
         <span className="joueur">{l.pseudo}</span>

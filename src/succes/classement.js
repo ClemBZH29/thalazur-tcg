@@ -7,6 +7,7 @@
  * que le joueur n'a pas coché « apparaître au classement ».
  */
 import { resumeClassement } from "./regles.js";
+import { cadrageValide } from "../lib/cadrage.js";
 
 export const PSEUDO_MIN = 2;
 export const PSEUDO_MAX = 24;
@@ -60,7 +61,7 @@ export function assainirLigne(x) {
   }
   const c = objet(l.carte) ? l.carte : null;
   const carte = c && typeof c.ext === "string" && typeof c.id === "string"
-    ? { ext: c.ext.slice(0, 40), id: c.id.slice(0, 80), rainbow: c.rainbow === true } : null;
+    ? { ext: c.ext.slice(0, 40), id: c.id.slice(0, 80), rainbow: c.rainbow === true, ...(cadrageValide(c) || {}) } : null;
   return {
     pseudo: nettoyerPseudo(typeof l.pseudo === "string" ? l.pseudo : ""),
     titre: typeof l.titre === "string" ? l.titre.slice(0, 80) : "",
