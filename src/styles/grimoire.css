@@ -203,7 +203,11 @@
 .gm-cartouche { position: absolute; left: 44px; top: 78px; width: 506px; height: 190px; box-sizing: border-box; border: 1px solid var(--edge-hi); padding: 5px; }
 .gm-cartouche-int { height: 100%; box-sizing: border-box; border: 1px solid var(--edge); display: flex; flex-direction: column;
   align-items: center; justify-content: center; gap: 6px; }
+/* Même piège que le titre : `overflow: hidden` rognait les jambages (le « g »
+   d'Agedon). La marge intérieure leur fait de la place sous la ligne de
+   base, la marge négative la rend à la mise en page. */
 .gm-pseudo { font-family: var(--font-display); font-variation-settings: var(--wonk); font-weight: 500; font-size: 54px; line-height: 1.05;
+  padding-bottom: .16em; margin-bottom: -.16em;
   max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .gm-titre-bouton { display: flex; align-items: center; gap: 8px; min-height: 44px; max-width: 100%; padding: 0 14px;
   border: 1px solid transparent; border-radius: 6px; background: transparent; cursor: pointer; color: var(--ink2) !important; }
