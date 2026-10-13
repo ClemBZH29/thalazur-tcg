@@ -82,7 +82,11 @@ export function terminer(e0, { butin, resume, repos = [], gains = [] }) {
     if (!convalescence[cle] || convalescence[cle] < fin) convalescence[cle] = fin;
   }
   const suite = { ...d, partie: null, convalescence, dernier: { ...res, jour: j, butin, po, repos: repos.length } };
-  if (infini) suite.recordInfini = Math.max(d.recordInfini || 0, res.gardiens || 0);
+  if (infini) {
+    suite.recordInfini = Math.max(d.recordInfini || 0, res.gardiens || 0);
+    // L'étage le plus profond atteint à l'infini, pour le classement.
+    suite.etageMax = Math.max(d.etageMax || 0, res.etage || 0);
+  }
   return { ...e, bourse: crediterGain(e.bourse, po + bonus), stats, donjon: suite };
 }
 

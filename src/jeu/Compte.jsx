@@ -562,9 +562,10 @@ export function Compte({ children }) {
 
   // Se montrer ou se retirer du classement n'attend pas le prochain envoi.
   const profil = etat.profil || {};
+  const carteProfil = JSON.stringify(profil.carte || null);
   useEffect(() => {
     if (sessionPrete) publierClassement();
-  }, [sessionPrete, profil.classement, profil.pseudo, profil.titre, publierClassement]);
+  }, [sessionPrete, profil.classement, profil.pseudo, profil.titre, carteProfil, publierClassement]);
 
   // Chaque changement de partie, et chaque sauvegarde de la mine, programme un envoi.
   useEffect(() => { planifier(); }, [etat, planifier]);

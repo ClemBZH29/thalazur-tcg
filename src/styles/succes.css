@@ -10,63 +10,122 @@
 .succes-intro { margin: -6px 0 16px; font-size: 13px; }
 .succes-note { margin-top: 26px; max-width: 760px; font-size: 12px; line-height: 1.6; }
 
-.succes-grille {
-  display: grid; gap: 14px;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 330px), 1fr));
+/* ── La puce à bascule (même composant que le Comptoir, charte § 1) ────── */
+.classement .cmp-puces, .carte-preferee .cmp-puces { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.classement .puce, .carte-preferee .puce {
+  display: inline-flex; align-items: center; gap: 6px; flex: 0 0 auto;
+  height: 36px; padding: 0 14px; border-radius: 100px; cursor: pointer;
+  border: 1px solid var(--edge-ui); background: transparent; color: var(--ink2);
+  font: inherit; font-size: 13.5px; font-weight: 500; white-space: nowrap;
+  transition: border-color .15s, color .15s, background .15s;
 }
-.succes-famille {
-  background: var(--panel); border: 1px solid var(--edge); border-radius: var(--r-lg);
-  padding: 16px 18px 14px;
+.classement .puce:hover, .carte-preferee .puce:hover { color: var(--ink); }
+.classement .puce[aria-pressed="true"], .carte-preferee .puce[aria-pressed="true"] {
+  border-color: var(--lamp); color: var(--lamp); background: rgba(232, 163, 61, .1);
 }
-.succes-famille header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
-.succes-famille h3 { font-size: 15.5px; font-weight: 600; }
-.succes-valeur { font-size: 13px; font-variant-numeric: tabular-nums; color: var(--ink); white-space: nowrap; }
+@media (max-width: 720px) { .classement .puce, .carte-preferee .puce { height: 44px; } }
 
-.succes-jauge { height: 5px; margin: 10px 0 12px; border-radius: 100px; background: var(--ground2); overflow: hidden; }
-.succes-jauge span { display: block; height: 100%; background: var(--lamp); border-radius: inherit;
-  transition: width .4s ease-out; }
-[data-mouvement="reduit"] .succes-jauge span { transition: none; }
-
-.succes-paliers { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
-.succes-paliers li {
-  display: grid; grid-template-columns: 1fr auto; grid-template-areas: "quoi etat" "gain etat";
-  column-gap: 12px; align-items: center;
-  padding: 7px 10px; border-radius: var(--r-sm); background: var(--ground2);
-  font-size: 12.5px; line-height: 1.45;
+/* ── L'illustration seule d'une carte ─────────────────────────────────── */
+.artwork { position: relative; display: block; overflow: hidden; background: var(--ground2); }
+.artwork img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.artwork.sans-image { display: grid; place-items: center; color: var(--ink4);
+  font-family: var(--font-display); font-variation-settings: var(--wonk); font-size: 22px; }
+/* Une rainbow se reconnaît à un voile irisé : sur fond sombre seulement,
+   comme l'effet des cartes (charte § 1). */
+.artwork.rainbow::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none; mix-blend-mode: color-dodge; opacity: .35;
+  background: linear-gradient(115deg, #ff7a7a 0%, #ffd36b 20%, #7dffb0 40%, #6bc7ff 60%, #b98bff 80%, #ff7ad1 100%);
 }
-.succes-quoi { grid-area: quoi; color: var(--ink2); }
-.succes-gain { grid-area: gain; color: var(--ink4); font-size: 12px; }
-.succes-titre { display: block; color: var(--lamp-lo); font-style: italic; }
-.succes-paliers li > .btn, .succes-etat { grid-area: etat; }
-.succes-etat { font-size: 15px; width: 24px; text-align: center; }
-.succes-paliers li.fait .succes-etat { color: var(--m-chene); }
-.succes-paliers li.fait .succes-quoi { color: var(--ink3); }
-.succes-paliers li.pret { background: rgba(232, 163, 61, .09); outline: 1px solid rgba(232, 163, 61, .3); }
-.succes-paliers li.pret .succes-quoi { color: var(--ink); }
-.succes-paliers li.pret .succes-gain { color: var(--lamp); }
-.succes-paliers li.verrou .succes-quoi { color: var(--ink3); }
 
 /* ── Classement ──────────────────────────────────────────────────────── */
 .barre-classement { display: flex; align-items: center; justify-content: space-between;
   gap: 12px; flex-wrap: wrap; margin: 6px 0 16px; }
-.barre-classement .segments { flex-wrap: wrap; }
+.cl-outils { display: flex; align-items: center; gap: 14px; }
 
-.table-classement { width: 100%; max-width: 860px; border-collapse: collapse; font-size: 13.5px; }
-.table-classement th { text-align: left; font-weight: 600; font-size: 12px; color: var(--ink4);
-  padding: 8px 12px 8px 0; border-bottom: 1px solid var(--edge-hi); }
-.table-classement td { padding: 10px 12px 10px 0; border-bottom: 1px solid var(--edge); vertical-align: top; }
-.table-classement .nb, .table-classement th:nth-child(n+3) { text-align: right; font-variant-numeric: tabular-nums; }
-.table-classement .rang { width: 44px; color: var(--ink4); font-variant-numeric: tabular-nums; }
-.table-classement tr.moi td { background: rgba(232, 163, 61, .07); }
-.table-classement tr.moi .rang { color: var(--lamp); }
-.table-classement tr:first-child .rang { color: var(--lamp); font-weight: 700; }
+/* Une grille plutôt qu'un tableau : l'illustration s'étend sous toute la
+   ligne, ce qu'une rangée de <table> ne sait pas porter. */
+.cl-table {
+  --cl-grille: 44px minmax(160px, 1.6fr) repeat(6, minmax(78px, 1fr));
+  display: flex; flex-direction: column; gap: 6px; max-width: 1120px;
+  font-variant-numeric: tabular-nums;
+}
+.cl-tete, .cl-ligne { display: grid; grid-template-columns: var(--cl-grille); align-items: center; column-gap: 10px; }
+.cl-tete { padding: 0 16px 6px; border-bottom: 1px solid var(--edge-hi); font-size: 12px; color: var(--ink4); font-weight: 600; }
+.cl-tete .cl-nb button { all: unset; cursor: pointer; display: inline-flex; align-items: center; min-height: 32px; }
+.cl-tete .cl-nb button:focus-visible { outline: 2px solid var(--lamp); outline-offset: 2px; border-radius: 4px; }
+.cl-tete .cl-nb.actif { color: var(--lamp); }
+.cl-tete .cl-nb.actif button::after { content: "▾"; margin-left: 4px; font-size: 10px; }
+.cl-nb { text-align: right; justify-self: end; }
+
+.cl-ligne {
+  position: relative; isolation: isolate; min-height: 72px; padding: 10px 16px;
+  border-radius: var(--r-md, 10px); overflow: hidden;
+  background: var(--panel); border: 1px solid var(--edge);
+  font-size: 14px; color: var(--ink2);
+}
+/* La carte préférée : son illustration en bannière derrière le joueur, comme
+   la plaque d'un profil de jeu. Elle s'efface avant les chiffres, qui
+   restent sur le panneau : une image ne doit rien coûter à la lecture. */
+.cl-art {
+  position: absolute; top: 0; bottom: 0; left: 0; width: min(46%, 520px); z-index: -1; opacity: .5;
+  -webkit-mask-image: linear-gradient(90deg, #000 35%, transparent 100%);
+  mask-image: linear-gradient(90deg, #000 35%, transparent 100%);
+}
+.cl-art.rainbow::after { opacity: .2; }
+.cl-art.sans-image { display: none; }
+/* Un voile sombre sous le texte du joueur, sur l'image seulement. */
+.cl-ligne.illustree::before {
+  content: ""; position: absolute; top: 0; bottom: 0; left: 0; width: min(46%, 520px); z-index: -1; pointer-events: none;
+  background: linear-gradient(90deg, rgba(13, 20, 23, .88) 0%, rgba(13, 20, 23, .6) 55%, transparent 100%);
+}
+/* Le titre, d'ordinaire en ambre sourd, passe à la lampe sur une image. */
+.cl-ligne.illustree .joueur-titre { color: var(--lamp); }
+.cl-ligne.illustree .cl-joueur, .cl-ligne.illustree .cl-rang { text-shadow: 0 1px 3px rgba(0, 0, 0, .95); }
+.cl-ligne .cl-nb.actif { color: var(--ink); font-weight: 600; }
+.cl-rang { color: var(--ink4); font-weight: 600; }
+.cl-ligne.premier .cl-rang { color: var(--lamp); }
+.cl-ligne.moi { border-color: rgba(232, 163, 61, .55); }
+.cl-ligne.moi .cl-rang { color: var(--lamp); }
 .joueur { color: var(--ink); font-weight: 600; }
 .joueur-titre { display: block; font-size: 12px; font-style: italic; color: var(--lamp-lo); }
 .joueur-primaute { display: block; font-size: 11.5px; color: var(--lamp); }
 
-@media (max-width: 720px) {
-  .table-classement .secondaire { display: none; }
+/* Au bureau, les puces doublent les en-têtes : elles ne servent qu'au téléphone. */
+.cl-puces { display: none !important; }
+@media (max-width: 860px) {
+  .cl-puces { display: flex !important; }
+  .cl-table { --cl-grille: 34px minmax(0, 1fr) auto; }
+  /* Une seule colonne de chiffres : celle qu'on a choisie. */
+  .cl-tete .cl-nb, .cl-ligne .cl-nb { display: none; }
+  .cl-tete .cl-nb.actif, .cl-ligne .cl-nb.actif { display: block; }
+  .cl-ligne { padding: 10px 12px; }
+  .cl-art, .cl-ligne.illustree::before { width: 72%; }
 }
+
+/* ── Carte préférée, au profil ───────────────────────────────────────── */
+.carte-preferee-actuelle { display: flex; align-items: center; gap: 14px; margin-top: 8px; }
+.carte-preferee-apercu { width: 132px; height: 88px; border-radius: var(--r-sm, 6px); border: 1px solid var(--edge); flex: none; }
+.carte-preferee-nom { margin: 0 0 8px; color: var(--ink); font-weight: 600; }
+.carte-preferee-choix { margin-top: 14px; padding: 14px; border: 1px solid var(--edge); border-radius: var(--r-md, 10px); background: var(--ground2); }
+.carte-preferee-filtres { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 12px; }
+.carte-preferee-filtres input {
+  flex: 1 1 200px; min-width: 0; height: 38px; padding: 0 12px;
+  background: var(--ground); color: var(--ink); font: inherit; font-size: 14px;
+  border: 1px solid var(--edge-ui); border-radius: var(--r-sm);
+}
+.carte-preferee-filtres input:focus { outline: 2px solid var(--lamp); outline-offset: 1px; border-color: var(--lamp); }
+.carte-preferee-grille {
+  list-style: none; margin: 0; padding: 0; max-height: 360px; overflow-y: auto;
+  display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
+}
+.carte-preferee-grille button {
+  all: unset; box-sizing: border-box; display: block; width: 100%; aspect-ratio: 3 / 4; cursor: pointer;
+  border-radius: var(--r-sm, 6px); overflow: hidden; border: 1px solid var(--edge-ui);
+}
+.carte-preferee-grille button .artwork { width: 100%; height: 100%; }
+.carte-preferee-grille button:hover { border-color: var(--ink2); }
+.carte-preferee-grille button:focus-visible { outline: 2px solid var(--lamp); outline-offset: 2px; }
+.carte-preferee-grille button[aria-pressed="true"] { border: 2px solid var(--lamp); }
 
 /* ── Choix du pseudo ─────────────────────────────────────────────────── */
 .voile {

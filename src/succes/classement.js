@@ -58,6 +58,9 @@ export function assainirLigne(x) {
   for (const [id, t] of entrees(l.premiers)) {
     if (typeof t === "number" && Number.isFinite(t) && t > 0) premiers[id] = t;
   }
+  const c = objet(l.carte) ? l.carte : null;
+  const carte = c && typeof c.ext === "string" && typeof c.id === "string"
+    ? { ext: c.ext.slice(0, 40), id: c.id.slice(0, 80), rainbow: c.rainbow === true } : null;
   return {
     pseudo: nettoyerPseudo(typeof l.pseudo === "string" ? l.pseudo : ""),
     titre: typeof l.titre === "string" ? l.titre.slice(0, 80) : "",
@@ -65,6 +68,14 @@ export function assainirLigne(x) {
     boosters: borne(l.boosters, 1000000),
     strate: borne(l.strate, 100000),
     succes: borne(l.succes, 10000),
+    // Absents d'une ligne publiée avant le 13/10/2026 : zéro, jusqu'à sa
+    // prochaine publication.
+    renommee: borne(l.renommee, 1000000),
+    eclats: borne(l.eclats, 100000000),
+    ventes: borne(l.ventes, 10000000),
+    heures: borne(l.heures, 10000000),
+    etage: borne(l.etage, 100000),
+    carte,
     extensions,
     premiers,
   };

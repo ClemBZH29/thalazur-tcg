@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import extension from "../src/extensions/troupe-valeran/extension.js";
 import {
   construireCatalogue, evaluer, mesuresExtension, reclamer, resumeClassement, primautes, titresObtenus,
+  renommeeDe, cartePreferee, carteDuCatalogue,
 } from "../src/succes/regles.js";
 import { ligneClassement, nettoyerPseudo, pseudoValide } from "../src/succes/classement.js";
 import { fusionner3, fusionnerSucces } from "../src/lib/nuage/fusion.js";
@@ -261,7 +262,10 @@ describe("classement", () => {
     const titres = titresObtenus(CAT, r);
     const l = ligneClassement(CAT, { ...r, profil: { pseudo: "Siobhan", titre: titres[0].id } }, null, titres);
     expect(Object.keys(l).sort()).toEqual(
-      ["boosters", "extensions", "premiers", "pseudo", "score", "strate", "succes", "titre"]);
+      ["boosters", "carte", "eclats", "etage", "extensions", "heures", "premiers", "pseudo", "renommee",
+        "score", "strate", "succes", "titre", "ventes"]);
+    expect(l.renommee).toBeGreaterThan(0);
+    expect(l.carte).toBeNull();
     expect(l.score).toBe(10000);
     expect(l.premiers[TROUPE.id]).toBe(42);
     expect(l.titre).toBe(titres[0].titre);
@@ -277,6 +281,34 @@ describe("classement", () => {
       collections: { [TROUPE.id]: Object.fromEntries(cartes.map((c) => [c.id, { normale: 1 }])) },
     }, null).score;
     expect(avec(leg)).toBeGreaterThan(avec(com) * 7);
+  });
+
+  test("les colonnes du classement : éclats, ventes, heures de route, étage de l'infini", () => {
+    const e = partie(0, {
+      stats: { ventes: 214, heuresExpedition: 96 },
+      donjon: { recordInfini: 4, etageMax: 6 },
+    });
+    const r = resumeClassement(CAT, e, { eclats: 120 });
+    expect(r).toMatchObject({ eclats: 120, ventes: 214, heures: 96, etage: 6 });
+    // Une partie d'avant le compteur d'étages repart de son record de gardiens.
+    expect(resumeClassement(CAT, partie(0, { donjon: { recordInfini: 4 } }), null).etage).toBe(4);
+  });
+
+  test("la renommée additionne les points des paliers réclamés", () => {
+    const e = partie(0, { boosters: { [TROUPE.id]: 120 } });
+    const r = reclamer(CAT, e, ["boosters@25", "boosters@100"], null).etat;
+    expect(renommeeDe(CAT, r)).toBe(CAT.parId.get("boosters@25").palier.points + CAT.parId.get("boosters@100").palier.points);
+  });
+
+  test("la carte préférée n'est publiée que si elle est encore dans la collection", () => {
+    const c = EXT.roster[0];
+    const avec = partie(1, { profil: { carte: { ext: TROUPE.id, id: c.id, rainbow: false } } });
+    expect(cartePreferee(avec)).toEqual({ ext: TROUPE.id, id: c.id, rainbow: false });
+    // Version rainbow demandée sans exemplaire rainbow : rien.
+    expect(cartePreferee({ ...avec, profil: { carte: { ext: TROUPE.id, id: c.id, rainbow: true } } })).toBeNull();
+    // Vendue depuis : rien.
+    expect(cartePreferee(partie(0, { profil: { carte: { ext: TROUPE.id, id: c.id } } }))).toBeNull();
+    expect(carteDuCatalogue(CAT, TROUPE.id, c.id).nom).toBe(c.nom);
   });
 
   test("la première complétion revient à la date la plus ancienne", () => {

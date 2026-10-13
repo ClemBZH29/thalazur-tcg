@@ -61,11 +61,33 @@ service cloud.firestore {
       return v is int && v >= 0 && v <= max;
     }
 
+    // Les colonnes ajoutées le 13/10/2026 (renommée, éclats, ventes, heures
+    // d'expédition, étage de l'infini, carte préférée) sont facultatives :
+    // une ligne écrite par une version antérieure du site reste valide.
+    function optionnelBorne(d, champ, max) {
+      return !(champ in d) || entierBorne(d[champ], max);
+    }
+
+    function carteValide(d) {
+      return !('carte' in d) || d.carte == null
+        || (d.carte is map && d.carte.keys().hasOnly(['ext', 'id', 'rainbow'])
+            && d.carte.ext is string && d.carte.ext.size() <= 40
+            && d.carte.id is string && d.carte.id.size() <= 80
+            && d.carte.rainbow is bool);
+    }
+
     function ligneValide() {
       let d = request.resource.data;
       let champs = ['pseudo', 'titre', 'score', 'extensions', 'boosters', 'strate',
                     'succes', 'premiers', 'maj', 'expire'];
-      return d.keys().hasOnly(champs) && d.keys().hasAll(champs)
+      let nouveaux = ['renommee', 'eclats', 'ventes', 'heures', 'etage', 'carte'];
+      return d.keys().hasOnly(champs.concat(nouveaux)) && d.keys().hasAll(champs)
+        && optionnelBorne(d, 'renommee', 1000000)
+        && optionnelBorne(d, 'eclats', 100000000)
+        && optionnelBorne(d, 'ventes', 10000000)
+        && optionnelBorne(d, 'heures', 10000000)
+        && optionnelBorne(d, 'etage', 100000)
+        && carteValide(d)
         && d.pseudo is string && d.pseudo.size() >= 2 && d.pseudo.size() <= 24
         && d.titre is string && d.titre.size() <= 80
         && entierBorne(d.score, 10000)

@@ -83,8 +83,10 @@ export default function PageConfidentialite() {
               <tr>
                 <td>
                   Seulement si vous choisissez d'apparaître au classement : pseudo,
-                  titre affiché, progression (complétion, boosters ouverts, strate
-                  des Mines, succès et dates de complétion)
+                  titre affiché, carte préférée, progression (renommée, complétion,
+                  boosters ouverts, strate et éclats des Mines, ventes au Comptoir,
+                  heures d'expédition, étage du Donjon, succès et dates de
+                  complétion)
                 </td>
                 <td>Vous faire figurer au classement des joueurs</td>
                 <td>Cloud Firestore, lisible par les autres joueurs connectés</td>

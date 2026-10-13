@@ -132,7 +132,10 @@ export function construireCatalogue(extensions) {
         ]);
       }
 
-      return { id: ext.id, titre: ext.titre, roster, fullart, provinces: provincesDe(roster), familles };
+      // Les PJ ne comptent dans aucune famille d'extension ; ils sont là pour
+      // retrouver une carte par son identifiant (carte préférée du classement).
+      const pj = specialesPour(ext).pj || [];
+      return { id: ext.id, titre: ext.titre, roster, fullart, pj, provinces: provincesDe(roster), familles };
     });
 
   const parId = new Map();
@@ -333,6 +336,47 @@ export function titresObtenus(catalogue, etat) {
   return sortie;
 }
 
+/**
+ * La renommée : la somme des points des paliers réclamés (ou couverts par
+ * une réclamation d'un ancien barème, comme pour les titres).
+ */
+export function renommeeDe(catalogue, etat) {
+  const reclames = etat.succes || {};
+  const anciens = seuilsAnciens(catalogue, reclames);
+  let n = 0;
+  for (const { famille, palier } of catalogue.parId.values()) {
+    if (estReclame(reclames, anciens, famille, palier)) n += palier.points || 0;
+  }
+  return n;
+}
+
+/** La renommée qu'on aurait en réclamant tout le catalogue. */
+export const renommeeTotale = (catalogue) =>
+  [...catalogue.parId.values()].reduce((n, { palier }) => n + (palier.points || 0), 0);
+
+/**
+ * La carte préférée du profil, si le joueur la possède encore : sa version
+ * rainbow s'il en a choisi la version rainbow, sinon un exemplaire normal ou
+ * rainbow. Vendue ou dissoute depuis, elle ne s'affiche plus — le
+ * classement ne montre que ce qui est dans la collection.
+ */
+export function cartePreferee(etat) {
+  const c = etat.profil?.carte;
+  if (!c || typeof c.ext !== "string" || typeof c.id !== "string") return null;
+  const e = etat.collections?.[c.ext]?.[c.id];
+  const rainbow = (e?.rainbow || 0) > 0;
+  if (c.rainbow ? !rainbow : !((e?.normale || 0) > 0 || rainbow)) return null;
+  return { ext: c.ext, id: c.id, rainbow: Boolean(c.rainbow) };
+}
+
+/** Une carte du catalogue par son extension et son identifiant : roster, full art ou PJ. */
+export function carteDuCatalogue(catalogue, ext, id) {
+  const e = catalogue.extensions.find((x) => x.id === ext);
+  if (!e) return null;
+  return e.roster.find((c) => c.id === id) || e.fullart.find((c) => c.id === id)
+    || (e.pj || []).find((c) => c.id === id) || null;
+}
+
 /* ── Classement ──────────────────────────────────────────────────────────── */
 
 /**
@@ -367,6 +411,15 @@ export function resumeClassement(catalogue, etat, mine) {
     strate: g.strate,
     succes: Object.keys(reclames).filter((id) => catalogue.parId.has(id)).length,
     premiers,
+    // Les colonnes du classement (13/10/2026) : une par module.
+    renommee: renommeeDe(catalogue, etat),
+    eclats: mine?.eclats || 0,
+    ventes: g.ventes,
+    heures: etat.stats?.heuresExpedition || 0,
+    // Une partie d'avant le compteur d'étages repart de son record de
+    // gardiens : un gardien par étage, l'étage atteint est au moins celui-là.
+    etage: Math.max(etat.donjon?.etageMax || 0, etat.donjon?.recordInfini || 0),
+    carte: cartePreferee(etat),
   };
 }
 

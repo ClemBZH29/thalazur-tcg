@@ -9,6 +9,7 @@ import { REVENTE } from "../config/tiers.js";
 import { mesureDisponible, rouvrirBandeau, useConsentement } from "../lib/mesure.js";
 import { LEGAL } from "../config/legal.js";
 import { PSEUDO_MAX, nettoyerPseudo, pseudoValide } from "../succes/classement.js";
+import ChoixCartePreferee from "../components/ChoixCartePreferee.jsx";
 
 const ETAT_SYNC = {
   "a-jour": ["Partie à jour sur votre compte", "ok"],
@@ -134,10 +135,11 @@ function Connecte() {
           <h3>Classement</h3>
           <p className="muted">
             Au <Lien vers="/succes/classement" actif={false} className="lien">classement</Lien>,
-            les autres joueurs connectés voient votre pseudo, le titre choisi
-            ci-dessous et votre progression : complétion des extensions, boosters
-            ouverts, strate des Mines, succès. Ni votre nom Google, ni votre
-            photo, ni votre adresse.
+            les autres joueurs connectés voient votre pseudo, le titre et la
+            carte préférée choisis ci-dessous, et votre progression : renommée,
+            collection, éclats des Mines, ventes au Comptoir, heures
+            d'expédition, étage du Donjon. Ni votre nom Google, ni votre photo,
+            ni votre adresse.
           </p>
           <label className="bascule" style={{ marginTop: 14 }}>
             <input type="checkbox" checked={profil.classement === true}
@@ -160,6 +162,11 @@ function Connecte() {
                 Les titres se gagnent avec certains <Lien vers="/succes" actif={false} className="lien">succès</Lien>.
               </p>
             )}
+          </div>
+          <div className="champ" style={{ marginTop: 16 }}>
+            <span className="champ-titre">Carte préférée</span>
+            <p className="muted petit">Son illustration orne votre ligne du classement.</p>
+            <ChoixCartePreferee />
           </div>
         </div>
 

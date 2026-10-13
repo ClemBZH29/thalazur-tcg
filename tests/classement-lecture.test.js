@@ -24,8 +24,22 @@ describe("assainirLigne", () => {
 
   test("une ligne honnête passe intacte", () => {
     const x = { pseudo: "Mira", titre: "Fossoyeuse", score: 4200, boosters: 12, strate: 7, succes: 9,
+      renommee: 345, eclats: 120, ventes: 214, heures: 96, etage: 6,
+      carte: { ext: "troupe-valeran", id: "219-hida", rainbow: true },
       extensions: { troupe: { pct: 42, irisees: 3 } }, premiers: {} };
     expect(assainirLigne(x)).toEqual(x);
+  });
+
+  test("une ligne d'avant le 13/10/2026 : colonnes à zéro, pas de carte", () => {
+    const l = assainirLigne({ pseudo: "Mira", score: 10 });
+    expect(l).toMatchObject({ renommee: 0, eclats: 0, ventes: 0, heures: 0, etage: 0, carte: null });
+  });
+
+  test("une carte préférée mal formée est écartée", () => {
+    expect(assainirLigne({ carte: { ext: 3, id: "x" } }).carte).toBeNull();
+    expect(assainirLigne({ carte: "219-hida" }).carte).toBeNull();
+    expect(assainirLigne({ carte: { ext: "t", id: "x", rainbow: "oui", url: "javascript:" } }).carte)
+      .toEqual({ ext: "t", id: "x", rainbow: false });
   });
 
   test("rien de lisible : une ligne vide mais rendable", () => {

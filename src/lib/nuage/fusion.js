@@ -504,6 +504,8 @@ export function fusionnerDonjon(base, ici, la) {
   sortie.convalescence = conv;
   const record = Math.max(ici.recordInfini || 0, la.recordInfini || 0);
   if (record) sortie.recordInfini = record;
+  const etage = Math.max(ici.etageMax || 0, la.etageMax || 0);
+  if (etage) sortie.etageMax = etage;
   return sortie;
 }
 
