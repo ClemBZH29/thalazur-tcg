@@ -72,7 +72,7 @@ const PAGES = [
 ];
 
 /** Pages dessinées pour tenir sur un écran, sans défilement ni pied. */
-const PLEIN = new Set(["/", "/boutique", "/mines", "/reliquaire", "/missions"]);
+const PLEIN = new Set(["/", "/boutique", "/mines", "/reliquaire", "/missions", "/succes"]);
 
 /** Racine d'une page : « /boutique/troupe » appartient à « /boutique ». */
 const racine = (chemin) => "/" + (chemin.split("/")[1] || "");
@@ -105,7 +105,7 @@ function Route() {
     case "donjon": return <Suspense fallback={<Attente />}><PageDonjon /></Suspense>;
     case "expeditions": return <Suspense fallback={<Attente />}><PageExpeditions /></Suspense>;
     case "reliquaire": return <Suspense fallback={<Attente />}><PageReliquaire /></Suspense>;
-    case "succes": return <PageSucces onglet={segments[1]} />;
+    case "succes": return <PageSucces onglet={segments[1]} page={segments[2]} />;
     case "missions": return <PageMissions />;
     case "profil": return <PageProfil />;
     case "confidentialite": return <PageConfidentialite />;
