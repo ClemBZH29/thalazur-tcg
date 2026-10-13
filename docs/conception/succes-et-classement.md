@@ -8,19 +8,30 @@ Une page, `#/succes`, et une entrée de navigation partagée avec le
 classement. La pastille ambrée compte les paliers atteints qui attendent
 d'être réclamés.
 
-**Deux catégories.**
+**Des chapitres** (`CHAPITRES`, 09/10/2026), un par module, puis un par
+extension ouverte — la table des matières du futur grimoire :
 
-- **Global** : ce que l'on fait sur tout le site. Boosters ouverts (toutes
-  extensions), strate atteinte et effondrements aux Mines, exemplaires vendus
-  au Comptoir, affaires conclues avec Mirko, gardiens et remontées du Donjon,
-  expéditions accueillies et Lieux passés en rainbow par les routes,
-  exemplaires dissous et cartes forgées au Reliquaire, expérience des cartes
-  (niveau le plus haut, paliers rainbow atteints par l'XP, cartes au niveau
-  100 — Donjon et expéditions confondus), carte PJ. Le barème Global rend
-  144 boosters d'équivalent en tout, à gagner sur des mois.
-- **Collection**, par extension : complétion (25, 50, 75, 90, 100 %),
-  cartes par type (PNJ, artéfacts, lieux : 10, 25, 50, 75 % du type puis « tous »),
-  légendaires (une, la moitié, toutes), irisées, pleine illustration.
+| Chapitre | Familles |
+|---|---|
+| La Boutique | boosters ouverts, cartes PJ (exploit caché) |
+| Les Mines de Kazim | strate, effondrements, commandes de Tafix, faveurs du Fossoyeur |
+| Le Donjon | gardiens, donjon du jour mené au bout, record de l'infini |
+| Les Routes | expéditions, Lieux passés en rainbow |
+| Le Négoce | ventes et achats au Comptoir, affaires de Mirko |
+| Le Reliquaire | dissolutions, forges |
+| Les Missions | missions du jour, missions de la semaine |
+| Les Cartes | niveau le plus haut, paliers rainbow par l'expérience, centenaires |
+| *Une extension* | complétion, types, légendaires, rainbow jusqu'au set complet, pleine illustration, provinces |
+
+Les **provinces** reprennent les regroupements de Gaspard au Comptoir, plus
+la Troupe et le Bestiaire : un palier, toutes les cartes de la province, et
+son titre. Une province de moins de huit cartes dans l'extension n'a pas de
+famille.
+
+Un palier **caché** (`cache`) ne montre ni son seuil ni sa récompense avant
+d'être atteint : cartes PJ, full art, douze gardiens en une descente
+infinie. Ce sont des exploits — de la chance ou une équipe hors norme —, pas
+des objectifs.
 
 Le barème est dans `src/config/succes.js`. Les familles de collection sont
 **construites à partir du roster** (`src/succes/regles.js`) : une extension
@@ -114,7 +125,68 @@ Mines, la première heure du bêta-testeur rapporterait de l'ordre de
 1 100 PO et 5 sachets, un peu plus de trois jours de gain passif, au lieu
 de onze.
 
+### Le barème refait en chapitres (09/10/2026)
+
+L'audit du 09/10/2026 (`claude/audit-succes.md` dans le projet) a rejoué le
+barème du 07/10 sur trois habitudes de jeu, avec les rythmes mesurés par les
+autres audits (`scripts/audit-succes.mjs`, partie 3). Trois défauts :
+
+- **un stock vidé en un mois** : un joueur d'une heure par jour prenait
+  58 paliers sur 80 dans son premier mois, et il ne lui en restait que cinq
+  au-delà du troisième. Les missions donnent une raison de revenir chaque
+  jour ; les succès n'en donnaient plus aucune de viser loin ;
+- **un palier inatteignable** : la strate 16. La pente des Mines plafonne
+  vers la quinzième, quel que soit le temps de jeu (`audit-strates.mjs`) ;
+- **des modules absents** : rien pour les missions, les commandes de Tafix,
+  la Faveur du Fossoyeur, le donjon infini, les achats au Comptoir ; rien
+  par province ; les rainbow s'arrêtaient à 25 cartes sur 220.
+
+**Ce qui change** (`src/config/succes.js`) :
+
+- chaque famille a une **queue** de six mois à un an (2 500 boosters,
+  400 gardiens, 4 000 ventes, 1 000 missions…), les premiers paliers paient
+  en PO, les sachets viennent aux paliers qui demandent des semaines ;
+- strate : 5, 8, 11, 13, 15 ;
+- familles nouvelles : commandes de Tafix, faveurs du Fossoyeur, record du
+  donjon infini (le seul succès qui mesure la force de l'équipe), achats au
+  Comptoir, missions du jour et de la semaine, provinces, rainbow à la
+  moitié puis au set complet (le « master set » des TCG), toutes les full art ;
+- le palier de 10 % par type et le premier palier de province sont partis :
+  ils tombaient au premier booster ;
+- complétion : 120 PO à 25 %, puis 1, 3, 6 + 240 PO, 12 + 600 PO.
+
+Les missions accomplies se comptent dans `stats.missions` et
+`stats.semaines` (`payer`, `src/missions/regles.js`). Une mission payée sur
+deux appareils n'y compte qu'une fois : la fusion retire le doublon qu'elle
+reprend déjà en PO (`fusionnerMissions`).
+
+Chaque palier porte des **points de renommée** (`pointsDe`) : dix par booster
+d'équivalent qu'il rapporte, cinq au moins. La récompense grossit déjà avec
+la difficulté ; les points suivent sans second barème à tenir. Ils serviront
+au classement.
+
+| Habitude | 1er jour | 1re semaine | 1er mois | 3 mois | 1 an | au-delà |
+|---|---:|---:|---:|---:|---:|---:|
+| Régulier (1 h/j), avant | 13 | 22 | 23 | 17 | 2 | 3 |
+| Régulier (1 h/j), après | 11 | 24 | 25 | 34 | 21 | 3 |
+
+Paliers tombés dans chaque période (Global et La Troupe). Le barème rend
+288 boosters d'équivalent en Global et 110 par extension, dont les trois
+quarts après le premier mois. L'audit échoue si le joueur régulier prend
+plus de la moitié des paliers ou plus du quart de la valeur le premier mois,
+si sa première semaine rend plus d'un tiers des boosters qu'il ouvre, s'il
+lui reste moins d'un cinquième du barème après trois mois, ou si un palier
+visible est hors d'atteinte même d'un joueur assidu.
+
+Un palier déjà réclamé sous l'ancien barème couvre toujours les paliers
+nouveaux à son niveau (`seuilsAnciens`) : qui avait la strate 12 ne se fait
+pas repayer 11 ni 13. Un titre dont le palier a disparu (« Pourfendeur de
+gardiens » était à 15 gardiens, il est à 50) reste à qui l'avait gagné, sous
+son ancien identifiant (`TITRES_ANCIENS`).
+
 ### Prochaine étape proposée : un flux plutôt qu'un stock
+
+*Fait : les missions de Bodégué (`missions.md`).*
 
 Les succès restent un stock : une fois les paliers faciles pris, ils ne
 rapportent presque plus rien pendant des semaines, et le joueur n'a pas de
@@ -159,7 +231,7 @@ fusionnent comme les exemplaires : un sachet ouvert ici disparaît là-bas.
 ## Les titres
 
 Certains paliers portent un titre, gagné en réclamant le palier. Le joueur en
-choisit un dans son profil ; il s'affiche au classement sous son pseudo. Les
+choisit un dans l'ex-libris du grimoire (ou au profil) ; il s'affiche au classement sous son pseudo. Les
 noms actuels sont **provisoires** (`src/config/succes.js`, champ `titre`) : à
 remplacer par des noms de la campagne.
 
@@ -169,16 +241,62 @@ extension ; il n'est pas stocké, mais calculé à la lecture du classement en
 comparant les dates de réclamation (`primautes()`). La date vient de
 l'horloge de l'appareil : entre joueurs qui se connaissent, c'est suffisant.
 
-## Le classement
+## Le grimoire (13/10/2026)
 
-`#/succes/classement`, réservé aux joueurs connectés. Deux vues :
+La page des succès est un livre ouvert, d'après la maquette de Claude Design
+(`brief-succes-design.md`, prototype et note de conception dans le projet) :
 
-- **Général** : un score de progression, la complétion de toutes les
-  extensions ouvertes **pondérée par la rareté** (une légendaire compte huit
-  communes, `POIDS_SCORE`). Sans pondération, le premier serait celui qui a
-  ouvert le plus de sachets ; les boosters ont leur propre colonne. Le score
-  baisse pour tout le monde le jour où une extension ouvre.
-- **Par extension** : la complétion, puis les irisées pour départager.
+- la première double page tient le **sommaire** (un chapitre par ligne, son
+  avancement, un sceau ambré quand il y a à réclamer) et l'**ex-libris**
+  (pseudo, titre affiché, renommée, boosters offerts, « Tout réclamer ») ;
+- un **chapitre** range chaque famille en médaillons sur un chemin d'encre :
+  scellé, prêt (lueur de lampe), proche, lointain, ou tache d'encre pour un
+  exploit caché ; la phrase du palier se lit au toucher, en note de marge ;
+  une famille terminée se replie ;
+- l'adresse suit la page (`#/succes/mines/2`) : ouvrir un chapitre empile
+  une entrée d'historique, tourner les pages la remplace, le retour du
+  navigateur ramène au sommaire.
+
+Le composant (`src/succes/grimoire/`) ne connaît pas la partie : il reçoit
+l'évaluation (`evaluer`) et rend la main par `onReclamer`, qui renvoie ce
+qui a été gagné pour faire voler pièces et boosters. La mise en page est
+pure et testée (`mise-en-page.js`), les mouvements dans `animations.js`,
+neutralisés en « moins d'animations ». La scène et le livre sont en CSS en
+attendant les images (`assets-sora-grimoire.json` dans le projet), qui se
+branchent par `--gm-scene` et `--gm-livre`.
+
+## Le classement (refait le 13/10/2026)
+
+`#/succes/classement`, réservé aux joueurs connectés. Une colonne par grand
+pan du site, triée d'un toucher sur son en-tête (au téléphone, par des
+puces : une seule colonne s'y affiche) :
+
+| Colonne | Ce qu'elle mesure |
+|---|---|
+| **Renommée** (par défaut) | la somme des points des paliers réclamés (`renommeeDe`) : tout le grimoire, chaque palier pesant ce qu'il rapporte |
+| Collection | la complétion des extensions ouvertes **pondérée par la rareté** (une légendaire compte huit communes, `POIDS_SCORE`) |
+| Éclats | les éclats gagnés aux Mines de Kazim ; offrir au Fossoyeur ne les retire pas |
+| Ventes | les exemplaires vendus au Comptoir |
+| Expéditions | les heures de route menées au bout (`stats.heuresExpedition`, compté depuis le 13/10/2026 ; une route rappelée ne compte pas) |
+| Donjon | l'étage le plus profond atteint au donjon infini (`donjon.etageMax` ; une partie antérieure part de son record de gardiens, un gardien par étage) |
+
+À égalité, la renommée départage, puis le pseudo. L'ancienne vue « par
+extension » est retirée : avec une seule extension ouverte, elle répétait
+la colonne Collection.
+
+### La carte préférée
+
+Le joueur choisit au profil une carte de sa collection (roster, full art ou
+PJ, et sa version rainbow s'il la possède). Au classement, **son
+illustration** — pas la carte — orne sa ligne, en bannière derrière son
+pseudo, fondue avant les chiffres pour ne rien coûter à la lecture.
+
+La ligne publique ne porte que `{ ext, id, rainbow }` ; chaque client
+retrouve l'illustration dans son propre catalogue (`carteDuCatalogue`) et
+la résout comme une face de carte (`resoudreImage`) : aucune adresse
+d'image n'est publiée. Une carte vendue ou dissoute depuis n'est plus
+publiée (`cartePreferee`) : le classement ne montre que ce qui est dans la
+collection.
 
 ### Ce qui est publié, et quand
 
@@ -188,7 +306,9 @@ classement se demande, cela ne se suppose pas.
 
 Coché, un document `classement/{uid}` contient le pseudo, le titre affiché,
 le score, la complétion et les irisées par extension, les boosters ouverts,
-la strate atteinte, le nombre de succès et les dates de complétion. **Rien du
+la strate atteinte, le nombre de succès, les dates de complétion, et depuis
+le 13/10/2026 la renommée, les éclats, les ventes, les heures d'expédition,
+l'étage de l'infini et la carte préférée. **Rien du
 compte Google** : ni nom, ni photo, ni adresse. Il est republié après chaque
 synchronisation réussie quand il a changé (et une fois par mois pour
 repousser son échéance), effacé dès que le joueur décoche, et supprimé avec
@@ -196,7 +316,9 @@ le compte. `scripts/purge-comptes.mjs` l'efface avec la partie.
 
 Les règles Firestore le rendent lisible par tout joueur connecté, modifiable
 par son seul propriétaire, et vérifient sa forme et ses bornes (pseudo de 2 à
-24 caractères, score sur dix mille…). Elles ne prétendent pas empêcher la
+24 caractères, score sur dix mille…). Les colonnes du 13/10/2026 y sont
+**facultatives** : une ligne écrite par une version antérieure du site reste
+valide, et les nouvelles règles peuvent être publiées avant ou avec le site. Elles ne prétendent pas empêcher la
 triche : la partie vit dans le navigateur, et l'audit d'économie a déjà jugé
 la chose sans importance entre amis. Un classement la rend seulement visible.
 

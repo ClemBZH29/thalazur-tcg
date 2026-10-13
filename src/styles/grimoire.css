@@ -1,0 +1,425 @@
+/* ------------------------------------------------------------------
+   Le grimoire des Succès (src/succes/grimoire/Grimoire.jsx).
+
+   D'après le prototype de Claude Design et sa note (« Le grimoire des
+   Succès : note de conception »). Un livre d'heures noir : vélin teint de
+   nuit, encre claire (--ink), l'or réservé à la lampe (palier prêt, sceau
+   qui tombe, « Tout réclamer »). Les chapitres d'extension prennent une
+   nuance (--teinte-ext), jamais une seconde lumière.
+
+   Le livre se dessine en pixels du gabarit (1 200 × 690 au bureau) et le
+   composant le met à l'échelle d'un `transform` : les positions calculées
+   (blocs, médaillons, notes) arrivent en style en ligne, tout le reste est
+   ici.
+
+   Images à venir (Sora) : la scène et le livre vide se brancheront par
+   `--gm-scene` et `--gm-livre` (sur `.gm` ou plus haut) ; les pages par
+   `--gm-page-g` et `--gm-page-d`, et `--gm-table: none` efface la table
+   peinte. Tant qu'elles manquent, la scène est peinte ici.
+   ------------------------------------------------------------------ */
+
+.gm {
+  /* Jetons de la note (§ 2). */
+  --velin: #142024;
+  --velin-bord: #0e1619;
+  --velin-pli: #0a1012;
+  --cire-froide: radial-gradient(circle at 36% 30%, #4a5f65, #34474d 55%, #22313a);
+  --cire-chaude: radial-gradient(circle at 36% 30%, #f7d58e, var(--lamp) 50%, var(--lamp-lo));
+  --teinte-ext: #8fb8d8;
+  --ruban: #1f2b2f;
+  --ruban-filet: var(--lamp-lo);
+  --ruban-texte: var(--lamp);
+
+  /* Le grain du vélin : du bruit à 5 %, en SVG dans la page (aucun chargement). */
+  --gm-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .85 0 0 0 0 .9 0 0 0 0 .9 0 0 0 .05 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  --gm-courbe: cubic-bezier(.2, .8, .3, 1);
+
+  position: relative;
+  width: 100%;
+  color: var(--ink);
+  font-family: var(--font-ui);
+  -webkit-font-smoothing: antialiased;
+}
+/* Au téléphone, le livre prend toute la largeur de l'écran, hors marges de la vue. */
+.gm.tel { width: 100vw; margin-left: calc(50% - 50vw); }
+.gm.mesure .gm-livre { visibility: hidden; }
+
+.gm button { font: inherit; color: inherit; }
+.gm button:focus-visible, .gm a:focus-visible { outline: 2px solid var(--lamp); outline-offset: 2px; }
+.gm .icone { flex: none; }
+.gm-discret { color: var(--ink3); }
+
+/* ── La scène ───────────────────────────────────────────────────────── */
+
+/* La page des Succès n'est pas (encore) une page pleine largeur : la scène
+   s'estompe sur ses bords plutôt que de poser un rectangle sur le fond du
+   site (charte § 8, « un module ne pose pas son propre fond »). */
+.gm-scene { position: absolute; inset: 0; overflow: hidden; pointer-events: none;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 7%, #000 93%, transparent), linear-gradient(180deg, transparent, #000 6%);
+  -webkit-mask-composite: source-in; mask-image: linear-gradient(90deg, transparent, #000 7%, #000 93%, transparent), linear-gradient(180deg, transparent, #000 6%);
+  mask-composite: intersect;
+  background: var(--gm-scene, radial-gradient(120% 90% at 50% 0%, #132024 0%, var(--ground) 62%)) center / cover no-repeat; }
+.gm-scene-table { position: absolute; left: 0; right: 0; top: 20%; bottom: 0; display: var(--gm-table, block);
+  border-top: 1px solid rgba(236, 227, 210, .07);
+  background:
+    repeating-linear-gradient(178deg, rgba(236, 227, 210, .014) 0 2px, transparent 2px 9px),
+    linear-gradient(180deg, #182124 0%, #11191c 45%, #0b1113 100%); }
+.gm.tel .gm-scene-table { top: 12%; }
+.gm-lampe { position: absolute; left: -14%; top: -40%; width: 64%; height: 130%;
+  background: radial-gradient(closest-side, rgba(232, 163, 61, .5), rgba(232, 163, 61, 0));
+  opacity: .12; transition: opacity 1.2s ease; }
+.gm-lampe.allumee { opacity: .3; }
+
+/* ── Le livre ───────────────────────────────────────────────────────── */
+
+.gm-livre { position: absolute; transform-origin: 0 0; touch-action: pan-y; }
+.gm-livre.tourne .gm-face { pointer-events: none; }
+
+.gm-reliure { position: absolute; inset: 0; border-radius: 8px; border: 1px solid #1f2b2f;
+  background: var(--gm-livre, linear-gradient(180deg, #121a1d, #0a0f11)) center / 100% 100% no-repeat;
+  box-shadow: var(--shadow-lift); }
+/* L'ombre du livre sur la table, et la tranche des pages. */
+.gm-reliure::before { content: ""; position: absolute; left: -40px; right: -40px; top: 630px; height: 110px; z-index: -1;
+  border-radius: 50%; background: radial-gradient(closest-side, rgba(0, 0, 0, .75), rgba(0, 0, 0, 0)); }
+.gm-reliure::after { content: ""; position: absolute; left: 16px; right: 16px; top: 678px; height: 8px; border-radius: 0 0 4px 4px;
+  background: repeating-linear-gradient(180deg, #223034 0 1px, #0f1517 1px 2px); }
+.gm.tel .gm-reliure { inset: 2px 2px 0 4px; border-radius: 6px; box-shadow: 0 12px 30px rgba(0, 0, 0, .55); }
+.gm.tel .gm-reliure::before { display: none; }
+.gm.tel .gm-reliure::after { left: auto; right: 3px; top: 12px; bottom: 10px; width: 6px; height: auto; border-radius: 0;
+  background: repeating-linear-gradient(90deg, #223034 0 1px, #0f1517 1px 2px); }
+
+/* Le pli, par-dessus les pages. */
+.gm-pli { position: absolute; left: 574px; top: 10px; width: 52px; height: 670px; z-index: 2; pointer-events: none;
+  background: linear-gradient(90deg, rgba(0, 0, 0, 0), rgba(0, 0, 0, .46) 50%, rgba(0, 0, 0, 0)); }
+.gm-pli::after { content: ""; position: absolute; left: 25.5px; top: 0; bottom: 0; width: 1px; background: rgba(0, 0, 0, .6); }
+.gm.tel .gm-pli { left: 4px; top: 8px; bottom: 8px; width: 22px; height: auto;
+  background: linear-gradient(90deg, rgba(0, 0, 0, .55), rgba(0, 0, 0, 0)); }
+.gm.tel .gm-pli::after { display: none; }
+
+/* Une face : une page de vélin. Deux faces dos à dos font une feuille qui
+   tourne ; pas de `container-type` ici (charte § 8 : il casse la face arrière). */
+.gm-face { position: absolute; z-index: 1; overflow: hidden; box-sizing: border-box;
+  backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+.gm-face.L { left: 10px; top: 10px; width: 590px; height: 670px; border-radius: 4px 0 0 4px;
+  background: var(--gm-page-g, var(--gm-grain), linear-gradient(90deg, var(--velin-bord) 0%, var(--velin) 48%, #121c1f 86%, var(--velin-pli) 100%)); }
+.gm-face.R { left: 600px; top: 10px; width: 590px; height: 670px; border-radius: 0 4px 4px 0;
+  background: var(--gm-page-d, var(--gm-grain), linear-gradient(270deg, var(--velin-bord) 0%, var(--velin) 48%, #121c1f 86%, var(--velin-pli) 100%)); }
+.gm-face.M { left: 12px; top: 8px; right: 12px; bottom: 8px; border-radius: 2px 4px 4px 2px;
+  background: var(--gm-page-d, var(--gm-grain), linear-gradient(270deg, var(--velin-bord) 0%, var(--velin) 45%, #121c1f 90%, var(--velin-pli) 100%)); }
+.gm-ombre { position: absolute; inset: 0; z-index: 8; opacity: 0; pointer-events: none; }
+.gm-face.L .gm-ombre { background: linear-gradient(270deg, rgba(0, 0, 0, .65), rgba(0, 0, 0, .2)); }
+.gm-face.R .gm-ombre { background: linear-gradient(90deg, rgba(0, 0, 0, .65), rgba(0, 0, 0, .2)); }
+.gm-face.M .gm-ombre { background: linear-gradient(90deg, rgba(0, 0, 0, .6), rgba(0, 0, 0, .15)); }
+
+/* ── Ornements, traits, cire ────────────────────────────────────────── */
+
+.gm-h2 { margin: 0; font-family: var(--font-display); font-variation-settings: var(--wonk); font-weight: 500; font-size: 34px; color: var(--ink); }
+.gm-filet-losange { display: flex; align-items: center; gap: 10px; width: 220px; }
+.gm-filet-losange span { flex: 1; height: 1px; background: var(--edge-hi); }
+.gm-filet-losange i { width: 7px; height: 7px; transform: rotate(45deg); border: 1px solid var(--ink3); }
+.gm-filet { height: 1px; background: var(--edge); margin: 12px 0; }
+
+/* `flex: none` : dans une colonne flex trop pleine, un trait de 2 px se
+   faisait comprimer à zéro sans un mot (charte § 8). */
+.gm-trait { position: relative; display: block; flex: none; height: 2px; background: var(--edge); }
+.gm-trait-plein { position: absolute; inset: 0; background: var(--ink2); transform-origin: 0 50%; }
+.gm-trait.gm-trait-rainbow .gm-trait-plein { background: var(--m-rainbow); }
+/* L'avancement du chapitre monte quand un palier se réclame sous ses yeux. */
+.gm-tete-trait .gm-trait-plein, .gm-chemin-encre { transition: transform .7s var(--gm-courbe); }
+
+.gm-cire { position: relative; flex: none; display: grid; place-items: center; border-radius: 50%; transform: rotate(-8deg); color: var(--ink); }
+.gm-cire-froide, .gm-cire-chaude { position: absolute; inset: 0; border-radius: 50%; }
+.gm-cire-froide { background: var(--cire-froide); box-shadow: 0 4px 10px rgba(0, 0, 0, .5), inset 0 -2px 4px rgba(0, 0, 0, .35); }
+.gm-cire-chaude { background: var(--cire-chaude); box-shadow: 0 0 24px rgba(232, 163, 61, .6); opacity: 0; }
+.gm-cire::after { content: ""; position: absolute; inset: 4px; border-radius: 50%; border: 1px solid rgba(13, 20, 23, .45); pointer-events: none; }
+.gm-cire-contenu { position: relative; display: grid; place-items: center; }
+.gm-cire .icone { stroke-width: 2.2; }
+.gm-cire.chaud { color: #241704; }
+.gm-cire.chaud .gm-cire-chaude { opacity: 1; box-shadow: 0 0 14px rgba(232, 163, 61, .55); }
+.gm-cire.mini { width: 24px; height: 24px; }
+.gm-cire.mini::after { display: none; }
+.gm-cire.mini .icone { stroke-width: 2.4; }
+.gm-cire.petit { width: 30px; height: 30px; }
+.gm-cire.moyen { width: 32px; height: 32px; }
+.gm-cire.moyen .icone { stroke-width: 1.9; }
+.gm-cire.moyen::after { display: none; }
+.gm-cire.disque { width: var(--d); height: var(--d); }
+.gm-cire.disque::after { inset: 5px; border-width: 1.5px; }
+.gm-cire.grand { width: 78px; height: 78px; }
+.gm-cire.grand::after, .gm-cire.enorme::after { inset: 8px; border-width: 1.5px; }
+.gm-cire.grand .icone, .gm-cire.enorme .icone { stroke-width: 1.7; }
+.gm-cire.enorme { width: 132px; height: 132px; }
+
+.gm-sceau-attente { position: relative; flex: none; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%;
+  transform: rotate(-8deg); background: var(--cire-chaude); box-shadow: 0 0 14px rgba(232, 163, 61, .55);
+  color: #241704; font-weight: 700; font-size: 14px; font-variant-numeric: tabular-nums; }
+.gm-sceau-attente::after { content: ""; position: absolute; inset: 4px; border-radius: 50%; border: 1px solid rgba(36, 23, 4, .4); }
+.gm-sceau-attente.petit { width: 26px; height: 26px; font-size: 12px; }
+.gm-sceau-attente.petit::after { display: none; }
+
+.gm-icone-bouton { width: 44px; height: 44px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 50%;
+  background: transparent; cursor: pointer; color: var(--ink3); }
+.gm-icone-bouton:hover { color: var(--ink); }
+
+/* ── Pied de page : folio, flèches ──────────────────────────────────── */
+
+.gm-folio { position: absolute; left: 0; right: 0; bottom: 6px; height: 44px; display: flex; align-items: center; justify-content: center;
+  gap: 8px; color: var(--ink3); font-size: 14px; font-variant-numeric: tabular-nums; }
+.gm-folio-bouton { height: 44px; display: flex; align-items: center; gap: 8px; padding: 0 12px; border: 0; background: transparent;
+  cursor: pointer; color: var(--ink3) !important; font-size: 14px; font-variant-numeric: tabular-nums; }
+.gm-lien-classement { height: 44px; display: flex; align-items: center; gap: 6px; color: var(--ink2); font-size: 15px; text-decoration: none; }
+.gm-lien-classement:hover { color: var(--ink); }
+.gm-fleche { position: absolute; bottom: 6px; z-index: 7; width: 44px; height: 44px; display: grid; place-items: center; padding: 0;
+  border: 1px solid var(--edge-ui); border-radius: 50%; background: transparent; cursor: pointer; color: var(--ink2) !important; }
+.gm-fleche:hover { color: var(--ink) !important; border-color: var(--ink); }
+.gm-fleche.prec { left: 12px; }
+.gm-fleche.suiv { right: 12px; }
+
+/* ── Le sommaire (bureau, page de gauche) ───────────────────────────── */
+
+.gm-sommaire-tete { position: absolute; left: 40px; top: 34px; width: 506px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.gm-sommaire .gm-lignes { position: absolute; left: 40px; top: 116px; width: 506px; }
+.gm-lignes { display: flex; flex-direction: column; }
+.gm-sep { height: 18px; display: flex; align-items: center; justify-content: center; }
+.gm-sep span { width: 5px; height: 5px; transform: rotate(45deg); background: var(--edge-hi); }
+
+.gm-ligne { height: 50px; display: grid; grid-template-columns: 24px minmax(0, 1fr) 112px 64px 40px; align-items: center; gap: 10px;
+  padding: 0 6px; border: 0; border-radius: 6px; background: transparent; cursor: pointer; text-align: left; }
+.gm-ligne:hover { background: rgba(236, 227, 210, .045); }
+.gm-ligne-picto { color: var(--ink3); }
+.gm-ligne.ext .gm-ligne-picto { color: var(--teinte-ext); }
+.gm-ligne-corps { min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+.gm-ligne-nom { font-family: var(--font-display); font-variation-settings: var(--wonk); font-size: 20px; color: var(--ink);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.15; }
+.gm-ligne-compte { text-align: right; font-size: 16px; color: var(--ink2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.gm-ligne-sceau { position: relative; width: 36px; height: 36px; display: grid; place-items: center; }
+.gm-ligne.sourdine .gm-ligne-nom, .gm-ligne.sourdine .gm-ligne-compte { color: var(--ink3); }
+
+/* ── L'ex-libris (bureau, page de droite) ───────────────────────────── */
+
+.gm-exlibris-tete { position: absolute; left: 44px; top: 34px; width: 506px; display: flex; align-items: center; gap: 14px; }
+.gm-exlibris-tete span { flex: 1; height: 1px; background: var(--edge); }
+.gm-exlibris-tete em { font-family: var(--font-display); font-variation-settings: var(--wonk); font-style: italic; font-size: 20px; color: var(--ink3); }
+.gm-cartouche { position: absolute; left: 44px; top: 78px; width: 506px; height: 190px; box-sizing: border-box; border: 1px solid var(--edge-hi); padding: 5px; }
+.gm-cartouche-int { height: 100%; box-sizing: border-box; border: 1px solid var(--edge); display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 6px; }
+.gm-pseudo { font-family: var(--font-display); font-variation-settings: var(--wonk); font-weight: 500; font-size: 54px; line-height: 1.05;
+  max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gm-titre-bouton { display: flex; align-items: center; gap: 8px; min-height: 44px; max-width: 100%; padding: 0 14px;
+  border: 1px solid transparent; border-radius: 6px; background: transparent; cursor: pointer; color: var(--ink2) !important; }
+.gm-titre-bouton:hover:not(span) { border-color: var(--edge-ui); }
+span.gm-titre-bouton { cursor: default; }
+.gm-titre-bouton.vide { color: var(--ink3) !important; }
+.gm-titre-affiche { display: inline-block; font-family: var(--font-display); font-variation-settings: var(--wonk); font-style: italic; font-size: 21px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gm-titre-fleche { color: var(--ink3); }
+.gm-exlibris-bas { position: absolute; left: 44px; top: 290px; width: 506px; height: 316px; display: flex; flex-direction: column; }
+
+.gm-renommee { height: 92px; display: flex; flex-direction: column; justify-content: center; gap: 8px; flex: none; }
+.gm-renommee-ligne { display: flex; align-items: baseline; justify-content: space-between; }
+.gm-renommee-chiffres { display: flex; align-items: baseline; gap: 8px; font-size: 18px; font-variant-numeric: tabular-nums; }
+.gm-renommee-n { font-family: var(--font-display); font-variation-settings: var(--wonk); font-weight: 500; font-size: 46px; line-height: 1; color: var(--ink); }
+.gm-renommee > .gm-discret { font-size: 15px; }
+.gm-reclames { display: flex; align-items: center; gap: 8px; font-size: 16px; color: var(--ink2); font-variant-numeric: tabular-nums; }
+.gm-pastille-cire { width: 14px; height: 14px; border-radius: 50%; background: var(--cire-froide); }
+
+.gm-offerts { height: 64px; flex: none; display: flex; align-items: center; gap: 22px; color: var(--ink); text-decoration: none; }
+.gm-offerts:hover { color: var(--ink); background: rgba(236, 227, 210, .03); }
+.gm-offerts-titre { width: 86px; font-size: 15px; line-height: 1.25; }
+.gm-offert { display: flex; align-items: center; gap: 10px; }
+.gm-offert img { border-radius: 3px; box-shadow: 0 3px 8px rgba(0, 0, 0, .5); }
+/* Le dos d'une extension, en attendant son propre visuel : une nuance, pas une autre lumière. */
+.gm-offert.ext img { filter: hue-rotate(150deg) saturate(.8); }
+.gm-offert-n { display: flex; flex-direction: column; font-size: 14px; }
+.gm-offert-n b { font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.gm-offerts-fleche { margin-left: auto; color: var(--ink3); }
+
+/* La case de « Tout réclamer » garde sa hauteur, qu'il y ait à réclamer ou non. */
+.gm-tout-zone { height: 84px; flex: none; display: flex; align-items: center; gap: 18px; font-size: 15px; }
+.gm-tout { height: 48px; padding: 0 22px; border: 0; border-radius: 6px; background: var(--lamp); color: #241704 !important;
+  font-weight: 700; font-size: 16px; cursor: pointer; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.gm-tout:hover:not(:disabled) { background: #f0b458; }
+.gm-tout:disabled { cursor: default; }
+.gm-tout-detail { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.gm-tout-sceaux { display: flex; gap: 6px; flex-wrap: wrap; max-height: 70px; overflow: hidden; }
+.gm-tout-sceaux .gm-cire.ext { color: var(--ink); }
+.gm-tout-sceaux .gm-cire.chaud.ext { color: #241704; }
+.gm-tout-legende { font-size: 14px; color: var(--ink2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.gm-choix { display: flex; flex-direction: column; gap: 14px; height: 100%; }
+.gm-choix-tete { display: flex; align-items: center; justify-content: space-between; font-size: 15px; }
+.gm-puces { display: flex; flex-wrap: wrap; gap: 10px; align-content: flex-start; overflow: auto; }
+.gm-puce { height: 40px; padding: 0 16px; border-radius: 20px; border: 1px solid var(--edge-ui); background: transparent; cursor: pointer;
+  color: var(--ink2) !important; font-family: var(--font-display) !important; font-variation-settings: var(--wonk); font-style: italic; font-size: 16px; white-space: nowrap; }
+.gm-puce[aria-pressed="true"] { border-color: var(--lamp); background: rgba(232, 163, 61, .1); color: var(--lamp) !important; }
+.gm-puce:hover { border-color: var(--ink2); }
+
+/* ── Un chapitre ────────────────────────────────────────────────────── */
+
+.gm-chapitre, .gm-fin { position: absolute; inset: 0; }
+.gm-bloc { position: absolute; left: var(--tx); width: var(--tw); }
+.gm-vers-sommaire { position: absolute; left: calc(var(--tx) - 6px); top: 2px; height: 40px; display: flex; align-items: center; gap: 8px;
+  padding: 0 6px; border: 0; background: transparent; cursor: pointer; color: var(--ink3) !important; font-size: 14px; }
+.gm-vers-sommaire:hover { color: var(--ink) !important; }
+
+.gm-tete { height: 100%; display: flex; align-items: center; gap: 16px; }
+.gm-lettrine { position: relative; flex: none; width: 72px; height: 72px; box-sizing: border-box; border: 1px solid var(--edge-hi); padding: 4px; }
+.gm-lettrine-int { width: 100%; height: 100%; box-sizing: border-box; border: 1px solid var(--edge); display: grid; place-items: center;
+  font-family: var(--font-display); font-variation-settings: var(--wonk); font-weight: 500; font-size: 46px; line-height: 1; color: var(--ink); }
+.gm-lettrine i { position: absolute; width: 7px; height: 7px; transform: rotate(45deg); background: #0f171a; border: 1px solid var(--ink3); }
+.gm-lettrine .hg { left: -4px; top: -4px; } .gm-lettrine .hd { right: -4px; top: -4px; }
+.gm-lettrine .bg { left: -4px; bottom: -4px; } .gm-lettrine .bd { right: -4px; bottom: -4px; }
+.gm-tete-texte { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+.gm-tete-nom { margin: 0; font-family: var(--font-display); font-variation-settings: var(--wonk); font-weight: 500; font-size: 30px; line-height: 1.1;
+  color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gm-tete-ligne { display: flex; align-items: center; gap: 12px; }
+.gm-tete-picto { color: var(--ink); }
+.gm-tete-trait { flex: 1; max-width: 140px; }
+.gm-tete-compte { font-size: 16px; color: var(--ink2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.gm-acheve { font-family: var(--font-display); font-variation-settings: var(--wonk); font-style: italic; font-size: 17px; color: var(--ink2); }
+.gm-face.ext .gm-lettrine-int, .gm-face.ext .gm-tete-picto, .gm-face.ext .gm-folio .icone { color: var(--teinte-ext); }
+
+.gm-famille-tete { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.gm-famille-nom { font-family: var(--font-display); font-variation-settings: var(--wonk); font-size: 20px; color: var(--ink);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gm-famille-valeur { font-size: 16px; font-weight: 500; color: var(--ink); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.gm-rang { position: relative; margin-top: 4px; }
+.gm-chemin { position: absolute; height: 1.5px; background: var(--edge-hi); }
+.gm-chemin-encre { position: absolute; height: 2.5px; border-radius: 2px; background: var(--ink2); transform-origin: 0 50%; }
+.gm-chemin-depart { position: absolute; width: 5px; height: 5px; border-radius: 50%; background: var(--ink2); }
+.gm-chemin-marque { position: absolute; width: 8px; height: 8px; transform: rotate(45deg); background: var(--ink); box-shadow: 0 0 0 3px #131c1f; }
+
+.gm-repliee { height: 100%; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--edge); box-sizing: border-box; font-size: 14px; }
+.gm-repliee-nom { font-family: var(--font-display); font-variation-settings: var(--wonk); font-size: 18px; color: var(--ink2);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gm-repliee-compte { margin-left: auto; color: var(--ink3); font-variant-numeric: tabular-nums; }
+
+/* ── Les médaillons ─────────────────────────────────────────────────── */
+
+.gm-med-place { position: absolute; top: 0; height: calc(var(--b) + 24px); }
+.gm-med { position: absolute; left: 0; top: 0; width: var(--b); height: var(--b); padding: 0; border: 0; border-radius: 50%;
+  background: transparent; display: grid; place-items: center; cursor: pointer; }
+.gm-med:hover { filter: brightness(1.18); }
+.gm-med.ouverte::after { content: ""; position: absolute; inset: 0; border-radius: 50%; border: 1.5px solid var(--ink); pointer-events: none; }
+.gm-med-seuil { position: relative; font-weight: 700; font-size: var(--fs); line-height: 1; color: var(--ink);
+  font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+.gm-disque { position: relative; width: var(--d); height: var(--d); box-sizing: border-box; border-radius: 50%;
+  display: grid; place-items: center; background: #10181b; }
+.gm-disque.pret { border: 2px solid var(--lamp); background: radial-gradient(circle, rgba(232, 163, 61, .24), rgba(232, 163, 61, .05) 72%), #10181b;
+  box-shadow: 0 0 18px rgba(232, 163, 61, .42); }
+.gm-disque.pret .gm-med-seuil { color: var(--lamp); }
+/* Le halo du palier prêt respire : .35 ↔ .85, 2,6 s. */
+.gm-halo { position: absolute; inset: -6px; border-radius: 50%; box-shadow: 0 0 20px 3px rgba(232, 163, 61, .35); opacity: .7;
+  animation: gm-halo 1.3s ease-in-out infinite alternate; pointer-events: none; }
+@keyframes gm-halo { from { opacity: .35; } to { opacity: .85; } }
+.gm-disque.proche { border: 1.5px solid var(--ink2); }
+.gm-disque.proche .gm-med-seuil { font-weight: 600; }
+.gm-anneau-avance { position: absolute; left: -1.5px; top: -1.5px; transform: rotate(-90deg); }
+.gm-anneau-avance circle { fill: none; stroke: var(--ink); stroke-width: 2; stroke-linecap: round; }
+.gm-disque.loin { border: 1.5px solid var(--edge-ui); }
+.gm-disque.loin .gm-med-seuil { font-weight: 500; color: var(--ink3); }
+.gm-disque.cache { border: 1.5px dashed var(--edge-ui); }
+.gm-tache-svg path { fill: rgba(136, 153, 158, .3); }
+.gm-tache { position: absolute; inset: -2px; border-radius: 50%; background: #10181b; display: grid; place-items: center; }
+.gm-tache .gm-tache-svg path { fill: rgba(136, 153, 158, .34); }
+
+.gm-med-pied { position: absolute; left: 50%; top: var(--b); width: 0; height: 24px; display: flex; justify-content: center; align-items: center; }
+.gm-med-glyphe { color: var(--ink3); stroke-width: 1.5; }
+.gm-med-glyphe.fait { color: var(--ink2); }
+.gm-med-label { flex: none; font-size: 12px; color: var(--ink3); white-space: nowrap; }
+.gm-ruban { position: absolute; left: 0; top: 1px; z-index: 3; transform: translateX(-50%); height: 22px; display: flex; align-items: center;
+  padding: 0 16px; background: var(--ruban); border-top: 1px solid var(--ruban-filet); border-bottom: 1px solid var(--ruban-filet);
+  clip-path: polygon(0 0, 100% 0, calc(100% - 8px) 50%, 100% 100%, 0 100%, 8px 50%); white-space: nowrap; }
+.gm-ruban-texte { font-family: var(--font-display); font-variation-settings: var(--wonk); font-style: italic; font-size: 14px; color: var(--ruban-texte); }
+
+/* ── La note en marge ───────────────────────────────────────────────── */
+
+.gm-note { position: absolute; z-index: 6; width: 140px; box-sizing: border-box; display: flex; flex-direction: column; gap: 9px; }
+.gm-note.tel { width: auto; padding: 12px 14px; background: var(--panel); border: 1px solid var(--edge-hi); border-radius: 4px;
+  box-shadow: var(--shadow-flat); }
+.gm-note-tete { display: flex; align-items: center; justify-content: space-between; gap: 6px; min-height: 28px; }
+.gm-note-etat { font-size: 14px; font-weight: 600; color: var(--ink2); font-variant-numeric: tabular-nums; }
+.gm-note-etat.pret { color: var(--lamp); }
+.gm-note-etat.fait { color: var(--ink3); }
+.gm-note-fermer { margin: -8px -12px -8px 0; }
+.gm-note-quoi { font-size: 15px; line-height: 1.42; color: var(--ink); text-wrap: pretty; }
+.gm-note-gain { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 600; color: var(--lamp); font-variant-numeric: tabular-nums; }
+.gm-note-titre { display: flex; align-items: flex-start; gap: 8px; color: var(--ink2); }
+.gm-note-titre .icone { margin-top: 2px; stroke-width: 1.5; }
+.gm-note-titre span { font-family: var(--font-display); font-variation-settings: var(--wonk); font-style: italic; font-size: 16px; line-height: 1.3; color: var(--ink); }
+.gm-note-points { font-size: 14px; font-weight: 600; color: var(--m-rainbow); font-variant-numeric: tabular-nums; }
+.gm-note-points .gm-discret { font-weight: 400; }
+
+/* ── Fin de chapitre ────────────────────────────────────────────────── */
+
+.gm-fin-centre { position: absolute; inset: 0 0 60px 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px; }
+.gm-fin-texte { font-family: var(--font-display); font-variation-settings: var(--wonk); font-style: italic; font-size: 24px; color: var(--ink2); }
+.gm-cul-de-lampe { display: flex; flex-direction: column; align-items: center; gap: 7px; }
+.gm-cul-de-lampe div { display: flex; gap: 9px; }
+.gm-cul-de-lampe i { width: 7px; height: 7px; transform: rotate(45deg); border: 1px solid var(--edge-ui); }
+.gm-cul-de-lampe i.plein { background: var(--edge-ui); }
+.gm-sceau-fin-tel { position: absolute; left: var(--tx); width: var(--tw); bottom: 70px; display: flex; justify-content: center; }
+
+/* ── Ce qui vole ────────────────────────────────────────────────────── */
+
+.gm-couche { position: fixed; inset: 0; z-index: 80; pointer-events: none; overflow: hidden; }
+.gm-piece { position: absolute; left: 0; top: 0; width: 16px; height: 16px; border-radius: 50%; opacity: 0; will-change: transform;
+  background: radial-gradient(circle at 35% 30%, #f7d58e, var(--lamp) 55%, var(--lamp-lo)); box-shadow: 0 0 10px rgba(232, 163, 61, .6); }
+.gm-vol-dos { position: absolute; left: 0; top: 0; width: 28px; height: 42px; border-radius: 3px; opacity: 0; will-change: transform;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, .6); }
+.gm-anneau { position: absolute; width: 60px; height: 60px; border-radius: 50%; border: 2px solid var(--lamp); box-sizing: border-box; opacity: 0; }
+.gm-flottant { position: absolute; font: 700 15px var(--font-ui); color: var(--m-rainbow); opacity: 0; font-variant-numeric: tabular-nums; }
+.gm-annonce { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+/* ── Téléphone : une page à la fois ─────────────────────────────────── */
+
+.gm.tel .gm-livre { touch-action: pan-y; }
+.gm-sommaire-tel { position: absolute; inset: 0; }
+.gm-tel-tete { position: absolute; left: 16px; right: 16px; top: 14px; height: 118px; display: flex; justify-content: space-between; gap: 12px; }
+.gm-tel-ident { min-width: 0; display: flex; flex-direction: column; justify-content: center; }
+.gm-tel-ident .gm-pseudo { font-size: 30px; line-height: 1.1; }
+.gm-titre-bouton.compact { margin-left: -8px; padding: 0 8px; border: 0; gap: 4px; }
+.gm-titre-bouton.compact .gm-titre-affiche { font-size: 16px; }
+.gm-renommee.compact { width: 100px; flex: none; height: auto; gap: 6px; }
+.gm-renommee.compact .gm-renommee-chiffres { gap: 5px; font-size: 12px; }
+.gm-renommee.compact .gm-renommee-n { font-size: 28px; }
+.gm-renommee.compact > .gm-discret { font-size: 12px; }
+.gm-tel-actions { position: absolute; left: 16px; right: 16px; top: 132px; height: 52px; display: flex; align-items: center;
+  justify-content: space-between; gap: 10px; border-top: 1px solid var(--edge); border-bottom: 1px solid var(--edge); }
+.gm-offerts.compact { height: 44px; gap: 12px; }
+.gm-offerts.compact .gm-offert { gap: 6px; }
+.gm-offerts.compact .gm-offert img { border-radius: 2px; box-shadow: none; }
+.gm-offerts.compact .gm-offert-n b { font-size: 16px; }
+.gm-tel-actions .gm-tout-zone { height: 44px; font-size: 14px; }
+.gm-tel-actions .gm-tout { height: 44px; padding: 0 16px; font-size: 15px; }
+/* La liste défile si l'écran est court (charte : jamais rogner du texte). */
+.gm-tel-liste { position: absolute; left: 12px; right: 12px; top: 192px; bottom: 52px; overflow-y: auto; overscroll-behavior: contain; }
+.gm-tel-liste .gm-choix { padding: 6px 4px; height: auto; gap: 12px; }
+.gm-tel-liste .gm-puces { gap: 8px; }
+.gm-tel-liste .gm-puce { height: 44px; padding: 0 14px; border-radius: 22px; font-size: 15px; }
+.gm.tel .gm-ligne { height: 44px; grid-template-columns: 22px minmax(0, 1fr) 54px 34px; gap: 8px; padding: 0 4px; }
+.gm.tel .gm-ligne-nom { font-size: 17px; line-height: 1.1; }
+.gm.tel .gm-ligne-compte { font-size: 14px; }
+.gm.tel .gm-ligne-sceau { width: 34px; height: 34px; }
+.gm.tel .gm-ligne-sceau .gm-sceau-attente { width: 28px; height: 28px; font-size: 13px; }
+.gm.tel .gm-ligne-sceau .gm-sceau-attente::after { display: none; }
+.gm.tel .gm-ligne-sceau .gm-cire.petit { width: 28px; height: 28px; }
+.gm.tel .gm-sep { height: 12px; }
+.gm.tel .gm-sep span { width: 4px; height: 4px; }
+
+.gm.tel .gm-lettrine { width: 58px; height: 58px; }
+.gm.tel .gm-lettrine-int { font-size: 36px; }
+.gm.tel .gm-tete-nom { font-size: 22px; }
+.gm.tel .gm-famille-nom { font-size: 18px; }
+.gm.tel .gm-famille-valeur { font-size: 15px; }
+.gm.tel .gm-med-place { height: calc(var(--b) + 22px); }
+.gm.tel .gm-med-pied { height: 22px; }
+
+/* ── Moins d'animations : rien ne bouge, tout est à sa place ───────── */
+
+.gm-reduit .gm-halo { animation: none; opacity: .7; }
+.gm-reduit .gm-lampe, .gm-reduit .gm-tete-trait .gm-trait-plein, .gm-reduit .gm-chemin-encre { transition: none; }
+
+@media (pointer: coarse) {
+  .gm-vers-sommaire { height: 44px; }
+}

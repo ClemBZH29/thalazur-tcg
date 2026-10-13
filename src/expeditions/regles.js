@@ -186,6 +186,9 @@ export function crediterRoute(etat, id, index, maintenant = Date.now()) {
       ...(e1.stats || {}),
       expeditions: ((e1.stats || {}).expeditions || 0) + 1,
       lieuxRainbow: ((e1.stats || {}).lieuxRainbow || 0) + (ligneLieu?.irisee ? 1 : 0),
+      // Les heures de route menées au bout, pour le classement (« Routes »).
+      // Une route rappelée ne compte pas : elle n'a rien rapporté.
+      heuresExpedition: ((e1.stats || {}).heuresExpedition || 0) + (route.heures || 0),
     },
     expeditions: {
       ...ex,

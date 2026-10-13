@@ -171,6 +171,9 @@ test("missions : réclamée sur les deux appareils, la récompense est reprise u
   const { doublons } = fusionnerMissions(b, ici, la, null);
   assert.equal(doublons.po, 80);
   assert.equal(doublons.sachets, 2);
+  // Comptées une fois chacune pour les succès, pas deux.
+  assert.equal(doublons.missions, 1);
+  assert.equal(doublons.semaines, 1);
 });
 
 test("missions : dans la fusion complète, la bourse rend le doublon", () => {

@@ -4,10 +4,13 @@ import { readFileSync } from "node:fs";
 import extension from "../src/extensions/troupe-valeran/extension.js";
 import {
   construireCatalogue, evaluer, mesuresExtension, reclamer, resumeClassement, primautes, titresObtenus,
+  renommeeDe, cartePreferee, carteDuCatalogue,
 } from "../src/succes/regles.js";
 import { ligneClassement, nettoyerPseudo, pseudoValide } from "../src/succes/classement.js";
 import { fusionner3, fusionnerSucces } from "../src/lib/nuage/fusion.js";
 import { etatVide, fusionner } from "../src/lib/storage.js";
+import { PJ } from "../src/config/speciales.js";
+import { FAVEURS } from "../src/mines/faveur.js";
 
 const roster = JSON.parse(readFileSync(new URL("../src/extensions/troupe-valeran/roster.json", import.meta.url), "utf8"));
 const TROUPE = { ...extension, roster };
@@ -69,8 +72,8 @@ describe("réclamation", () => {
     expect(ev.aReclamer).toContain("boosters@25");
     const r = reclamer(CAT, e, ["boosters@25", "boosters@25"], null, 1000);
     expect(r.gagnes).toEqual(["boosters@25"]);
-    expect(r.etat.sachets["*"]).toBe(1);
-    expect(r.etat.succes["boosters@25"]).toEqual({ t: 1000, po: 0, n: 1, cle: "*" });
+    expect(r.po).toBe(60);
+    expect(r.etat.succes["boosters@25"]).toEqual({ t: 1000, po: 60, n: 0, cle: "*" });
     // Réclamé : plus rien à réclamer, un second passage ne paie rien.
     expect(reclamer(CAT, r.etat, ["boosters@25"], null).gagnes).toEqual([]);
   });
@@ -81,9 +84,9 @@ describe("réclamation", () => {
   });
 
   test("les PO passent hors plafond, les sachets de collection vont à l'extension", () => {
-    const n = Math.ceil(EXT.roster.length / 4);
+    const n = Math.ceil(EXT.roster.length / 2);
     const e = partie(n, { stats: { ventes: 10 } });
-    const r = reclamer(CAT, e, [`${TROUPE.id}:completion@25`, "ventes@10"], null);
+    const r = reclamer(CAT, e, [`${TROUPE.id}:completion@50`, "ventes@10"], null);
     expect(r.etat.sachets[TROUPE.id]).toBe(1);
     expect(r.po).toBe(30);
     expect(r.etat.bourse.po).toBe(e.bourse.po + 30);
@@ -95,12 +98,12 @@ describe("réclamation", () => {
   });
 
   test("un seuil déplacé sous un palier déjà payé ne se repaie pas", () => {
-    // Réclamé sous l'ancien barème : la strate 12 couvre les nouveaux 5, 8 et 12.
+    // Réclamé sous l'ancien barème : la strate 12 couvre les nouveaux 5, 8,
+    // 11, et 13 qui n'est qu'à une strate au-dessus.
     const e = partie(0, { succes: { "strate@12": { t: 1, po: 720, n: 0, cle: "*" } } });
     const ev = evaluer(CAT, e, { profondeurMax: 16 });
-    expect(ev.aReclamer).toContain("strate@16");
-    expect(ev.aReclamer).not.toContain("strate@8");
-    expect(ev.aReclamer).not.toContain("strate@5");
+    expect(ev.aReclamer).toContain("strate@15");
+    for (const s of [5, 8, 11, 13]) expect(ev.aReclamer).not.toContain(`strate@${s}`);
   });
 
   test("réclamer un palier haut avant le bas laisse le bas à réclamer", () => {
@@ -112,7 +115,8 @@ describe("réclamation", () => {
     expect(evaluer(CAT, r.etat, null).aReclamer).toContain("boosters@25");
     const r2 = reclamer(CAT, r.etat, ["boosters@25"], null);
     expect(r2.gagnes).toEqual(["boosters@25"]);
-    expect(r2.etat.sachets["*"]).toBe(1 + 3);
+    expect(r2.etat.sachets["*"]).toBe(1);
+    expect(r2.po).toBe(60);
   });
 
   test("un roster qui grandit ne repaie pas un palier de type déjà réclamé", () => {
@@ -149,6 +153,58 @@ describe("réclamation", () => {
     const r = reclamer(CAT, e, evaluer(CAT, e, null).aReclamer, null);
     const titres = titresObtenus(CAT, r.etat).map((t) => t.titre);
     expect(titres).toContain(`Archiviste de ${TROUPE.titre}`);
+  });
+});
+
+describe("barème du 09/10/2026", () => {
+  test("chaque famille globale appartient à un chapitre du grimoire", () => {
+    const ids = new Set(CAT.chapitres.map((c) => c.id));
+    for (const f of CAT.global) expect(ids.has(f.chapitre)).toBe(true);
+    for (const f of EXT.familles) expect(f.chapitre).toBe(TROUPE.id);
+  });
+
+  test("« tous » suit les PJ et l'arbre du Fossoyeur", () => {
+    const pj = CAT.global.find((f) => f.id === "pj").paliers.at(-1);
+    const fav = CAT.global.find((f) => f.id === "faveurs").paliers.at(-1);
+    expect(pj.seuil).toBe(PJ.length);
+    expect(fav.seuil).toBe(FAVEURS.length);
+    expect(pj.cache).toBe(true);
+  });
+
+  test("chaque palier porte des points de renommée qui suivent sa récompense", () => {
+    const p = CAT.parId.get("boosters@2500").palier;
+    expect(p.points).toBe(150);
+    expect(CAT.parId.get("ventes@10").palier.points).toBe(5);
+  });
+
+  test("les mesures nouvelles : commandes, faveurs, record infini, achats, missions", () => {
+    const e = partie(0, {
+      stats: { commandes: 10, achats: 1, missions: 10, semaines: 4 },
+      donjon: { recordInfini: 3 },
+    });
+    const ev = evaluer(CAT, e, { profondeurMax: 1, effondrements: 0, faveurs: 1 });
+    expect(ev.aReclamer).toEqual(expect.arrayContaining([
+      "commandes@10", "achats@1", "missions@10", "semaines@4", "infini@3", "faveurs@1",
+    ]));
+  });
+
+  test("une province se complète avec toutes ses cartes", () => {
+    const nakova = EXT.provinces.find((p) => p.id === "nakova");
+    expect(nakova.cartes.length).toBeGreaterThanOrEqual(8);
+    const coll = Object.fromEntries(nakova.cartes.map((id) => [id, { normale: 1, rainbow: 0 }]));
+    const e = { ...etatVide(), collections: { [TROUPE.id]: coll } };
+    expect(evaluer(CAT, e, null).aReclamer).toContain(`${TROUPE.id}:province-nakova@${nakova.cartes.length}`);
+  });
+
+  test("un titre retiré du barème reste à qui l'avait gagné", () => {
+    const e = partie(0, { succes: { "gardiens@15": { t: 1, po: 0, n: 2, cle: "*" } } });
+    expect(titresObtenus(CAT, e)).toContainEqual({ id: "gardiens@15", titre: "Pourfendeur de gardiens" });
+  });
+
+  test("le set rainbow complet est le dernier palier rainbow", () => {
+    const f = EXT.familles.find((x) => x.id === `${TROUPE.id}:irisees`);
+    expect(f.paliers.at(-1).seuil).toBe(EXT.roster.length);
+    expect(f.paliers.at(-2).seuil).toBe(Math.ceil(EXT.roster.length / 2));
   });
 });
 
@@ -206,7 +262,10 @@ describe("classement", () => {
     const titres = titresObtenus(CAT, r);
     const l = ligneClassement(CAT, { ...r, profil: { pseudo: "Siobhan", titre: titres[0].id } }, null, titres);
     expect(Object.keys(l).sort()).toEqual(
-      ["boosters", "extensions", "premiers", "pseudo", "score", "strate", "succes", "titre"]);
+      ["boosters", "carte", "eclats", "etage", "extensions", "heures", "premiers", "pseudo", "renommee",
+        "score", "strate", "succes", "titre", "ventes"]);
+    expect(l.renommee).toBeGreaterThan(0);
+    expect(l.carte).toBeNull();
     expect(l.score).toBe(10000);
     expect(l.premiers[TROUPE.id]).toBe(42);
     expect(l.titre).toBe(titres[0].titre);
@@ -222,6 +281,34 @@ describe("classement", () => {
       collections: { [TROUPE.id]: Object.fromEntries(cartes.map((c) => [c.id, { normale: 1 }])) },
     }, null).score;
     expect(avec(leg)).toBeGreaterThan(avec(com) * 7);
+  });
+
+  test("les colonnes du classement : éclats, ventes, heures de route, étage de l'infini", () => {
+    const e = partie(0, {
+      stats: { ventes: 214, heuresExpedition: 96 },
+      donjon: { recordInfini: 4, etageMax: 6 },
+    });
+    const r = resumeClassement(CAT, e, { eclats: 120 });
+    expect(r).toMatchObject({ eclats: 120, ventes: 214, heures: 96, etage: 6 });
+    // Une partie d'avant le compteur d'étages repart de son record de gardiens.
+    expect(resumeClassement(CAT, partie(0, { donjon: { recordInfini: 4 } }), null).etage).toBe(4);
+  });
+
+  test("la renommée additionne les points des paliers réclamés", () => {
+    const e = partie(0, { boosters: { [TROUPE.id]: 120 } });
+    const r = reclamer(CAT, e, ["boosters@25", "boosters@100"], null).etat;
+    expect(renommeeDe(CAT, r)).toBe(CAT.parId.get("boosters@25").palier.points + CAT.parId.get("boosters@100").palier.points);
+  });
+
+  test("la carte préférée n'est publiée que si elle est encore dans la collection", () => {
+    const c = EXT.roster[0];
+    const avec = partie(1, { profil: { carte: { ext: TROUPE.id, id: c.id, rainbow: false } } });
+    expect(cartePreferee(avec)).toEqual({ ext: TROUPE.id, id: c.id, rainbow: false });
+    // Version rainbow demandée sans exemplaire rainbow : rien.
+    expect(cartePreferee({ ...avec, profil: { carte: { ext: TROUPE.id, id: c.id, rainbow: true } } })).toBeNull();
+    // Vendue depuis : rien.
+    expect(cartePreferee(partie(0, { profil: { carte: { ext: TROUPE.id, id: c.id } } }))).toBeNull();
+    expect(carteDuCatalogue(CAT, TROUPE.id, c.id).nom).toBe(c.nom);
   });
 
   test("la première complétion revient à la date la plus ancienne", () => {

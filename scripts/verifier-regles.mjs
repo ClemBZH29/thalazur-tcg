@@ -44,6 +44,12 @@ const verifier = async (nom, attendu, promesse) => {
 await verifier("écrire sa propre ligne", true, setDoc(doc(alice, "classement/alice"), ligne()));
 await verifier("écrire la ligne d'un autre", false, setDoc(doc(bob, "classement/alice"), ligne()));
 await verifier("champ inconnu (e-mail)", false, setDoc(doc(alice, "classement/alice"), ligne({ email: "x@y" })));
+const colonnes = { renommee: 345, eclats: 120, ventes: 214, heures: 96, etage: 6, carte: { ext: "troupe-valeran", id: "219-hida", rainbow: false } };
+await verifier("ligne avec les colonnes du 13/10/2026", true, setDoc(doc(alice, "classement/alice"), ligne(colonnes)));
+await verifier("carte préférée retirée (null)", true, setDoc(doc(alice, "classement/alice"), ligne({ ...colonnes, carte: null })));
+await verifier("carte préférée avec un champ en trop", false, setDoc(doc(alice, "classement/alice"), ligne({ ...colonnes, carte: { ...colonnes.carte, url: "https://x" } })));
+await verifier("renommée négative", false, setDoc(doc(alice, "classement/alice"), ligne({ ...colonnes, renommee: -1 })));
+await verifier("étage non entier", false, setDoc(doc(alice, "classement/alice"), ligne({ ...colonnes, etage: 2.5 })));
 await verifier("pseudo d'un caractère", false, setDoc(doc(alice, "classement/alice"), ligne({ pseudo: "a" })));
 await verifier("pseudo de 25 caractères", false, setDoc(doc(alice, "classement/alice"), ligne({ pseudo: "x".repeat(25) })));
 await verifier("score hors borne", false, setDoc(doc(alice, "classement/alice"), ligne({ score: 10001 })));

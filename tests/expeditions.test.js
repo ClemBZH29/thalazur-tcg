@@ -83,6 +83,8 @@ describe("expéditions", () => {
     expect(bilan.lieuRainbow).toBe(true);
     expect(e.collections.x.l1.rainbow).toBe(1);
     expect(e.stats.lieuxRainbow).toBe(1);
+    // Les heures de route menées au bout, pour le classement.
+    expect(e.stats.heuresExpedition).toBe(4);
   });
 
   test("peu par carte : une équipe complète de communes rapporte moins d'un booster par jour", () => {
