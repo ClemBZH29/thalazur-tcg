@@ -231,7 +231,7 @@ fusionnent comme les exemplaires : un sachet ouvert ici disparaît là-bas.
 ## Les titres
 
 Certains paliers portent un titre, gagné en réclamant le palier. Le joueur en
-choisit un dans son profil ; il s'affiche au classement sous son pseudo. Les
+choisit un dans l'ex-libris du grimoire (ou au profil) ; il s'affiche au classement sous son pseudo. Les
 noms actuels sont **provisoires** (`src/config/succes.js`, champ `titre`) : à
 remplacer par des noms de la campagne.
 
@@ -241,16 +241,62 @@ extension ; il n'est pas stocké, mais calculé à la lecture du classement en
 comparant les dates de réclamation (`primautes()`). La date vient de
 l'horloge de l'appareil : entre joueurs qui se connaissent, c'est suffisant.
 
-## Le classement
+## Le grimoire (13/10/2026)
 
-`#/succes/classement`, réservé aux joueurs connectés. Deux vues :
+La page des succès est un livre ouvert, d'après la maquette de Claude Design
+(`brief-succes-design.md`, prototype et note de conception dans le projet) :
 
-- **Général** : un score de progression, la complétion de toutes les
-  extensions ouvertes **pondérée par la rareté** (une légendaire compte huit
-  communes, `POIDS_SCORE`). Sans pondération, le premier serait celui qui a
-  ouvert le plus de sachets ; les boosters ont leur propre colonne. Le score
-  baisse pour tout le monde le jour où une extension ouvre.
-- **Par extension** : la complétion, puis les irisées pour départager.
+- la première double page tient le **sommaire** (un chapitre par ligne, son
+  avancement, un sceau ambré quand il y a à réclamer) et l'**ex-libris**
+  (pseudo, titre affiché, renommée, boosters offerts, « Tout réclamer ») ;
+- un **chapitre** range chaque famille en médaillons sur un chemin d'encre :
+  scellé, prêt (lueur de lampe), proche, lointain, ou tache d'encre pour un
+  exploit caché ; la phrase du palier se lit au toucher, en note de marge ;
+  une famille terminée se replie ;
+- l'adresse suit la page (`#/succes/mines/2`) : ouvrir un chapitre empile
+  une entrée d'historique, tourner les pages la remplace, le retour du
+  navigateur ramène au sommaire.
+
+Le composant (`src/succes/grimoire/`) ne connaît pas la partie : il reçoit
+l'évaluation (`evaluer`) et rend la main par `onReclamer`, qui renvoie ce
+qui a été gagné pour faire voler pièces et boosters. La mise en page est
+pure et testée (`mise-en-page.js`), les mouvements dans `animations.js`,
+neutralisés en « moins d'animations ». La scène et le livre sont en CSS en
+attendant les images (`assets-sora-grimoire.json` dans le projet), qui se
+branchent par `--gm-scene` et `--gm-livre`.
+
+## Le classement (refait le 13/10/2026)
+
+`#/succes/classement`, réservé aux joueurs connectés. Une colonne par grand
+pan du site, triée d'un toucher sur son en-tête (au téléphone, par des
+puces : une seule colonne s'y affiche) :
+
+| Colonne | Ce qu'elle mesure |
+|---|---|
+| **Renommée** (par défaut) | la somme des points des paliers réclamés (`renommeeDe`) : tout le grimoire, chaque palier pesant ce qu'il rapporte |
+| Collection | la complétion des extensions ouvertes **pondérée par la rareté** (une légendaire compte huit communes, `POIDS_SCORE`) |
+| Éclats | les éclats gagnés aux Mines de Kazim ; offrir au Fossoyeur ne les retire pas |
+| Ventes | les exemplaires vendus au Comptoir |
+| Expéditions | les heures de route menées au bout (`stats.heuresExpedition`, compté depuis le 13/10/2026 ; une route rappelée ne compte pas) |
+| Donjon | l'étage le plus profond atteint au donjon infini (`donjon.etageMax` ; une partie antérieure part de son record de gardiens, un gardien par étage) |
+
+À égalité, la renommée départage, puis le pseudo. L'ancienne vue « par
+extension » est retirée : avec une seule extension ouverte, elle répétait
+la colonne Collection.
+
+### La carte préférée
+
+Le joueur choisit au profil une carte de sa collection (roster, full art ou
+PJ, et sa version rainbow s'il la possède). Au classement, **son
+illustration** — pas la carte — orne sa ligne, en bannière derrière son
+pseudo, fondue avant les chiffres pour ne rien coûter à la lecture.
+
+La ligne publique ne porte que `{ ext, id, rainbow }` ; chaque client
+retrouve l'illustration dans son propre catalogue (`carteDuCatalogue`) et
+la résout comme une face de carte (`resoudreImage`) : aucune adresse
+d'image n'est publiée. Une carte vendue ou dissoute depuis n'est plus
+publiée (`cartePreferee`) : le classement ne montre que ce qui est dans la
+collection.
 
 ### Ce qui est publié, et quand
 
@@ -260,7 +306,9 @@ classement se demande, cela ne se suppose pas.
 
 Coché, un document `classement/{uid}` contient le pseudo, le titre affiché,
 le score, la complétion et les irisées par extension, les boosters ouverts,
-la strate atteinte, le nombre de succès et les dates de complétion. **Rien du
+la strate atteinte, le nombre de succès, les dates de complétion, et depuis
+le 13/10/2026 la renommée, les éclats, les ventes, les heures d'expédition,
+l'étage de l'infini et la carte préférée. **Rien du
 compte Google** : ni nom, ni photo, ni adresse. Il est republié après chaque
 synchronisation réussie quand il a changé (et une fois par mois pour
 repousser son échéance), effacé dès que le joueur décoche, et supprimé avec
@@ -268,7 +316,9 @@ le compte. `scripts/purge-comptes.mjs` l'efface avec la partie.
 
 Les règles Firestore le rendent lisible par tout joueur connecté, modifiable
 par son seul propriétaire, et vérifient sa forme et ses bornes (pseudo de 2 à
-24 caractères, score sur dix mille…). Elles ne prétendent pas empêcher la
+24 caractères, score sur dix mille…). Les colonnes du 13/10/2026 y sont
+**facultatives** : une ligne écrite par une version antérieure du site reste
+valide, et les nouvelles règles peuvent être publiées avant ou avec le site. Elles ne prétendent pas empêcher la
 triche : la partie vit dans le navigateur, et l'audit d'économie a déjà jugé
 la chose sans importance entre amis. Un classement la rend seulement visible.
 
