@@ -210,8 +210,11 @@
 .gm-titre-bouton:hover:not(span) { border-color: var(--edge-ui); }
 span.gm-titre-bouton { cursor: default; }
 .gm-titre-bouton.vide { color: var(--ink3) !important; }
+/* `overflow: hidden` (pour les points de suspension) rogne aussi les
+   jambages de l'italique (g, p, q) si la ligne est trop serrée : on leur
+   laisse la place sous la ligne de base. */
 .gm-titre-affiche { display: inline-block; font-family: var(--font-display); font-variation-settings: var(--wonk); font-style: italic; font-size: 21px;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  line-height: 1.35; padding: 0 .08em .12em 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .gm-titre-fleche { color: var(--ink3); }
 .gm-exlibris-bas { position: absolute; left: 44px; top: 290px; width: 506px; height: 316px; display: flex; flex-direction: column; }
 

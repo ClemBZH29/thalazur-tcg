@@ -278,7 +278,7 @@ puces : une seule colonne s'y affiche) :
 | Éclats | les éclats gagnés aux Mines de Kazim ; offrir au Fossoyeur ne les retire pas |
 | Ventes | les exemplaires vendus au Comptoir |
 | Expéditions | les heures de route menées au bout (`stats.heuresExpedition`, compté depuis le 13/10/2026 ; une route rappelée ne compte pas) |
-| Donjon | l'étage le plus profond atteint au donjon infini (`donjon.etageMax` ; une partie antérieure part de son record de gardiens, un gardien par étage) |
+| Donjon | le record : l'étage le plus profond jamais atteint au donjon infini, toutes descentes confondues (`donjon.etageMax`, qui ne recule jamais ; une partie antérieure part de son record de gardiens, un gardien par étage) |
 
 À égalité, la renommée départage, puis le pseudo. L'ancienne vue « par
 extension » est retirée : avec une seule extension ouverte, elle répétait
@@ -291,7 +291,20 @@ PJ, et sa version rainbow s'il la possède). Au classement, **son
 illustration** — pas la carte — orne sa ligne, en bannière derrière son
 pseudo, fondue avant les chiffres pour ne rien coûter à la lecture.
 
-La ligne publique ne porte que `{ ext, id, rainbow }` ; chaque client
+**Le cadrage** (16/10/2026). Les cartes sont dessinées en portrait, la
+bannière est une bande sept fois plus large que haute : sans réglage, on n'en
+voyait parfois qu'un front ou un ciel. Au profil, une bulle montre
+l'illustration entière et, par-dessus, la fenêtre exacte de la bannière (en
+pointillés, celle du téléphone, plus haute) ; on la fait glisser, on zoome
+de 100 à 300 %, un aperçu de la ligne suit. Le cadrage est `{ x, y, z }`
+(`src/lib/cadrage.js`) : le point de l'image qui reste au même point de la
+bannière, et le zoom ; il se rend en CSS seul (`object-position` et
+`transform-origin` sur ce point), si bien que la fenêtre est la même à
+toutes les largeurs de bannière. Sans cadrage, le point focal de
+l'inventaire des portraits s'applique.
+
+La ligne publique ne porte que `{ ext, id, rainbow }` et, s'il a été réglé,
+le cadrage `x`, `y`, `z` ; chaque client
 retrouve l'illustration dans son propre catalogue (`carteDuCatalogue`) et
 la résout comme une face de carte (`resoudreImage`) : aucune adresse
 d'image n'est publiée. Une carte vendue ou dissoute depuis n'est plus

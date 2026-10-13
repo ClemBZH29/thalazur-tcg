@@ -35,6 +35,11 @@ describe("assainirLigne", () => {
     expect(l).toMatchObject({ renommee: 0, eclats: 0, ventes: 0, heures: 0, etage: 0, carte: null });
   });
 
+  test("le cadrage de la carte préférée est borné", () => {
+    expect(assainirLigne({ carte: { ext: "t", id: "x", rainbow: false, x: 30, y: 140, z: 20 } }).carte)
+      .toEqual({ ext: "t", id: "x", rainbow: false, x: 30, y: 100, z: 100 });
+  });
+
   test("une carte préférée mal formée est écartée", () => {
     expect(assainirLigne({ carte: { ext: 3, id: "x" } }).carte).toBeNull();
     expect(assainirLigne({ carte: "219-hida" }).carte).toBeNull();

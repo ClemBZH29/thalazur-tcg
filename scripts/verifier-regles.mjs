@@ -48,6 +48,8 @@ const colonnes = { renommee: 345, eclats: 120, ventes: 214, heures: 96, etage: 6
 await verifier("ligne avec les colonnes du 13/10/2026", true, setDoc(doc(alice, "classement/alice"), ligne(colonnes)));
 await verifier("carte préférée retirée (null)", true, setDoc(doc(alice, "classement/alice"), ligne({ ...colonnes, carte: null })));
 await verifier("carte préférée avec un champ en trop", false, setDoc(doc(alice, "classement/alice"), ligne({ ...colonnes, carte: { ...colonnes.carte, url: "https://x" } })));
+await verifier("carte préférée cadrée", true, setDoc(doc(alice, "classement/alice"), ligne({ ...colonnes, carte: { ...colonnes.carte, x: 40, y: 20, z: 160 } })));
+await verifier("cadrage hors borne", false, setDoc(doc(alice, "classement/alice"), ligne({ ...colonnes, carte: { ...colonnes.carte, x: 40, y: 20, z: 40 } })));
 await verifier("renommée négative", false, setDoc(doc(alice, "classement/alice"), ligne({ ...colonnes, renommee: -1 })));
 await verifier("étage non entier", false, setDoc(doc(alice, "classement/alice"), ligne({ ...colonnes, etage: 2.5 })));
 await verifier("pseudo d'un caractère", false, setDoc(doc(alice, "classement/alice"), ligne({ pseudo: "a" })));
