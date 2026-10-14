@@ -65,10 +65,12 @@ html:has(.attente) { scrollbar-gutter: auto; overflow: hidden; }
   20% { opacity: .85; }
   100% { opacity: 0; transform: translate(42px, -90px); }
 }
-@media (prefers-reduced-motion: reduce) {
-  .attente-fond, .attente-z { animation: none; }
-  .attente-z.z2 { opacity: .6; }
-}
+/* Comme tout le site, la page anime par défaut, quelle que soit la préférence
+   du système : elle n'a pas de réglage du joueur à lire (le build fermé ne
+   porte ni partie ni profil), et ses mouvements sont lents et doux. Seul un
+   onglet de la bêta basculé à minuit garde le réglage de son joueur. */
+[data-mouvement="reduit"] .attente-fond, [data-mouvement="reduit"] .attente-z { animation: none; }
+[data-mouvement="reduit"] .attente-z.z2 { opacity: .6; }
 @media (max-aspect-ratio: 4/5) {
   .attente-z { left: 54%; top: 37%; }
 }
@@ -106,7 +108,8 @@ html:has(.attente) { scrollbar-gutter: auto; overflow: hidden; }
   from { opacity: 0; transform: rotateY(-70deg) translateY(16px); }
   to { opacity: 1; transform: none; }
 }
-@media (prefers-reduced-motion: reduce) { .al-dos-carte { animation: none; } }
+/* Le réglage du joueur (« Jamais animer », ou « Suivre le système » quand le
+   système le demande) passe par data-mouvement, pas par la préférence brute. */
 [data-mouvement="reduit"] .al-dos-carte { animation: none; }
 @media (max-width: 640px) {
   .al-carte { grid-template-columns: 1fr; gap: 20px; padding: 24px 18px; text-align: left; }
