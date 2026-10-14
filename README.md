@@ -66,7 +66,7 @@ règles des conversations Claude sont dans [`CLAUDE.md`](CLAUDE.md).
 | Reliquaire | `#/reliquaire` | Dissoudre ses doublons en vestiges, forger les cartes qui manquent |
 | Missions | `#/missions` | Trois missions par jour et une par semaine, confiées par Bodégué |
 | Succès | `#/succes` | Paliers à réclamer, titres, classement des joueurs connectés |
-| Profil | `#/profil` | Compte, pseudo, synchro, export, préférences |
+| Profil | `#/profil` | Pseudo, classement, dos de cartes, préférences, compte et données |
 
 `#/reglages` (outils MJ) n'existe qu'en développement. Le raisonnement de
 chaque module est dans [`docs/conception/`](docs/conception/).
@@ -129,6 +129,7 @@ Ajouter le dossier suffit.
 | Quoi | Comment |
 |---|---|
 | Le site | Automatique à chaque fusion dans `main` (GitHub Actions → GitHub Pages) |
+| L'ouverture | Actions → « Ouverture du site », taper `OUVRIR` ([lancement](docs/conception/lancement.md)) |
 | Un aperçu de branche | `npm run apercu` : canal Firebase Hosting `recette`, valable 7 jours |
 | Les portraits | `npm run portraits:publier` (Firebase Hosting, cible `portraits`) |
 | Les règles Firestore | À la main, voir ci-dessous |

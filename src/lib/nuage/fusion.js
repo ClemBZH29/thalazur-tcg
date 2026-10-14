@@ -22,6 +22,8 @@
 import { ECONOMIE } from "../../config/tiers.js";
 import { RECOMPENSE_SEMAINE } from "../../config/missions.js";
 import { evaluerMissions, mesuresMissions } from "../../missions/regles.js";
+import { SCHEMA_LANCEMENT } from "../sauvegarde/schema.js";
+import { fusionnerDos } from "../../config/dos.js";
 
 /** Empreinte courte d'une chaîne (FNV-1a 32 bits) : de quoi voir qu'elle a bougé. */
 export function empreinte(texte) {
@@ -186,7 +188,10 @@ export function comparerMines(a, b) {
      07/10/2026 a toujours plus de filons brisés que la mine remise à zéro, et
      l'emporterait sinon — chaque relecture la remettrait à zéro, et la
      partie nouvelle disparaîtrait avec. */
-  const cle = (m) => [m?.regles || 0, m?.effondrements || 0, m?.brisesTotal || 0, m?.etoileTotale || 0, m?.dernierTick || 0];
+  // Au lancement, une mine du format 11 l'emporte sur toute mine de la bêta,
+  // si avancée soit-elle : sinon la galerie de la bêta, comparée en texte
+  // brut, revenait par-dessus la mine neuve (voir sauvegarde/lancement.js).
+  const cle = (m) => [Number(m?.schema) >= SCHEMA_LANCEMENT ? 1 : 0, m?.regles || 0, m?.effondrements || 0, m?.brisesTotal || 0, m?.etoileTotale || 0, m?.dernierTick || 0];
   const x = cle(a), y = cle(b);
   for (let i = 0; i < x.length; i++) if (x[i] !== y[i]) return x[i] - y[i];
   return 0;
@@ -588,7 +593,7 @@ export function fusionnerComptoir(base = {}, ici = {}, la = {}) {
 
 const COMPTEURS = new Set([
   "collections", "boosters", "bourse", "mine", "tafix", "schema", "succes", "sachets", "stats", "xp", "reliquaire", "fiches",
-  "missions", "expeditions", "donjon", "comptoir", "pity",
+  "missions", "expeditions", "donjon", "comptoir", "pity", "dos",
 ]);
 
 /**
@@ -615,6 +620,7 @@ export function fusionner3(base, ici, la, vide) {
   sortie.donjon = fusionnerDonjon(b.donjon, ici.donjon, la.donjon);
   sortie.comptoir = fusionnerComptoir(b.comptoir, ici.comptoir, la.comptoir);
   sortie.pity = fusionnerPity(b.pity, ici.pity, la.pity);
+  sortie.dos = fusionnerDos(b.dos, ici.dos, la.dos);
   const { succes, doublons } = fusionnerSucces(b.succes, ici.succes, la.succes);
   sortie.succes = succes;
   doublons.po += soldeEnDouble(b.mine, ici.mine, la.mine);

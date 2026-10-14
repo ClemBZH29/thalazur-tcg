@@ -28,6 +28,7 @@ import { useBourseAffichee } from "./lib/bourseAffichee.js";
 import LimiteErreur from "./components/LimiteErreur.jsx";
 import BandeauVersion from "./components/BandeauVersion.jsx";
 import { exporter } from "./lib/storage.js";
+import AvisLancement, { avisEnAttente } from "./lancement/AvisLancement.jsx";
 
 /* Les deux modules pèsent chacun plus que tout le reste de l'application :
    le Comptoir porte son moteur de marché, la mine son gréement d'animation.
@@ -107,7 +108,7 @@ function Route() {
     case "reliquaire": return <Suspense fallback={<Attente />}><PageReliquaire /></Suspense>;
     case "succes": return <PageSucces onglet={segments[1]} page={segments[2]} />;
     case "missions": return <PageMissions />;
-    case "profil": return <PageProfil />;
+    case "profil": return <PageProfil onglet={segments[1]} />;
     case "confidentialite": return <PageConfidentialite />;
     default: return <Introuvable chemin={chemin} />;
   }
@@ -383,12 +384,31 @@ function Coque() {
   );
 }
 
+/**
+ * Une partie de la bêta, remise à zéro au lancement, attend que le joueur ait
+ * lu l'avis : la coque n'est pas montée d'ici là. L'avis n'est pas une
+ * fenêtre posée sur le site qu'on pourrait retirer : il est le site.
+ */
+function Garde() {
+  const { etat } = useJeu();
+  if (avisEnAttente(etat)) {
+    return (
+      <>
+        <Brume />
+        <AvisLancement />
+        <BandeauVersion />
+      </>
+    );
+  }
+  return <Coque />;
+}
+
 export default function App() {
   return (
     <Routeur>
       <Jeu>
         <Compte>
-          <Coque />
+          <Garde />
         </Compte>
       </Jeu>
     </Routeur>

@@ -19,8 +19,10 @@ import { tenirBourse } from "../../lib/bourseAffichee.js";
 import * as M from "./mise-en-page.js";
 import * as A from "./animations.js";
 import "../../styles/grimoire.css";
+import { urlDos } from "../../jeu/dos.js";
 
-const DOS = `${import.meta.env.BASE_URL}carte-dos.webp`;
+/** Le dos choisi au profil (src/jeu/dos.js), lu au moment de dessiner. */
+const DOS = () => urlDos();
 
 /** Le palier « téléphone ou paysage bas » de la charte (§ 4, paliers d'écran). */
 const REQUETE_TEL = "(max-width: 720px), (max-width: 860px) and (max-height: 500px)";
@@ -230,12 +232,12 @@ function Offerts({ ctx, compact }) {
     <a href="#/boutique" className={`gm-offerts${compact ? " compact" : ""}`} aria-label={aria}>
       {!compact && <span className="gm-offerts-titre gm-discret">Boosters offerts</span>}
       <span className="gm-offert">
-        <img src={DOS} alt="" width={compact ? 18 : 28} height={compact ? 27 : 42} />
+        <img src={DOS()} alt="" width={compact ? 18 : 28} height={compact ? 27 : 42} />
         <span className="gm-offert-n"><b>{o.choix || 0}</b>{!compact && <span className="gm-discret">au choix</span>}</span>
       </span>
       {exts.map((e) => (
         <span key={e.id} className="gm-offert ext">
-          <img src={DOS} alt="" width={compact ? 18 : 28} height={compact ? 27 : 42} />
+          <img src={DOS()} alt="" width={compact ? 18 : 28} height={compact ? 27 : 42} />
           <span className="gm-offert-n"><b>{e.n}</b>{!compact && <span className="gm-discret">{e.titre}</span>}</span>
         </span>
       ))}
@@ -849,7 +851,7 @@ export default function Grimoire(props) {
       }
       const nP = A.nombrePieces(g.po);
       A.pieces(scene, couche.current, g.origine, nP, g.t0);
-      A.boosters(scene, couche.current, g.origine, g.sachets, g.t0 + 60, DOS);
+      A.boosters(scene, couche.current, g.origine, g.sachets, g.t0 + 60, DOS());
       g.valides.forEach((id) => A.ruban(scene, q(`[data-vivant="1"] [data-ruban="${cssId(id)}"]`), g.t0 + 260));
       scene.compter(g.renAvant, g.renApres, { duree: 520, retard: g.t0 + 300 }, (v) => { if (monte.current) setRenAffichee(v); },
         () => { if (monte.current) setRenAffichee(null); });

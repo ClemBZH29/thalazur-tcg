@@ -9,6 +9,7 @@ import { dejaVu } from "../missions/regles.js";
 import { RECOMPENSE_SEMAINE } from "../config/missions.js";
 import * as Scene from "../missions/scene.js";
 import "../styles/missions.css";
+import { urlDos } from "../jeu/dos.js";
 
 /*
  * La page des Missions : la table de Bodégué, d'après la maquette de Claude
@@ -127,8 +128,8 @@ function Pli({ m, echeance, onReclamer }) {
           </div>
           <div className="msn-recompense">
             <span className="msn-pouces" aria-hidden="true">
-              <img src={`${BASE}carte-dos.webp`} alt="" />
-              <img src={`${BASE}carte-dos.webp`} alt="" />
+              <img src={urlDos()} alt="" />
+              <img src={urlDos()} alt="" />
             </span>
             <span className="msn-gain-sem">{RECOMPENSE_SEMAINE.sachets} boosters au choix</span>
           </div>
@@ -265,7 +266,7 @@ export default function PageMissions() {
     reclamer("hebdo");
     setRemplacee(false); setApres(true); setContent(true);
     setAnnonce(`${RECOMPENSE_SEMAINE.sachets} boosters à choisir à la boutique.`);
-    Scene.boosters(couche.current, depuis, `${BASE}carte-dos.webp`, reduit);
+    Scene.boosters(couche.current, depuis, urlDos(), reduit);
     Scene.tasserPli(q("[data-pli]"), reduit);
     Scene.lampe(lueur.current, reduit);
   };

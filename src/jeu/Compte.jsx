@@ -9,6 +9,7 @@ import {
 import { estGele, geler } from "../lib/gel.js";
 import { SCHEMA, migrer } from "../lib/sauvegarde/schema.js";
 import { LEGAL } from "../config/legal.js";
+import { OUVERTURE, SITE_OUVERT } from "../config/lancement.js";
 
 /**
  * Le compte du joueur, et la copie de sa partie qui l'accompagne.
@@ -353,10 +354,14 @@ export function Compte({ children }) {
     // Chaque ligne est écrite par un autre joueur : on n'en garde que des
     // valeurs de la forme attendue (voir assainirLigne). Une ligne falsifiée
     // faisait sinon tomber la page pour tout le monde.
-    return snap.docs.map((d) => {
+    const lignes = snap.docs.map((d) => {
       const x = d.data();
       return { ...assainirLigne(x), uid: d.id, maj: x.maj?.toMillis ? x.maj.toMillis() : 0 };
     });
+    // Une ligne écrite avant l'ouverture est celle d'une partie de la bêta :
+    // son joueur n'est pas revenu depuis la remise à zéro. Elle ne compte
+    // plus ; elle sera réécrite, remise, à son retour.
+    return SITE_OUVERT ? lignes.filter((l) => l.maj >= OUVERTURE) : lignes;
   }, []);
 
   /** Envoie l'état local sur le compte, si quelque chose a changé. */

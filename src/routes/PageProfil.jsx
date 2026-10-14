@@ -4,12 +4,14 @@ import { temoinEffets, temoinMusique } from "../son/index.js";
 import { compterCartes, useCompte } from "../jeu/Compte.jsx";
 import { useJeu } from "../jeu/Jeu.jsx";
 import { Lien } from "../lib/routeur.jsx";
-import { ecrireMine, effacer, exporter, importer, lireSecours, restaurerSecours } from "../lib/storage.js";
+import { ecrireMine, effacer, etatVide, exporter, importer, lireSecours, restaurerSecours, sauver } from "../lib/storage.js";
 import { REVENTE } from "../config/tiers.js";
 import { mesureDisponible, rouvrirBandeau, useConsentement } from "../lib/mesure.js";
 import { LEGAL } from "../config/legal.js";
 import { PSEUDO_MAX, nettoyerPseudo, pseudoValide } from "../succes/classement.js";
 import ChoixCartePreferee from "../components/ChoixCartePreferee.jsx";
+import Icone from "../components/Icone.jsx";
+import { DOS, dosChoisi, dosDisponibles } from "../config/dos.js";
 
 const ETAT_SYNC = {
   "a-jour": ["Partie à jour sur votre compte", "ok"],
@@ -18,6 +20,14 @@ const ETAT_SYNC = {
   "hors-ligne": ["Hors ligne — la partie sera envoyée au retour du réseau", "attente"],
   erreur: ["La dernière synchronisation a échoué", "ko"],
 };
+
+/** Les onglets du profil, chacun à son adresse (#/profil/dos…). */
+const ONGLETS = [
+  { id: "", nom: "Profil" },
+  { id: "dos", nom: "Dos de cartes" },
+  { id: "preferences", nom: "Préférences" },
+  { id: "compte", nom: "Compte et données" },
+];
 
 const heure = (d) => d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
 const date = (d) => d.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" });
@@ -69,16 +79,59 @@ function Invite() {
   );
 }
 
-function Connecte() {
+/**
+ * L'en-tête du profil : qui l'on est, ce qu'on montre. Le dos choisi y est
+ * posé en vignette, comme une carte qu'on tient à la main.
+ */
+function EnTete() {
   const compte = useCompte();
-  const { utilisateur, sync, derniere } = compte;
-  const { etat, setEtat, bourse, succes } = useJeu();
+  const { etat, bourse, succes } = useJeu();
+  const u = compte.statut === "connecte" ? compte.utilisateur : null;
+  const nom = etat.profil?.pseudo || u?.nom || "Aventurier";
+  const titre = succes.titres.find((t) => t.id === etat.profil?.titre)?.titre;
+  const dos = dosChoisi(etat);
+  const boosters = Object.values(etat.boosters || {}).reduce((n, v) => n + v, 0);
+  const cartes = Object.values(etat.collections || {}).reduce(
+    (n, coll) => n + Object.values(coll).filter((e) => e.normale > 0 || e.rainbow > 0).length, 0);
+
+  return (
+    <section className="profil-tete">
+      <span className="profil-avatar" aria-hidden="true">
+        {u?.photo
+          ? <img src={u.photo} alt="" referrerPolicy="no-referrer" />
+          : nom.charAt(0).toUpperCase()}
+      </span>
+      <div className="profil-tete-nom">
+        <h2>{nom}</h2>
+        {titre && <p className="profil-titre">{titre}</p>}
+        <div className="compteurs">
+          <span className="compteur">Cartes <b>{cartes}</b></span>
+          <span className="compteur">Boosters <b>{boosters}</b></span>
+          <span className="compteur">Bourse <b>{Math.floor(bourse.po)} PO</b></span>
+        </div>
+      </div>
+      <Lien vers="/profil/dos" actif={false} className="profil-tete-dos" title={`Dos de cartes : ${dos.nom}`}>
+        <span className="profil-mini-dos" style={{ background: dos.fond }}>
+          <img src={`${import.meta.env.BASE_URL}${dos.fichier}`} alt="" />
+        </span>
+        <span className="sr">Changer de dos de cartes</span>
+      </Lien>
+    </section>
+  );
+}
+
+/** Onglet Profil : pseudo, classement, titre, carte préférée. */
+function OngletProfil() {
+  const compte = useCompte();
+  const { etat, setEtat, succes } = useJeu();
   const profil = etat.profil || {};
   const majProfil = (champs) => setEtat((s) => ({ ...s, profil: { ...(s.profil || {}), ...champs } }));
   const [pseudo, setPseudo] = useState(etat.profil?.pseudo || "");
-  const [suppression, setSuppression] = useState(false);
-
   useEffect(() => { setPseudo(etat.profil?.pseudo || ""); }, [etat.profil?.pseudo]);
+
+  if (compte.statut !== "connecte" || !compte.utilisateur) {
+    return compte.statut === "inactif" ? <ComptesIndisponibles /> : <Invite />;
+  }
 
   const enregistrerPseudo = (e) => {
     e.preventDefault();
@@ -89,130 +142,174 @@ function Connecte() {
     majProfil({ pseudo: net || undefined, pseudoReporte: true });
   };
 
-  const boosters = Object.values(etat.boosters || {}).reduce((n, v) => n + v, 0);
-  const cartes = Object.values(etat.collections || {}).reduce(
-    (n, coll) => n + Object.values(coll).filter((e) => e.normale > 0 || e.rainbow > 0).length, 0);
+  return (
+    <section className="panneau">
+      <div className="bloc">
+        <h3>Pseudo</h3>
+        <p className="muted">
+          Votre nom au classement. Il n'a pas à être votre vrai nom ; vide, c'est
+          votre nom Google qui s'affiche ici, et nulle part ailleurs.
+        </p>
+        <form className="profil-pseudo" onSubmit={enregistrerPseudo}>
+          <label className="sr" htmlFor="pseudo">Pseudo</label>
+          <input id="pseudo" type="text" value={pseudo} maxLength={PSEUDO_MAX}
+            placeholder="Votre pseudo" autoComplete="nickname" spellCheck={false}
+            onChange={(e) => setPseudo(e.target.value)} />
+          <button className="btn quiet sm" type="submit"
+            disabled={nettoyerPseudo(pseudo) === (profil.pseudo || "")
+              || (nettoyerPseudo(pseudo) !== "" && !pseudoValide(pseudo))}>Enregistrer</button>
+        </form>
+      </div>
+
+      <div className="bloc">
+        <h3>Classement</h3>
+        <p className="muted">
+          Les joueurs connectés voient au <Lien vers="/succes/classement" actif={false} className="lien">classement</Lien> votre
+          pseudo, votre titre, votre carte préférée et votre progression. Ni votre
+          nom Google, ni votre photo, ni votre adresse.
+        </p>
+        <label className="bascule" style={{ marginTop: 14 }}>
+          <input type="checkbox" checked={profil.classement === true}
+            disabled={!pseudoValide(profil.pseudo)}
+            onChange={(e) => majProfil({ classement: e.target.checked })} />
+          <span>Apparaître au classement des joueurs</span>
+        </label>
+        {!pseudoValide(profil.pseudo) && (
+          <p className="muted petit">Choisissez d'abord un pseudo : c'est lui qui apparaît au classement.</p>
+        )}
+        <div className="champ" style={{ marginTop: 16 }}>
+          <label htmlFor="titre" className="champ-titre">Titre affiché</label>
+          <select id="titre" value={profil.titre || ""}
+            onChange={(e) => majProfil({ titre: e.target.value || undefined })}>
+            <option value="">Aucun</option>
+            {succes.titres.map((t) => <option key={t.id} value={t.id}>{t.titre}</option>)}
+          </select>
+          {succes.titres.length === 0 && (
+            <p className="muted petit">
+              Les titres se gagnent avec certains <Lien vers="/succes" actif={false} className="lien">succès</Lien>.
+            </p>
+          )}
+        </div>
+        <div className="champ" style={{ marginTop: 16 }}>
+          <span className="champ-titre">Carte préférée</span>
+          <p className="muted petit">Son illustration orne votre ligne du classement.</p>
+          <ChoixCartePreferee />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function ComptesIndisponibles() {
+  return (
+    <section className="panneau">
+      <div className="bloc">
+        <h3>Comptes indisponibles</h3>
+        <p className="muted">
+          Cette version du site n'est reliée à aucun service de connexion : la
+          partie est conservée dans ce navigateur uniquement, et s'exporte depuis
+          l'onglet Compte et données.
+        </p>
+      </div>
+    </section>
+  );
+}
+
+/**
+ * Onglet Dos de cartes : la collection de dos, gagnés ou non. Un dos gagné se
+ * choisit d'un clic ; un dos à gagner dit comment l'obtenir, sans montrer
+ * plus que sa silhouette.
+ */
+function OngletDos() {
+  const { etat, setEtat } = useJeu();
+  const choisi = dosChoisi(etat);
+  const dispo = new Set(dosDisponibles(etat).map((d) => d.id));
+  const choisir = (id) => setEtat((s) => ({ ...s, dos: { gagnes: s.dos?.gagnes || [], choisi: id } }));
+
+  return (
+    <section className="panneau">
+      <div className="bloc">
+        <h3>Dos de cartes</h3>
+        <p className="muted">Le dos choisi habille toutes vos cartes encore face cachée.</p>
+        <ul className="dos-galerie" role="list">
+          {DOS.map((d) => {
+            const a = dispo.has(d.id);
+            const on = choisi.id === d.id;
+            return (
+              <li key={d.id}>
+                <button type="button" className={`dos-tuile${on ? " on" : ""}${a ? "" : " verrou"}`}
+                  aria-pressed={a ? on : undefined} disabled={!a}
+                  onClick={() => a && choisir(d.id)}>
+                  <span className="dos-tuile-carte" style={{ background: d.fond }}>
+                    <img src={`${import.meta.env.BASE_URL}${d.fichier}`} alt="" loading="lazy" draggable="false" />
+                    {on && <span className="dos-tuile-coche" aria-hidden="true"><Icone nom="coche" taille={16} /></span>}
+                  </span>
+                  <span className="dos-tuile-nom">
+                    {d.nom}
+                    {d.exclusif && <span className="dos-exclusif">Exclusif</span>}
+                  </span>
+                  <span className="dos-tuile-quoi">{a ? (on ? "Dos affiché" : "Choisir ce dos") : d.obtention}</span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+    </section>
+  );
+}
+
+/** Onglet Compte et données : synchronisation, fichiers, suppression. */
+function OngletCompte() {
+  const compte = useCompte();
+  const { etat } = useJeu();
+  const { statut, sync, derniere } = compte;
+  const connecte = statut === "connecte" && compte.utilisateur;
+  const [suppression, setSuppression] = useState(false);
   const [libelle, ton] = ETAT_SYNC[sync] || ETAT_SYNC["a-jour"];
 
   return (
     <>
-      <section className="panneau">
-        <div className="bloc profil-identite">
-          <span className="profil-avatar" aria-hidden="true">
-            {utilisateur.photo
-              ? <img src={utilisateur.photo} alt="" referrerPolicy="no-referrer" />
-              : (utilisateur.nom || "?").charAt(0).toUpperCase()}
-          </span>
-          <div>
-            <h3>{etat.profil?.pseudo || utilisateur.nom || "Aventurier"}</h3>
+      {connecte && (
+        <section className="panneau">
+          <div className="bloc">
+            <h3>Compte Google</h3>
             <p className="muted">
-              {utilisateur.email}
-              {utilisateur.depuis ? ` · compte créé le ${date(utilisateur.depuis)}` : ""}
+              {compte.utilisateur.email}
+              {compte.utilisateur.depuis ? ` · compte créé le ${date(compte.utilisateur.depuis)}` : ""}
+            </p>
+            <p className={`profil-sync ${ton}`} role="status" style={{ marginTop: 12 }}>
+              <span className="compte-sync-pastille" aria-hidden="true" />
+              {libelle}
+              {derniere && sync === "a-jour" ? ` · dernier envoi à ${heure(derniere)}` : ""}
+            </p>
+            {compte.erreur && <p className="avis ko">{compte.erreur}</p>}
+            <div className="actions gauche">
+              <button className="btn quiet sm" onClick={compte.synchroniser} disabled={sync === "envoi"}>
+                Synchroniser maintenant
+              </button>
+              <button className="btn quiet sm" onClick={compte.deconnecter}>Se déconnecter</button>
+            </div>
+            <p className="muted petit">
+              La déconnexion vide cet appareil : la partie reste sur votre compte.
             </p>
           </div>
-        </div>
-
-        <div className="bloc">
-          <h3>Pseudo</h3>
-          <p className="muted">
-            Le nom sous lequel le site vous salue, et sous lequel vous apparaissez
-            au classement si vous le choisissez. Il n'a pas à être votre vrai nom.
-            Laissé vide, c'est votre nom Google qui s'affiche ici — et nulle part
-            ailleurs.
-          </p>
-          <form className="profil-pseudo" onSubmit={enregistrerPseudo}>
-            <label className="sr" htmlFor="pseudo">Pseudo</label>
-            <input id="pseudo" type="text" value={pseudo} maxLength={PSEUDO_MAX}
-              placeholder="Votre pseudo" autoComplete="nickname" spellCheck={false}
-              onChange={(e) => setPseudo(e.target.value)} />
-            <button className="btn quiet sm" type="submit"
-              disabled={nettoyerPseudo(pseudo) === (profil.pseudo || "")
-                || (nettoyerPseudo(pseudo) !== "" && !pseudoValide(pseudo))}>Enregistrer</button>
-          </form>
-        </div>
-
-        <div className="bloc">
-          <h3>Classement</h3>
-          <p className="muted">
-            Au <Lien vers="/succes/classement" actif={false} className="lien">classement</Lien>,
-            les autres joueurs connectés voient votre pseudo, le titre et la
-            carte préférée choisis ci-dessous, et votre progression : renommée,
-            collection, éclats des Mines, ventes au Comptoir, heures
-            d'expédition, étage du Donjon. Ni votre nom Google, ni votre photo,
-            ni votre adresse.
-          </p>
-          <label className="bascule" style={{ marginTop: 14 }}>
-            <input type="checkbox" checked={profil.classement === true}
-              disabled={!pseudoValide(profil.pseudo)}
-              onChange={(e) => majProfil({ classement: e.target.checked })} />
-            <span>Apparaître au classement des joueurs</span>
-          </label>
-          {!pseudoValide(profil.pseudo) && (
-            <p className="muted petit">Choisissez d'abord un pseudo : c'est lui qui apparaît au classement.</p>
-          )}
-          <div className="champ" style={{ marginTop: 16 }}>
-            <label htmlFor="titre" className="champ-titre">Titre affiché</label>
-            <select id="titre" value={profil.titre || ""}
-              onChange={(e) => majProfil({ titre: e.target.value || undefined })}>
-              <option value="">Aucun</option>
-              {succes.titres.map((t) => <option key={t.id} value={t.id}>{t.titre}</option>)}
-            </select>
-            {succes.titres.length === 0 && (
-              <p className="muted petit">
-                Les titres se gagnent avec certains <Lien vers="/succes" actif={false} className="lien">succès</Lien>.
-              </p>
-            )}
-          </div>
-          <div className="champ" style={{ marginTop: 16 }}>
-            <span className="champ-titre">Carte préférée</span>
-            <p className="muted petit">Son illustration orne votre ligne du classement.</p>
-            <ChoixCartePreferee />
-          </div>
-        </div>
-
-        <div className="bloc">
-          <h3>Progression</h3>
-          <div className="compteurs">
-            <span className="compteur">Cartes différentes <b>{cartes}</b></span>
-            <span className="compteur">Boosters ouverts <b>{boosters}</b></span>
-            <span className="compteur">Bourse <b>{Math.floor(bourse.po)} PO</b></span>
-          </div>
-        </div>
-
-        <div className="bloc">
-          <h3>Synchronisation</h3>
-          <p className={`profil-sync ${ton}`} role="status">
-            <span className="compte-sync-pastille" aria-hidden="true" />
-            {libelle}
-            {derniere && sync === "a-jour" ? ` · dernier envoi à ${heure(derniere)}` : ""}
-          </p>
-          {compte.erreur && <p className="avis ko">{compte.erreur}</p>}
-          <div className="actions gauche">
-            <button className="btn quiet sm" onClick={compte.synchroniser} disabled={sync === "envoi"}>
-              Synchroniser maintenant
-            </button>
-            <button className="btn quiet sm" onClick={compte.deconnecter}>Se déconnecter</button>
-          </div>
-          <p className="muted petit">
-            La déconnexion vide cet appareil : la partie reste sur votre compte et
-            revient à la prochaine connexion.
-          </p>
-        </div>
-      </section>
+        </section>
+      )}
+      {!connecte && statut !== "inactif" && <Invite />}
 
       <section className="panneau">
+        <Sauvegarde />
         <div className="bloc">
           <h3>Mes données</h3>
           <p className="muted">
-            Vous pouvez à tout moment récupérer l'intégralité de votre partie dans un
-            fichier, ou supprimer votre compte. La suppression efface votre partie
-            du serveur et votre identité du service de connexion ; elle est
-            définitive. Sans aucune utilisation pendant {LEGAL.conservationAns} ans,
-            le compte est supprimé. <Lien vers="/confidentialite" actif={false} className="lien">Politique de confidentialité</Lien>.
+            Récupérez toute votre partie dans un fichier{connecte ? ", ou supprimez votre compte : la suppression efface votre partie du serveur et votre identité du service de connexion, définitivement" : ""}.
+            Sans utilisation pendant {LEGAL.conservationAns} ans, un compte est
+            supprimé. <Lien vers="/confidentialite" actif={false} className="lien">Politique de confidentialité</Lien>.
           </p>
           <div className="actions gauche">
             <button className="btn quiet sm" onClick={() => exporter(etat)}>Télécharger mes données</button>
-            {!suppression && (
+            {connecte && !suppression && (
               <button className="btn quiet sm danger" onClick={() => setSuppression(true)}>
                 Supprimer mon compte…
               </button>
@@ -222,8 +319,8 @@ function Connecte() {
             <div className="profil-danger" role="alertdialog" aria-labelledby="supp-titre">
               <p id="supp-titre">
                 <b>Supprimer le compte et la partie ?</b> Collection, bourse, Mines de
-                Kazim : tout disparaît, sur le serveur comme sur cet appareil. Google
-                vous demandera de confirmer votre identité.
+                Kazim, dos de cartes : tout disparaît, sur le serveur comme sur cet
+                appareil. Google vous demandera de confirmer votre identité.
               </p>
               <div className="actions gauche">
                 <button className="btn sm danger-plein"
@@ -235,6 +332,7 @@ function Connecte() {
             </div>
           )}
         </div>
+        <ToutEffacer />
       </section>
     </>
   );
@@ -242,17 +340,14 @@ function Connecte() {
 
 /**
  * Sauvegarde dans un fichier : exporter la partie, ou en importer une.
- *
- * Elle vivait en tête de la bibliothèque, où elle prenait une ligne d'écran au
- * téléphone pour un geste qu'on fait une fois ; elle rejoint ici le reste de ce
- * qui touche à la partie. Le compte-rendu de l'import s'affiche sur place :
- * l'avis général du jeu n'est montré que par la page des réglages, qui n'est
- * plus publique — importer depuis la bibliothèque ne disait donc rien.
+ * Le choix fusion / remplacement se fait dans la page (plus de fenêtre
+ * `confirm` du navigateur, où « Annuler » voulait dire « remplacer »).
  */
 function Sauvegarde() {
   const { etat, setEtat, rechargerMine } = useJeu();
   const fichierRef = useRef(null);
   const [message, setMessage] = useState(null);
+  const [fichier, setFichier] = useState(null);
 
   // La copie gardée par l'appareil avant qu'une synchronisation ne lui retire
   // des cartes (voir `adopter`, src/jeu/Compte.jsx).
@@ -271,7 +366,9 @@ function Sauvegarde() {
     setMessage({ ok: true, texte: "Copie de secours restaurée : ce qu'elle avait de plus a rejoint la partie." });
   };
 
-  const charger = async (f, mode) => {
+  const charger = async (mode) => {
+    const f = fichier;
+    setFichier(null);
     try {
       setEtat(await importer(f, etat, mode));
       setMessage({ ok: true, texte: mode === "fusion" ? "Sauvegarde fusionnée avec la partie en cours." : "Sauvegarde importée." });
@@ -283,10 +380,7 @@ function Sauvegarde() {
   return (
     <div className="bloc">
       <h3>Sauvegarde dans un fichier</h3>
-      <p className="muted">
-        Un fichier contient toute la partie : collection, bourse, Mines. À l'import,
-        vous choisissez de le fusionner avec la partie en cours ou de la remplacer.
-      </p>
+      <p className="muted">Un fichier contient toute la partie : collection, bourse, Mines.</p>
       <div className="actions gauche">
         <button className="btn quiet sm" onClick={() => exporter(etat)}>Exporter</button>
         <button className="btn quiet sm" onClick={() => fichierRef.current?.click()}>Importer…</button>
@@ -294,15 +388,21 @@ function Sauvegarde() {
           ref={fichierRef} type="file" accept="application/json" className="cache"
           onChange={(e) => {
             const f = e.target.files?.[0];
-            if (!f) return;
-            const mode = window.confirm(
-              "Fusionner avec la partie en cours ?\n\nOK = fusion\nAnnuler = remplacement complet"
-            ) ? "fusion" : "remplacement";
-            charger(f, mode);
+            if (f) { setFichier(f); setMessage(null); }
             e.target.value = "";
           }}
         />
       </div>
+      {fichier && (
+        <div className="profil-choix" role="group" aria-labelledby="import-titre">
+          <p id="import-titre"><b>{fichier.name}</b> : que faire de la partie en cours ?</p>
+          <div className="actions gauche">
+            <button className="btn sm" onClick={() => charger("fusion")}>Fusionner les deux</button>
+            <button className="btn quiet sm" onClick={() => charger("remplacement")}>Remplacer par le fichier</button>
+            <button className="btn quiet sm" onClick={() => setFichier(null)}>Annuler</button>
+          </div>
+        </div>
+      )}
       {nSecours > 0 && (
         <p className="avis">
           Copie de secours du {new Date(secours.t).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })} :
@@ -320,23 +420,56 @@ function Sauvegarde() {
 }
 
 /**
+ * Tout effacer : la partie repart de zéro, sur l'appareil et sur le compte.
+ * Les dos de cartes gagnés restent : celui des bêta-testeurs ne se regagne pas.
+ */
+function ToutEffacer() {
+  const compte = useCompte();
+  const { etat } = useJeu();
+  const [ouvert, setOuvert] = useState(false);
+  const connecte = compte.statut === "connecte";
+
+  const effacerTout = () => {
+    const garde = { dos: etat.dos, lancement: etat.lancement };
+    effacer();
+    if ((etat.dos?.gagnes || []).length) sauver({ ...etatVide(), ...garde });
+    window.location.reload();
+  };
+
+  return (
+    <div className="bloc">
+      <h3>Repartir de zéro</h3>
+      {!ouvert ? (
+        <div className="actions gauche" style={{ marginTop: 6 }}>
+          <button className="btn quiet sm danger" onClick={() => setOuvert(true)}>Tout effacer…</button>
+        </div>
+      ) : (
+        <div className="profil-danger" role="alertdialog" aria-labelledby="effacer-titre">
+          <p id="effacer-titre">
+            <b>Effacer la bibliothèque, les boosters, la bourse et les Mines
+            {connecte ? ", sur cet appareil et sur votre compte" : ""} ?</b> C'est
+            définitif. Vos dos de cartes sont conservés.
+            {connecte ? " Pour vider seulement cet appareil, déconnectez-vous." : ""}
+          </p>
+          <div className="actions gauche">
+            <button className="btn sm danger-plein" onClick={effacerTout}>Tout effacer</button>
+            <button className="btn quiet sm" onClick={() => setOuvert(false)}>Annuler</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
  * Préférences de joueur. Elles vivaient dans la page Réglages, au milieu des
  * outils de meneur (roster, taux, mode test) ; ceux-ci ne sont plus publics,
  * et ce qui concerne le joueur a rejoint son profil.
  */
 function Preferences() {
   const jeu = useJeu();
-  const compte = useCompte();
   const consentement = useConsentement();
-  const connecte = compte.statut === "connecte";
   const { animations, sobreSysteme, reventeAuto, reglageSon, majReglages } = jeu;
-
-  const toutEffacer = () => {
-    const quoi = connecte
-      ? "Effacer la bibliothèque, les boosters ouverts, le porte-monnaie et les Mines, sur cet appareil ET sur votre compte ? Cette action est définitive. (Pour vider seulement cet appareil, déconnectez-vous.)"
-      : "Effacer la bibliothèque, les boosters ouverts, le porte-monnaie et les Mines ? Cette action est définitive.";
-    if (window.confirm(quoi)) { effacer(); window.location.reload(); }
-  };
 
   return (
     <section className="panneau" aria-labelledby="pref-titre">
@@ -371,8 +504,6 @@ function Preferences() {
         </label>
       </div>
 
-      <Sauvegarde />
-
       {/* Le son avait un bouton dans le bandeau de toutes les pages ; il vit
           ici, avec les autres préférences, en bascule qui dit son état. */}
       <div className="bloc">
@@ -392,24 +523,24 @@ function Preferences() {
         ))}
       </div>
 
-      <div className="bloc">
-        <h3>Divers</h3>
-        <div className="actions gauche" style={{ marginTop: 0 }}>
-          {mesureDisponible && (
+      {mesureDisponible && (
+        <div className="bloc">
+          <h3>Cookies</h3>
+          <div className="actions gauche" style={{ marginTop: 6 }}>
             <button className="btn quiet sm" onClick={rouvrirBandeau}>
-              Cookies : {consentement.choix ? (consentement.choix.mesure ? "acceptés" : "refusés") : "à choisir"} — modifier
+              Mesure d'audience : {consentement.choix ? (consentement.choix.mesure ? "acceptée" : "refusée") : "à choisir"} — modifier
             </button>
-          )}
-          <button className="btn quiet sm danger" onClick={toutEffacer}>Tout effacer…</button>
+          </div>
         </div>
-      </div>
+      )}
     </section>
   );
 }
 
-export default function PageProfil() {
+export default function PageProfil({ onglet = "" }) {
   const compte = useCompte();
-  const { statut, annonce } = compte;
+  const { annonce } = compte;
+  const ici = ONGLETS.some((o) => o.id === onglet) ? onglet : "";
 
   return (
     <main className="view profil" id="contenu">
@@ -422,28 +553,20 @@ export default function PageProfil() {
         </p>
       )}
 
-      {statut === "inactif" && (
-        <section className="panneau">
-          <div className="bloc">
-            <h3>Comptes indisponibles</h3>
-            <p className="muted">
-              Cette version du site n'est reliée à aucun service de connexion : la
-              partie est conservée dans ce navigateur uniquement, et s'exporte
-              plus bas, dans les préférences.
-            </p>
-          </div>
-        </section>
-      )}
-      {statut === "connecte" && compte.utilisateur && <Connecte />}
-      {(statut === "invite" || statut === "ouverture") && (
-        <>
-          {compte.erreur && <p className="avis ko">{compte.erreur}</p>}
-          <Invite />
-        </>
-      )}
+      <EnTete />
 
-      <div className="section-titre sous-titre"><h2>Préférences</h2></div>
-      <Preferences />
+      <nav className="profil-onglets" aria-label="Sections du profil">
+        {ONGLETS.map((o) => (
+          <Lien key={o.id} vers={o.id ? `/profil/${o.id}` : "/profil"} actif={ici === o.id}>
+            {o.nom}
+          </Lien>
+        ))}
+      </nav>
+
+      {ici === "" && <OngletProfil />}
+      {ici === "dos" && <OngletDos />}
+      {ici === "preferences" && <Preferences />}
+      {ici === "compte" && <OngletCompte />}
     </main>
   );
 }

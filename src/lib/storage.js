@@ -1,7 +1,8 @@
 import { bourseNeuve } from "./economie.js";
 import { SON_DEFAUT } from "../config/son.js";
 import { cles, comparerMines, fusionnerMine } from "./nuage/fusion.js";
-import { SCHEMA, migrer } from "./sauvegarde/schema.js";
+import { SCHEMA, SCHEMA_LANCEMENT, migrer } from "./sauvegarde/schema.js";
+import { fusionnerDos } from "../config/dos.js";
 import { estGele, geler } from "./gel.js";
 
 /**
@@ -81,6 +82,11 @@ const vide = () => ({
   // Missions de Bodégué : { jour, remplacees, quotidiennes, semaine, hebdo }
   // (voir src/missions/regles.js).
   missions: null,
+  // Dos de carte : { gagnes: [id…], choisi } (voir src/config/dos.js).
+  dos: { gagnes: [], choisi: null },
+  // Lancement du site : { beta, avis: "a-lire" | "lu" } pour une partie de la
+  // bêta remise à zéro (voir src/lib/sauvegarde/lancement.js).
+  lancement: null,
   // Numéro de la dernière écriture locale : { n, onglet } (voir `sauver`).
   // Il départage les onglets ouverts sur le site ; il ne compte pas pour la
   // synchronisation (exclu de `signature`).
@@ -166,9 +172,28 @@ function nettoyerPerimees() {
   if (trouve) localStorage.removeItem("brume-thalazur:compte-base");
 }
 
+/**
+ * Au lancement (format 11), deux copies de la bêta qui dorment à côté de la
+ * partie partent avec elle. Elles seraient remises à zéro à la lecture de
+ * toute façon (migration 11), mais la mine stockée se compare en texte brut
+ * aux autres copies, et la copie de secours afficherait au profil le nombre
+ * de cartes de la bêta. La base de synchronisation, elle, reste : relue
+ * migrée, elle permet à l'avis lu sur un autre appareil de ne pas revenir ici.
+ */
+function nettoyerBeta() {
+  if (SCHEMA < SCHEMA_LANCEMENT) return;
+  const ancienne = (texte, chemin = (d) => d) => {
+    if (texte == null) return false;
+    try { const n = Number(chemin(JSON.parse(texte))?.schema); return !(n >= SCHEMA_LANCEMENT); } catch { return true; }
+  };
+  if (ancienne(localStorage.getItem(CLE_MINE_STOCKAGE))) localStorage.removeItem(CLE_MINE_STOCKAGE);
+  if (ancienne(localStorage.getItem(CLE_SECOURS), (c) => c?.jeu)) localStorage.removeItem(CLE_SECOURS);
+}
+
 export function charger() {
   try {
     nettoyerPerimees();
+    nettoyerBeta();
     const brut = localStorage.getItem(CLE);
     noterEcriture(lireEcriture(brut));
     // Une partie (ou une mine) d'un format plus récent : un autre onglet tourne
@@ -481,6 +506,8 @@ export function fusionner(actuel, net, { cumul = true } = {}) {
   // le faire repasser le jour même s'il est déjà venu ici.
   fusion.colporteur = actuel.colporteur || net.colporteur || null;
   fusion.profil = { ...(net.profil || {}), ...(actuel.profil || {}) };
+  // Un dos gagné l'est partout ; le choix en place reste.
+  fusion.dos = fusionnerDos(actuel.dos, actuel.dos, net.dos);
   // Un succès réclamé l'est une fois pour toutes, où qu'il l'ait été. Les
   // sachets et les compteurs ne s'additionnent pas : importer un fichier ne
   // doit pas rendre deux fois ce qu'il a déjà rendu.

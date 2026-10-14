@@ -183,3 +183,87 @@
 .perdu .lede code { font-size: .9em; color: var(--ink); word-break: break-all; }
 .perdu .hero-actions { margin-top: 26px; display: flex; gap: 10px; flex-wrap: wrap; }
 .lien-bouton { background: none; border: 0; padding: 0; font: inherit; cursor: pointer; }
+
+/* ── Profil : en-tête, onglets, dos de cartes ──────────────────────────── */
+.profil-tete {
+  max-width: 760px; display: flex; align-items: center; gap: 18px;
+  padding: 20px 22px; margin-bottom: 18px;
+  background: linear-gradient(120deg, var(--panel) 0%, var(--ground2) 100%);
+  border: 1px solid var(--edge); border-radius: var(--r-lg);
+}
+.profil-tete-nom { flex: 1 1 auto; min-width: 0; }
+.profil-tete-nom h2 {
+  font-family: var(--font-display); font-variation-settings: var(--wonk);
+  font-size: 26px; font-weight: 700; line-height: 1.1;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.profil-titre { color: var(--lamp); font-size: 13px; font-weight: 600; margin-top: 3px; }
+.profil-tete .compteurs { margin-top: 10px; }
+.profil-tete-dos { flex: 0 0 auto; display: block; border-radius: 6px; transition: transform .2s; }
+.profil-tete-dos:hover, .profil-tete-dos:focus-visible { transform: rotate(-4deg) translateY(-3px); }
+.profil-mini-dos {
+  display: block; width: 58px; aspect-ratio: 2 / 3; overflow: hidden;
+  border-radius: 4.4% / 2.93%; box-shadow: 0 0 0 1px var(--edge-hi), var(--shadow-flat);
+}
+.profil-mini-dos img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+.profil-onglets {
+  max-width: 760px; display: flex; gap: 4px; margin-bottom: 18px;
+  border-bottom: 1px solid var(--edge); overflow-x: auto; scrollbar-width: none;
+}
+.profil-onglets a {
+  flex: 0 0 auto; padding: 10px 14px; font-size: 13.5px; font-weight: 600; color: var(--ink3);
+  border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap;
+}
+.profil-onglets a:hover { color: var(--ink); }
+.profil-onglets a.on { color: var(--ink); border-bottom-color: var(--lamp); }
+@media (pointer: coarse) { .profil-onglets a { padding: 13px 14px; } }
+
+.dos-galerie {
+  list-style: none; margin: 18px 0 0; padding: 0;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 18px;
+}
+.dos-tuile {
+  width: 100%; display: flex; flex-direction: column; gap: 6px; text-align: left;
+  background: transparent; border: 0; padding: 0; color: inherit; font: inherit; cursor: pointer;
+}
+.dos-tuile-carte {
+  position: relative; display: block; aspect-ratio: 2 / 3; overflow: hidden;
+  border-radius: 4.4% / 2.93%; box-shadow: 0 0 0 1px var(--edge-hi), var(--shadow-flat);
+  transition: transform .2s, box-shadow .2s;
+}
+.dos-tuile-carte img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.dos-tuile:hover .dos-tuile-carte, .dos-tuile:focus-visible .dos-tuile-carte { transform: translateY(-4px); }
+.dos-tuile:focus-visible { outline: none; }
+.dos-tuile:focus-visible .dos-tuile-carte { box-shadow: 0 0 0 2px var(--lamp), var(--shadow-lift); }
+.dos-tuile.on .dos-tuile-carte { box-shadow: 0 0 0 2px var(--lamp), 0 0 26px rgba(232, 163, 61, .25); }
+.dos-tuile-coche {
+  position: absolute; top: 8px; right: 8px; width: 26px; height: 26px; border-radius: 50%;
+  display: grid; place-items: center; background: var(--lamp); color: #1b1408;
+}
+.dos-tuile-nom { font-weight: 600; font-size: 14px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.dos-exclusif {
+  font-size: 10.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--lamp); border: 1px solid currentColor; border-radius: 100px; padding: 1px 7px;
+}
+.dos-tuile-quoi { font-size: 12.5px; color: var(--ink3); line-height: 1.45; }
+.dos-tuile.on .dos-tuile-quoi { color: var(--lamp); }
+.dos-tuile.verrou { cursor: default; }
+.dos-tuile.verrou .dos-tuile-carte img { filter: grayscale(1) brightness(.28) blur(1.5px); }
+.dos-tuile.verrou .dos-tuile-carte::after {
+  content: ""; position: absolute; inset: 0;
+  background: repeating-linear-gradient(135deg, transparent 0 10px, rgba(255, 255, 255, .025) 10px 20px);
+}
+.dos-tuile.verrou:hover .dos-tuile-carte { transform: none; }
+
+.profil-choix { margin-top: 14px; padding: 14px 16px; border: 1px solid var(--edge-hi);
+  border-radius: var(--r-sm); background: var(--ground2); }
+.profil-choix p { font-size: 13.5px; color: var(--ink2); }
+.profil-choix b { color: var(--ink); }
+
+@media (max-width: 520px) {
+  .profil-tete { padding: 16px; gap: 14px; }
+  .profil-tete .profil-avatar { width: 48px; height: 48px; font-size: 22px; }
+  .profil-tete-nom h2 { font-size: 21px; }
+  .dos-galerie { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+}
