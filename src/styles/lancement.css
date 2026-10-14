@@ -6,10 +6,12 @@
    ------------------------------------------------------------------ */
 
 /* ── Page d'attente ─────────────────────────────────────────────────── */
+/* Classe racine « page-attente » et non « attente » : la boutique a déjà un
+   « .etat.attente » (puce Bientôt), que la règle plein écran avalait. */
 /* base.css réserve la gouttière de la barre de défilement : sur une page
    sans défilement, elle laissait une bande sombre à droite de l'image. */
-html:has(.attente) { scrollbar-gutter: auto; overflow: hidden; }
-.attente {
+html:has(.page-attente) { scrollbar-gutter: auto; overflow: hidden; }
+.page-attente {
   position: fixed; inset: 0; overflow: hidden;
   background: var(--ground); color: var(--ink);
   display: grid; place-items: end center;
@@ -57,7 +59,7 @@ html:has(.attente) { scrollbar-gutter: auto; overflow: hidden; }
   font-family: var(--font-ui); font-size: clamp(13px, 2.2vw, 16px); font-weight: 600;
   letter-spacing: .22em; text-transform: uppercase;
 }
-.attente .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.page-attente .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
 @keyframes attente-souffle { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.012); } }
 @keyframes attente-z {

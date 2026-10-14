@@ -41,7 +41,7 @@ export default function PageAttente() {
   }, []);
 
   return (
-    <main className="attente" id="contenu">
+    <main className="page-attente" id="contenu">
       <div className="attente-scene" aria-hidden="true">
         {repli ? (
           <>
