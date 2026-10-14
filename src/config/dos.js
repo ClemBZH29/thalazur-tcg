@@ -26,6 +26,8 @@ export const DOS = [
     fichier: "dos/eclaireur.webp",
     fond: "#080302",
     exclusif: true,
+    // Puce posée sur la vignette au profil : d'où vient le dos.
+    puce: "Bêta-test",
     obtention: "Offert aux bêta-testeurs, qui ont arpenté Thalazur avant son ouverture.",
   },
 ];

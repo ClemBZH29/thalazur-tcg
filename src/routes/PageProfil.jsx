@@ -241,12 +241,9 @@ function OngletDos() {
                   <span className="dos-tuile-carte" style={{ background: d.fond }}>
                     <img src={`${import.meta.env.BASE_URL}${d.fichier}`} alt="" loading="lazy" draggable="false" />
                     {on && <span className="dos-tuile-coche" aria-hidden="true"><Icone nom="coche" taille={16} /></span>}
+                    {d.puce && <span className="dos-puce">{d.puce}</span>}
                   </span>
-                  <span className="dos-tuile-nom">
-                    {d.nom}
-                    {d.exclusif && <span className="dos-exclusif">Exclusif</span>}
-                  </span>
-                  <span className="dos-tuile-quoi">{on ? "Dos affiché" : "Choisir ce dos"}</span>
+                  <span className="dos-tuile-nom">{d.nom}</span>
                 </button>
               </li>
             );

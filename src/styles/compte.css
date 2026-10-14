@@ -241,13 +241,15 @@
   position: absolute; top: 8px; right: 8px; width: 26px; height: 26px; border-radius: 50%;
   display: grid; place-items: center; background: var(--lamp); color: #1b1408;
 }
-.dos-tuile-nom { font-weight: 600; font-size: 14px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-.dos-exclusif {
+.dos-tuile-nom { font-weight: 600; font-size: 14px; }
+.dos-tuile.on .dos-tuile-nom { color: var(--lamp); }
+/* Puce d'origine, posée sur la vignette en bas à gauche. */
+.dos-puce {
+  position: absolute; left: 8px; bottom: 8px;
   font-size: 10.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
-  color: var(--lamp); border: 1px solid currentColor; border-radius: 100px; padding: 1px 7px;
+  color: var(--lamp); background: rgba(13, 20, 23, .82); border: 1px solid currentColor;
+  border-radius: 100px; padding: 2px 8px;
 }
-.dos-tuile-quoi { font-size: 12.5px; color: var(--ink3); line-height: 1.45; }
-.dos-tuile.on .dos-tuile-quoi { color: var(--lamp); }
 
 .profil-choix { margin-top: 14px; padding: 14px 16px; border: 1px solid var(--edge-hi);
   border-radius: var(--r-sm); background: var(--ground2); }
