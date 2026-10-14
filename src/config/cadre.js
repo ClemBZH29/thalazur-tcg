@@ -39,7 +39,7 @@ export const CADRE_PLEIN = {
 
 /** Le dos est livré au même format que le cadre, 1024 × 1536. Cette couleur
  *  ne sert que de fond d'attente pendant le chargement de l'image. */
-export const DOS_FOND = "#0a243d";
+export const DOS_FOND = "#012544";
 
 /** Découpe du sachet, alignée sur le premier quart de sa hauteur. */
 export const COUPE = 0.25;

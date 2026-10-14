@@ -39,8 +39,9 @@ minutes au plus).
 
 Illustration : `public/lancement/bodegue-endormi.webp` (16:9) et
 `bodegue-endormi-tel.webp` (9:16), prompts Sora dans le projet
-(`claude/assets-sora-lancement.json`). Tant qu'elles manquent, la page compose
-le décor des Missions et Bodégué serein, les yeux clos.
+(`claude/assets-sora-lancement.json`), livrées le 14/10/2026. Si l'image ne se
+charge pas, la page compose le décor des Missions et Bodégué serein, les yeux
+clos. Les « z » sont placés pour ces deux cadrages (`.attente-z`).
 
 ## Ouvrir le site
 
@@ -140,8 +141,12 @@ rouge ni d'arc-en-ciel) : il ne doit jamais trahir le palier d'une carte.
 « Tout effacer » garde les dos gagnés : celui des bêta-testeurs ne se regagne
 pas. La suppression du compte, elle, emporte tout.
 
-L'image du Dos de l'Éclaireur livrée avec la branche est provisoire (le dos
-actuel teinté) ; le prompt Sora est dans `claude/assets-sora-lancement.json`.
+Images livrées le 14/10/2026 : le Dos des Brumes passe à la version art déco
+(`public/carte-dos.webp`, or et bleu nuit) ; le Dos de l'Éclaireur en est la
+déclinaison rouge sur noir (`public/dos/eclaireur.webp`). Choix de Clément :
+le rouge, réservé jusqu'ici aux légendaires et aux full art, est admis pour ce
+dos exclusif — il habille toutes les cartes du joueur, il ne trahit donc aucun
+palier (charte des dos, § 7 bis).
 
 ## Le profil
 
