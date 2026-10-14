@@ -31,7 +31,10 @@ import "./styles/gabarit.css";
  * du retard). Le jeu est alors démonté : plus d'envoi vers le compte.
  */
 export default function RacineJeu() {
-  const [attente, setAttente] = useState(() => pageAttente());
+  // En développement, `?attente` dans l'adresse montre la page d'attente
+  // (outil « Simuler le lancement » des réglages MJ).
+  const [attente, setAttente] = useState(() => pageAttente()
+    || (import.meta.env.DEV && new URLSearchParams(window.location.search).has("attente")));
   useEffect(() => {
     if (attente) return undefined;
     const iv = setInterval(() => { if (pageAttente()) setAttente(true); }, 15000);

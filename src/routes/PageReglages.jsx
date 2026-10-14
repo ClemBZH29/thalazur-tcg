@@ -1,5 +1,6 @@
 import Reglages from "../components/Reglages.jsx";
 import { useJeu } from "../jeu/Jeu.jsx";
+import SimulationLancement from "../lancement/SimulationLancement.jsx";
 
 export default function PageReglages() {
   const jeu = useJeu();
@@ -40,6 +41,8 @@ export default function PageReglages() {
         jeu.setNbImages(n);
       }}
       onAvis={jeu.setAvis}
-    />
+    >
+      <SimulationLancement />
+    </Reglages>
   );
 }

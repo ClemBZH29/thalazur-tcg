@@ -200,3 +200,33 @@ describe("dos de cartes", () => {
       .toEqual({ gagnes: ["eclaireur"], choisi: "brumes" });
   });
 });
+
+describe("simulation de la remise (réglages MJ)", () => {
+  let Sim;
+  beforeEach(async () => {
+    globalThis.localStorage = stockageFactice();
+    vi.resetModules();
+    Sim = await import("../src/lancement/simulation.js");
+  });
+
+  test("remet la partie, garde l'originale, puis la restaure", async () => {
+    const S = await import("../src/lib/storage.js");
+    const avant = S.relireJeu(beta());
+    localStorage.setItem("brume-thalazur:mine", JSON.stringify({ schema: 10, brisesTotal: 12 }));
+    const remise = Sim.simulerRemise(avant);
+    expect(remise.collections).toEqual({});
+    expect(remise.dos.choisi).toBe("eclaireur");
+    expect(remise.lancement.avis).toBe("a-lire");
+    // Rejouer ne remplace pas la sauvegarde d'origine par la partie remise.
+    Sim.simulerRemise(remise);
+    const r = Sim.restaurerSimulation();
+    expect(r.jeu.boosters["troupe-valeran"]).toBe(42);
+    expect(JSON.parse(r.mine).brisesTotal).toBe(12);
+    expect(Sim.lireSimulation()).toBe(null);
+  });
+
+  test("une partie neuve est traitée comme celle d'un bêta-testeur", () => {
+    const S0 = { schema: 10, collections: {}, boosters: {}, profil: {} };
+    expect(Sim.simulerRemise(S0).lancement.avis).toBe("a-lire");
+  });
+});

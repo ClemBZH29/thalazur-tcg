@@ -98,6 +98,24 @@ ouverte.
 format 10 dans son stockage pour obtenir le dos. Comme pour le reste de la
 partie (voir `storage.js`), c'est accepté : le jeu vit dans le navigateur.
 
+### Tester la remise en local
+
+`npm run dev`, **sans être connecté**, puis Réglages MJ (`#/reglages`) →
+« Simuler le lancement » :
+
+- **Simuler la remise à zéro** applique à la partie du navigateur ce que fera
+  la migration 11 (`src/lancement/simulation.js`), sans changer de format.
+  Une partie qui n'a rien ouvert est traitée comme celle d'un bêta-testeur.
+  L'avis s'affiche ; une fois validé, le profil montre le Dos de l'Éclaireur.
+- **Restaurer** remet la partie, la mine et la copie de secours d'avant
+  (gardées dans `brume-thalazur:simulation-lancement`).
+- **Voir la page d'attente** ouvre `?attente` ; retirer `?attente` de
+  l'adresse pour revenir au jeu.
+
+Les boutons sont bloqués quand un compte est connecté : `.env.local` pointe sur
+la base de production. L'outil n'existe pas en production (la page des
+réglages MJ n'y est pas compilée).
+
 ### Prudence avec l'aperçu
 
 L'aperçu (`npm run apercu`) parle à la base de production. Sans
