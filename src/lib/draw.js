@@ -43,6 +43,23 @@ function tablesPourTaille(n) {
 }
 
 /**
+ * Les places où une full art peut sortir : les deux dernières, celles qui
+ * portent la montée (14/10/2026). Avant, la full art était décidée pour le
+ * booster entier et prenait toujours la cinquième — la carte la plus
+ * prometteuse. Sur la quatrième, elle laisse la cinquième jouer : une full art
+ * et une légendaire peuvent sortir ensemble.
+ *
+ * Chaque place tente sa full art à `taux.fullart` (1/4096), sauf la dernière
+ * quand une carte PJ l'a déjà prise : la quatrième tente toujours. Décision de
+ * Clément du 14/10/2026 : 1/4096 **par tentative**, ce qui fait environ une
+ * full art pour 2 048 boosters, deux fois plus qu'avant.
+ */
+export const PLACES_FULLART = 2;
+
+/** Full art attendues par booster : la quatrième tente toujours, la cinquième sans PJ. */
+export const fullartParBooster = (taux) => taux.fullart * (PLACES_FULLART - taux.pj);
+
+/**
  * Ouvre un booster. Pas de doublon à l'intérieur d'un même booster.
  *
  * options :
@@ -50,12 +67,17 @@ function tablesPourTaille(n) {
  *   speciales           { fullart: [], pj: [] } — cartes hors roster
  *   palierForce         force tous les emplacements sur un palier — mode test
  *   rainbowForce        "auto" | "toujours" | "jamais" — mode test
- *   garantirLegendaire  remplace l'avant-dernière carte si aucun légendaire n'est sorti
+ *   garantirLegendaire  remplace la dernière carte ordinaire si aucune légendaire n'est sortie
  *
- * Ordre de résolution : la carte spéciale est décidée pour le booster entier
- * avant tout le reste et occupe le dernier emplacement. La garantie de
- * légendaire se replie alors sur l'avant-dernier, pour que les deux puissent
- * coexister sans que l'une annule l'autre.
+ * Ordre de résolution, avant les emplacements : la cinquième place tente
+ * d'abord la carte PJ (1/8192), puis, sans elle, une full art (1/4096) ; la
+ * quatrième tente toujours sa full art (1/4096). Deux full art sorties sont
+ * deux cartes différentes. Un booster à carte spéciale n'est jamais un Appel.
+ * La garantie de légendaire prend la dernière place restée ordinaire, pour que
+ * les deux coexistent sans que l'une annule l'autre.
+ *
+ * `speciale` rend la plus prestigieuse des cartes hors roster sorties (la PJ
+ * avant la full art), pour le bandeau de l'ouverture.
  */
 export function ouvrirBooster(pool, taux, options = {}) {
   const {
@@ -67,11 +89,22 @@ export function ouvrirBooster(pool, taux, options = {}) {
     rng = Math.random,
   } = options;
 
-  // Tirage du booster entier, avant les emplacements.
+  // Cartes hors roster, avant les emplacements : la dernière place tente la
+  // PJ puis, sans elle, la full art ; les autres places de `PLACES_FULLART`
+  // tentent toujours la full art.
   let speciale = null;
+  let pj = false;
+  const placesFullart = [];
   if (!palierForce) {
-    if (speciales.pj?.length && rng() < taux.pj) speciale = "pj";
-    else if (speciales.fullart?.length && rng() < taux.fullart) speciale = "fullart";
+    const derniere = taille - 1;
+    pj = !!speciales.pj?.length && rng() < taux.pj;
+    if (speciales.fullart?.length) {
+      for (let s = Math.max(0, taille - PLACES_FULLART); s < taille; s++) {
+        if (s === derniere && pj) continue;
+        if (rng() < taux.fullart) placesFullart.push(s);
+      }
+    }
+    speciale = pj ? "pj" : placesFullart.length ? "fullart" : null;
   } else if (palierForce === "pj" || palierForce === "fullart") {
     speciale = palierForce;
   }
@@ -112,17 +145,29 @@ export function ouvrirBooster(pool, taux, options = {}) {
     for (let s = 0; s < taille && liste.length; s++) {
       cards.push({ ...liste[Math.floor(rng() * liste.length)], rainbow: false, slot: s });
     }
-  } else if (speciale && cards.length) {
-    const liste = speciales[speciale];
-    const tiree = liste[Math.floor(rng() * liste.length)];
-    cards[cards.length - 1] = { ...tiree, rainbow: false, slot: cards.length - 1 };
+  } else if (speciale) {
+    if (pj && cards.length) {
+      const liste = speciales.pj;
+      const tiree = liste[Math.floor(rng() * liste.length)];
+      cards[cards.length - 1] = { ...tiree, rainbow: false, slot: cards.length - 1 };
+    }
+    const sorties = new Set();
+    for (const s of placesFullart) {
+      if (s >= cards.length) continue;
+      let liste = speciales.fullart.filter((c) => !sorties.has(c.id));
+      if (!liste.length) liste = speciales.fullart;
+      const tiree = liste[Math.floor(rng() * liste.length)];
+      sorties.add(tiree.id);
+      cards[s] = { ...tiree, rainbow: false, slot: s };
+    }
   }
 
   // Filet de sécurité : on remplace la dernière carte plutôt que d'en ajouter un,
   // pour que la taille du booster reste celle annoncée.
   let garanti = false;
   if (garantirLegendaire && cards.length && !cards.some((c) => c.tier === "legendaire")) {
-    const cible = speciale ? cards.length - 2 : cards.length - 1;
+    let cible = cards.length - 1;
+    while (cible >= 0 && (cards[cible].tier === "fullart" || cards[cible].tier === "pj")) cible--;
     if (cible >= 0) {
       pris.delete(cards[cible].id);
       const force = piocher("legendaire", cible);

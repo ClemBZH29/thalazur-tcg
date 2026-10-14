@@ -92,6 +92,21 @@ Pocket est à 1 sur 500 pour une Couronne — une rareté taillée pour des
 millions de joueurs, qui rendrait le palier légendaire invisible sur une table
 de cinq personnes.
 
+**Full art et cartes PJ** se tentent avant les emplacements (14/10/2026) :
+
+| Place | Tentative |
+|-------|-----------|
+| 4ᵉ carte | une full art, 1 sur 4 096, toujours |
+| 5ᵉ carte | une carte PJ, 1 sur 8 192 ; sinon une full art, 1 sur 4 096 |
+
+Une full art pour 2 048 boosters environ (deux fois plus qu'avant, où elle
+était tirée pour le booster entier et prenait toujours la cinquième carte),
+une PJ pour 8 192. Sur la quatrième, la full art laisse la cinquième jouer :
+une full art et une légendaire peuvent sortir ensemble. Deux full art sorties
+ensemble sont deux cartes différentes ; une PJ et une full art ensemble, une
+chance sur trente-quatre millions. Pas de filet pour elles, et un booster à
+carte hors roster n'est jamais un Appel.
+
 Un **Appel de Valéran** (0,6 % par défaut) remplace les cinq tables par
 80 % rare / 20 % légendaire : une légendaire par Appel en moyenne. À 30 %, il
 apportait à lui seul un sixième des légendaires du jeu.

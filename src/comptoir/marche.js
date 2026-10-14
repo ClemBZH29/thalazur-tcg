@@ -1,6 +1,7 @@
 import { SLOTS, REVENTE, ECONOMIE, TIER_INFO } from "../config/tiers.js";
 import { affinite, norm, factionDe, roleCarte } from "./acheteurs.js";
 import { chanceDe } from "./voix.js";
+import { fullartParBooster } from "../lib/draw.js";
 
 /**
  * LE COMPTOIR — marché de l'occasion.
@@ -69,7 +70,7 @@ export function esperances(taux) {
   SLOTS.forEach((table) => {
     for (const [tier, p] of Object.entries(table)) e[tier] = (e[tier] || 0) + p;
   });
-  e.fullart = taux.fullart;
+  e.fullart = fullartParBooster(taux); // deux places tentent la full art
   e.pj = taux.pj;
   return e;
 }

@@ -20,7 +20,7 @@
  * ils accélèrent encore (voir audit-reliquaire.mjs).
  */
 import { readFileSync } from "node:fs";
-import { ouvrirBooster } from "../src/lib/draw.js";
+import { ouvrirBooster, fullartParBooster } from "../src/lib/draw.js";
 import { construirePool, deduireGrades } from "../src/lib/roster.js";
 import { GARANTIES, TAUX_DEFAUT, SLOTS, TABLE_APPEL } from "../src/config/tiers.js";
 import { TABLE_PARI, passeAujourdhui, propositions } from "../src/config/colporteur.js";
@@ -141,4 +141,5 @@ console.log(`   trouvaille d'expédition : ${Object.entries(tr).map(([t, p]) => 
 const f = frequences(SLOTS), fTot = PALIERS.reduce((s, t) => s + f[t], 0);
 console.log(`   carte du jour du Reliquaire : ${PALIERS.map((t) => `${pct(f[t] / fTot, 1)} ${t}`).join(" · ")}`);
 console.log(`   prix à l'aveugle : ${prixAveugle(SLOTS, TAUX_DEFAUT.rainbow)} vestiges (espérance ${nb(esperanceForge(SLOTS, TAUX_DEFAUT.rainbow), 1)})`);
+console.log(`   full art : une pour ${Math.round(1 / fullartParBooster(TAUX_DEFAUT))} boosters · PJ : une pour ${Math.round(1 / TAUX_DEFAUT.pj)}`);
 console.log(`   rainbow : ${pct(TAUX_DEFAUT.rainbow, 0)} par carte, ${pct(1 - (1 - TAUX_DEFAUT.rainbow) ** 5, 0)} des boosters en ont une`);

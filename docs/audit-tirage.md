@@ -98,7 +98,15 @@ Effets de bord, tous mesurés par `npm run audit` :
 - le Comptoir et les missions lisent les tables eux-mêmes (`esperances`,
   `nouvellesParBooster`) et s'ajustent seuls.
 
-## 4. Vérifié sans changement
+## 4. Full art et cartes PJ
+
+Hors de l'audit des paliers, mais retouchés le même jour à la demande de
+Clément : la 4ᵉ carte tente toujours une full art (1/4 096), la 5ᵉ tente la PJ
+(1/8 192) puis, sans elle, une full art (1/4 096). Une full art pour 2 048
+boosters environ, deux fois plus qu'avant ; une PJ pour 8 192, inchangé. Le
+Comptoir lit l'espérance par `fullartParBooster` (src/lib/draw.js).
+
+## 5. Vérifié sans changement
 
 | Module | Probabilités | Verdict |
 |--------|--------------|---------|
