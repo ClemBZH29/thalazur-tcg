@@ -153,7 +153,9 @@ palier (charte des dos, § 7 bis).
 Le profil était une longue page de blocs de texte. Il passe en quatre onglets,
 chacun à son adresse : **Profil** (`#/profil` : pseudo, classement, titre,
 carte préférée), **Dos de cartes** (`#/profil/dos`), **Préférences**,
-**Compte et données** (synchronisation, fichiers, suppression). Un en-tête
+**Compte et données** (synchronisation, fichiers, suppression). L'onglet des
+dos ne montre que les dos possédés : un dos exclusif ne s'affiche pas chez qui
+ne l'a pas. Un en-tête
 commun montre le nom, le titre, trois compteurs et le dos choisi en vignette.
 Les fenêtres `confirm` du navigateur (import, « Tout effacer ») sont remplacées
 par des choix dans la page.

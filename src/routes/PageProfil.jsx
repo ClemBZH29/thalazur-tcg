@@ -11,7 +11,7 @@ import { LEGAL } from "../config/legal.js";
 import { PSEUDO_MAX, nettoyerPseudo, pseudoValide } from "../succes/classement.js";
 import ChoixCartePreferee from "../components/ChoixCartePreferee.jsx";
 import Icone from "../components/Icone.jsx";
-import { DOS, dosChoisi, dosDisponibles } from "../config/dos.js";
+import { dosChoisi, dosDisponibles } from "../config/dos.js";
 
 const ETAT_SYNC = {
   "a-jour": ["Partie à jour sur votre compte", "ok"],
@@ -216,14 +216,14 @@ function ComptesIndisponibles() {
 }
 
 /**
- * Onglet Dos de cartes : la collection de dos, gagnés ou non. Un dos gagné se
- * choisit d'un clic ; un dos à gagner dit comment l'obtenir, sans montrer
- * plus que sa silhouette.
+ * Onglet Dos de cartes : les dos que le joueur possède, et eux seuls. Un dos
+ * exclusif ne s'affiche pas à qui ne l'a pas : ce serait montrer une
+ * récompense qu'il ne pourra jamais obtenir.
  */
 function OngletDos() {
   const { etat, setEtat } = useJeu();
   const choisi = dosChoisi(etat);
-  const dispo = new Set(dosDisponibles(etat).map((d) => d.id));
+  const possedes = dosDisponibles(etat);
   const choisir = (id) => setEtat((s) => ({ ...s, dos: { gagnes: s.dos?.gagnes || [], choisi: id } }));
 
   return (
@@ -232,14 +232,12 @@ function OngletDos() {
         <h3>Dos de cartes</h3>
         <p className="muted">Le dos choisi habille toutes vos cartes encore face cachée.</p>
         <ul className="dos-galerie" role="list">
-          {DOS.map((d) => {
-            const a = dispo.has(d.id);
+          {possedes.map((d) => {
             const on = choisi.id === d.id;
             return (
               <li key={d.id}>
-                <button type="button" className={`dos-tuile${on ? " on" : ""}${a ? "" : " verrou"}`}
-                  aria-pressed={a ? on : undefined} disabled={!a}
-                  onClick={() => a && choisir(d.id)}>
+                <button type="button" className={`dos-tuile${on ? " on" : ""}`}
+                  aria-pressed={on} onClick={() => choisir(d.id)}>
                   <span className="dos-tuile-carte" style={{ background: d.fond }}>
                     <img src={`${import.meta.env.BASE_URL}${d.fichier}`} alt="" loading="lazy" draggable="false" />
                     {on && <span className="dos-tuile-coche" aria-hidden="true"><Icone nom="coche" taille={16} /></span>}
@@ -248,7 +246,7 @@ function OngletDos() {
                     {d.nom}
                     {d.exclusif && <span className="dos-exclusif">Exclusif</span>}
                   </span>
-                  <span className="dos-tuile-quoi">{a ? (on ? "Dos affiché" : "Choisir ce dos") : d.obtention}</span>
+                  <span className="dos-tuile-quoi">{on ? "Dos affiché" : "Choisir ce dos"}</span>
                 </button>
               </li>
             );
