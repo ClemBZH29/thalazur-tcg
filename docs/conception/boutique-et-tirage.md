@@ -66,23 +66,59 @@ distribution globale.
 
 | Emplacement | Table |
 |-------------|-------|
-| 1 à 3 | Commun garanti |
-| 4 | 95,5 % peu commun · 3,8 % rare · 0,7 % légendaire |
-| 5 | 75,5 % peu commun · 20 % rare · 4,5 % légendaire |
+| 1 à 3 | Commune garantie |
+| 4 | 45 % commune · 52 % peu commune · 2,8 % rare · 0,2 % légendaire |
+| 5 | 72 % peu commune · 25 % rare · 3 % légendaire |
 
-Le calibrage est aligné sur Hearthstone : **27,9 %** de chances d'un rare ou
-mieux par booster, et un légendaire **tous les dix-neuf boosters**. À titre de
-repère, Pokémon TCG Pocket est à 21,1 % pour une 1-Étoile et 1 sur 500 pour une
-Couronne — une rareté taillée pour des millions de joueurs et une monétisation,
-qui rendrait le palier légendaire invisible sur une table de cinq personnes.
+**Recalibré le 14/10/2026** ([audit du tirage](../audit-tirage.md)). La rareté
+que sent le joueur n'est pas le nombre de cartes d'un palier par booster, mais
+la chance de tirer **une carte précise** : la table se partage entre toutes les
+cartes du palier. Avec 110 communes, 66 peu communes, 33 rares et
+11 légendaires, l'ancienne table rendait une légendaire précise aussi fréquente
+qu'une rare précise, et une peu commune aussi fréquente qu'une commune — on
+complétait les légendaires avant les rares. La rareté double désormais à peu
+près à chaque palier :
+
+| Palier | Par booster | Une carte précise |
+|--------|-------------|-------------------|
+| Commune | 3,43 | 3,1 % |
+| Peu commune | 1,22 | 1,9 % |
+| Rare | 0,30 | 0,9 % |
+| Légendaire | 0,05 | 0,45 % |
+
+Filet et Appel compris : une légendaire dans un booster sur vingt et un,
+environ 30 % de chances d'une rare ou mieux. À titre de repère, Pokémon TCG
+Pocket est à 1 sur 500 pour une Couronne — une rareté taillée pour des
+millions de joueurs, qui rendrait le palier légendaire invisible sur une table
+de cinq personnes.
+
+**Full art et cartes PJ** se tentent avant les emplacements (14/10/2026) :
+
+| Place | Tentative |
+|-------|-----------|
+| 4ᵉ carte | une full art, 1 sur 4 096, toujours |
+| 5ᵉ carte | une carte PJ, 1 sur 8 192 ; sinon une full art, 1 sur 4 096 |
+
+Une full art pour 2 048 boosters environ (deux fois plus qu'avant, où elle
+était tirée pour le booster entier et prenait toujours la cinquième carte),
+une PJ pour 8 192. Sur la quatrième, la full art laisse la cinquième jouer :
+une full art et une légendaire peuvent sortir ensemble. Deux full art sorties
+ensemble sont deux cartes différentes ; une PJ et une full art ensemble, une
+chance sur trente-quatre millions. Pas de filet pour elles, et un booster à
+carte hors roster n'est jamais un Appel.
 
 Un **Appel de Valéran** (0,6 % par défaut) remplace les cinq tables par
-70 % rare / 30 % légendaire.
+80 % rare / 20 % légendaire : une légendaire par Appel en moyenne. À 30 %, il
+apportait à lui seul un sixième des légendaires du jeu.
 
-Deux filets de sécurité, sur le modèle de Hearthstone : un légendaire est
-garanti dans les **huit premiers boosters**, puis forcé **tous les vingt-cinq**
-si aucun n'est sorti. Sans le premier, quatre visiteurs sur cinq découvriraient
-le site sans jamais croiser le palier qui justifie tout le dispositif.
+Deux filets de sécurité, sur le modèle de Hearthstone : une légendaire est
+garantie dans les **dix premiers boosters**, puis forcée après **trente-neuf
+boosters** sans. Sans le premier, quatre visiteurs sur cinq découvriraient le
+site sans jamais croiser le palier qui justifie tout le dispositif. Deux
+premières légendaires sur trois et un quart de toutes les légendaires sortent
+du filet : c'est voulu, il borne la malchance. **Il est muet** : l'écran
+annonçait « légendaire garantie », et le joueur apprenait que sa carte était
+forcée au moment où elle devait le surprendre.
 
 Aucun doublon à l'intérieur d'un même booster. Entre deux boosters, les doublons
 sont permis, comptés dans la bibliothèque, et revendus automatiquement.
@@ -101,15 +137,16 @@ Tout se joue en pièces d'or, en local.
 | Revente garantie d'un exemplaire en trop | 2 / 5 / 15 / 50 PO selon le palier |
 | Gain de la mine | × 15 sur ce que paient les kobolds, plafonné à 480 PO par jour |
 
-Ces valeurs forment un point fixe. Un booster contient en moyenne 3 communs,
-1,71 peu commun, 0,24 rare et 0,052 légendaire, soit 20,7 PO de revente quand la
-collection est avancée — un coût net de 99 PO, donc 3,6 boosters par jour.
+Ces valeurs forment un point fixe. Un booster contient en moyenne 3,43 communes,
+1,22 peu commune, 0,30 rare et 0,05 légendaire, soit 20 PO de revente quand la
+collection est avancée — un coût net de 100 PO, donc 3,6 boosters par jour.
 
 Au démarrage presque rien n'est doublon, la revente rapporte donc peu et le
 rythme réel part de 3,0 pour monter vers 3,6 à mesure que le roster se remplit.
 L'économie s'accélère toute seule au moment où les nouvelles cartes se raréfient.
-En simulation sur 300 parties : 3,4 boosters par jour, premier légendaire au
-6ᵉ booster en moyenne, roster complet en quatre mois environ.
+En simulation (`scripts/audit-tirage.mjs`) : première légendaire au
+8ᵉ ou 9ᵉ booster, extension complète en 630 à 680 boosters, soit trois mois
+à sept boosters par jour — le Comptoir et le Reliquaire raccourcissent encore.
 
 Le plafond ne s'applique qu'à l'accumulation passive : ce que le joueur est allé
 chercher lui-même — une vente au Comptoir, une pesée d'étoile chez les kobolds —
@@ -204,6 +241,12 @@ mouvement réduit, des fondus seulement, et le nom apparaît quand même.
 
 Les deux ont aussi leur son, à la montée et à la révélation (`audio.js`).
 
+
+**« Tout ouvrir » ne les saute pas** (14/10/2026). Le raccourci, depuis le
+sachet comme pendant la révélation, passe les cartes ordinaires mais pas les
+full art ni les PJ : chacune se retourne d'elle-même avec sa cérémonie, on la
+dégage, puis vient la suivante, puis le bilan. Une carte qui sort une fois sur
+des milliers de boosters ne doit pas passer inaperçue parce qu'on était pressé.
 ## Gestes
 
 La déchirure suivait le doigt jusqu'au bout — 230 px de trajet cumulé. Au

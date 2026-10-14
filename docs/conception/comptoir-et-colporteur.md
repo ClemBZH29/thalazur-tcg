@@ -314,10 +314,17 @@ pas grisée, elle n'est pas proposée.
 | Affaire | Ce qu'il fait | Prix |
 |---------|---------------|------|
 | **Le lot** | Il emporte tout le surplus d'un palier, sans trier | il paie ×2,2 la revente |
-| **Le troc** | Trois doublons contre une carte manquante du palier au-dessus | rien |
-| **Le pari** | Une carte scellée, peu commune au minimum, tirée devant vous | 55 PO |
+| **Le troc** | Trois doublons contre une carte manquante du palier au-dessus, rare au plus | rien |
+| **Le pari** | Une carte scellée, peu commune au minimum, tirée devant vous (table du cinquième emplacement : 72 / 25 / 3 %) | 55 PO |
 | **La botte** | Un sachet sous le manteau, ouvert sur-le-champ | 70 PO au lieu de 120 |
 | **L'irisation** | Il lustre un doublon jusqu'à l'écaille | 120 PO |
+
+**Le troc s'arrête aux rares** (14/10/2026). Une carte *manquante* livrée à
+chaque passage coupe la queue du collectionneur, ces dernières cartes qu'on
+attend des semaines : jusqu'aux légendaires, il divisait par deux le temps de
+compléter l'extension, et Mirko devenait la vraie source des légendaires
+([audit du tirage](../audit-tirage.md)). Elles restent au booster, à la pièce
+du jour du Comptoir et au Reliquaire.
 
 Le lot et le troc passent en tête quand ils sont possibles : ce sont les deux
 qui répondent à un état de collection précis. La troisième place se tire au

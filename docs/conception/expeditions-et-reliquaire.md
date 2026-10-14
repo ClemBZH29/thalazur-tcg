@@ -29,7 +29,10 @@ horaire un peu moindre pour les longues (×1,0, ×0,9, ×0,8).
 - des PO, 0,1 par point, dans la limite de **100 PO par jour pour toutes les
   expéditions** (remise à zéro à minuit local) ;
 - des vestiges, 0,05 par point, pour le Reliquaire ;
-- une carte trouvée toutes les 12 heures, commune à rare, jamais légendaire ;
+- une carte trouvée toutes les 12 heures, commune à rare, jamais légendaire :
+  70 % de communes, 25 % de peu communes, 5 % de rares (part du palier,
+  partagée entre ses cartes — pesée carte par carte jusqu'au 14/10/2026, elle
+  ne rendait qu'1,7 % de rares) ;
 - de l'expérience : 0,5 XP par heure pour chaque compagnon, quelle que soit sa
   rareté, et 2 XP par heure pour le Lieu (moitié moins si l'équipe est incomplète).
 

@@ -46,6 +46,44 @@ describe("tirage", () => {
     expect(g.garanti).toBe(false);
   });
 
+  test("la quatrième tente toujours sa full art, la cinquième la PJ d'abord", () => {
+    const tout = { ...TAUX_DEFAUT, fullart: 1, pj: 1 };
+    const b = ouvrirBooster(pool, tout, { speciales, rng: graine(11) });
+    expect(b.cards.map((c) => c.tier).slice(3)).toEqual(["fullart", "pj"]);
+    expect(b.speciale).toBe("pj");
+    expect(b.appel).toBe(false);
+  });
+
+  test("deux full art sorties sont deux cartes différentes", () => {
+    for (let i = 0; i < 30; i++) {
+      const b = ouvrirBooster(pool, { ...TAUX_DEFAUT, fullart: 1, pj: 0 }, { speciales, rng: graine(i + 2) });
+      const [q, c] = b.cards.slice(3);
+      expect([q.tier, c.tier]).toEqual(["fullart", "fullart"]);
+      expect(q.id).not.toBe(c.id);
+    }
+  });
+
+  test("une full art en quatrième laisse la cinquième ordinaire", () => {
+    let vues = 0;
+    for (let i = 0; i < 400 && vues < 5; i++) {
+      // Le premier tirage est celui de la PJ, le deuxième celui de la quatrième place.
+      const suite = [0.9, 0, 0.9];
+      const g = graine(i + 100);
+      const rng = () => (suite.length ? suite.shift() : g());
+      const b = ouvrirBooster(pool, TAUX_DEFAUT, { speciales, rng });
+      expect(b.cards[3].tier).toBe("fullart");
+      expect(["peucommun", "rare", "legendaire"]).toContain(b.cards[4].tier);
+      vues++;
+    }
+    expect(vues).toBe(5);
+  });
+
+  test("avec deux cartes hors roster, la garantie prend la troisième place", () => {
+    const b = ouvrirBooster(pool, { ...TAUX_DEFAUT, fullart: 1, pj: 1 }, { speciales, garantirLegendaire: true, rng: graine(9) });
+    expect(b.cards[2].tier).toBe("legendaire");
+    expect(b.garanti).toBe(true);
+  });
+
   test("à graine égale, tirage égal", () => {
     const a = ouvrirBooster(pool, TAUX_DEFAUT, { speciales, rng: graine(42) });
     const b = ouvrirBooster(pool, TAUX_DEFAUT, { speciales, rng: graine(42) });

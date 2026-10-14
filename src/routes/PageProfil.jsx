@@ -362,7 +362,7 @@ function Preferences() {
         <p className="muted">
           Par défaut, un doublon reste dans votre inventaire pour être vendu au
           Comptoir, où il vaut plus que le rachat immédiat
-          ({REVENTE.commun} PO un commun, {REVENTE.legendaire} un légendaire).
+          ({REVENTE.commun} PO une commune, {REVENTE.legendaire} une légendaire).
         </p>
         <label className="bascule" style={{ marginTop: 14 }}>
           <input type="checkbox" checked={reventeAuto === true}

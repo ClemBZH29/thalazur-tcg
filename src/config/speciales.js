@@ -5,8 +5,10 @@ import { slug } from "../lib/roster.js";
  * tirage propre au booster entier, résolu avant tout le reste.
  *
  * Les full art sont propres à une extension et déclarés dans son dossier
- * (src/extensions/<id>/extension.js) : une chance sur 4096 par booster.
- * Les PJ traversent toutes les extensions : une chance sur 8192.
+ * (src/extensions/<id>/extension.js) : une chance sur 4096 sur la quatrième
+ * carte, et autant sur la cinquième quand elle n'est pas une PJ.
+ * Les PJ traversent toutes les extensions : une chance sur 8192, cinquième
+ * carte. Le détail est dans `ouvrirBooster` (src/lib/draw.js).
  */
 
 export const PJ = [
