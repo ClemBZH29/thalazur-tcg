@@ -241,6 +241,12 @@ mouvement réduit, des fondus seulement, et le nom apparaît quand même.
 
 Les deux ont aussi leur son, à la montée et à la révélation (`audio.js`).
 
+
+**« Tout ouvrir » ne les saute pas** (14/10/2026). Le raccourci, depuis le
+sachet comme pendant la révélation, passe les cartes ordinaires mais pas les
+full art ni les PJ : chacune se retourne d'elle-même avec sa cérémonie, on la
+dégage, puis vient la suivante, puis le bilan. Une carte qui sort une fois sur
+des milliers de boosters ne doit pas passer inaperçue parce qu'on était pressé.
 ## Gestes
 
 La déchirure suivait le doigt jusqu'au bout — 230 px de trajet cumulé. Au

@@ -10,6 +10,14 @@ import { meilleur } from "../lib/roster.js";
 import { attenteAvantAchat, formatDuree } from "../lib/economie.js";
 import { creerCeremonie } from "../ouverture/ceremonies.js";
 
+/**
+ * Les places des cartes hors roster (full art, carte PJ) à partir de `depuis`.
+ * « Tout ouvrir » saute les cartes ordinaires, jamais celles-là : leur
+ * cérémonie est l'évènement du booster, une chance sur des milliers.
+ */
+const pleinesDepuis = (cards, depuis = 0) =>
+  cards.map((_, k) => k).filter((k) => k >= depuis && TIER_INFO[cards[k].tier]?.pleine);
+
 export default function Ouverture({
   booster, pool, speciales, taux, test, gratuit, bourse, garantirLegendaire,
   cfgImage, fichiers, sfx, ouverts, enCours, collection, mouvementReduit,
@@ -39,6 +47,12 @@ export default function Ouverture({
    * celui de l'étagère pour la seule ouverture suivante.
    */
   const [visite, setVisite] = useState(null);
+  /**
+   * Après « Tout ouvrir » : les places des cartes hors roster qui restent à
+   * montrer, dans l'ordre. `null` hors de ce mode. Chacune se retourne seule,
+   * avec sa cérémonie, puis on passe à la suivante, puis au bilan.
+   */
+  const [file, setFile] = useState(null);
   const [botte, setBotte] = useState(null);
   const visiteFaite = useRef(false);
 
@@ -133,6 +147,7 @@ export default function Ouverture({
     if (!acquises) { setEssai((k) => k + 1); return; }
     setTirage(t);
     setBotte(null);
+    setFile(null);
     setIndex(0);
     setEtat("dos");
     setPhase("sortie");
@@ -142,7 +157,17 @@ export default function Ouverture({
     t.cards.forEach((_, i) => differer(() => sfx.glisse(), 240 + i * 72));
     if (t.appel) differer(() => sfx.appel(), 300);
 
-    if (direct) {
+    const pleines = direct ? pleinesDepuis(t.cards) : [];
+    if (pleines.length) {
+      // « Tout ouvrir » depuis le sachet : les cartes ordinaires sont sautées,
+      // pas la full art ni la PJ, qui gardent leur cérémonie.
+      differer(() => {
+        setFile(pleines.slice(1));
+        setIndex(pleines[0]);
+        setPhase("revelation");
+        onProgres(pleines[0]);
+      }, 1060);
+    } else if (direct) {
       // Pas de révélation carte par carte : on saute à l'éventail, avec le
       // timbre du meilleur palier pour que le résultat s'entende quand même.
       differer(() => {
@@ -159,7 +184,7 @@ export default function Ouverture({
     } else {
       differer(() => setPhase("revelation"), 1060);
     }
-  }, [pool, videPool, speciales, taux, test, garantirLegendaire, onRecolte, sfx, onFini, prixAchat, offert, botte]);
+  }, [pool, videPool, speciales, taux, test, garantirLegendaire, onRecolte, sfx, onFini, onProgres, prixAchat, offert, botte]);
 
   /**
    * L'arrivée du colporteur, une fois par ouverture. Le garde par référence
@@ -212,6 +237,23 @@ export default function Ouverture({
     enSortie.current = true;
     cer.degager();
     sfx.glisse();
+    if (file) {
+      // Mode « Tout ouvrir » : la carte hors roster suivante, ou le bilan.
+      const [suite, ...reste] = file;
+      differer(() => {
+        if (suite !== undefined) {
+          setFile(reste);
+          setIndex(suite);
+          setEtat("dos");
+          onProgres(suite);
+        } else {
+          setFile(null);
+          setPhase("bilan");
+          onFini();
+        }
+      }, 240);
+      return;
+    }
     const suivant = index + 1;
     differer(() => {
       if (suivant < tirage.cards.length) {
@@ -223,7 +265,14 @@ export default function Ouverture({
         onFini();
       }
     }, 240);
-  }, [tirage, etat, index, sfx, onProgres, onFini, cer]);
+  }, [tirage, etat, index, file, sfx, onProgres, onFini, cer]);
+
+  /* En mode « Tout ouvrir », la carte hors roster se retourne d'elle-même. */
+  useEffect(() => {
+    if (file === null || phase !== "revelation" || etat !== "dos") return;
+    const id = setTimeout(reveler, 420);
+    return () => clearTimeout(id);
+  }, [file, phase, etat, reveler]);
 
   /**
    * Sauter la révélation en cours. Les cartes sont déjà acquises et débitées
@@ -232,9 +281,19 @@ export default function Ouverture({
    * résultat s'entende même quand on a coupé la cérémonie.
    */
   const toutReveler = useCallback(() => {
-    if (!tirage) return;
+    if (!tirage || file !== null) return;
     purger();
     cer.nettoyer();
+    // Les cartes hors roster encore à voir gardent leur cérémonie : celle à
+    // l'écran si elle n'est pas encore de face, et les suivantes.
+    const pleines = pleinesDepuis(tirage.cards, etat === "face" ? index + 1 : index);
+    if (pleines.length) {
+      setFile(pleines.slice(1));
+      setIndex(pleines[0]);
+      setEtat("dos");
+      onProgres(pleines[0]);
+      return;
+    }
     const top = meilleur(tirage.cards);
     sfx.revele(top.tier);
     if (top.rainbow) sfx.rainbow();
@@ -242,7 +301,7 @@ export default function Ouverture({
     setEtat("face");
     setPhase("bilan");
     onFini();
-  }, [tirage, sfx, onFini, cer]);
+  }, [tirage, file, etat, index, sfx, onFini, onProgres, cer]);
 
   const relancer = () => {
     purger();
@@ -250,6 +309,7 @@ export default function Ouverture({
     onFini();
     setTirage(null);
     setNouvelles(new Set());
+    setFile(null);
     setVisite(null);
     visiteFaite.current = false;
     setPhase("sachet");
@@ -282,7 +342,8 @@ export default function Ouverture({
     return () => window.removeEventListener("keydown", k);
   }, [phase, etat, reveler, degager]);
 
-  const restants = tirage ? tirage.cards.length - index - 1 : 0;
+  // En mode « Tout ouvrir », il ne reste que les cartes hors roster de la file.
+  const restants = !tirage ? 0 : file !== null ? file.length : tirage.cards.length - index - 1;
   const aide =
     etat === "dos" ? "Touche la carte pour la retourner"
     : etat === "face" ? "Glisse pour dégager · touche pour agrandir"
@@ -297,8 +358,8 @@ export default function Ouverture({
             cherche à cet instant, pas la sortie. L'étagère reste à un clic
             dans la navigation du site, juste au-dessus. */}
         {phase === "revelation" ? (
-          <button className="btn quiet sm" onClick={toutReveler}>
-            Tout ouvrir{restants > 0 ? ` · ${restants + 1} cartes` : ""}
+          <button className="btn quiet sm" onClick={toutReveler} disabled={file !== null}>
+            Tout ouvrir{restants > 0 && file === null ? ` · ${restants + 1} cartes` : ""}
           </button>
         ) : (
           <button className="btn quiet sm" onClick={onRetour}>Retour aux boosters</button>
