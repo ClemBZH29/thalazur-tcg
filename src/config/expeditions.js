@@ -30,6 +30,7 @@ export const EXPEDITION = {
   xpCarte: { parHeure: 0.5 },
   // Multipliée par (0,5 + 0,5 × remplissage) : une équipe incomplète fait moins progresser le Lieu.
   xpLieu: { parHeure: 2 },
-  // Une carte trouvée toutes les 12 heures de route, jamais légendaire.
+  // Une carte trouvée toutes les 12 heures de route, jamais légendaire. Les poids
+  // sont la part de chaque palier (70 % de communes…), pas le poids d'une carte.
   trouvailles: { toutesLes: 12, poids: { commun: 70, peucommun: 25, rare: 5 } },
 };

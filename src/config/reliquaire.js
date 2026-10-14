@@ -20,12 +20,15 @@ export const RELIQUAIRE = {
   multRainbow: 5,
   // La forge à l'aveugle (06/10/2026) : la carte du jour se présente face
   // cachée et se forge sans la retourner au prix moyen de la carte du jour
-  // (l'espérance de son prix, ~97 vestiges), relevé au multiple de `arrondi`
+  // (l'espérance de son prix, ~89 vestiges depuis le 14/10/2026), relevé au multiple de `arrondi`
   // supérieur : 100. Perdant sur une commune (50), juste sur une peu commune,
   // gagnant sur une rare (250), une légendaire (1 000) ou une rainbow. La
   // retourner est gratuit mais renonce au prix moyen pour la journée : c'est
   // ce renoncement qui fait le pari. `marge` > 1 ferait payer le frisson.
-  aveugle: { marge: 1, arrondi: 5 },
+  // Recalibrage du tirage (14/10/2026) : l'espérance est descendue à ~89
+  // vestiges, plus de communes par booster. L'arrondi au multiple de 25 garde
+  // le prix décidé, 100.
+  aveugle: { marge: 1, arrondi: 25 },
   // Le Reliquaire n'apparaît qu'une fois une extension complétée à 60 % : avant,
   // les boosters complètent mieux que lui, et la page ne ferait que promettre.
   // Une fois ouvert, il le reste. Le même seuil ouvre la dissolution depuis la

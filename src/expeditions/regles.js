@@ -106,13 +106,19 @@ export function partir(etat, { lieu, cartes, heures, pool = [], maintenant = Dat
 
   const est = estimer(etat, lieu, cartes, heures);
   const r = tirage(hacher(`${cleXP(lieu)}|${maintenant}|${cartes.map(cleXP).join(",")}`));
+  // `poids` est la part de chaque palier, partagée entre ses cartes. Pesés
+  // carte par carte, 70/25/5 devenaient 81/17/1,7 % (110 communes contre
+  // 33 rares) : une rare sur soixante trouvailles au lieu d'une sur vingt.
   const poids = EXPEDITION.trouvailles.poids;
   const source = pool.filter((c) => poids[c.tier]);
+  const parPalier = {};
+  for (const c of source) parPalier[c.tier] = (parPalier[c.tier] || 0) + 1;
+  const poidsDe = (c) => poids[c.tier] / parPalier[c.tier];
   const trouvees = [];
+  const tot = source.reduce((s, c) => s + poidsDe(c), 0);
   for (let i = 0; i < est.trouvailles && source.length; i++) {
-    const tot = source.reduce((s, c) => s + poids[c.tier], 0);
     let x = r() * tot;
-    const c = source.find((k) => (x -= poids[k.tier]) <= 0) || source[source.length - 1];
+    const c = source.find((k) => (x -= poidsDe(k)) <= 0) || source[source.length - 1];
     trouvees.push(cleXP(c));
   }
   const route = {

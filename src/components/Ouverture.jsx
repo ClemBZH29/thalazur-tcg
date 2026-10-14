@@ -484,9 +484,6 @@ export default function Ouverture({
           </div>
           {tirage.speciale === "pj" && <p className="bandeau-appel">Carte PJ</p>}
           {tirage.speciale === "fullart" && <p className="bandeau-appel">Pleine illustration</p>}
-          {tirage.garanti && (
-            <p className="scene-aide">Un légendaire a été garanti sur ce booster.</p>
-          )}
           {/* Le colporteur s'installe sous l'éventail : les cartes d'abord,
               l'affaire ensuite. Il ne remplace pas les actions du bilan — on
               peut l'ignorer et rouvrir un booster, il aura simplement passé. */}

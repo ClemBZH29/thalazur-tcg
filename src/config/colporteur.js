@@ -60,8 +60,13 @@ export const TARIFS = {
   lustrage: 120, // le chiffon et la salive de dragon
 };
 
-/** Table du pari : le plancher est peu commun, le reste est de la chance. */
-export const TABLE_PARI = { peucommun: 0.76, rare: 0.2, legendaire: 0.04 };
+/**
+ * Table du pari : le plancher est peu commun, le reste est de la chance. C'est
+ * la table du cinquième emplacement d'un booster (src/config/tiers.js) : le
+ * pari ne doit pas être une porte dérobée vers les légendaires. Il était à
+ * 4 %, plus d'une fois et demie le meilleur emplacement d'un booster.
+ */
+export const TABLE_PARI = { peucommun: 0.72, rare: 0.25, legendaire: 0.03 };
 
 /* ── Générateur pseudo-aléatoire à graine ──────────────────────────────────
    Les propositions doivent être stables : le même passage doit rendre les
@@ -167,16 +172,28 @@ function dealPari({ bourse, pool }) {
     id: "pari",
     titre: "Le pari du colporteur",
     phrase: "« Une carte, scellée. Peu commune au pire. Au mieux, tu me remercieras. »",
-    detail: `${TARIFS.pari} PO, tirée devant toi. Peu commun garanti, une chance sur cinq de rare.`,
+    detail: `${TARIFS.pari} PO, tirée devant toi. Peu commune garantie, une chance sur quatre de rare.`,
     cout: TARIFS.pari,
     effet: { pari: true },
   };
 }
 
+/**
+ * Le palier le plus haut que le troc peut rendre. Il s'arrête aux rares
+ * (14/10/2026) : une carte *manquante* livrée à chaque passage coupe la queue
+ * du collectionneur, ces dernières cartes qu'on attend des semaines. Jusqu'aux
+ * légendaires, le troc divisait par deux le temps de compléter l'extension
+ * (543 → 243 boosters, scripts/audit-tirage.mjs) et faisait de Mirko, non du
+ * booster, la vraie source des légendaires. Elles restent au booster, au
+ * Comptoir (pièce du jour) et au Reliquaire.
+ */
+export const TROC_PLAFOND = "rare";
+
 /** « Le troc » — trois doublons d'un palier contre une carte neuve du palier au-dessus. */
 function dealTroc({ collection, pool }) {
   const par = surplusParPalier(collection);
-  for (let i = 0; i < ECHELLE.length - 1; i++) {
+  const dernier = ECHELLE.indexOf(TROC_PLAFOND);
+  for (let i = 0; i < dernier; i++) {
     const bas = ECHELLE[i];
     const haut = ECHELLE[i + 1];
     const lignes = par[bas] || [];

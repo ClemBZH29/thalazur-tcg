@@ -27,22 +27,35 @@ export const TIER_INFO = Object.fromEntries(TIERS.map((t) => [t.id, t]));
 
 /**
  * Structure d'emplacements. Chaque position a sa propre table : c'est ce qui
- * produit la montée. Les trois premières cartes sont un plancher garanti,
- * le quatrième est légèrement enrichi, le cinquième nettement.
+ * produit la montée. Les trois premières cartes sont un plancher de communes,
+ * le quatrième hésite entre commune et peu commune, le cinquième est enrichi.
  *
- * Calibrage aligné sur Hearthstone : environ 28 % de chances d'un rare ou
- * mieux par booster, et un légendaire tous les dix-neuf boosters.
+ * Recalibrage du 14/10/2026 (docs/audit-tirage.md, scripts/audit-tirage.mjs).
+ * Ce qui compte pour le joueur n'est pas le nombre de cartes d'un palier par
+ * booster, mais la chance de tirer **une carte précise** : la table est divisée
+ * entre toutes les cartes du palier. Avec 110 communes, 66 peu communes,
+ * 33 rares et 11 légendaires, l'ancienne table rendait une légendaire précise
+ * aussi fréquente qu'une rare précise (0,71 % contre 0,77 %), et une peu
+ * commune aussi fréquente qu'une commune : on complétait les légendaires avant
+ * les rares. La nouvelle table double à peu près la rareté à chaque palier :
+ * 3,1 % · 1,9 % · 0,9 % · 0,45 % par carte précise et par booster, filet et
+ * Appel compris. Une légendaire dans un booster sur vingt et un, environ 30 %
+ * de chances d'une rare ou mieux.
  */
 export const SLOTS = [
   { commun: 1 },
   { commun: 1 },
   { commun: 1 },
-  { peucommun: 0.955, rare: 0.038, legendaire: 0.007 },
-  { peucommun: 0.755, rare: 0.2, legendaire: 0.045 },
+  { commun: 0.45, peucommun: 0.52, rare: 0.028, legendaire: 0.002 },
+  { peucommun: 0.72, rare: 0.25, legendaire: 0.03 },
 ];
 
-/** Booster exceptionnel : les cinq emplacements passent en Rare ou mieux. */
-export const TABLE_APPEL = { rare: 0.7, legendaire: 0.3 };
+/**
+ * Booster exceptionnel : les cinq emplacements passent en Rare ou mieux. Une
+ * légendaire en moyenne par Appel (elle était à 1,5 : l'Appel apportait à lui
+ * seul un sixième des légendaires du jeu).
+ */
+export const TABLE_APPEL = { rare: 0.8, legendaire: 0.2 };
 
 /**
  * `rainbow` est une surcouche indépendante du palier, tirée par carte.
@@ -59,21 +72,26 @@ export const TAUX_DEFAUT = {
  * Filets de sécurité, sur le modèle de Hearthstone. Sans eux, quatre visiteurs
  * sur cinq découvriraient le site sans jamais croiser le palier qui justifie
  * tout le dispositif.
+ *
+ * Ils sont muets (14/10/2026) : l'écran annonçait « légendaire garantie », et
+ * deux premières légendaires sur trois sortent du filet — le joueur apprenait
+ * que sa carte était forcée au moment où elle devait le surprendre. Un quart
+ * des légendaires viennent du filet ; c'est voulu, cela borne la malchance.
  */
 export const GARANTIES = {
-  premierLegendaire: 8, // légendaire garanti dans les huit premiers boosters
-  intervalle: 25,       // puis un légendaire forcé tous les vingt-cinq
+  premierLegendaire: 10, // une légendaire garantie dans les dix premiers boosters
+  intervalle: 40,        // puis une légendaire forcée après trente-neuf boosters sans
 };
 
 /** Revente automatique des doublons, en pièces d'or. */
 export const REVENTE = { commun: 2, peucommun: 5, rare: 15, legendaire: 50, fullart: 250, pj: 600 };
 
 /**
- * Économie. Le point fixe : un booster contient en moyenne 3 communs,
- * 1,71 peu commun, 0,24 rare et 0,052 légendaire, soit 20,7 PO de revente
- * quand la collection est avancée — un coût net de 99 PO, donc 3,6 boosters
- * par jour. Au démarrage rien n'est doublon, le rythme réel part de 3,0 et
- * monte vers 3,6 à mesure que le roster se remplit.
+ * Économie. Le point fixe : un booster contient en moyenne 3,43 communes,
+ * 1,22 peu commune, 0,30 rare et 0,05 légendaire (filet et Appel compris),
+ * soit 20 PO de revente quand la collection est avancée — un coût net de
+ * 100 PO, donc 3,6 boosters par jour. Au démarrage rien n'est doublon, le
+ * rythme réel part de 3,0 et monte vers 3,6 à mesure que le roster se remplit.
  */
 export const ECONOMIE = {
   depart: 600,
