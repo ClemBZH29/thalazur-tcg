@@ -1,0 +1,54 @@
+name: Ouverture du site
+
+# À lancer à la main (Actions → Ouverture du site → Run workflow), en tapant
+# OUVRIR. Pose l'étiquette Git `lancement` sur main puis publie le site ouvert :
+# format 11, les parties de la bêta repartent de zéro à leur prochaine lecture
+# et leurs joueurs reçoivent le Dos de l'Éclaireur.
+#
+# L'étiquette fait foi pour tous les déploiements suivants. Pour refermer le
+# site : supprimer l'étiquette sur GitHub (Code → Tags), puis relancer
+# « Déploiement GitHub Pages ». Voir docs/conception/lancement.md.
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: "Tapez OUVRIR pour ouvrir le site (remise à zéro des parties de la bêta)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  etiquette:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Confirmation
+        if: inputs.confirmation != 'OUVRIR'
+        run: |
+          echo "::error::Confirmation absente : tapez OUVRIR pour ouvrir le site."
+          exit 1
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Étiquette lancement
+        run: |
+          if git ls-remote --exit-code --tags origin refs/tags/lancement > /dev/null; then
+            echo "Le site est déjà ouvert : l'étiquette lancement existe, on republie seulement."
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git tag -a lancement -m "Ouverture de La Brume de Thalazur"
+            git push origin refs/tags/lancement
+          fi
+
+  publier:
+    needs: etiquette
+    uses: ./.github/workflows/deploy.yml
+    permissions:
+      contents: read
+      pages: write
+      id-token: write

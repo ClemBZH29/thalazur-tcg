@@ -1,9 +1,21 @@
 name: Déploiement GitHub Pages
 
+# La phase publiée (bêta, page d'attente, site ouvert) n'est pas choisie ici :
+# scripts/etat-site.mjs la déduit de la date et de l'étiquette `lancement`.
+# Voir docs/conception/lancement.md.
 on:
   push:
     branches: [main]
   workflow_dispatch:
+  # Appelé par « Ouverture du site » (lancement.yml) une fois l'étiquette posée.
+  workflow_call:
+  # Fermeture : le 25/10/2026 à minuit, heure de Paris (22 h UTC la veille).
+  # Le cron de GitHub peut prendre du retard : le site de la bêta bascule de
+  # lui-même sur la page d'attente à l'heure dite ; ce déploiement ne fait que
+  # retirer le jeu du paquet publié. Le second passage rattrape un premier perdu.
+  schedule:
+    - cron: "0 22 24 10 *"
+    - cron: "30 22 24 10 *"
 
 permissions:
   contents: read
@@ -19,6 +31,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Phase du site
+        run: |
+          git fetch --no-tags origin "+refs/tags/lancement:refs/tags/lancement" || true
+          node scripts/etat-site.mjs >> "$GITHUB_ENV"
       - uses: actions/setup-node@v4
         with:
           # Node 20 n'est plus maintenu ; Vite 7 demande 20.19 au minimum.

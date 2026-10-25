@@ -1,5 +1,7 @@
 import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
+import { fileURLToPath } from "node:url";
+import { phaseDuBuild } from "./src/config/phases.js";
 
 /**
  * Politique de sécurité du contenu (CSP), posée dans index.html au build.
@@ -50,10 +52,31 @@ function csp(env) {
 }
 
 export default defineConfig(({ mode }) => {
+  /* La phase du site (bêta, page d'attente, ouvert) est résolue ici, une fois,
+     et posée dans l'environnement avant que Vite ne lise les VITE_* : le site
+     la reçoit comme une constante. Sans valeur explicite, elle suit la date
+     (src/config/phases.js). */
+  const fichier = loadEnv(mode, process.cwd(), "VITE_");
+  /* Les tests tournent toujours en bêta (format 10), quelle que soit la phase
+     publiée : l'historique des migrations s'y vérifie tel quel. Ceux du
+     lancement passent en phase ouverte eux-mêmes (tests/lancement.test.js). */
+  process.env.VITE_SITE_ETAT = mode === "test"
+    ? "beta"
+    : phaseDuBuild(process.env.VITE_SITE_ETAT || fichier.VITE_SITE_ETAT);
   const env = loadEnv(mode, process.cwd(), "VITE_");
+  const phase = process.env.VITE_SITE_ETAT;
   return {
     plugins: [
       react(),
+      {
+        // Lue par la page d'attente, qui relit index.html de temps en temps :
+        // quand la version publiée n'est plus la sienne, elle recharge.
+        name: "phase-du-site",
+        transformIndexHtml: (html) => html.replace(
+          /<meta charset="UTF-8" \/>/,
+          `<meta charset="UTF-8" />\n    <meta name="phase-site" content="${phase}" />`
+        ),
+      },
       {
         name: "securite-en-tetes",
         apply: "build",
@@ -66,6 +89,14 @@ export default defineConfig(({ mode }) => {
       },
     ],
     base: "./",
+    resolve: {
+      alias: {
+        /* La racine montée par main.jsx. Pour la page d'attente seule, le jeu
+           n'entre pas dans le paquet : rien à réveiller depuis la console. */
+        "@racine": fileURLToPath(new URL(
+          phase === "ferme" ? "./src/lancement/RacineAttente.jsx" : "./src/RacineJeu.jsx", import.meta.url)),
+      },
+    },
     build: {
       // Les SDK Firebase dépassent 500 Ko, mais ne se chargent qu'à la demande.
       chunkSizeWarningLimit: 700,

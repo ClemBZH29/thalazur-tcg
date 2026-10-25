@@ -21,6 +21,8 @@ import { useDonjon } from "./donjon.js";
 import { useExpeditions } from "./expeditions.js";
 import { useMissions } from "./missions.js";
 import { compteSuivi } from "../lib/nuage/firebase.js";
+import { dosChoisi } from "../config/dos.js";
+import { poserDos } from "./dos.js";
 const DEFAUT = BOOSTER_DEFAUT;
 
 
@@ -78,6 +80,11 @@ export function Jeu({ children }) {
    * réalisées sur l'ordinateur. Le gain passif, lui, continue : la fusion de
    * la bourse sait qu'il court sur l'horloge.
    */
+  // Le dos choisi au profil habille toutes les cartes retournées du site.
+  // (`dosChoisi` rend un objet du catalogue : stable d'un rendu à l'autre.)
+  const dos = dosChoisi(etat);
+  useEffect(() => { poserDos(dos); }, [dos]);
+
   const [compteLu, setCompteLu] = useState(() => !compteSuivi());
   const lireCompteFait = useCallback(() => setCompteLu(true), []);
   const attendreCompte = useCallback(() => setCompteLu(false), []);

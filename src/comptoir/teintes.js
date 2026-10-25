@@ -1,4 +1,5 @@
 import { TIER_INFO } from "../config/tiers.js";
+import { urlDos } from "../jeu/dos.js";
 
 /**
  * Les teintes de rareté du Comptoir.
@@ -33,6 +34,6 @@ export function lueur(tier) {
  * un `url()` de CSS y pointerait à la racine du domaine.
  */
 export const dos = (tier) => ({
-  backgroundImage: `url(${import.meta.env.BASE_URL}carte-dos.webp)`,
+  backgroundImage: `url(${urlDos()})`,
   boxShadow: lueur(tier),
 });

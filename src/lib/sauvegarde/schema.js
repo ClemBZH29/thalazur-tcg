@@ -40,14 +40,22 @@
  *        réécrivaient tel quel ; l'onglet à jour les rejetait, et eux
  *        adoptaient sa réécriture par-dessus leurs propres actions. Au format
  *        10, ils se gèlent et demandent à recharger (09/10/2026).
+ * 11     Lancement du site : toute partie de la bêta repart de zéro, et une
+ *        partie jouée reçoit le Dos de l'Éclaireur (`lancement.js`). Ce
+ *        format n'existe que dans le build ouvert : tant que la bêta tourne,
+ *        le site reste au 10 — sinon il remettrait la bêta à zéro avant
+ *        l'heure (voir docs/conception/lancement.md).
  */
-export const SCHEMA = 10;
+export const SCHEMA_LANCEMENT = 11;
+export const SCHEMA = SITE_OUVERT ? SCHEMA_LANCEMENT : 10;
 
 /** Première version encore lisible. En dessous, on repart d'une partie neuve. */
 export const SCHEMA_MIN = 6;
 
 import RENUMEROTATION_TROUPE from "./renumerotation-troupe.json" with { type: "json" };
 import { SON_DEFAUT, lireSon } from "../../config/son.js";
+import { SITE_OUVERT } from "../../config/lancement.js";
+import { remiseLancement, remiseMineLancement } from "./lancement.js";
 
 /**
  * Remplace, dans toute une sauvegarde, les identifiants de carte de `table`
@@ -135,6 +143,12 @@ export const MIGRATIONS = {
   // reste coupé ; les volumes prennent leurs valeurs par défaut.
   9: {
     jeu: (d) => ({ ...d, reglages: { ...(d.reglages || {}), son: sonV9(d.reglages?.son) } }),
+  },
+  // Le lancement : la bêta repart de zéro (lancement.js). Le 10 n'a pas de
+  // migration : il ne fait que figer les vieux onglets.
+  11: {
+    jeu: remiseLancement,
+    mine: remiseMineLancement,
   },
 };
 

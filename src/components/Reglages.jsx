@@ -9,7 +9,7 @@ export default function Reglages({
   rows, source, grades, taux, cfgImage, test, bourse, son, reventeAuto, nbImages, avis,
   animations, sobreSysteme,
   onRoster, onGrades, onTaux, onCfgImage, onTest, onSon, onReventeAuto, onAnimations,
-  onImages, onAvis,
+  onImages, onAvis, children,
 }) {
   const compte = useCompte();
   const connecte = compte?.statut === "connecte";
@@ -333,6 +333,7 @@ export default function Reglages({
 
         {avis && <p className="avis">{avis}</p>}
       </section>
+      {children}
     </main>
   );
 }
