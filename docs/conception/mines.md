@@ -595,6 +595,12 @@ résistance (`xpFilon`). L'expérience par point de dégât est la même partout
 - **Onglet caché** : au-delà d'une minute, il compte comme une absence, à son
   rendement (`CACHE_MAX`). À 100 %, il valait mieux que toute la branche Veille.
 
+### La remise d'Azel
+
+Le rééquilibrage s'accompagne d'une remise à zéro des Mines et de leurs succès
+de strate, d'effondrement et de faveurs, annoncée par Azel le Destructeur
+(format 12). Voir `docs/conception/lancement.md`, « Azel le Destructeur ».
+
 ### Talents lisibles
 
 - Écho plafonne à 8 points (16 % de critique), Fortune à 12, Œil du sourcier
