@@ -9,6 +9,8 @@
  * dans une clé à part ; la restauration les remet telles quelles.
  */
 import { remiseLancement } from "../lib/sauvegarde/lancement.js";
+import { remiseJeuAzel } from "../lib/sauvegarde/azel.js";
+import { REMISE_MINES } from "../config/remises.js";
 import { CLE_SECOURS, lireMine, relireJeu } from "../lib/storage.js";
 import { SCHEMA } from "../lib/sauvegarde/schema.js";
 
@@ -38,6 +40,21 @@ export function simulerRemise(etat, { commeBeta = true } = {}) {
     ? { ...etat, boosters: { ...(etat.boosters || {}), simulation: 1 } }
     : etat;
   return relireJeu({ ...remiseLancement(source), schema: SCHEMA });
+}
+
+/**
+ * La remise d'Azel (migration 12), sur la partie de ce navigateur : succès des
+ * Mines retirés et écran d'Azel à lire, même si la partie n'a jamais joué aux
+ * Mines. La partie d'avant est gardée comme pour le lancement.
+ */
+export function simulerAzel(etat) {
+  if (!lireSimulation()) {
+    localStorage.setItem(CLE_SIMULATION, JSON.stringify({
+      t: Date.now(), jeu: etat, mine: lireMine(), secours: localStorage.getItem(CLE_SECOURS),
+    }));
+  }
+  const remise = remiseJeuAzel(etat);
+  return relireJeu({ ...remise, azel: { ...(remise.azel || {}), [REMISE_MINES]: "a-lire" }, schema: SCHEMA });
 }
 
 /** Rend `{ jeu, mine }` d'avant la simulation et efface la sauvegarde, ou `null`. */

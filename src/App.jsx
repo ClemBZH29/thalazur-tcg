@@ -29,6 +29,8 @@ import LimiteErreur from "./components/LimiteErreur.jsx";
 import BandeauVersion from "./components/BandeauVersion.jsx";
 import { exporter } from "./lib/storage.js";
 import AvisLancement, { avisEnAttente } from "./lancement/AvisLancement.jsx";
+import AvisAzel from "./remise/AvisAzel.jsx";
+import { remiseEnAttente } from "./config/remises.js";
 
 /* Les deux modules pèsent chacun plus que tout le reste de l'application :
    le Comptoir porte son moteur de marché, la mine son gréement d'animation.
@@ -396,6 +398,17 @@ function Garde() {
       <>
         <Brume />
         <AvisLancement />
+        <BandeauVersion />
+      </>
+    );
+  }
+  // Puis Azel, s'il a remis quelque chose à zéro (src/config/remises.js) :
+  // même principe, l'écran est la page tant qu'il n'est pas validé.
+  const remise = remiseEnAttente(etat);
+  if (remise) {
+    return (
+      <>
+        <AvisAzel remise={remise} />
         <BandeauVersion />
       </>
     );

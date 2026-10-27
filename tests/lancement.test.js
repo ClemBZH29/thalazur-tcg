@@ -93,15 +93,18 @@ describe("site ouvert (format 11)", () => {
   });
   afterEach(() => { vi.unstubAllEnvs(); vi.resetModules(); });
 
-  test("le format monte à 11", async () => {
-    const { SCHEMA } = await import("../src/lib/sauvegarde/schema.js");
-    expect(SCHEMA).toBe(11);
+  // Le format a continué de monter depuis (12 : la remise d'Azel, azel.test.js) ;
+  // la remise du lancement reste au 11, sur le chemin de toute partie de la bêta.
+  test("le format est au moins 11", async () => {
+    const { SCHEMA, SCHEMA_LANCEMENT } = await import("../src/lib/sauvegarde/schema.js");
+    expect(SCHEMA_LANCEMENT).toBe(11);
+    expect(SCHEMA).toBeGreaterThanOrEqual(11);
   });
 
   test("une partie de la bêta lue au chargement est remise, dos compris", () => {
     localStorage.setItem("brume-thalazur:partie", JSON.stringify(beta()));
     const e = S.charger();
-    expect(e.schema).toBe(11);
+    expect(e.schema).toBeGreaterThanOrEqual(11);
     expect(e.collections).toEqual({});
     expect(Object.keys(e.boosters)).toHaveLength(0);
     expect(e.bourse.po).toBeLessThan(9000);
@@ -138,7 +141,7 @@ describe("site ouvert (format 11)", () => {
   test("une mine de la bêta relue est une galerie neuve, sans solde", async () => {
     const { relireMine } = await import("../src/mines/sauvegarde.js");
     const m = relireMine(JSON.stringify({ schema: 10, regles: 99, brisesTotal: 900, profondeurMax: 40, effondrements: 5, eclats: 300 }));
-    expect(m.schema).toBe(11);
+    expect(m.schema).toBeGreaterThanOrEqual(11);
     expect(m.brisesTotal).toBe(0);
     expect(m.eclats).toBe(0);
     expect(m.remise).toBe(null);

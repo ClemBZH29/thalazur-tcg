@@ -1,7 +1,7 @@
 import { bourseNeuve } from "./economie.js";
 import { SON_DEFAUT } from "../config/son.js";
 import { cles, comparerMines, fusionnerMine } from "./nuage/fusion.js";
-import { SCHEMA, SCHEMA_LANCEMENT, migrer } from "./sauvegarde/schema.js";
+import { SCHEMA, SCHEMA_AZEL, SCHEMA_LANCEMENT, migrer } from "./sauvegarde/schema.js";
 import { fusionnerDos } from "../config/dos.js";
 import { estGele, geler } from "./gel.js";
 
@@ -87,6 +87,9 @@ const vide = () => ({
   // Lancement du site : { beta, avis: "a-lire" | "lu" } pour une partie de la
   // bêta remise à zéro (voir src/lib/sauvegarde/lancement.js).
   lancement: null,
+  // Remises à zéro annoncées par Azel le Destructeur : id -> "a-lire" | "lu"
+  // (voir src/config/remises.js et src/lib/sauvegarde/azel.js).
+  azel: null,
   // Numéro de la dernière écriture locale : { n, onglet } (voir `sauver`).
   // Il départage les onglets ouverts sur le site ; il ne compte pas pour la
   // synchronisation (exclu de `signature`).
@@ -188,6 +191,16 @@ function nettoyerBeta() {
   };
   if (ancienne(localStorage.getItem(CLE_MINE_STOCKAGE))) localStorage.removeItem(CLE_MINE_STOCKAGE);
   if (ancienne(localStorage.getItem(CLE_SECOURS), (c) => c?.jeu)) localStorage.removeItem(CLE_SECOURS);
+  // La remise d'Azel (format 12) : la mine d'avant part de même. La copie de
+  // secours reste — elle ne porte que la partie, relue remise si on la reprend.
+  if (SCHEMA >= SCHEMA_AZEL) {
+    const texte = localStorage.getItem(CLE_MINE_STOCKAGE);
+    if (texte != null) {
+      let n = NaN;
+      try { n = Number(JSON.parse(texte)?.schema); } catch { /* illisible : elle part */ }
+      if (!(n >= SCHEMA_AZEL)) localStorage.removeItem(CLE_MINE_STOCKAGE);
+    }
+  }
 }
 
 export function charger() {

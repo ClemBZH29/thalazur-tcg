@@ -1,0 +1,113 @@
+/* ------------------------------------------------------------------
+   Azel le Destructeur : l'écran des remises à zéro (src/remise/AvisAzel.jsx).
+
+   Un dragon noir sur un site sombre : le contraste vient de la scène, pas
+   du dragon. L'illustration le détache sur une brume gris-bleu plus claire
+   que --ground ; le voile assombrit seulement le côté du texte. Le seul
+   froid saturé de l'écran est le bleu de ses yeux, repris par le titre de
+   la voix — l'ambre du site reste au bouton, là où l'on agit.
+   ------------------------------------------------------------------ */
+
+html:has(.azel) { scrollbar-gutter: auto; }
+.azel {
+  --azel-oeil: #7fd2ff;
+  position: relative; z-index: 1;
+  min-height: 100vh; min-height: 100dvh;
+  display: grid; align-items: center; justify-items: end;
+  padding: 24px clamp(16px, 5vw, 64px);
+  color: var(--ink);
+  overflow: hidden;
+}
+
+/* ── La scène ───────────────────────────────────────────────────────── */
+.azel-scene { position: fixed; inset: 0; z-index: -1; background: #0b1013; }
+.azel-fond {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  object-fit: cover; object-position: 30% 45%;
+  animation: azel-souffle 11s ease-in-out infinite;
+}
+/* Le texte se lit à droite au bureau : le voile n'assombrit que ce côté. */
+.azel-voile {
+  position: absolute; inset: 0;
+  background:
+    linear-gradient(to right, transparent 0%, transparent 38%, rgba(8, 12, 15, .72) 62%, rgba(8, 12, 15, .9) 100%),
+    linear-gradient(to bottom, rgba(8, 12, 15, .35) 0%, transparent 25%, transparent 70%, rgba(8, 12, 15, .7) 100%);
+}
+
+/* Repli sans illustration : les ténèbres, et deux yeux qui s'allument. */
+.azel-repli {
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse 46% 52% at 30% 46%, #000 0%, rgba(0, 0, 0, .9) 38%, transparent 70%),
+    radial-gradient(ellipse 80% 90% at 30% 50%, #2a3a46 0%, #172129 45%, #0b1013 100%);
+}
+.azel-oeil {
+  position: absolute; top: 40%; width: 34px; height: 9px; border-radius: 50%;
+  background: var(--azel-oeil);
+  box-shadow: 0 0 10px 2px var(--azel-oeil), 0 0 42px 12px rgba(127, 210, 255, .35);
+  animation: azel-oeil 6s ease-in-out infinite;
+}
+.azel-oeil.g { left: calc(30% - 52px); transform: rotate(12deg); }
+.azel-oeil.d { left: calc(30% + 18px); transform: rotate(-12deg); }
+
+/* ── Le texte ───────────────────────────────────────────────────────── */
+.azel-carte {
+  width: min(520px, 100%);
+  padding: 30px 30px 26px;
+  background: rgba(19, 27, 32, .82);
+  border: 1px solid rgba(127, 210, 255, .22);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-lift), 0 0 60px rgba(127, 210, 255, .08);
+  backdrop-filter: blur(6px);
+  animation: azel-arrivee 1s cubic-bezier(.2, .8, .2, 1) both;
+}
+.azel-sur {
+  color: var(--lamp); font-size: 12px; font-weight: 700; letter-spacing: .18em; text-transform: uppercase;
+}
+.azel-carte h1 {
+  font-family: var(--font-display); font-variation-settings: var(--wonk);
+  font-size: clamp(26px, 3.6vw, 36px); font-weight: 700; line-height: 1.1; margin: 8px 0 16px;
+}
+.azel-carte p { color: var(--ink2); line-height: 1.6; }
+.azel-carte p + p { margin-top: 10px; }
+.azel-carte .azel-voix {
+  font-family: var(--font-display); font-style: italic; font-size: 18px;
+  color: var(--azel-oeil);
+  text-shadow: 0 0 18px rgba(127, 210, 255, .25);
+}
+.azel-listes { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 18px; }
+.azel-listes h2 {
+  font-size: 12px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--ink);
+  margin-bottom: 6px;
+}
+.azel-listes ul { margin: 0; padding-left: 18px; color: var(--ink2); line-height: 1.5; font-size: 14px; }
+.azel-listes li + li { margin-top: 4px; }
+.azel-ok { margin-top: 22px; width: 100%; }
+
+@keyframes azel-souffle { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.015); } }
+@keyframes azel-oeil { 0%, 86%, 100% { opacity: 1; } 90% { opacity: .1; } 94% { opacity: 1; } }
+@keyframes azel-arrivee { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
+[data-mouvement="reduit"] .azel-fond,
+[data-mouvement="reduit"] .azel-oeil,
+[data-mouvement="reduit"] .azel-carte { animation: none; }
+
+/* ── Téléphone : le dragon en haut, le texte en dessous ─────────────── */
+@media (max-aspect-ratio: 4/5) {
+  .azel { align-items: end; justify-items: center; padding-top: 38vh; }
+  .azel-fond { object-position: 50% 20%; }
+  .azel-voile {
+    background: linear-gradient(to bottom, rgba(8, 12, 15, .2) 0%, transparent 25%, rgba(8, 12, 15, .75) 48%, rgba(8, 12, 15, .95) 100%);
+  }
+  .azel-repli {
+    background:
+      radial-gradient(ellipse 70% 30% at 50% 24%, #000 0%, rgba(0, 0, 0, .9) 40%, transparent 72%),
+      radial-gradient(ellipse 100% 60% at 50% 22%, #2a3a46 0%, #172129 50%, #0b1013 100%);
+  }
+  .azel-oeil { top: 20%; }
+  .azel-oeil.g { left: calc(50% - 52px); }
+  .azel-oeil.d { left: calc(50% + 18px); }
+}
+@media (max-width: 520px) {
+  .azel-carte { padding: 22px 18px 20px; }
+  .azel-listes { grid-template-columns: 1fr; gap: 12px; }
+}

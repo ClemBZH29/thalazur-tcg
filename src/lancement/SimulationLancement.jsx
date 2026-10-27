@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useJeu } from "../jeu/Jeu.jsx";
 import { useCompte } from "../jeu/Compte.jsx";
 import { ecrireMine } from "../lib/storage.js";
-import { lireSimulation, restaurerSimulation, simulerRemise } from "./simulation.js";
+import { lireSimulation, restaurerSimulation, simulerAzel, simulerRemise } from "./simulation.js";
 
 /**
  * Réglages MJ (développement seulement) : simuler la remise à zéro du
@@ -22,6 +22,13 @@ export default function SimulationLancement() {
   const simuler = () => {
     setEtat(simulerRemise(etat));
     ecrireMine(null); // galerie neuve, comme la migration 11
+    rechargerMine();
+    rafraichir((n) => n + 1);
+  };
+
+  const azel = () => {
+    setEtat(simulerAzel(etat));
+    ecrireMine(null); // galerie neuve, comme la migration 12
     rechargerMine();
     rafraichir((n) => n + 1);
   };
@@ -58,6 +65,9 @@ export default function SimulationLancement() {
               Restaurer la partie du {new Date(sauvegarde.t).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })}
             </button>
           )}
+          <button className="btn sm" onClick={azel} disabled={connecte}>
+            Simuler la remise d'Azel (Mines)
+          </button>
           <a className="btn quiet sm" href="?attente#/">Voir la page d'attente</a>
         </div>
       </div>
