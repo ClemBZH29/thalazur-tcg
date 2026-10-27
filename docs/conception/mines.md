@@ -59,8 +59,9 @@ la remplit pas un jour sur deux, ou si un profil dépasse 300 PO/j.
 
 ### Les éclats comptés en strates, et la Faveur du Fossoyeur
 
-Un effondrement rapporte **un éclat par strate atteinte au-delà de la
-quatrième, dans cette mine** (`eclatsDispo`). La racine cubique de l'étoile
+*Remplacé le 27/10/2026 : les éclats se gagnent sur le record (voir « Le
+rééquilibrage du 27/10/2026 »).* Un effondrement rapportait **un éclat par
+strate atteinte au-delà de la quatrième, dans cette mine** (`eclatsDispo`). La racine cubique de l'étoile
 cumulée, couplée à une Faveur qui raccourcit chaque mine, rouvrait la boucle
 corrigée en septembre : 3 000 éclats en deux semaines. La strate est déjà le
 logarithme de l'étoile ; plus de boucle possible, et le gain se lit d'avance.
@@ -504,6 +505,125 @@ profondeur seule repart de 1 et l'équipe redescend jusqu'où elle tient. Sans
 cela, un filon de la strate 25 sous la nouvelle pente pèserait dix puissances
 de plus que tout ce que l'équipe frappe, et le cours ne paierait plus rien.
 Les succès de strate déjà réclamés restent acquis.
+
+## Le rééquilibrage du 27/10/2026
+
+Après la partie de Mormegil (strate 16, niveau 101, 258 éclats en un peu plus
+d'une journée, sans triche), l'audit du 27/10/2026
+(`claude/audit-mines-gameplay.md` dans le projet) a mesuré chaque mécanique et
+poussé les stratégies extrêmes. Décisions de Clément : éclats sur le record,
+pioches en secondes, expérience sur la dureté, Mémoire à revoir, Puits au tiers
+du record. Le reste corrige des failles, sans décision de design.
+
+### Les éclats se gagnent sur le record
+
+Compter les éclats dans la mine en cours bornait ce qu'une mine rapporte, pas
+le nombre de mines par heure. Avec la Mémoire, la strate 12 tombait en une
+minute : huit éclats toutes les deux minutes, l'arbre entier en moins de dix
+heures de jeu (la « boucle courte »).
+
+Le total des éclats gagnés est maintenant une fonction du **record** de
+profondeur, toutes mines confondues (`eclatsDuRecord`, `record`) ; un
+effondrement verse la différence avec ce qui a déjà été gagné. C'est le prestige
+de Cookie Clicker, qui suit le cumul de toujours : refaire la même mine ne
+rapporte rien. La courbe est cubique, `⌊(record − 4)³ / 6⌋` : record 7 →
+4 éclats, 10 → 36, 13 → 121, 16 → 288. La salle du Fossoyeur dit, quand
+l'effondrement ne rapporte rien, quelle profondeur le ferait payer.
+
+Les éclats déjà gagnés restent : ils retardent seulement les suivants
+(Mormegil, 258 éclats, n'en regagnera qu'en passant la strate 16).
+
+Nouveaux champs de la mine, avec leur valeur par défaut dans `etatNeuf()` et
+gardés à l'effondrement : `record`, `niveauRecord`. Pas de migration : une
+partie sans `record` le lit sur sa profondeur maximale.
+
+### La récolte suit les coups
+
+Conséquence directe : arrivé au mur des strates 15-16, un joueur ne gagne plus
+d'éclats, donc plus de force. Le filon payait son étoile en cédant ; au front,
+un seul filon demandait une semaine de production, et pendant cette semaine
+plus une étoile n'entrait — `audit-economie` : grosse commande livrée un jour
+sur trois au lieu de tous les jours. **Chaque coup arrache maintenant sa part
+d'étoile** (`entamer`, `infliger`), comme les cookies tombent à la seconde. Le
+total d'un filon ne change pas ; un filon riche multiplie tout ce qu'on lui
+arrache. Le composant, l'absence et les joueurs simulés passent tous par
+`infliger`.
+
+### Les pioches ajoutent des secondes
+
+Une frappe vaut le plus grand de deux termes : une base, ou une part de la
+production (`secondesParFrappe`). Les pioches multipliaient la base, que la
+part de production dépasse dès la strate 3 : passé les premières minutes,
+aucune n'avait d'effet, et la Pioche de Kazim s'achetait pour rien. Elles
+ajoutent maintenant des secondes de production à chaque frappe (+0,05 / +0,1 /
++0,25 / +0,5 s, `type: "frappe"`), et 20 fois ces secondes à la base, pour que
+la Pioche de fer serve dès la première minute. La Pioche de Kazim vaut environ
+quatre points de Force.
+
+### L'expérience suit la dureté
+
+Chaque filon rapportait l'expérience de sa strate, si tendre soit-il : dans une
+mine neuve, remonter et briser des centaines de filons d'une frappe donnait
+autant que quatre cents filons du front — 2,4 niveaux par mine. Un filon du
+front rapporte ce qu'il rapportait ; un filon plus tendre, au prorata de sa
+résistance (`xpFilon`). L'expérience par point de dégât est la même partout.
+
+### Mémoire et Puits
+
+- **Mémoire du contremaître** : chaque mine rouvre au **tiers du meilleur
+  niveau**, points de talent à replacer (`MEMOIRE_PART`). Elle gardait talents
+  et niveau entiers, et la mine neuve partait avec toute la force de la
+  précédente. Replacer à chaque mine sert aussi de remise à plat des talents.
+- **Puits de reprise** : rouvre au **tiers du record** (`PUITS_PART`) au lieu de
+  la strate 3, qui ne faisait plus gagner une frappe quand on pouvait se
+  l'offrir.
+
+### Les failles fermées
+
+- **Cadence** : la répétition du clavier ne frappe plus (`e.repeat`), et un
+  seau de jetons ne compte que 10 frappes par seconde, rafales de 15
+  (`FRAPPES_MAX`, `FRAPPES_RAFALE`). Un autoclicker à 100 frappes/s n'est plus
+  qu'un joueur très rapide : strate 13 en 68 min, comme Mormegil à la main.
+- **Tirage fixé** : le rang d'un filon dépend d'une graine de la mine, de la
+  strate et du numéro du filon (`tirageFilon`, champ `graine`). Remonter puis
+  redescendre retirait le rang : ×4 sur la récolte en recommençant jusqu'au
+  ×12. Comme le Grimoire de Cookie Clicker, l'issue ne change plus.
+- **Horloge** : `dernierTick` ne recule plus. Une horloge reculée ne crédite
+  rien jusqu'à ce qu'elle rattrape l'instant déjà joué ; au-delà d'un jour
+  d'écart, on la croit (`HORLOGE_TOLERANCE`). Avant, reculer puis avancer
+  l'heure rejouait le rattrapage à volonté.
+- **Onglet caché** : au-delà d'une minute, il compte comme une absence, à son
+  rendement (`CACHE_MAX`). À 100 %, il valait mieux que toute la branche Veille.
+
+### Talents lisibles
+
+- Écho plafonne à 8 points (16 % de critique), Fortune à 12, Œil du sourcier
+  compris (`TALENT_MAX`, `talentMax`) : au plafond, le bouton laisse place à
+  « au maximum ». Les points se plaçaient sans rien faire.
+- La pastille affiche la valeur qui agit : « 10 + 1 » avec l'Œil.
+- Les filons riches se disent en pourcentage (`partRiche`) : « un sur 3 » ne
+  bougeait plus à partir de Fortune 8, et l'Œil paraissait sans effet. La
+  teinte des filons va jusqu'à Fortune 12.
+- La description d'Écho ne parle plus de vente.
+
+### Ce que mesurent les audits
+
+- `audit-eclats` (joueur qui effondre quand le gain vaut la moitié de ses
+  éclats, ou après 30 min sans descendre) : à une heure par jour, première
+  faveur j2, arbre complet j57 ; à trois heures, j27.
+- `audit-strates` : une heure par jour, 8 / 12 / 14 / 15 / 15 aux jours 1, 3, 7,
+  30, 60. La borne « pas l'Abîme au premier soir » se lit après la première
+  nuit : 8 est admis, la soirée continue reste sous 8.
+- `audit-economie` : passage de deux minutes 142 PO/j (petite et moyenne, plus
+  la quatrième), 30 min et plus 270 PO/j, grosse commande tous les jours.
+- `audit-stress-mines` (nouveau, dans `npm run audit`) : boucle courte,
+  farm d'expérience, reroll, cadence, chaque objet du chantier à son déblocage,
+  aucun point de talent sans effet.
+
+Limite connue : le mur des strates 15-16 (la pente ×6 × 1,08ⁿ) reste. À une
+heure par jour, la strate 15 tombe vers j14 et la 16 vers j60. Il était voulu
+(« 16 à deux mois », pente du 07/10/2026) ; avec les éclats sur le record, le
+joueur y progresse par sa mine, plus par ses effondrements.
 
 ## Outils MJ
 
