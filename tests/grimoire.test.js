@@ -36,7 +36,7 @@ const chapitresDe = (e, mine = { profondeurMax: 13, effondrements: 14 }) =>
 const MILIEU = etat({
   stats: { gardiens: 61, commandes: 52, expeditions: 72, ventes: 214 },
   donjon: { recordInfini: 4 },
-  succes: ["strate@5", "strate@8", "strate@11", "strate@13", "gardiens@1", "gardiens@10"],
+  succes: ["strate@5", "strate@8", "strate@11", "effondrements@1", "gardiens@1", "gardiens@10"],
   cartes: 120,
 });
 
@@ -241,7 +241,7 @@ describe("pagination", () => {
     const commandes = CAT.global.find((f) => f.id === "commandes").paliers.map((p) => p.id);
     const apres = chapitresDe(etat({
       stats: { gardiens: 61, commandes: 900, expeditions: 72, ventes: 214 }, donjon: { recordInfini: 4 },
-      succes: ["strate@5", "strate@8", "strate@11", "strate@13", "gardiens@1", "gardiens@10", ...commandes], cartes: 120,
+      succes: ["strate@5", "strate@8", "strate@11", "effondrements@1", "gardiens@1", "gardiens@10", ...commandes], cartes: 120,
     }));
     const garde = new Set(avant.find((c) => c.id === "mines").familles.map((f) => f.id));
     const forme = (chs, g) => paginerChapitre(chs.find((c) => c.id === "mines"), GEO_BUREAU, g)

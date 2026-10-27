@@ -106,16 +106,20 @@ export const GLOBAL = [
     quoi: "Atteindre la strate {n} des Mines de Kazim",
     mesure: "strate",
     /**
-     * La pente des strates plafonne vers la quinzième (`audit-strates.mjs` :
-     * 15 à deux mois, quel que soit le temps de jeu). L'ancien palier 16 ne
-     * s'atteignait pas.
+     * Le record de profondeur, toutes mines confondues (27/10/2026). Avec la
+     * récolte au coup et les éclats sur le record, la strate 15 tombe vers
+     * deux semaines à une heure par jour, et la 16 vers deux mois : le gros
+     * palier suit la fin de partie, comme l'arbre du Fossoyeur. Les premiers
+     * paliers tombent en quelques jours : de l'or plutôt que des sachets, pour
+     * que la première semaine ne rende pas plus d'un tiers des boosters
+     * (`audit-succes`). Même règle pour les effondrements et les faveurs.
      */
     paliers: [
       { seuil: 5, recompense: { po: 60 } },
       { seuil: 8, recompense: { po: 120 }, titre: "Descendu à l'Abîme" },
-      { seuil: 11, recompense: { sachets: 1 } },
-      { seuil: 13, recompense: { sachets: 1 }, titre: "Ami des kobolds" },
-      { seuil: 15, recompense: { sachets: 5 }, titre: "Au cœur de Kazim" },
+      { seuil: 11, recompense: { po: 60 } },
+      { seuil: 15, recompense: { sachets: 1 }, titre: "Ami des kobolds" },
+      { seuil: 16, recompense: { sachets: 6 }, titre: "Au cœur de Kazim" },
     ],
   },
   {
@@ -123,12 +127,18 @@ export const GLOBAL = [
     nom: "Tout reprendre à zéro",
     quoi: "Provoquer {n} effondrement{s} dans les Mines",
     mesure: "effondrements",
+    /**
+     * Depuis le 27/10/2026, un effondrement ne rapporte qu'en battant le record
+     * de profondeur, et le bouton reste fermé sinon : on n'effondre plus qu'une
+     * fois par strate de record, une dizaine de fois en trois mois. Les paliers
+     * 30, 75 et 150 n'étaient plus atteignables ; le titre descend au 6, et le
+     * dernier palier attend la strate 16, la fin de partie.
+     */
     paliers: [
       { seuil: 1, recompense: { po: 60 } },
-      { seuil: 10, recompense: { sachets: 1 } },
-      { seuil: 30, recompense: { sachets: 2 }, titre: "Fossoyeur de galeries" },
-      { seuil: 75, recompense: { sachets: 4 } },
-      { seuil: 150, recompense: { sachets: 8 } },
+      { seuil: 3, recompense: { po: 60 } },
+      { seuil: 6, recompense: { po: 60 }, titre: "Fossoyeur de galeries" },
+      { seuil: 11, recompense: { sachets: 3 } },
     ],
   },
   {
@@ -152,8 +162,10 @@ export const GLOBAL = [
     tous: "Recevoir toutes les faveurs du Fossoyeur",
     paliers: [
       { seuil: 1, recompense: { po: 60 } },
-      { seuil: 6, recompense: { sachets: 2 } },
-      { seuil: "tous", recompense: { sachets: 4 }, titre: "Élu du Fossoyeur" },
+      // Une sixième faveur tombe vers le 4ᵉ jour à une heure par jour (le 9ᵉ
+      // avant le 27/10/2026) : de l'or au lieu de deux sachets, reportés sur l'arbre complet.
+      { seuil: 6, recompense: { po: 60 } },
+      { seuil: "tous", recompense: { sachets: 5 }, titre: "Élu du Fossoyeur" },
     ],
   },
 
@@ -472,5 +484,4 @@ export const TITRES_ANCIENS = {
   "gardiens@15": "Pourfendeur de gardiens",
   "expeditions@50": "Maître des routes",
   "dissous@500": "Gardien des cendres",
-  "strate@16": "Ami des kobolds",
 };

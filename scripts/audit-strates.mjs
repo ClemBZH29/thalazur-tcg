@@ -27,9 +27,6 @@ const multEvenement = (S) => {
 };
 
 function briser(S) {
-  const r = S.pvMax * K.RECOLTE * K.multRecolte(S) * multEvenement(S);
-  S.etoile += r;
-  S.etoileTotale += r;
   S.brises[S.profondeur] = (S.brises[S.profondeur] || 0) + 1;
   S.xp += Math.round(5 * Math.pow(S.profondeur, 1.25));
   while (S.xp >= K.xpRequis(S)) { S.xp -= K.xpRequis(S); S.niveau++; S.points++; }
@@ -41,10 +38,16 @@ function briser(S) {
   S.pv = S.pvMax;
 }
 
+// La récolte suit les coups (27/10/2026) : l'étoile vient des dégâts, pas du bris.
+function recolter(S, d) {
+  const r = d * K.RECOLTE * K.multRecolte(S) * multEvenement(S);
+  S.etoile += r;
+  S.etoileTotale += r;
+}
 function degats(S, d) {
   let garde = 0;
   while (d > 0 && garde++ < 400000) {
-    if (d >= S.pv) { d -= S.pv; S.pv = 0; briser(S); } else { S.pv -= d; d = 0; }
+    if (d >= S.pv) { d -= S.pv; recolter(S, S.pv); S.pv = 0; briser(S); } else { recolter(S, d); S.pv -= d; d = 0; }
   }
 }
 
@@ -86,7 +89,7 @@ function present(j, sec, frappesMinute = 90) {
     const gain = K.eclatsDispo(S);
     if (gain > 0 && S.eclats + gain >= Math.max(1, S.eclats) * 2) {
       j.effondrements++;
-      j.S = neuve({ eclats: S.eclats + gain, effondrements: S.effondrements + 1, etoileTotale: S.etoileTotale });
+      j.S = neuve({ eclats: S.eclats + gain, effondrements: S.effondrements + 1, etoileTotale: S.etoileTotale, record: K.record(S) });
     }
     j.strate = Math.max(j.strate, j.S.profondeurMax);
   }
@@ -139,7 +142,10 @@ for (const [nom, cle, minutes] of [["20 min par jour", "court", 20], ["1 h par j
    personne ne passe la strate 20 en deux mois. */
 const bornes = [
   ["la première heure s'arrête avant l'Abîme", releves["soiree-60"] < 8],
-  ["une heure par jour n'a pas l'Abîme au premier soir", releves["moyen-j1"] < 8],
+  // Relevé après la première nuit d'absence. Depuis la récolte au coup et
+  // les éclats sur le record (27/10/2026), l'Abîme tombe cette nuit-là (8 ou
+  // 9 au réveil), pas avant : la soirée continue reste sous 8 à une heure.
+  ["une heure par jour n'a pas dépassé l'Abîme au premier réveil", releves["moyen-j1"] <= 9],
   ["une heure par jour reste sous la strate 16 à une semaine", releves["moyen-j7"] < 16],
   ["trois heures par jour restent sous la strate 20 à deux mois", releves["long-j60"] < 20],
   ["vingt minutes par jour atteignent l'Abîme en un mois", releves["court-j30"] >= 8],

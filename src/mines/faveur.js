@@ -23,8 +23,8 @@ export const BRANCHES = [
     faveurs: [
       { id: "plans", nom: "Plans du chantier", desc: "Garde la pioche de fer et le fanal à l'effondrement.", cout: 3 },
       { id: "equipe", nom: "Équipe de départ", desc: "Chaque mine rouvre avec 10 porte-fanaux et 5 mineurs nains.", cout: 8 },
-      { id: "memoire", nom: "Mémoire du contremaître", desc: "Vos talents restent placés d'une mine à l'autre.", cout: 20 },
-      { id: "puits", nom: "Puits de reprise", desc: "Chaque mine rouvre à la troisième strate.", cout: 60 },
+      { id: "memoire", nom: "Mémoire du contremaître", desc: "Chaque mine rouvre au tiers de votre meilleur niveau, points de talent à replacer.", cout: 20 },
+      { id: "puits", nom: "Puits de reprise", desc: "Chaque mine rouvre au tiers de votre record de profondeur.", cout: 60 },
     ],
   },
   {

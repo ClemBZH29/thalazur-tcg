@@ -136,10 +136,37 @@ describe("éclats", () => {
     expect(R.multRecolte(avec)).toBe(R.multRecolte(sans));
   });
 
-  test("un éclat par strate atteinte au-delà de la quatrième, quelle que soit l'étoile", () => {
+  test("les éclats suivent le record de profondeur, quelle que soit l'étoile", () => {
     expect(R.eclatsDispo(partie({ etoileTotale: 1e30, profondeurMax: 4 }))).toBe(0);
-    expect(R.eclatsDispo(partie({ profondeurMax: 5 }))).toBe(1);
-    expect(R.eclatsDispo(partie({ profondeurMax: 12 }))).toBe(8);
+    expect(R.eclatsDispo(partie({ profondeurMax: 5 }))).toBe(R.eclatsDuRecord(5));
+    expect(R.eclatsDispo(partie({ profondeurMax: 12 }))).toBe(R.eclatsDuRecord(12));
+    // Chaque strate de record rapporte plus que la précédente.
+    // La strate 5 rapporte déjà : c'est là que le Fossoyeur apparaît.
+    expect(R.eclatsDuRecord(5)).toBeGreaterThanOrEqual(1);
+    for (let p = 7; p < 30; p++) {
+      expect(R.eclatsDuRecord(p) - R.eclatsDuRecord(p - 1)).toBeGreaterThan(R.eclatsDuRecord(p - 1) - R.eclatsDuRecord(p - 2));
+    }
+  });
+
+  test("refaire la même mine ne rapporte rien : seul le record paie (audit 27/10/2026)", () => {
+    const deja = R.eclatsDuRecord(12);
+    expect(R.eclatsDispo(partie({ record: 12, profondeurMax: 12, eclats: deja }))).toBe(0);
+    expect(R.eclatsDispo(partie({ record: 12, profondeurMax: 9, eclats: deja }))).toBe(0);
+    expect(R.eclatsDispo(partie({ record: 12, profondeurMax: 13, eclats: deja }))).toBe(R.eclatsDuRecord(13) - deja);
+    // Des éclats gagnés sous l'ancienne règle ne se perdent pas ; ils retardent les suivants.
+    expect(R.eclatsDispo(partie({ record: 16, profondeurMax: 16, eclats: 1000 }))).toBe(0);
+  });
+
+  test("boucle courte : vingt mines à la strate 12 ne rapportent que le premier record", () => {
+    let S = partie({ profondeur: 12, profondeurMax: 12 });
+    let total = 0;
+    for (let i = 0; i < 20; i++) {
+      const r = R.effondrer(S, etatNeuf);
+      if (!r) break;
+      total += r.gain;
+      S = { ...r.mine, profondeur: 12, profondeurMax: 12 };
+    }
+    expect(total).toBe(R.eclatsDuRecord(12));
   });
 });
 
@@ -152,8 +179,9 @@ describe("effondrement", () => {
     const S = partie({ profondeur: 9, profondeurMax: 9, etoile: 5e9, eclats: 10, eclatsDepenses: 3,
       faveurs: ["plans"], effondrements: 2, compagnons: { fanal: 80 }, talents: { force: 4, echo: 0, discipline: 0, fortune: 0 } });
     const { mine, gain } = R.effondrer(S, etatNeuf);
-    expect(gain).toBe(5);
-    expect(mine.eclats).toBe(15);
+    expect(gain).toBe(R.eclatsDuRecord(9) - 10);
+    expect(mine.eclats).toBe(R.eclatsDuRecord(9));
+    expect(mine.record).toBe(9);
     expect(mine.eclatsDepenses).toBe(3);
     expect(mine.effondrements).toBe(3);
     expect(mine.etoile).toBe(0);
@@ -164,14 +192,26 @@ describe("effondrement", () => {
     expect(mine.equipement).toEqual(["p1", "l1"]);
   });
 
-  test("l'Héritage : équipe de départ, talents gardés avec leur niveau, puits de reprise", () => {
-    const S = partie({ profondeurMax: 8, niveau: 9, points: 1, talents: { force: 3, echo: 2, discipline: 2, fortune: 0 },
-      eclats: 200, faveurs: ["plans", "equipe", "memoire", "puits"] });
+  test("l'Héritage : équipe de départ, Mémoire au tiers du meilleur niveau, Puits au tiers du record", () => {
+    const S = partie({ record: 18, profondeurMax: 8, niveau: 30, niveauRecord: 45, points: 1,
+      talents: { force: 20, echo: 5, discipline: 4, fortune: 0 },
+      eclats: 5, faveurs: ["plans", "equipe", "memoire", "puits"] });
     const { mine } = R.effondrer(S, etatNeuf);
     expect(mine.compagnons).toEqual({ fanal: 10, nain: 5 });
-    expect(mine.talents.force).toBe(3);
-    expect(mine.niveau).toBe(9);
-    expect(mine.profondeur).toBe(3);
+    // Niveau 15, quatorze points à replacer : les talents repartent de zéro.
+    expect(mine.niveau).toBe(15);
+    expect(mine.points).toBe(14);
+    expect(mine.talents).toEqual({ force: 0, echo: 0, discipline: 0, fortune: 0 });
+    expect(mine.niveauRecord).toBe(45);
+    expect(mine.profondeur).toBe(6);
+    expect(mine.profondeurMax).toBe(6);
+    expect(mine.record).toBe(18);
+  });
+
+  test("sans Mémoire, on repart du niveau 1, et le meilleur niveau est retenu", () => {
+    const { mine } = R.effondrer(partie({ profondeurMax: 9, niveau: 12 }), etatNeuf);
+    expect(mine.niveau).toBe(1);
+    expect(mine.niveauRecord).toBe(12);
   });
 });
 
@@ -199,6 +239,15 @@ describe("Faveur du Fossoyeur", () => {
     expect(R.critMult(partie({ faveurs: ["echoprofond"] }))).toBe(7.5);
     expect(R.critMult(partie({ faveurs: ["echoprofond"], equipement: ["l2"] }))).toBe(10);
     expect(R.fortune(partie({ faveurs: ["oeil"] }))).toBe(1);
+  });
+
+  test("l'Œil du sourcier se voit : plus de filons riches, et un point de moins à placer", () => {
+    const sans = partie({ talents: { force: 0, echo: 0, discipline: 0, fortune: 10 } });
+    const avec = partie({ talents: { force: 0, echo: 0, discipline: 0, fortune: 10 }, faveurs: ["oeil"] });
+    expect(R.partRiche(avec)).toBeGreaterThan(R.partRiche(sans));
+    expect(R.talentEffectif(avec, "fortune")).toBe(11);
+    expect(R.talentMax(sans, "fortune")).toBe(12);
+    expect(R.talentMax(avec, "fortune")).toBe(11);
   });
 
   test("l'arbre complet coûte ce que la simulation a calé", () => {
@@ -332,4 +381,71 @@ test("une commande de la veille livrée après minuit n'entame pas le plafond du
   e = crediterLivraison(e, 120, "2026-10-09");
   expect(e.bourse.po).toBe(R.PO_COMMANDES_JOUR + 120);
   expect(e.mine.livre.jour).toBe("2026-10-10");
+});
+
+describe("audit du 27/10/2026", () => {
+  test("chaque pioche ajoute des secondes de production à la frappe, même en fin de partie", () => {
+    const base = partie({ compagnons: { fanal: 100, nain: 100, foreuse: 100 }, eclats: 50 });
+    let avant = R.degatsClic(base);
+    for (const id of R.PIOCHES.slice().reverse()) {
+      base.equipement = [...base.equipement, id];
+      const apres = R.degatsClic(base);
+      expect(apres).toBeGreaterThan(avant);
+      avant = apres;
+    }
+    expect(R.secondesParFrappe(base)).toBeCloseTo(0.15 + 0.05 + 0.1 + 0.25 + 0.5);
+  });
+
+  test("Écho et Fortune plafonnés : le dernier point utile agit, le suivant n'est plus proposé", () => {
+    const S = (echo) => partie({ talents: { force: 0, echo, discipline: 0, fortune: 0 } });
+    expect(R.critChance(S(8))).toBeGreaterThan(R.critChance(S(7)));
+    expect(R.critChance(S(9))).toBe(R.critChance(S(8)));
+    expect(R.talentMax(S(0), "echo")).toBe(8);
+    const F = (fortune) => partie({ talents: { force: 0, echo: 0, discipline: 0, fortune } });
+    expect(R.chanceEvenement(F(12))).toBeGreaterThan(R.chanceEvenement(F(11)));
+    expect(R.chanceEvenement(F(13))).toBe(R.chanceEvenement(F(12)));
+  });
+
+  test("sans Remonter ni Descendre, une mine sauvée au-dessus de son front y revient", async () => {
+    const { relireMine } = await import("../src/mines/sauvegarde.js");
+    const brut = JSON.stringify({ ...etatNeuf(), profondeur: 3, profondeurMax: 9, pv: 5, pvMax: 10 });
+    const m = relireMine(brut);
+    expect(m.profondeur).toBe(9);
+    expect(m.pvMax).toBe(0); // un filon du front renaîtra au chargement
+  });
+
+  test("remonter puis redescendre ne retire pas le rang du filon", () => {
+    const S = partie({ profondeur: 6, profondeurMax: 6, brises: { 6: 3 } });
+    R.naitreFilon(S);
+    const rang = S.filonRang;
+    for (let i = 0; i < 50; i++) {
+      S.profondeur = 5; R.naitreFilon(S);
+      S.profondeur = 6; R.naitreFilon(S);
+      expect(S.filonRang).toBe(rang);
+    }
+  });
+
+  test("le tirage reste un tirage : sur mille filons, la part de riches suit la Fortune", () => {
+    const S = partie({ talents: { force: 0, echo: 0, discipline: 0, fortune: 10 } });
+    let riches = 0;
+    for (let b = 0; b < 1000; b++) { S.brises = { 1: b }; R.naitreFilon(S); if (S.filonRang > 0) riches++; }
+    expect(riches / 1000).toBeGreaterThan(R.chanceEvenement(S) - 0.05);
+    expect(riches / 1000).toBeLessThan(R.chanceEvenement(S) + 0.05);
+  });
+
+  test("l'expérience suit la dureté : un filon tendre de la galerie ne vaut presque rien", () => {
+    const front = partie({ profondeur: 12, profondeurMax: 12, brises: { 12: 4 } });
+    R.naitreFilon(front);
+    expect(R.xpFilon(front)).toBe(Math.round(R.xpFront(front)));
+    const haut = partie({ profondeur: 1, profondeurMax: 12, brises: { 12: 4 } });
+    R.naitreFilon(haut);
+    expect(R.xpFilon(haut)).toBe(0);
+    // Pour un même total de dégâts, l'expérience est la même en haut et au front.
+    const d = R.pvFilon(12, 4);
+    const enHaut = partie({ profondeur: 8, profondeurMax: 12, brises: { 12: 4 } });
+    R.naitreFilon(enHaut);
+    let xp = 0, frappe = d;
+    while (frappe >= enHaut.pvMax) { frappe -= enHaut.pvMax; xp += R.xpFilon(enHaut); R.briser(enHaut, () => 0.99); }
+    expect(xp).toBeLessThanOrEqual(R.xpFilon(front) * 1.05);
+  });
 });

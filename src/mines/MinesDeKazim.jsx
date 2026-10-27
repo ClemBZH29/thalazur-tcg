@@ -35,10 +35,11 @@ import {
 } from "./donnees.js";
 import {
   FILONS_PAR_STRATE, PIOCHES, equipA, degatsClic, critChance, critMult,
-  multCompagnon, dpsUn, dps, unFilonSur, mEclats,
+  multCompagnon, dpsUn, dps, partRiche, mEclats, talentMax, talentEffectif, record,
+  eclatsDuRecord, FRAPPES_MAX, FRAPPES_RAFALE, HORLOGE_TOLERANCE, CACHE_MAX,
   teinteFortune, xpRequis, brisesIci, eclatsDispo, ECLAT_BONUS, coutUn,
   coutN, nbAbordable, genererEclats, strate,
-  naitreFilon, briser, simulerAbsence, rendementAbsence, absenceMax,
+  naitreFilon, infliger, simulerAbsence, rendementAbsence, absenceMax,
   majCommandes, livrer, livrable, manque, presencePour, effondrer as effondrerMine,
   FRENESIE, enFrenesie,
 } from "./regles.js";
@@ -51,6 +52,13 @@ import { fmt, fmtEnt, fmtDuree } from "./format.js";
 import { estFuture, etatNeuf, relireMine } from "./sauvegarde.js";
 import { comparerMines } from "../lib/nuage/fusion.js";
 import { surVidageMine } from "../lib/storage.js";
+
+/** La première profondeur dont le record rapporterait au moins un éclat. */
+function prochainPalier(s) {
+  let p = Math.max(record(s) + 1, 5);
+  while (eclatsDuRecord(p) - s.eclats < 1 && p < 1000) p++;
+  return p;
+}
 
 /** Au-delà, la boucle n'a pas tourné : le navigateur avait suspendu l'onglet. */
 const TROU = 3000;
@@ -282,8 +290,8 @@ function MinesDeKazim({
     }
   }, []);
 
-  const briserFilon = useCallback(() => {
-    const r = briser(S.current);
+  /* Un filon vient de céder (`infliger`) : on l'annonce. */
+  const briserFilon = useCallback((r) => {
     for (let i = 0; i < r.niveaux; i++) {
       noter("Niveau " + (S.current.niveau - r.niveaux + i + 1) + " atteint. Un point de talent à placer.");
     }
@@ -303,17 +311,20 @@ function MinesDeKazim({
   }, [noter, pulseNiveau, rupture]);
 
   const appliquerDegats = useCallback((d) => {
-    const s = S.current;
-    let securite = 0;
-    while (d > 0 && securite < 500) {
-      if (d >= s.pv) { d -= s.pv; s.pv = 0; briserFilon(); }
-      else { s.pv -= d; d = 0; }
-      securite++;
-    }
+    infliger(S.current, d, briserFilon);
   }, [briserFilon]);
 
+  /* Le seau de frappes : FRAPPES_RAFALE jetons, rendus à FRAPPES_MAX par
+     seconde. Une frappe sans jeton ne fait rien — ni dégâts, ni effet. */
+  const seau = useRef({ jetons: FRAPPES_RAFALE, t: 0 });
   const frapper = useCallback((ev) => {
     if (compteurs.current.chute) return;
+    const sq = seau.current;
+    const maintenant = performance.now();
+    sq.jetons = Math.min(FRAPPES_RAFALE, sq.jetons + ((maintenant - sq.t) * FRAPPES_MAX) / 1000);
+    sq.t = maintenant;
+    if (sq.jetons < 1) return;
+    sq.jetons -= 1;
     const s = S.current;
     const crit = Math.random() * 100 < critChance(s);
     // God-Pioche : exactement ce qui reste au filon, pour qu'il se brise sans
@@ -365,10 +376,20 @@ function MinesDeKazim({
   const tick = useCallback(() => {
     const s = S.current;
     const t = Date.now();
-    const ecart = Math.max(0, t - s.dernierTick);
-    s.dernierTick = t;
+    /* L'horloge a reculé : rien n'est crédité, et l'instant déjà joué est
+       gardé jusqu'à ce qu'elle le rattrape. Le reposer à « maintenant »
+       laissait rejouer le rattrapage autant de fois qu'on avançait puis
+       reculait l'heure (audit du 27/10/2026). Au-delà d'un jour, c'est
+       l'horloge d'avant qui était fausse : on repart d'ici. */
+    const recule = t < s.dernierTick;
+    if (recule && s.dernierTick - t > HORLOGE_TOLERANCE) s.dernierTick = t;
+    const ecart = recule ? 0 : t - s.dernierTick;
+    if (!recule) s.dernierTick = t;
     if (ecart > TROU) {
-      rattraper(ecart, 1, ecart > 60000 ? "Onglet en arrière-plan pendant" : null);
+      /* Un onglet caché plus d'une minute compte comme une absence : à plein
+         rendement, il valait mieux que toute la branche Veille. */
+      rattraper(ecart, ecart > CACHE_MAX ? rendementAbsence(s) : 1,
+        ecart > 60000 ? "Onglet en arrière-plan pendant" : null);
     } else {
       /* L'équipe, et la Pioche enchantée qui frappe seule (sans critique). */
       const auto = frappesAuto(s) * degatsClic(s) * (enFrenesie(frenesieRef.current, t) ? FRENESIE.mult : 1);
@@ -461,7 +482,9 @@ function MinesDeKazim({
         S.current = d;
         const t = Date.now();
         const absence = Math.max(0, t - (typeof avant === "number" ? avant : t));
-        S.current.dernierTick = t;
+        // Sauvegarde datée d'un futur proche (horloge reculée) : on garde
+        // l'instant déjà joué, voir `tick`.
+        S.current.dernierTick = typeof avant === "number" && avant > t && avant - t <= HORLOGE_TOLERANCE ? avant : t;
         // L'équipe a continué sans vous : mêmes règles qu'en direct, filons
         // brisés et strates descendues compris, au rendement d'absence.
         // Une absence de quelques secondes se rejoue aussi, sans message.
@@ -553,7 +576,7 @@ function MinesDeKazim({
 
   const placerTalent = (id) => {
     const s = S.current;
-    if (s.points <= 0) return;
+    if (s.points <= 0 || s.talents[id] >= talentMax(s, id)) return;
     s.points--;
     s.talents[id]++;
     forcer();
@@ -638,23 +661,11 @@ function MinesDeKazim({
     forcer();
   };
 
-  const descendre = () => {
-    const s = S.current;
-    if (s.profondeur >= s.profondeurMax) return;   // la strate suivante s'ouvre d'elle-même
-    s.profondeur++;
-    s.profondeurMax = Math.max(s.profondeurMax, s.profondeur);
-    nouveauFilon();
-    noter("Vous descendez dans " + strate(s.profondeur).nom + ".");
-    forcer();
-  };
-
-  const remonter = () => {
-    const s = S.current;
-    if (s.profondeur <= 1) return;
-    s.profondeur--;
-    nouveauFilon();
-    forcer();
-  };
+  /* Remonter et Descendre sont partis (27/10/2026). Ils ne servaient qu'à
+     deux combines — retirer le rang d'un filon, briser des filons tendres pour
+     l'expérience — que le tirage fixé et l'expérience à la dureté ont fermées.
+     Pour les mêmes dégâts, toutes les strates rendent autant : remonter ne
+     faisait plus que perdre du temps au front. La descente est automatique. */
 
   /* ---------- vues ---------- */
 
@@ -942,16 +953,25 @@ function MinesDeKazim({
               <p>{t.desc}</p>
             </div>
             <div className="kz-actions kz-talent">
-              <span className="kz-pastille">{s.talents[t.id]}</span>
-              <button type="button" className="kz-btn" disabled={s.points <= 0}
-                      aria-label={"Placer un point dans " + t.nom} onClick={() => placerTalent(t.id)}>+</button>
+              {/* La valeur qui agit : le point offert par l'Œil se voit. */}
+              <span className="kz-pastille">
+                {talentEffectif(s, t.id) !== s.talents[t.id]
+                  ? s.talents[t.id] + " + " + (talentEffectif(s, t.id) - s.talents[t.id])
+                  : s.talents[t.id]}
+              </span>
+              {s.talents[t.id] >= talentMax(s, t.id) ? (
+                <span className="kz-note kz-max">au maximum</span>
+              ) : (
+                <button type="button" className="kz-btn" disabled={s.points <= 0}
+                        aria-label={"Placer un point dans " + t.nom} onClick={() => placerTalent(t.id)}>+</button>
+              )}
             </div>
           </div>
         ))}
         <p className="kz-note">
           {"Coup critique : " + critChance(s).toFixed(0) + " % de chance, dégâts multipliés par "
             + String(critMult(s)).replace(".", ",") + ". "}
-          {"Filon qui rend plus : un sur " + unFilonSur(s) + ", reconnaissable à sa couleur."}
+          {"Filons qui rendent plus : " + String(partRiche(s)).replace(".", ",") + " %, reconnaissables à leur couleur."}
         </p>
       </>
     ),
@@ -1158,11 +1178,14 @@ function MinesDeKazim({
                     + Math.round(s.eclats * ECLAT_BONUS * 100) + " % de dégâts"}
                 </p>
                 <p className="kz-prochaine">
-                  {s.profondeurMax < 5
+                  {record(s) < 5
                     ? "Il faut atteindre le Cœur Résonant, à la profondeur 5, avant qu'un effondrement rapporte quoi que ce soit."
-                    : "Prochaine mine : dégâts ×" + mEclats(s).toFixed(2).replace(".", ",") + " → ×"
-                      + (mEclats(s) + gainEclats * ECLAT_BONUS).toFixed(2).replace(".", ",")
-                      + " · " + fmtEnt(gainEclats) + " éclat" + (gainEclats > 1 ? "s" : "") + " de plus"}
+                    : gainEclats < 1
+                      ? "Votre record est la profondeur " + record(s) + ". Les éclats se gagnent en allant plus loin : la profondeur "
+                        + prochainPalier(s) + " en rapporterait " + fmtEnt(eclatsDuRecord(prochainPalier(s)) - s.eclats) + "."
+                      : "Prochaine mine : dégâts ×" + mEclats(s).toFixed(2).replace(".", ",") + " → ×"
+                        + (mEclats(s) + gainEclats * ECLAT_BONUS).toFixed(2).replace(".", ",")
+                        + " · " + fmtEnt(gainEclats) + " éclat" + (gainEclats > 1 ? "s" : "") + " de plus"}
                 </p>
                 <button type="button" className="kz-btn kz-danger" disabled={gainEclats < 1} onClick={effondrer}>
                   {gainEclats > 0 ? "Faire sauter les étais" : "Rien à récupérer pour l'instant"}
@@ -1210,14 +1233,10 @@ function MinesDeKazim({
           </div>
 
           <div className="kz-profondeur">
-            <button type="button" className="kz-btn" disabled={s.profondeur <= 1} onClick={remonter}>Remonter</button>
             <span className="kz-n">
               {"Profondeur " + s.profondeur + ", " + Math.min(brisesIci(s), FILONS_PAR_STRATE)
                 + " filons sur " + FILONS_PAR_STRATE}
             </span>
-            <button type="button" className="kz-btn"
-                    disabled={s.profondeur >= s.profondeurMax}
-                    onClick={descendre}>Descendre</button>
           </div>
 
           <div className="kz-encoches" aria-hidden="true">
@@ -1235,7 +1254,8 @@ function MinesDeKazim({
                onPointerUp={() => veinRef.current && veinRef.current.classList.remove("kz-hit")}
                onPointerCancel={() => veinRef.current && veinRef.current.classList.remove("kz-hit")}
                onKeyDown={(e) => {
-                 if (e.key === " " || e.key === "Enter") { e.preventDefault(); frapper(null); }
+                 // La répétition du clavier ne frappe pas : une touche tenue, c'est un coup.
+                 if (e.key === " " || e.key === "Enter") { e.preventDefault(); if (!e.repeat) frapper(null); }
                }}>
             <svg viewBox="0 0 400 300" preserveAspectRatio="xMidYMid meet" aria-hidden="true" focusable="false">
               <defs>

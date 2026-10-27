@@ -45,9 +45,18 @@
  *        format n'existe que dans le build ouvert : tant que la bêta tourne,
  *        le site reste au 10 — sinon il remettrait la bêta à zéro avant
  *        l'heure (voir docs/conception/lancement.md).
+ * 12     Azel le Destructeur remet les Mines à zéro après leur rééquilibrage,
+ *        avec les succès qui en découlent (`azel.js`) ; la partie qui avait
+ *        joué aux Mines voit son écran. Comme le 11, seulement dans le build
+ *        ouvert.
  */
 export const SCHEMA_LANCEMENT = 11;
-export const SCHEMA = SITE_OUVERT ? SCHEMA_LANCEMENT : 10;
+export const SCHEMA_AZEL = 12;
+/** Les formats qui remettent des parties à zéro : une copie d'un format
+    antérieur à l'un d'eux ne doit jamais l'emporter sur une copie remise
+    (`comparerMines`, `nettoyerAnciennes`). */
+export const SCHEMAS_REMISE = [SCHEMA_LANCEMENT, SCHEMA_AZEL];
+export const SCHEMA = SITE_OUVERT ? SCHEMA_AZEL : 10;
 
 /** Première version encore lisible. En dessous, on repart d'une partie neuve. */
 export const SCHEMA_MIN = 6;
@@ -56,6 +65,7 @@ import RENUMEROTATION_TROUPE from "./renumerotation-troupe.json" with { type: "j
 import { SON_DEFAUT, lireSon } from "../../config/son.js";
 import { SITE_OUVERT } from "../../config/lancement.js";
 import { remiseLancement, remiseMineLancement } from "./lancement.js";
+import { remiseJeuAzel, remiseMineAzel } from "./azel.js";
 
 /**
  * Remplace, dans toute une sauvegarde, les identifiants de carte de `table`
@@ -149,6 +159,11 @@ export const MIGRATIONS = {
   11: {
     jeu: remiseLancement,
     mine: remiseMineLancement,
+  },
+  // Azel : les Mines et leurs succès repartent de zéro (azel.js).
+  12: {
+    jeu: remiseJeuAzel,
+    mine: remiseMineAzel,
   },
 };
 

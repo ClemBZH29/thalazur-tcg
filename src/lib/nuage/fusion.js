@@ -22,7 +22,10 @@
 import { ECONOMIE } from "../../config/tiers.js";
 import { RECOMPENSE_SEMAINE } from "../../config/missions.js";
 import { evaluerMissions, mesuresMissions } from "../../missions/regles.js";
-import { SCHEMA_LANCEMENT } from "../sauvegarde/schema.js";
+import { SCHEMAS_REMISE } from "../sauvegarde/schema.js";
+
+/** Combien de remises à zéro une copie a traversées (lancement, Azel…). */
+const remisesTraversees = (m) => SCHEMAS_REMISE.filter((s) => Number(m?.schema) >= s).length;
 import { fusionnerDos } from "../../config/dos.js";
 
 /** Empreinte courte d'une chaîne (FNV-1a 32 bits) : de quoi voir qu'elle a bougé. */
@@ -191,7 +194,9 @@ export function comparerMines(a, b) {
   // Au lancement, une mine du format 11 l'emporte sur toute mine de la bêta,
   // si avancée soit-elle : sinon la galerie de la bêta, comparée en texte
   // brut, revenait par-dessus la mine neuve (voir sauvegarde/lancement.js).
-  const cle = (m) => [Number(m?.schema) >= SCHEMA_LANCEMENT ? 1 : 0, m?.regles || 0, m?.effondrements || 0, m?.brisesTotal || 0, m?.etoileTotale || 0, m?.dernierTick || 0];
+  // Même chose pour la remise d'Azel (format 12) : une mine remise l'emporte
+  // sur toute mine d'avant, comparée en texte brut.
+  const cle = (m) => [remisesTraversees(m), m?.regles || 0, m?.effondrements || 0, m?.brisesTotal || 0, m?.etoileTotale || 0, m?.dernierTick || 0];
   const x = cle(a), y = cle(b);
   for (let i = 0; i < x.length; i++) if (x[i] !== y[i]) return x[i] - y[i];
   return 0;

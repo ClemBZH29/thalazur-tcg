@@ -125,6 +125,73 @@ L'aperçu (`npm run apercu`) parle à la base de production. Sans
 tester l'ouverture avant l'heure, mettre `VITE_SITE_ETAT=ouvert` **sans se
 connecter**, ou avec un projet Firebase de test.
 
+## Azel le Destructeur : les remises suivantes
+
+Après le lancement, une seconde remise : celle des Mines, au rééquilibrage du
+27/10/2026 (voir `docs/conception/mines.md`). Décision de Clément : elle est
+annoncée par **Azel le Destructeur**, un immense dragon noir aux yeux bleus,
+qui portera désormais toute remise à zéro d'une partie du site.
+
+**Le même mécanisme que le lancement.** Le format monte à 12 (build ouvert
+seulement) ; `MIGRATIONS[12]` (`src/lib/sauvegarde/azel.js`) fait la remise à
+la lecture, sur toutes les copies :
+
+- **La mine** repart de la galerie d'entrée, sans solde ni écran de Tafix.
+- **Les succès mesurés sur la mine** partent : strate, effondrements, faveurs.
+  Ils se regagnent avec leurs récompenses — c'est la compensation, et elle suit
+  l'effort à refaire. Le titre affiché part s'il venait de l'un d'eux.
+- **Restent** : les commandes livrées et leurs succès (`stats.commandes`,
+  que les missions de Bodégué lisent avec une valeur de départ : le remettre à
+  zéro bloquerait la mission du jour), la marque des Mines (`etat.mine`), les
+  conseils de Tafix, tout le reste du site.
+- **L'écran** (`src/remise/AvisAzel.jsx`, textes dans `src/config/remises.js`)
+  ne se montre qu'à une partie qui a joué aux Mines : `azel[id] = "a-lire"`.
+  Comme l'avis du lancement, il remplace la coque tant qu'il n'est pas validé
+  (`Garde`, `App.jsx`), et la partie est déjà remise quand il s'affiche. Il
+  passe après l'avis du lancement s'il y a les deux. Validé, il mène aux Mines.
+
+**Qui voit Azel.** La mine se sauvegarde à part : la migration du jeu lit ce
+qu'elle a laissé dans la partie — un succès des Mines, une commande livrée, des
+PO des Mines, ou le premier filon brisé (conseil de Tafix `filon1`).
+
+**Le bêta-testeur pas encore revenu.** Sa partie passe les formats 11 et 12 dans
+la même lecture. La remise du lancement efface succès et compteurs, mais garde
+les conseils de Tafix de la bêta : pour une partie marquée `lancement.beta`,
+ces conseils ne comptent pas. Il voit donc l'avis du lancement seul, et une
+galerie neuve. S'il a joué aux Mines depuis sur un autre appareil, la fusion
+avec le compte apporte la partie de cet appareil, déjà remise, avec l'écran
+d'Azel à lire : les deux écrans s'enchaînent (test « bêta-testeur pas
+reconnecté qui a joué ailleurs », `tests/azel.test.js`).
+
+**À côté de la partie.** La mine d'avant le format 12 qui dort dans le
+navigateur est effacée au chargement (`nettoyerBeta`) ; `comparerMines` compte
+les remises traversées (`SCHEMAS_REMISE`) : une mine remise l'emporte sur toute
+mine d'avant, si avancée soit-elle. L'écran lu se fusionne comme une valeur :
+lu sur un appareil, il ne revient pas sur l'autre.
+
+**Le classement.** Une ligne écrite avant `REMISE_MINES_T` porte la strate et
+les éclats d'une mine qui n'existe plus : ces deux colonnes s'y lisent à zéro
+jusqu'au retour du joueur (`lireClassement`, `Compte.jsx`). Rien à changer dans
+les règles Firestore. **À avancer** si la mise en production part après la
+date inscrite : une ligne écrite entre cette date et la mise en ligne par
+l'ancien site garderait sa strate d'avant. La colonne strate suit désormais le
+record de profondeur, toutes mines confondues.
+
+**L'image.** `public/azel/azel.webp` (16:9, 2560x1440) et `azel-tel.webp`
+(9:16, 1440x2560), prompts dans le projet (`claude/assets-sora-azel.json`).
+Tant qu'elles manquent, l'écran compose les ténèbres et deux yeux bleus. Un
+dragon noir sur un site sombre : le contraste vient de la scène (une brume
+gris-bleu plus claire que le fond, un liseré de lumière froide sur les
+écailles), pas du dragon.
+
+**La prochaine remise.** Une entrée dans `REMISES`, une migration au format
+suivant qui pose `azel[id] = "a-lire"` et l'ajoute à `SCHEMAS_REMISE`, des
+tests sur le modèle de `tests/azel.test.js`.
+
+**Tester en local.** Réglages MJ → « Simuler la remise d'Azel (Mines) » : la
+partie du navigateur passe par `remiseJeuAzel`, l'écran s'affiche même si elle
+n'a jamais joué aux Mines ; « Restaurer » remet tout comme avant.
+
 ## Les dos de carte
 
 `src/config/dos.js` : le catalogue. Le dos choisi habille toutes les cartes

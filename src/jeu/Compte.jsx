@@ -10,6 +10,7 @@ import { estGele, geler } from "../lib/gel.js";
 import { SCHEMA, migrer } from "../lib/sauvegarde/schema.js";
 import { LEGAL } from "../config/legal.js";
 import { OUVERTURE, SITE_OUVERT } from "../config/lancement.js";
+import { REMISE_MINES_T } from "../config/remises.js";
 
 /**
  * Le compte du joueur, et la copie de sa partie qui l'accompagne.
@@ -361,7 +362,11 @@ export function Compte({ children }) {
     // Une ligne écrite avant l'ouverture est celle d'une partie de la bêta :
     // son joueur n'est pas revenu depuis la remise à zéro. Elle ne compte
     // plus ; elle sera réécrite, remise, à son retour.
-    return SITE_OUVERT ? lignes.filter((l) => l.maj >= OUVERTURE) : lignes;
+    if (!SITE_OUVERT) return lignes;
+    // Une ligne écrite avant la remise d'Azel porte la strate et les éclats
+    // d'une mine qui n'existe plus : à zéro, jusqu'au retour du joueur.
+    return lignes.filter((l) => l.maj >= OUVERTURE)
+      .map((l) => (l.maj < REMISE_MINES_T ? { ...l, strate: 0, eclats: 0 } : l));
   }, []);
 
   /** Envoie l'état local sur le compte, si quelque chose a changé. */

@@ -162,8 +162,8 @@ describe("mine", () => {
   });
 
   test("une partie des règles courantes garde tout", () => {
-    const relu = relireMine(JSON.stringify({ ...etatNeuf(), profondeur: 9, profondeurMax: 11, eclats: 40, faveurs: ["plans"] }));
-    expect(relu.profondeur).toBe(9);
+    const relu = relireMine(JSON.stringify({ ...etatNeuf(), profondeur: 11, profondeurMax: 11, eclats: 40, faveurs: ["plans"] }));
+    expect(relu.profondeur).toBe(11);
     expect(relu.eclats).toBe(40);
     expect(relu.faveurs).toEqual(["plans"]);
     expect(relu.remise).toBeNull();

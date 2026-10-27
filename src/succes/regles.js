@@ -20,6 +20,7 @@ import { crediterGain } from "../lib/economie.js";
 import { CHAPITRES, COLLECTION, GLOBAL, POIDS_SCORE, SACHET_LIBRE, TITRES_ANCIENS, pointsDe } from "../config/succes.js";
 import { niveauDe } from "../donjon/experience.js";
 import { FAVEURS } from "../mines/faveur.js";
+import { record as recordMine } from "../mines/regles.js";
 import { cadrageValide } from "../lib/cadrage.js";
 
 const PALIERS = ["commun", "peucommun", "rare", "legendaire"];
@@ -162,7 +163,9 @@ export function mesuresGlobales(etat, mine) {
   const xp = Object.values(etat.xp || {});
   return {
     boosters: somme(etat.boosters),
-    strate: mine?.profondeurMax || 0,
+    // Le record de profondeur, toutes mines confondues (27/10/2026) : après un
+    // effondrement, la mine en cours repart de la strate 1.
+    strate: mine ? recordMine(mine) : 0,
     effondrements: mine?.effondrements || 0,
     ventes: etat.stats?.ventes || 0,
     affaires: etat.stats?.affaires || 0,
