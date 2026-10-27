@@ -595,6 +595,17 @@ résistance (`xpFilon`). L'expérience par point de dégât est la même partout
 - **Onglet caché** : au-delà d'une minute, il compte comme une absence, à son
   rendement (`CACHE_MAX`). À 100 %, il valait mieux que toute la branche Veille.
 
+### Plus de Remonter ni de Descendre
+
+Ils ne servaient qu'à deux combines (retirer le rang d'un filon, briser des
+filons tendres pour l'expérience), fermées par le tirage fixé et l'expérience
+à la dureté. Pour les mêmes dégâts, toutes les strates rendent autant d'étoile
+et d'expérience : remonter ne faisait que perdre du temps au front. Les deux
+boutons sont retirés, la descente reste automatique, et une mine sauvée
+au-dessus de son front y est ramenée à la lecture (`relireMine`). Les règles
+gardent la possibilité (`tirageFilon` reste testé) pour une future mécanique de
+strates, des commandes de Tafix liées à une strate par exemple.
+
 ### La remise d'Azel
 
 Le rééquilibrage s'accompagne d'une remise à zéro des Mines et de leurs succès

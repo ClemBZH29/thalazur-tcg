@@ -661,23 +661,11 @@ function MinesDeKazim({
     forcer();
   };
 
-  const descendre = () => {
-    const s = S.current;
-    if (s.profondeur >= s.profondeurMax) return;   // la strate suivante s'ouvre d'elle-même
-    s.profondeur++;
-    s.profondeurMax = Math.max(s.profondeurMax, s.profondeur);
-    nouveauFilon();
-    noter("Vous descendez dans " + strate(s.profondeur).nom + ".");
-    forcer();
-  };
-
-  const remonter = () => {
-    const s = S.current;
-    if (s.profondeur <= 1) return;
-    s.profondeur--;
-    nouveauFilon();
-    forcer();
-  };
+  /* Remonter et Descendre sont partis (27/10/2026). Ils ne servaient qu'à
+     deux combines — retirer le rang d'un filon, briser des filons tendres pour
+     l'expérience — que le tirage fixé et l'expérience à la dureté ont fermées.
+     Pour les mêmes dégâts, toutes les strates rendent autant : remonter ne
+     faisait plus que perdre du temps au front. La descente est automatique. */
 
   /* ---------- vues ---------- */
 
@@ -1245,14 +1233,10 @@ function MinesDeKazim({
           </div>
 
           <div className="kz-profondeur">
-            <button type="button" className="kz-btn" disabled={s.profondeur <= 1} onClick={remonter}>Remonter</button>
             <span className="kz-n">
               {"Profondeur " + s.profondeur + ", " + Math.min(brisesIci(s), FILONS_PAR_STRATE)
                 + " filons sur " + FILONS_PAR_STRATE}
             </span>
-            <button type="button" className="kz-btn"
-                    disabled={s.profondeur >= s.profondeurMax}
-                    onClick={descendre}>Descendre</button>
           </div>
 
           <div className="kz-encoches" aria-hidden="true">

@@ -404,6 +404,14 @@ describe("audit du 27/10/2026", () => {
     expect(R.chanceEvenement(F(13))).toBe(R.chanceEvenement(F(12)));
   });
 
+  test("sans Remonter ni Descendre, une mine sauvée au-dessus de son front y revient", async () => {
+    const { relireMine } = await import("../src/mines/sauvegarde.js");
+    const brut = JSON.stringify({ ...etatNeuf(), profondeur: 3, profondeurMax: 9, pv: 5, pvMax: 10 });
+    const m = relireMine(brut);
+    expect(m.profondeur).toBe(9);
+    expect(m.pvMax).toBe(0); // un filon du front renaîtra au chargement
+  });
+
   test("remonter puis redescendre ne retire pas le rang du filon", () => {
     const S = partie({ profondeur: 6, profondeurMax: 6, brises: { 6: 3 } });
     R.naitreFilon(S);

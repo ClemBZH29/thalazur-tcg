@@ -121,9 +121,7 @@
 .kz-face h2 { font-size: clamp(19px, 2.1vw, 24px); }
 .kz-profondeur { display: flex; gap: 10px; align-items: center; margin: 15px 0 0; }
 .kz-profondeur span { flex: 1; min-width: 0; text-align: center; font-size: 13px; color: var(--ink4, #88999e); }
-/* Sans `min-width: 0`, le libellé gardait sa largeur de contenu et poussait
-   « Descendre » contre le bord droit du panneau à 360 px. */
-.kz-profondeur .kz-btn { flex: 0 0 auto; }
+/* Remonter et Descendre sont partis (27/10/2026) : le libellé reste seul. */
 .kz-encoches { display: flex; gap: 4px; margin: 11px 0 2px; }
 .kz-encoches i {
   flex: 1; height: 3px; border-radius: 2px; background: var(--ground2, #131e22);

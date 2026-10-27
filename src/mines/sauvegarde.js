@@ -96,6 +96,12 @@ export function relireMine(brut) {
     neuve.schema = SCHEMA;
     return neuve;
   }
+  /* Sans Remonter ni Descendre (27/10/2026), une mine sauvée plus haut que son
+     front y resterait coincée : la descente automatique ne part que du front. */
+  if (n.profondeur < n.profondeurMax) {
+    n.profondeur = n.profondeurMax;
+    n.pv = 0; n.pvMax = 0;
+  }
   n.schema = SCHEMA;
   return n;
 }
