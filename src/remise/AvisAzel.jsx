@@ -55,7 +55,8 @@ export default function AvisAzel({ remise }) {
         <p className="azel-sur">{remise.sur}</p>
         <h1 id="azel-titre">{remise.titre}</h1>
         <div id="azel-texte">
-          {remise.parle.map((t) => <p key={t} className="azel-voix">{"« " + t + " »"}</p>)}
+          {/* La voix d'Azel, facultative : une réplique entre guillemets, en bleu. */}
+          {(remise.parle || []).map((t) => <p key={t} className="azel-voix">{"« " + t + " »"}</p>)}
           {remise.texte.map((t) => <p key={t}>{t}</p>)}
           <div className="azel-listes">
             <div>

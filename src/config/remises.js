@@ -29,9 +29,6 @@ export const REMISES = [
     id: REMISE_MINES,
     sur: "Les Mines de Kazim changent de règles",
     titre: "Azel le Destructeur est passé par Kazim.",
-    parle: [
-      "Vos galeries n'étaient que des égratignures. Je les ai refermées.",
-    ],
     texte: [
       "Les Mines ont été rééquilibrées : les éclats se gagnent désormais en battant votre record de profondeur, chaque coup de pioche rapporte son étoile, et les pioches comptent enfin jusqu'au fond.",
       "Pour que tout le monde descende sous les mêmes règles, votre mine repart de la galerie d'entrée, avec ses succès : la strate, les effondrements et les faveurs du Fossoyeur se regagnent, récompenses comprises.",
