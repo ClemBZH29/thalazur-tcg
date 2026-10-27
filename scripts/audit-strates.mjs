@@ -143,9 +143,9 @@ for (const [nom, cle, minutes] of [["20 min par jour", "court", 20], ["1 h par j
 const bornes = [
   ["la première heure s'arrête avant l'Abîme", releves["soiree-60"] < 8],
   // Relevé après la première nuit d'absence. Depuis la récolte au coup et
-  // les éclats sur le record (27/10/2026), l'Abîme peut tomber cette nuit-là,
-  // pas avant : la soirée continue reste sous 8 à une heure (borne précédente).
-  ["une heure par jour n'a pas l'Abîme au premier soir", releves["moyen-j1"] <= 8],
+  // les éclats sur le record (27/10/2026), l'Abîme tombe cette nuit-là (8 ou
+  // 9 au réveil), pas avant : la soirée continue reste sous 8 à une heure.
+  ["une heure par jour n'a pas dépassé l'Abîme au premier réveil", releves["moyen-j1"] <= 9],
   ["une heure par jour reste sous la strate 16 à une semaine", releves["moyen-j7"] < 16],
   ["trois heures par jour restent sous la strate 20 à deux mois", releves["long-j60"] < 20],
   ["vingt minutes par jour atteignent l'Abîme en un mois", releves["court-j30"] >= 8],

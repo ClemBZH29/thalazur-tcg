@@ -129,8 +129,11 @@ s'ajoutent à ce tableau, au rythme où l'on joue ces modules : voir la ligne
  * - boosters : gain passif 3,4/j (boutique), missions 1,2/j, commandes de
  *   Tafix (audit-eclats : 199, 261, 266 PO/j), Donjon (~150 PO/j le donjon du
  *   jour, l'infini en plus), expéditions (100 PO/j au plus), Comptoir ;
- * - strate : audit-strates (20 min, 1 h, 3 h par jour) ; effondrements :
- *   audit-eclats (32, 81, 169 en trois mois) ; faveurs : mêmes courbes ;
+ * - strate (record), effondrements et faveurs : le joueur de
+ *   `joueur-mine.mjs` sous les règles du 27/10/2026 (éclats sur le record),
+ *   20 min, 1 h et 3 h par jour. Un effondrement ne se fait plus qu'en
+ *   battant le record : une dizaine en trois mois, une courbe et non plus un
+ *   rythme ;
  * - gardiens : le donjon du jour (1 à 3) et 0 à 3 descentes infinies ;
  *   record infini : médianes de donjon.md (2, 3, 5, 9 gardiens) ;
  * - expérience : 45 points par descente et par carte, la carte la plus
@@ -139,18 +142,21 @@ s'ajoutent à ce tableau, au rythme où l'on joue ces modules : voir la ligne
 const PROFILS = {
   occasionnel: { nom: "Occasionnel (20 min/j)", boosters: 6, gardiens: 1.2, remontees: 0.3, expeditions: 2,
     lieuxRainbow: 0.25, ventes: 5, achats: 0.1, affaires: 0.5, dissous: 10, forges: 0.5, xp: 50, rainbowXP: 0.3,
-    missions: 2.5, semaines: 0.8 / 7, commandes: 2, effondrements: 32 / 90,
-    strate: [[1, 8], [3, 9], [7, 12], [14, 14], [60, 15]], faveurs: [[2, 1], [20, 6], [85, 12]],
+    missions: 2.5, semaines: 0.8 / 7, commandes: 2,
+    effondrements: [[1, 1], [3, 3], [7, 6], [23, 10], [94, 11]],
+    strate: [[1, 5], [4, 8], [8, 11], [9, 13], [12, 14], [22, 15], [92, 16]], faveurs: [[3, 1], [8, 6], [94, 12]],
     record: [[14, 3], [60, 5]] },
   regulier: { nom: "Régulier (1 h/j)", boosters: 9, gardiens: 4, remontees: 0.5, expeditions: 4,
     lieuxRainbow: 0.33, ventes: 15, achats: 0.3, affaires: 0.7, dissous: 25, forges: 0.9, xp: 120, rainbowXP: 0.6,
-    missions: 3, semaines: 0.95 / 7, commandes: 3, effondrements: 81 / 90,
-    strate: [[1, 7], [3, 11], [7, 13], [14, 14], [60, 15]], faveurs: [[1, 1], [9, 6], [36, 12]],
+    missions: 3, semaines: 0.95 / 7, commandes: 3,
+    effondrements: [[1, 2], [2, 4], [4, 7], [5, 8], [7, 9], [13, 10], [56, 11]],
+    strate: [[1, 6], [2, 8], [4, 13], [6, 14], [12, 15], [56, 16]], faveurs: [[2, 2], [4, 6], [56, 12]],
     record: [[5, 3], [21, 5], [90, 8]] },
   assidu: { nom: "Assidu (3 h/j)", boosters: 11, gardiens: 10, remontees: 0.6, expeditions: 7,
     lieuxRainbow: 0.5, ventes: 30, achats: 0.5, affaires: 0.9, dissous: 50, forges: 1, xp: 230, rainbowXP: 1,
-    missions: 3.1, semaines: 1 / 7, commandes: 3.5, effondrements: 169 / 90,
-    strate: [[1, 12], [3, 13], [7, 14], [30, 15]], faveurs: [[1, 1], [5, 6], [18, 12]],
+    missions: 3.1, semaines: 1 / 7, commandes: 3.5,
+    effondrements: [[1, 4], [2, 8], [3, 9], [6, 10], [27, 11]],
+    strate: [[1, 10], [2, 13], [3, 14], [6, 15], [27, 16]], faveurs: [[1, 2], [2, 9], [3, 10], [27, 12]],
     record: [[2, 3], [10, 5], [42, 8], [180, 12]] },
 };
 const JAMAIS = Infinity;
@@ -180,7 +186,7 @@ function jourDu(P, f, p) {
     case "strate": return courbe(P.strate, s);
     case "faveurs": return courbe(P.faveurs, s);
     case "recordInfini": return courbe(P.record, s);
-    case "effondrements": return s / P.effondrements;
+    case "effondrements": return courbe(P.effondrements, s);
     case "lieuxRainbow": return 6 + s / P.lieuxRainbow;
     case "dissous": case "forges": return reliquaire + s / P[m];
     case "niveauMax": return pointsNiveau(s) / P.xp;

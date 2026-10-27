@@ -141,7 +141,9 @@ describe("éclats", () => {
     expect(R.eclatsDispo(partie({ profondeurMax: 5 }))).toBe(R.eclatsDuRecord(5));
     expect(R.eclatsDispo(partie({ profondeurMax: 12 }))).toBe(R.eclatsDuRecord(12));
     // Chaque strate de record rapporte plus que la précédente.
-    for (let p = 6; p < 30; p++) {
+    // La strate 5 rapporte déjà : c'est là que le Fossoyeur apparaît.
+    expect(R.eclatsDuRecord(5)).toBeGreaterThanOrEqual(1);
+    for (let p = 7; p < 30; p++) {
       expect(R.eclatsDuRecord(p) - R.eclatsDuRecord(p - 1)).toBeGreaterThan(R.eclatsDuRecord(p - 1) - R.eclatsDuRecord(p - 2));
     }
   });

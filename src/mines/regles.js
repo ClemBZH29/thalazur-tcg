@@ -89,14 +89,16 @@ export const mEclats = (S) => 1 + S.eclats * ECLAT_BONUS;
    rien ; seul aller plus loin paie.
 
    La courbe est cubique : le pas d'une strate de record grandit avec la
-   profondeur, comme son coût (record 7 : 4 éclats, 10 : 36, 13 : 121,
-   16 : 288). Avec la pente des strates, l'arbre (257) se complète vers la
+   profondeur, comme son coût (record 5 : 1 éclat, 7 : 5, 10 : 36, 13 : 122,
+   16 : 288). Arrondie au-dessus : la strate 5, où le Fossoyeur apparaît,
+   rapporte déjà un éclat ; arrondie en dessous, elle n'en rapportait aucun,
+   et le premier effondrement attendait la strate 6. Avec la pente des strates, l'arbre (257) se complète vers la
    strate 16 : cinq à six semaines à une heure par jour. Calée par
    `scripts/audit-eclats.mjs`. */
 export const ECLATS_DIVISEUR = 6;
 export const eclatsDuRecord = (p) => {
   const n = Math.max(0, Math.floor(p) - STRATE_ECLATS + 1);
-  return Math.floor((n * n * n) / ECLATS_DIVISEUR);
+  return Math.ceil((n * n * n) / ECLATS_DIVISEUR);
 };
 /** La strate la plus profonde jamais atteinte, mine en cours comprise. */
 export const record = (S) => Math.max(S.record || 0, S.profondeurMax || 1);

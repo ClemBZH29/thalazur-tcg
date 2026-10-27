@@ -526,8 +526,18 @@ Le total des éclats gagnés est maintenant une fonction du **record** de
 profondeur, toutes mines confondues (`eclatsDuRecord`, `record`) ; un
 effondrement verse la différence avec ce qui a déjà été gagné. C'est le prestige
 de Cookie Clicker, qui suit le cumul de toujours : refaire la même mine ne
-rapporte rien. La courbe est cubique, `⌊(record − 4)³ / 6⌋` : record 7 →
-4 éclats, 10 → 36, 13 → 121, 16 → 288. La salle du Fossoyeur dit, quand
+rapporte rien. La courbe est cubique, `⌈(record − 4)³ / 6⌉` : record 5 →
+1 éclat (le Fossoyeur apparaît là), 7 → 5, 10 → 36, 13 → 122, 16 → 288.
+
+Les succès d'effondrement suivent : on n'effondre plus qu'en battant son
+record, une dizaine de fois en trois mois. Paliers 1, 3, 6 (titre
+« Fossoyeur de galeries ») et 11, au lieu de 1, 10, 30, 75 et 150. La strate
+passe à 5, 8, 11, 15 et 16 (le record continue de monter), et les premiers
+paliers des trois familles paient de l'or plutôt que des sachets, reportés sur
+la strate 16, le 11ᵉ effondrement et l'arbre complet : la descente est plus
+rapide les premiers jours, et la première semaine ne doit pas rendre plus d'un
+tiers des boosters. `audit-succes` lit les effondrements, la strate et les
+faveurs sur des courbes relevées avec le joueur simulé. La salle du Fossoyeur dit, quand
 l'effondrement ne rapporte rien, quelle profondeur le ferait payer.
 
 Les éclats déjà gagnés restent : ils retardent seulement les suivants
