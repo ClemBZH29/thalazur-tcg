@@ -26,18 +26,12 @@ const multEvenement = (S) => {
   const c = R.chanceEvenement(S);
   return (1 - c) + 0.4 * c * 12 + 0.6 * c * 4;
 };
-function briser(S) {
+function degats(S, d) {
   const avant = S.etoile;
-  R.briser(S, () => 0.99);
+  R.infliger(S, d, null, () => 0.99, 300000);
   const gain = (S.etoile - avant) * (multEvenement(S) - 1);
   S.etoile += gain;
   S.etoileTotale += gain;
-}
-function degats(S, d) {
-  let garde = 0;
-  while (d > 0 && garde++ < 300000) {
-    if (d >= S.pv) { d -= S.pv; S.pv = 0; briser(S); } else { S.pv -= d; d = 0; }
-  }
 }
 
 function acheter(S, reserve) {
@@ -59,7 +53,13 @@ function acheter(S, reserve) {
       S.compagnons[c.id] = (S.compagnons[c.id] || 0) + n;
     }
   }
-  while (S.points > 0) { S.talents[["force", "discipline", "echo", "fortune"][S.points % 4]]++; S.points--; }
+  // Répartition égale, sans dépasser les plafonds (un point au-delà ne se place plus).
+  const ORDRE = ["force", "discipline", "echo", "fortune"];
+  while (S.points > 0) {
+    const libres = ORDRE.filter((t) => S.talents[t] < R.talentMax(S, t));
+    const t = libres.sort((a, b) => S.talents[a] - S.talents[b])[0];
+    S.talents[t]++; S.points--;
+  }
 }
 
 function offrirTout(j, jour) {
@@ -86,7 +86,7 @@ export function joueur() {
 }
 
 /** `sec` secondes de présence, le `n`-ième jour de la simulation. */
-export function present(j, sec, n, { frappesMinute = 90, effondrer = true } = {}) {
+export function present(j, sec, n, { frappesMinute = 90, effondrer = true, boucleCourte = false } = {}) {
   const jour = n;
   R.majCommandes(j.S, jourN(n));
   livrerTout(j);
@@ -107,8 +107,11 @@ export function present(j, sec, n, { frappesMinute = 90, effondrer = true } = {}
     const grosse = S.commandes && S.commandes.liste.find((c) => c.presence && !c.livree);
     acheter(S, grosse && R.presencePour(S, grosse) >= grosse.presence ? grosse.demande : 0);
     const g = R.eclatsDispo(S);
-    const stagne = j.joue - j.descente > 1800;
-    if (effondrer && g >= 1 && (g >= Math.ceil(j.dernierGain * 1.5) || (g >= j.dernierGain && stagne))) {
+    const stagne = j.joue - j.descente > (boucleCourte ? 120 : 1800);
+    // Les éclats suivent le record (27/10/2026) : il effondre quand le gain
+    // ajouterait au moins la moitié de ses éclats, ou quand la mine stagne.
+    // Le joueur « boucle courte » effondre dès deux minutes sans descendre.
+    if (effondrer && g >= 1 && (boucleCourte ? stagne : (g >= Math.ceil(j.S.eclats * 0.5) || stagne))) {
       j.dernierGain = g;
       j.S = R.effondrer(S, etatNeuf).mine;
       R.naitreFilon(j.S, () => 0.99);
