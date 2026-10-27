@@ -74,18 +74,61 @@ export const equipMult = (S, type) =>
 export const ECLAT_BONUS = 0.03;      // dégâts ajoutés par éclat
 export const STRATE_ECLATS = 5;       // première strate qui rapporte
 export const mEclats = (S) => 1 + S.eclats * ECLAT_BONUS;
+
+/* ── Troisième version : les éclats se gagnent sur le record (27/10/2026) ─
+   Compter les éclats dans la mine en cours bornait ce que rapporte une mine,
+   pas le nombre de mines par heure. Avec la Mémoire et les éclats, la
+   strate 12 tombait en une minute : huit éclats toutes les deux minutes,
+   l'arbre entier en moins de dix heures de jeu (audit du 27/10/2026,
+   `claude/audit-mines-gameplay.md`).
+
+   Le total des éclats gagnés est maintenant une fonction du **record** de
+   profondeur, toutes mines confondues, et un effondrement ne verse que la
+   différence avec ce qui a déjà été gagné : le modèle de Cookie Clicker, où
+   le prestige suit le cumul de toujours. Refaire la même mine ne rapporte
+   rien ; seul aller plus loin paie.
+
+   La courbe est cubique : le pas d'une strate de record grandit avec la
+   profondeur, comme son coût (record 7 : 4 éclats, 10 : 36, 13 : 121,
+   16 : 288). Avec la pente des strates, l'arbre (257) se complète vers la
+   strate 16 : cinq à six semaines à une heure par jour. Calée par
+   `scripts/audit-eclats.mjs`. */
+export const ECLATS_DIVISEUR = 6;
+export const eclatsDuRecord = (p) => {
+  const n = Math.max(0, Math.floor(p) - STRATE_ECLATS + 1);
+  return Math.floor((n * n * n) / ECLATS_DIVISEUR);
+};
+/** La strate la plus profonde jamais atteinte, mine en cours comprise. */
+export const record = (S) => Math.max(S.record || 0, S.profondeurMax || 1);
 /* Force convertit la présence en revenu : une frappe vaut une fraction de la
    production passive, donc cliquer reste utile quand les compagnons pèsent des
    millions. Sans cela, Discipline écrase tout le reste par construction. */
-export const secondesParFrappe = (S) => 0.15 + 0.12 * S.talents.force;
+/* Les pioches ajoutent des secondes de production à la frappe (27/10/2026).
+   Elles multipliaient la frappe de base, que la part de production dépasse dès
+   la strate 3 : passé les premières minutes, aucune n'avait plus d'effet, et
+   la Pioche de Kazim s'achetait pour rien (audit du 27/10/2026). */
+export const equipSecondes = (S) =>
+  EQUIPEMENT.reduce((t, e) => (e.type === "frappe" && equipA(S, e.id) ? t + e.val : t), 0);
+export const secondesParFrappe = (S) => 0.15 + 0.12 * S.talents.force + equipSecondes(S);
 export const degatsClic = (S) => Math.max(
-  (1 + S.talents.force * 0.3) * equipMult(S, "clic") * mEclats(S),
+  (1 + S.talents.force * 0.3 + 20 * equipSecondes(S)) * mEclats(S),
   dpsBrut(S) * secondesParFrappe(S)
 );
+/* Les talents plafonnés le disent (27/10/2026) : au-delà, le bouton se grise.
+   Écho plafonnait à 15 % de critique, soit 7,5 points, et Fortune à 35 % de
+   filons riches : les points suivants se plaçaient sans rien faire, et la
+   Mémoire les rendait perdus pour toujours. Écho passe à 16 % pour tomber
+   juste sur le huitième point. */
+export const TALENT_MAX = { echo: 8, fortune: 12 };
+/** Le dernier point de talent utile. Le point de Fortune offert par l'Œil compte. */
+export const talentMax = (S, id) =>
+  id === "fortune" ? TALENT_MAX.fortune - fortuneOfferte(S) : TALENT_MAX[id] ?? Infinity;
+/** La valeur qui agit : le talent placé, plus ce que la Faveur offre. */
+export const talentEffectif = (S, id) => (id === "fortune" ? fortune(S) : S.talents[id]);
 export const critChance = (S) =>
   Math.min(75, EQUIPEMENT.reduce(
     (c, e) => (equipA(S, e.id) && (e.type === "crit" || e.type === "crit2") ? c + e.val : c),
-    Math.min(15, S.talents.echo * 2)
+    Math.min(2 * TALENT_MAX.echo, S.talents.echo * 2)
   ));
 export const critMult = (S) => multCritique(S, equipA(S, "l2"));
 export const prodUnitaire = (S) => (1 + S.talents.discipline * 0.12) * equipMult(S, "dps") * mEclats(S);
@@ -111,16 +154,20 @@ export const chanceEvenement = (S) => Math.min(0.35, 0.05 * (1 + 0.5 * fortune(S
 /* Un filon sur combien rend plus. Le chiffre est affiché sous les talents :
    douze points placés dans Fortune ne se voyaient nulle part. */
 export const unFilonSur = (S) => Math.max(1, Math.round(1 / chanceEvenement(S)));
+/* En pourcentage : « un sur 3 » ne bougeait plus à partir de Fortune 8, et
+   l'Œil du sourcier paraissait sans effet (audit du 27/10/2026). */
+export const partRiche = (S) => Math.round(chanceEvenement(S) * 1000) / 10;
 /* La teinte des filons qui rendent plus : ambre à zéro point de Fortune, rouge
    franc à dix. Le talent gouverne la fréquence ; la couleur dit jusqu'où on
    l'a poussé, ce qu'aucun chiffre de l'interface ne disait. */
-export const teinteFortune = (S) => Math.round(40 - 40 * Math.min(1, fortune(S) / 10));
+export const teinteFortune = (S) => Math.round(40 - 40 * Math.min(1, fortune(S) / TALENT_MAX.fortune));
 export const pvFilon = (prof, brises) => Math.ceil(18 * echelle(prof) * Math.pow(1.09, brises));
 export const xpRequis = (S) => Math.floor(22 * Math.pow(S.niveau, 1.55));
 export const brisesIci = (S) => S.brises[S.profondeur] || 0;
-/** Éclats que rapporterait un effondrement maintenant. */
-export const eclatsDispo = (S) =>
-  S.profondeurMax < STRATE_ECLATS ? 0 : S.profondeurMax - STRATE_ECLATS + 1;
+/** Éclats que rapporterait un effondrement maintenant : ce que vaut le
+    record, moins ce qui a déjà été gagné. Les éclats gagnés sous l'ancienne
+    règle restent acquis ; ils retardent seulement les suivants. */
+export const eclatsDispo = (S) => Math.max(0, eclatsDuRecord(record(S)) - (S.eclats || 0));
 /** Étoile sortie par seconde par l'équipe seule, à plein rendement. */
 export const etoileParSeconde = (S) => dps(S) * RECOLTE * multRecolte(S);
 export const coutUn = (S, c) => Math.ceil(c.base * Math.pow(1.15, S.compagnons[c.id] || 0));
@@ -209,11 +256,79 @@ export function tirerRang(S, r = Math.random()) {
   return r < seuil * 0.4 ? 2 : r < seuil ? 1 : 0;
 }
 
-/** Un filon neuf à la profondeur courante. */
-export function naitreFilon(S, alea = Math.random) {
+/* Le tirage du rang est fixé d'avance (27/10/2026) : il dépend de la mine
+   (`graine`), de la strate et du numéro du filon. Remonter puis redescendre
+   faisait naître un filon neuf, donc un nouveau tirage : en recommençant
+   jusqu'au ×12, huit essais en moyenne, la récolte était multipliée par
+   quatre. Comme les sorts du Grimoire de Cookie Clicker, l'issue ne change
+   plus en revenant en arrière. */
+export const tirageFilon = (S) => {
+  let h = (S.graine >>> 0) ^ Math.imul(S.profondeur | 0, 0x9e3779b1) ^ Math.imul((brisesIci(S) | 0) + 1, 0x85ebca77);
+  h = Math.imul(h ^ (h >>> 16), 0x7feb352d);
+  h = Math.imul(h ^ (h >>> 15), 0x846ca68b);
+  h ^= h >>> 16;
+  return (h >>> 0) / 4294967296;
+};
+
+/** Un filon neuf à la profondeur courante. `alea` ne sert qu'aux simulations. */
+export function naitreFilon(S, alea) {
   S.pvMax = pvFilon(S.profondeur, brisesIci(S));
   S.pv = S.pvMax;
-  S.filonRang = tirerRang(S, alea());
+  S.filonRang = tirerRang(S, alea ? alea() : tirageFilon(S));
+}
+
+/* ── La récolte suit les coups (27/10/2026) ───────────────────────────────
+   Le filon payait son étoile en une fois, en cédant. Avec les éclats gagnés
+   sur le record, un joueur arrivé au mur ne gagne plus d'éclats, donc plus de
+   force : au front, un seul filon demandait une semaine de production, et
+   pendant cette semaine plus une étoile n'entrait — ni compagnon, ni commande
+   (`audit-economie`, profil d'une heure : la grosse commande livrée un jour
+   sur trois au lieu de tous les jours). Chaque coup arrache maintenant sa
+   part d'étoile, comme les cookies de Cookie Clicker tombent à la seconde.
+   Le total d'un filon ne change pas ; le filon riche multiplie tout ce qu'on
+   lui arrache. */
+export const multRang = (rang) => (rang === 2 ? 12 : rang === 1 ? 4 : 1);
+export const recolteDe = (S, d) => d * RECOLTE * multRecolte(S) * multRang(S.filonRang || 0);
+/** `d` points de dégâts sur le filon courant, sans le briser (`d` ≤ `S.pv`). */
+export function entamer(S, d) {
+  const e = recolteDe(S, d);
+  S.pv -= d;
+  S.etoile += e;
+  S.etoileTotale += e;
+  return e;
+}
+/** Une frappe au-delà, et le reste des dégâts est perdu : ce n'est jamais arrivé. */
+export const FILONS_PAR_COUP = 500;
+/**
+ * Inflige `d` points de dégâts : entame le filon, le brise, passe au suivant.
+ * `quandBrise` reçoit le bilan de chaque filon brisé (l'interface l'annonce).
+ * Rend le nombre de filons brisés.
+ */
+export function infliger(S, d, quandBrise = null, alea, max = FILONS_PAR_COUP) {
+  let n = 0;
+  while (d > 0 && n < max) {
+    if (d < S.pv) { entamer(S, d); break; }
+    d -= S.pv;
+    entamer(S, S.pv);
+    const r = briser(S, alea);
+    n++;
+    if (quandBrise) quandBrise(r);
+  }
+  return n;
+}
+
+/* L'expérience suit la dureté (27/10/2026). Chaque filon rapportait
+   l'expérience de sa strate, si tendre soit-il : remonter dans une mine neuve
+   et briser des centaines de filons d'une frappe donnait autant que quatre
+   cents filons du front — 2,4 niveaux par mine, rejoués à chaque
+   effondrement. Un filon du front rapporte ce qu'il rapportait ; un filon
+   plus tendre, au prorata de sa résistance. L'expérience par point de dégât
+   est donc la même partout dans la mine. */
+export const xpFront = (S) => 5 * Math.pow(S.profondeurMax || 1, 1.25);
+export function xpFilon(S) {
+  const front = pvFilon(S.profondeurMax || 1, S.brises[S.profondeurMax] || 0);
+  const durete = front > 0 ? Math.min(1, S.pvMax / front) : 1;
+  return Math.round(xpFront(S) * durete);
 }
 
 /**
@@ -221,14 +336,13 @@ export function naitreFilon(S, alea = Math.random) {
  * strate la plus profonde atteinte est épuisée. Rend ce qui s'est passé, pour
  * que l'appelant l'annonce à sa façon.
  */
-export function briser(S, alea = Math.random) {
+export function briser(S, alea) {
   const rang = S.filonRang || 0;
-  const recolte = S.pvMax * RECOLTE * multRecolte(S) * (rang === 2 ? 12 : rang === 1 ? 4 : 1);
-  S.etoile += recolte;
-  S.etoileTotale += recolte;
+  // Ce que le filon a rendu en tout, coup après coup (voir `entamer`).
+  const recolte = S.pvMax * RECOLTE * multRecolte(S) * multRang(rang);
+  S.xp += xpFilon(S);
   S.brises[S.profondeur] = brisesIci(S) + 1;
   S.brisesTotal++;
-  S.xp += Math.round(5 * Math.pow(S.profondeur, 1.25));
   let niveaux = 0;
   while (S.xp >= xpRequis(S)) {
     S.xp -= xpRequis(S);
@@ -259,23 +373,19 @@ const FILONS_MAX_ABSENCE = 20000;
  * filons se brisent, la strate se vide, on descend — comme si l'on avait
  * laissé la page ouverte, en plus lent. Rend le bilan.
  */
-export function simulerAbsence(S, ms, rendement = rendementAbsence(S), alea = Math.random) {
+export function simulerAbsence(S, ms, rendement = rendementAbsence(S), alea) {
   const bilan = { ms, filons: 0, etoile: 0, niveaux: 0, strates: 0, exceptionnels: 0 };
   const duree = Math.max(0, Math.min(absenceMax(S), ms));
   let d = dps(S) * (duree / 1000) * rendement;
   if (!(d > 0)) return bilan;
   if (!S.pvMax) naitreFilon(S, alea);
-  while (d > 0 && bilan.filons < FILONS_MAX_ABSENCE) {
-    if (d < S.pv) { S.pv -= d; d = 0; break; }
-    d -= S.pv;
-    S.pv = 0;
-    const r = briser(S, alea);
-    bilan.filons++;
-    bilan.etoile += r.recolte;
+  const avant = S.etoile;
+  bilan.filons = infliger(S, d, (r) => {
     bilan.niveaux += r.niveaux;
     if (r.descente) bilan.strates++;
     if (r.rang === 2) bilan.exceptionnels++;
-  }
+  }, alea, FILONS_MAX_ABSENCE);
+  bilan.etoile = S.etoile - avant;
   return bilan;
 }
 
@@ -355,6 +465,21 @@ export function majCommandes(S, jour = jourLocal()) {
     n'en crédite pas davantage par jour (src/jeu/mine.js). */
 export const PO_COMMANDES_JOUR = COMMANDES.reduce((t, c) => t + c.po * (c.id === "petite" ? 2 : 1), 0);
 
+/* Frappes comptées par seconde, au plus (27/10/2026). Rien ne bornait la
+   cadence : Entrée maintenue frappait à la répétition du clavier, une
+   trentaine de fois par seconde, et un autoclicker à cent atteignait la
+   strate 13 en trente-huit minutes. Le site a un classement. Au-delà, la
+   frappe ne compte pas. Dix par seconde en continu, c'est le rythme d'un
+   joueur très rapide (Mormegil, sans aide, avait la strate 13 en 81 min ;
+   la cadence plafonnée y met 68 min) ; une rafale de quinze passe. */
+export const FRAPPES_MAX = 10;
+export const FRAPPES_RAFALE = 15;
+/** Une horloge en arrière de plus d'un jour est fausse : on la croit. Moins,
+    on attend qu'elle rattrape l'instant déjà joué. */
+export const HORLOGE_TOLERANCE = 24 * 3600000;
+/** Au-delà, un onglet caché compte comme une absence, à son rendement. */
+export const CACHE_MAX = 60000;
+
 /* L'étoile filante attrapée : frappes multipliées le temps de la frénésie. */
 export const FRENESIE = { duree: 15000, mult: 7 };
 /** La frénésie court-elle à l'instant `t` ? Sa fin ne peut pas être plus loin
@@ -381,6 +506,9 @@ export function livrer(S, id) {
 
 /* ── L'effondrement ────────────────────────────────────────────────────── */
 
+export const MEMOIRE_PART = 1 / 3;
+export const PUITS_PART = 1 / 3;
+
 /**
  * La mine d'après. Ce qui reste : les éclats (et ceux qu'on vient de
  * gagner), la Faveur, les compteurs de toujours et les commandes du jour.
@@ -391,16 +519,27 @@ export function effondrer(S, neuve) {
   if (gain < 1) return null;
   const n = neuve();
   Object.assign(n, {
+    record: record(S), niveauRecord: Math.max(S.niveauRecord || 0, S.niveau || 1),
     eclats: S.eclats + gain, eclatsDepenses: S.eclatsDepenses || 0, faveurs: [...(S.faveurs || [])],
     effondrements: S.effondrements + 1, etoileTotale: S.etoileTotale, echanges: S.echanges,
     poGagnes: S.poGagnes, commandes: S.commandes, presence: S.presence || 0,
   });
   if (aFaveur(n, "plans")) n.equipement = ["p1", "l1"];
   if (aFaveur(n, "equipe")) n.compagnons = { fanal: 10, nain: 5 };
-  // Les talents gardés gardent leur niveau : sinon les niveaux regagnés
-  // donneraient une seconde fois les mêmes points.
-  if (aFaveur(n, "memoire")) Object.assign(n, { talents: { ...S.talents }, niveau: S.niveau, xp: S.xp, points: S.points });
-  if (aFaveur(n, "puits")) { n.profondeur = 3; n.profondeurMax = 3; }
+  /* La Mémoire (27/10/2026) rouvre au tiers du meilleur niveau, points à
+     replacer. Elle gardait talents et niveau entiers : la mine neuve partait
+     avec toute la force de la précédente, et la strate 12 tombait en une
+     minute. Replacer à chaque mine sert aussi de remise à plat des talents. */
+  if (aFaveur(n, "memoire")) {
+    const niveau = Math.max(1, Math.floor(n.niveauRecord * MEMOIRE_PART));
+    Object.assign(n, { niveau, xp: 0, points: niveau - 1 });
+  }
+  /* Le Puits rouvre au tiers du record : la strate 3 ne faisait plus gagner
+     une seule frappe au moment où l'on pouvait se l'offrir. */
+  if (aFaveur(n, "puits")) {
+    const p = Math.max(1, Math.floor(n.record * PUITS_PART));
+    n.profondeur = p; n.profondeurMax = p;
+  }
   /* Les commandes pas encore livrées se remettent à la mesure de la mine
      neuve : tirées le matin sur une équipe de millions, elles devenaient
      inatteignables jusqu'au soir pour qui effondrait à midi. Elles ne font

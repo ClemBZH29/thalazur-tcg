@@ -27,17 +27,17 @@ export const COMPAGNONS = [
 ];
 
 export const EQUIPEMENT = [
-  { id: "p1", sprite: "pioche-fer",         nom: "Pioche de fer",          desc: "Dégâts de frappe doublés.",                     cout: 90,    type: "clic",    val: 2,    req: 0 },
+  { id: "p1", sprite: "pioche-fer",         nom: "Pioche de fer",          desc: "Chaque frappe vaut 0,05 s de production de plus.", cout: 90,    type: "frappe",  val: 0.05,  req: 0 },
   { id: "l1", sprite: "fanal-huile",        nom: "Fanal à huile claire",   desc: "Ajoute 4 % de chance de coup critique.",        cout: 400,   type: "crit",    val: 4,    req: 0 },
   { id: "e1", sprite: "etais-renforces",    nom: "Étais renforcés",        desc: "Production des compagnons augmentée de 40 %.",  cout: 1600,  type: "dps",     val: 1.4,  req: 1 },
-  { id: "p2", sprite: "pioche-acier",       nom: "Pioche d'acier trempé",  desc: "Dégâts de frappe multipliés par 2,5.",          cout: 7000,  type: "clic",    val: 2.5,  req: 1 },
+  { id: "p2", sprite: "pioche-acier",       nom: "Pioche d'acier trempé",  desc: "Chaque frappe vaut 0,1 s de production de plus.",  cout: 7000,  type: "frappe",  val: 0.1, req: 1 },
   { id: "c1", sprite: "contrat-courtage",   nom: "Contrat de courtage",    desc: "Tafix fait passer vos sacs en premier : récolte d'étoile +25 %.",  cout: 20000, type: "recolte", val: 1.25, req: 2 },
   { id: "l2", sprite: "lentille-quartz",    nom: "Lentille de quartz",     desc: "Ajoute 6 % de critique et les rend plus durs.", cout: 65000, type: "crit2",   val: 6,    req: 2 },
   { id: "e2", sprite: "rails-bascule",      nom: "Rails à bascule",        desc: "Production des compagnons doublée.",            cout: 3e5,   type: "dps",     val: 2,    req: 3 },
-  { id: "p3", sprite: "pioche-resonante",   nom: "Pioche résonante",       desc: "Dégâts de frappe multipliés par 4.",            cout: 1.4e6, type: "clic",    val: 4,    req: 4 },
+  { id: "p3", sprite: "pioche-resonante",   nom: "Pioche résonante",       desc: "Chaque frappe vaut 0,25 s de production de plus.", cout: 1.4e6, type: "frappe",  val: 0.25,  req: 4 },
   { id: "f1", sprite: "tamis-mailles",      nom: "Tamis à mailles fines",  desc: "Récolte d'étoile augmentée de 60 %.",           cout: 9e6,   type: "recolte", val: 1.6,  req: 4 },
   { id: "c2", sprite: "serment-rookerie",   nom: "Serment de la Rookerie", desc: "La tribu vous prête ses tamis : récolte d'étoile +40 %.",            cout: 4e7,   type: "recolte", val: 1.4,  req: 6 },
-  { id: "p4", sprite: "pioche-kazim",       nom: "Pioche de Kazim",        desc: "Dégâts de frappe multipliés par 6.",            cout: 2.5e8, type: "clic",    val: 6,    req: 7 },
+  { id: "p4", sprite: "pioche-kazim",       nom: "Pioche de Kazim",        desc: "Chaque frappe vaut une demi-seconde de production de plus.", cout: 2.5e8, type: "frappe", val: 0.5, req: 7 },
   { id: "f2", sprite: "benediction-filon",  nom: "Bénédiction du filon",   desc: "Récolte d'étoile multipliée par 2,2.",          cout: 1.2e9, type: "recolte", val: 2.2,  req: 7 },
 ];
 
@@ -100,11 +100,11 @@ export const TALENTS = [
   { id: "force",      nom: "Force",
     desc: "Vos coups de pioche font plus mal — et le restent quand vos compagnons pèsent des millions. Le seul talent qui récompense votre présence." },
   { id: "echo",       nom: "Écho",
-    desc: "Deux points de chance de coup critique en plus par point. Chaque critique fait aussi monter le prix de votre prochaine vente." },
+    desc: "Deux points de chance de coup critique en plus par point, jusqu'à huit points." },
   { id: "discipline", nom: "Discipline",
     desc: "Vos compagnons creusent 12 % plus vite par point. Le seul talent qui travaille en votre absence." },
   { id: "fortune",    nom: "Fortune",
-    desc: "Des filons exceptionnels plus souvent : ceux qui rendent quatre à douze fois plus d'étoile." },
+    desc: "Des filons exceptionnels plus souvent : ceux qui rendent quatre à douze fois plus d'étoile. Jusqu'à douze points, Œil du sourcier compris." },
 ];
 
 /* ── Ce qui s'ouvre, et quand ─────────────────────────────────────────────
@@ -173,7 +173,7 @@ export const LEXIQUE = [
   { mot: "Étoile fraîche", des: (s) => s.brisesTotal >= 1,
     def: "Celle qu'on sort soi-même. La grosse commande demande un quart d'heure de mine, page ouverte : l'étoile de la nuit ne compte pas." },
   { mot: "Éclat de Kazim", des: (s) => s.profondeurMax >= 5 || s.eclats > 0,
-    def: "Ce qu'on retrouve dans les gravats d'un effondrement : un par strate atteinte au-delà de la quatrième. Chacun ajoute 3 % de dégâts, pour toujours." },
+    def: "Ce qu'on retrouve dans les gravats d'un effondrement, quand on a battu son record de profondeur : plus le record est profond, plus il en rapporte. Chacun ajoute 3 % de dégâts, pour toujours." },
   { mot: "Effondrement", des: (s) => s.profondeurMax >= 5 || s.eclats > 0,
     def: "Faire sauter les étais : la mine repart de zéro, mais vos éclats et vos faveurs restent." },
   { mot: "Faveur du Fossoyeur", des: (s) => s.eclats > 0,

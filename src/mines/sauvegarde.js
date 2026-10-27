@@ -21,6 +21,13 @@ export function etatNeuf() {
     talents: { force: 0, echo: 0, discipline: 0, fortune: 0 },
     compagnons: {}, equipement: [],
     eclats: 0, echanges: 0, effondrements: 0,
+    /* Le record de profondeur et le meilleur niveau, toutes mines confondues
+       (27/10/2026) : les éclats se gagnent sur le premier, la Mémoire rouvre
+       au tiers du second. Gardés à l'effondrement. */
+    record: 0, niveauRecord: 1,
+    /* La graine des filons de cette mine : le rang d'un filon en dépend, pour
+       que remonter puis redescendre ne le retire pas (voir `tirageFilon`). */
+    graine: Math.floor(Math.random() * 4294967296),
     /* La Faveur du Fossoyeur (voir faveur.js) : les éclats déjà offerts, et
        les faveurs acquises. Gardés à l'effondrement. */
     eclatsDepenses: 0, faveurs: [],
