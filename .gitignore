@@ -17,3 +17,5 @@ cle-*.json
 _a_supprimer/
 *.zip
 *.tgz
+# Résultats des simulations du Donjon (npm run simu:donjon) : refaits à la demande
+scripts/simu-donjon/resultats/

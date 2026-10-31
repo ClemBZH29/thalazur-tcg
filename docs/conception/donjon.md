@@ -698,6 +698,49 @@ grandeur des Mines (480 PO de plafond quotidien) ; les deux s'ajoutent, et le
 jour où un troisième module arrive, l'enveloppe commune des modules devra
 être fixée.
 
+## Simulations (31/10/2026)
+
+`npm run simu:donjon` (scripts/simu-donjon/) cherche ce qui va le plus loin
+au donjon infini : composition de quatre rôles, source de pouvoir, stratégie
+du pilote automatique, geste et technique de chaque carte. Il tourne en
+local, sur tous les cœurs (workers), et écrit un rapport Markdown et les
+chiffres bruts dans `scripts/simu-donjon/resultats/` (hors dépôt).
+
+Pourquoi cette méthode :
+
+- **Tout l'espace, mais pas partout pareil.** 495 compositions × 38 sources
+  font 18 810 équipes : les jouer toutes sur des centaines de descentes
+  coûterait des heures. Le criblage les joue toutes un peu, puis rejoue
+  davantage les meilleures (élimination successive) ; le temps de calcul va
+  aux équipes qui se disputent la tête.
+- **Graines communes.** Deux équipes comparées jouent les mêmes graines : la
+  même carte, les mêmes adversaires tant que leurs choix ne divergent pas.
+  L'écart entre elles se mesure descente par descente (écart apparié), bien
+  plus net que la différence de deux moyennes bruitées. Un changement
+  d'affinage n'est gardé que s'il dépasse deux erreurs types de cet écart.
+- **Des cartes fictives.** Les quatre cartes ont le même palier et le même
+  niveau, et chaque rôle existe à chaque palier : on compare des décisions,
+  pas les hasards du roster. Les profils (`--profil debutant | moyen | fort
+  | max`) fixent palier, niveau, rangs et étoiles.
+- **Les sources à armes égales.** Une source se juge avec les équipes qui
+  lui vont : chaque lieu est rejoué avec ses cinq meilleures compositions.
+- **L'objectif se choisit** : la moyenne des gardiens (par défaut), le
+  neuvième décile (`--objectif p90`, ce qui compte pour le record du
+  classement), ou les PO nettes de l'entrée (`--objectif po`).
+
+Limites : pilote automatique (un joueur en manuel tire plus du Garde et du
+Voile), chemin tiré au hasard sur la carte (mesuré sans effet au donjon
+infini), rencontres jouées par une règle simple (`--rencontres malin`, ou
+`premier` comme scripts/audit-donjon.mjs).
+
+Premières mesures (31/10/2026, sondage de 20 000 descentes, rares niveau 50) :
+l'Intendant est dans presque toutes les meilleures équipes (Ravitaillement
+toutes les deux actions) quand le Garde et le Meneur ferment la marche ; l'INI
+étoilée vaut à elle seule environ +45 % de profondeur (le tour offert à
+chaque combat), contre +6 % pour l'ATQ étoilée ; Temple Panthéonique, Palais
+de Dispater et, commune, la Plage de l'arrivée (Relève) sont les meilleures
+sources ; Exécution coûte de la profondeur en pilote automatique.
+
 ## Sauvegarde
 
 `etat.donjon = { jour, tentatives, imposition, recordInfini, partie, dernier, convalescence }`
