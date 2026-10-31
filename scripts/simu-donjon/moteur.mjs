@@ -18,6 +18,7 @@ import extension from "../../src/extensions/troupe-valeran/extension.js";
 import * as R from "../../src/donjon/regles.js";
 import { permise } from "../../src/donjon/fiches.js";
 import { DONJON, poDuButin } from "../../src/config/tiers.js";
+import { choixTactique, rencontreTactique, salleTactique } from "./tactique.mjs";
 
 const roster = JSON.parse(readFileSync(new URL("../../src/extensions/troupe-valeran/roster.json", import.meta.url), "utf8"));
 export const POOLS = R.cartesDonjon([{ ...extension, roster }]);
@@ -25,6 +26,8 @@ export const ROLES = Object.keys(R.ROLES);
 export const STRATEGIES = ["concentrer", "menace", "prudence"];
 export const cleCarte = (c) => `${c.ext}:${c.id}`;
 export const LIEUX = Object.fromEntries(POOLS.lieux.map((l) => [cleCarte(l), l]));
+/** Les vraies cartes alliées de La Troupe, par clé « ext:id ». */
+export const ALLIES = Object.fromEntries(POOLS.allies.map((c) => [cleCarte(c), c]));
 
 /** Un archétype du roster par rôle : `roleDe` le reconnaît (vérifié au chargement). */
 const ARCHETYPE = { garde: "Paladin", frappeur: "Guerrier", tireur: "Archer", soigneur: "Clerc", mage: "Sorcier",
@@ -37,7 +40,10 @@ export const carte = (role, palier, i) => ({ id: `sim-${i}-${role}`, num: i, nom
 
 /** Les compétences qu'un rôle peut prendre sur un emplacement (« geste » ou « tech »). */
 export function competencesPermises(role, place, palier = "rare") {
-  const c = carte(role, palier, 0);
+  return competencesCarte(carte(role, palier, 0), place);
+}
+/** Les compétences qu'une carte (vraie ou fictive) peut prendre sur un emplacement. */
+export function competencesCarte(c, place) {
   return Object.values(R.COMPETENCES).filter((k) => k.place === place && permise(c, k.id)).map((k) => k.id);
 }
 
@@ -91,7 +97,8 @@ function ficheDe(profil, choix = {}) {
  */
 export function descente(graine, cfg, profil, opts = {}) {
   const r = R.tirage(graine * 7919 + 17);
-  const eq = cfg.roles.map((role, i) => carte(role, profil.palier, i));
+  const eq = equipeDe(cfg, profil);
+  const T = cfg.tactique || null;
   const niveaux = Object.fromEntries(eq.map((c) => [cleCarte(c), profil.niveau]));
   const fiches = Object.fromEntries(eq.map((c, i) => [cleCarte(c), ficheDe(profil, cfg.fiches?.[i])]));
   const lieu = cfg.source ? LIEUX[cfg.source] : null;
@@ -100,12 +107,13 @@ export function descente(graine, cfg, profil, opts = {}) {
   let fin = "defaite";
   boucle: for (let pas = 0; pas < 50000; pas++) {
     const o = R.ouverts(partie.plan);
-    const n = R.entrer(partie, o[Math.floor(r() * o.length)]);
+    const n = R.entrer(partie, T ? salleTactique(T, partie, o) : o[Math.floor(r() * o.length)]);
     if (n.genre === "tresor") R.tresor(partie, r, POOLS.artefacts);
     if (n.genre === "repos") R.repos(partie);
     if (n.genre === "evenement") {
       const ev = R.RENCONTRES[Math.floor(r() * R.RENCONTRES.length)];
-      choisirRencontre(opts.rencontres || "malin", ev, ev.choix(partie, { r, pools: POOLS }), partie).f();
+      const choix = ev.choix(partie, { r, pools: POOLS });
+      (T ? rencontreTactique(T, ev, choix, partie) : choisirRencontre(opts.rencontres || "malin", ev, choix, partie)).f();
       if (!R.vivants(partie.equipe).length) break;
     }
     if (n.genre === "combat" || n.genre === "elite" || n.genre === "boss") {
@@ -114,7 +122,7 @@ export function descente(graine, cfg, profil, opts = {}) {
       for (let t = 0; t < 1500 && !f; t++) {
         const u = R.prochain(partie, C);
         if (!u) { f = R.issue(partie, C); break; }
-        const { geste, cible } = u.camp === "e" ? R.choixIA(partie, C, u, r) : R.choixAuto(partie, C, u, cfg.strategie || "prudence");
+        const { geste, cible } = u.camp === "e" ? R.choixIA(partie, C, u, r) : T ? choixTactique(T, partie, C, u) : R.choixAuto(partie, C, u, cfg.strategie || "prudence");
         R.resoudre(partie, C, u, geste, cible, r);
         f = R.issue(partie, C);
       }
@@ -127,14 +135,23 @@ export function descente(graine, cfg, profil, opts = {}) {
   return { gardiens: partie.stats.gardiens, butin, po: poDuButin(butin, "infini") - DONJON.modes.infini.entree, blocage: fin === "blocage" };
 }
 
+/**
+ * L'équipe d'une configuration : quatre vraies cartes (`cfg.cartes`, clés
+ * « ext:id ») ou quatre cartes fictives d'un rôle (`cfg.roles`).
+ */
+export const equipeDe = (cfg, profil) => (cfg.cartes ? cfg.cartes.map((k) => ALLIES[k]) : cfg.roles.map((role, i) => carte(role, profil.palier, i)));
+
+const PALIER_COURT = { commun: "C", peucommun: "PC", rare: "R", legendaire: "L" };
 /** Une étiquette lisible d'une équipe. */
 export function etiquette(cfg) {
-  const roles = cfg.roles.map((r, i) => {
+  const eq = equipeDe(cfg, { palier: "rare" });
+  return eq.map((c, i) => {
     const f = cfg.fiches?.[i] || {};
-    const k = [f.geste, f.tech].filter(Boolean).map((id) => R.COMPETENCES[id].nom);
-    return `${R.ROLES[r].nom}${k.length ? ` (${k.join(", ")})` : ""}`;
-  });
-  return roles.join(" · ");
+    const k = [f.geste, f.tech].filter((id) => id && R.COMPETENCES[id]).map((id) => R.COMPETENCES[id].nom);
+    const role = R.ROLES[R.roleCarte(c)].nom;
+    const nom = cfg.cartes ? `${c.nom} (${role}, ${PALIER_COURT[c.tier]})` : role;
+    return `${nom}${k.length ? ` [${k.join(", ")}]` : ""}`;
+  }).join(" · ");
 }
-export const nomSource = (cle) => (cle ? `${LIEUX[cle].nom} (${{ commun: "C", peucommun: "PC", rare: "R", legendaire: "L" }[LIEUX[cle].tier]})` : "Aucune");
+export const nomSource = (cle) => (cle ? `${LIEUX[cle].nom} (${PALIER_COURT[LIEUX[cle].tier]})` : "Aucune");
 export const nomStrategie = (s) => R.STRATEGIES[s]?.nom || s;

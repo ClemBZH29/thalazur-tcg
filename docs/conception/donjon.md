@@ -741,6 +741,40 @@ chaque combat), contre +6 % pour l'ATQ étoilée ; Temple Panthéonique, Palais
 de Dispater et, commune, la Plage de l'arrivée (Relève) sont les meilleures
 sources ; Exécution coûte de la profondeur en pilote automatique.
 
+### L'évolution (31/10/2026)
+
+`npm run evolution:donjon` (scripts/simu-donjon/evolution.mjs) ne compare
+plus des rôles fictifs : il fait évoluer une population d'**individus**, chacun
+fait de quatre **vraies cartes** alliées de La Troupe, d'une source, des
+compétences de chaque carte et, dans la seconde phase, d'une **tactique**
+(scripts/simu-donjon/tactique.mjs).
+
+La tactique est un génome de nombres qui règle chaque décision : une note
+par adversaire (somme pondérée de ses PV, de son ATQ, de sa menace, gardien,
+élite, achevable, marqué, soigneur, mage, saigne), un seuil par famille de
+technique, une préférence par genre de salle (et ce qu'elle devient quand
+l'équipe saigne), une règle par rencontre selon la santé **et l'étage** (les
+pièges du coffre et de l'écho blessent en proportion de l'étage : une règle
+qui ne voyait que la santé ouvrait les coffres à l'étage 10 et y perdait
+l'équipe). Elle ne voit que ce que voit le joueur : une tactique gagnante
+pourrait devenir une stratégie du pilote automatique telle quelle. Une
+tactique d'amorce imite Prudence (8,4 gardiens contre 8,2 pour Prudence,
+300 descentes, même équipe) : l'évolution part d'une base qui joue juste.
+
+Deux phases, pour démêler l'équipe de la tactique : l'équipe seule (tactique
+Prudence), puis l'équipe et la tactique ensemble. Chaque génération joue des
+donjons neufs, pour qu'aucun individu n'apprenne un donjon par cœur ; l'élite
+(15 %) rejoue d'une génération à l'autre, ce qui affine sa note. Le champion
+d'une phase est pris parmi ceux qui ont joué au moins deux générations.
+
+La **confrontation** finale rejoue, sur des donjons qu'aucune phase n'a vus,
+trois équipes (la naïve : les quatre cartes de plus haut palier et la source
+la plus rare ; les deux champions) avec les trois stratégies du jeu et la
+tactique évoluée. L'écart de la tactique évoluée sur la meilleure stratégie du
+jeu se mesure en apparié, sur les mêmes donjons. Un état est sauvé à chaque
+génération (`--reprendre`) : une longue évolution (`--longue`) peut
+s'interrompre.
+
 ## Sauvegarde
 
 `etat.donjon = { jour, tentatives, imposition, recordInfini, partie, dernier, convalescence }`
