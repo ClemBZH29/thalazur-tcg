@@ -10,7 +10,8 @@
  * Options : --profil debutant|moyen|fort|max, --niveau, --rangs, --etoiles,
  * --population, --generations, --descentes (par individu et par
  * génération), --finale (descentes de la confrontation), --objectif
- * moyenne|p90|po, --coeurs, --graine.
+ * moyenne|p90|po, --coeurs, --graine, --source (impose la source de pouvoir
+ * à toute la population : un bout de nom suffit, « pantheonique »).
  *
  * Un individu, c'est quatre vraies cartes alliées (toutes celles du
  * catalogue sont permises), une source de pouvoir, le geste et la technique
@@ -48,7 +49,7 @@ const { values: A0 } = parseArgs({ options: {
   profil: { type: "string", default: "moyen" }, niveau: { type: "string" }, rangs: { type: "string" }, etoiles: { type: "string" },
   population: { type: "string" }, generations: { type: "string" }, descentes: { type: "string" }, finale: { type: "string" },
   objectif: { type: "string", default: "moyenne" }, coeurs: { type: "string" }, graine: { type: "string", default: "0" },
-  essai: { type: "boolean" }, longue: { type: "boolean" }, reprendre: { type: "string" },
+  source: { type: "string" }, essai: { type: "boolean" }, longue: { type: "boolean" }, reprendre: { type: "string" },
 } });
 const DOSSIER = new URL("./resultats/", import.meta.url);
 mkdirSync(DOSSIER, { recursive: true });
@@ -64,12 +65,17 @@ const P = Number(A.population) || taille.P, G = Number(A.generations) || taille.
 const COEURS = Number(A.coeurs) || Math.max(1, availableParallelism() - 1);
 const DECALAGE = Number(A.graine) * 1_000_000_000;
 const OPTS = { rencontres: "malin" };
-const nomFichier = repris?.nomFichier || `evolution-${A.profil}-${new Date().toISOString().slice(0, 16).replace(/[:T]/g, "-")}`;
+const nomFichier = repris?.nomFichier || `evolution-${A.profil}${A.source ? `-${A.source.replace(/[^a-z0-9]+/gi, "")}` : ""}-${new Date().toISOString().slice(0, 16).replace(/[:T]/g, "-")}`;
 const r = tirage(hacher(`evolution-${A.graine}-${repris ? Date.now() : 0}`));
 
 /* ── Les individus ───────────────────────────────────────────────────── */
 
 const CLES_ALLIES = Object.keys(ALLIES), CLES_LIEUX = Object.keys(LIEUX);
+/** La source imposée (--source) : un bout de son nom ou de sa clé, sans accent ni casse. */
+const sansAccent = (t) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+const SOURCE = A.source ? CLES_LIEUX.find((k) => sansAccent(`${k} ${LIEUX[k].nom}`).includes(sansAccent(A.source))) : null;
+if (A.source && !SOURCE) throw new Error(`Aucun lieu ne correspond à « ${A.source} ».`);
+const tirerSource = () => SOURCE || (r() < 0.97 ? choisir(CLES_LIEUX) : null);
 const choisir = (l) => l[Math.floor(r() * l.length)];
 const gauss = () => Math.sqrt(-2 * Math.log(1 - r())) * Math.cos(2 * Math.PI * r());
 const RANG = { legendaire: 4, rare: 3, peucommun: 2, commun: 1 };
@@ -84,12 +90,12 @@ const muterTactique = (t, p = 0.12, s = 0.15) => t.map((v, i) => (r() < p ? born
 function aleatoire(avecTactique) {
   const cartes = [];
   while (cartes.length < 4) { const k = choisir(CLES_ALLIES); if (!cartes.includes(k)) cartes.push(k); }
-  return { cartes, source: r() < 0.95 ? choisir(CLES_LIEUX) : null, fiches: Object.fromEntries(cartes.map((k) => [k, nouvelleFiche(k)])),
+  return { cartes, source: tirerSource(), fiches: Object.fromEntries(cartes.map((k) => [k, nouvelleFiche(k)])),
     tactique: avecTactique ? (r() < 0.4 ? muterTactique(tactiquePrudence(), 0.3) : tactiqueAleatoire(r)) : null, g: [], po: [] };
 }
 /** L'équipe « naïve » : les quatre cartes de plus haut palier, la source la plus rare, compétences d'origine. */
 const parPalier = (l, P0) => [...l].sort((a, b) => RANG[P0[b].tier] - RANG[P0[a].tier] || a.localeCompare(b));
-const NAIVE = { cartes: parPalier(CLES_ALLIES, ALLIES).slice(0, 4), source: parPalier(CLES_LIEUX, LIEUX)[0], fiches: {}, tactique: null, g: [], po: [] };
+const NAIVE = { cartes: parPalier(CLES_ALLIES, ALLIES).slice(0, 4), source: SOURCE || parPalier(CLES_LIEUX, LIEUX)[0], fiches: {}, tactique: null, g: [], po: [] };
 
 const clone = (x) => ({ cartes: [...x.cartes], source: x.source, fiches: Object.fromEntries(Object.entries(x.fiches).map(([k, v]) => [k, { ...v }])),
   tactique: x.tactique ? [...x.tactique] : null, g: [], po: [] });
@@ -100,7 +106,7 @@ function muter(x0) {
     let k; do k = choisir(CLES_ALLIES); while (x.cartes.includes(k));
     delete x.fiches[x.cartes[i]]; x.cartes[i] = k; x.fiches[k] = nouvelleFiche(k);
   }
-  if (r() < 0.15) x.source = r() < 0.97 ? choisir(CLES_LIEUX) : null;
+  if (r() < 0.15) x.source = tirerSource();
   for (const k of x.cartes) for (const place of ["geste", "tech"]) {
     if (r() < 0.06) x.fiches[k] = { ...x.fiches[k], [place]: choisir(competencesCarte(ALLIES[k], place)) };
   }
@@ -168,7 +174,7 @@ async function evoluer(id, nom, avecTactique, rangPhase) {
   const ph = (etat.phases[id] ||= { gen: 0, pop: null, courbe: [], temple: [] });
   if (!ph.pop) {
     ph.pop = Array.from({ length: P }, () => aleatoire(avecTactique));
-    ph.pop[0] = { ...clone(NAIVE), tactique: avecTactique ? tactiquePrudence() : null };
+    ph.pop[0] = { ...clone(NAIVE), source: SOURCE || NAIVE.source, tactique: avecTactique ? tactiquePrudence() : null };
   }
   console.log(`\n${nom} : ${P} individus, ${G} générations, ${N} descentes par individu et par génération.`);
   const E = Math.max(2, Math.round(P * 0.15));
@@ -202,7 +208,7 @@ async function evoluer(id, nom, avecTactique, rangPhase) {
 }
 
 const t1 = Date.now();
-console.log(`Évolution sur les vraies cartes de La Troupe (${CLES_ALLIES.length} alliés, ${CLES_LIEUX.length} lieux), profil ${profil.nom} : niveau ${profil.niveau}, rangs ${profil.rangs}, étoiles [${profil.etoiles.join(", ")}]. ${COEURS} cœur${COEURS > 1 ? "s" : ""}.`);
+console.log(`Évolution sur les vraies cartes de La Troupe (${CLES_ALLIES.length} alliés, ${CLES_LIEUX.length} lieux), profil ${profil.nom} : niveau ${profil.niveau}, rangs ${profil.rangs}, étoiles [${profil.etoiles.join(", ")}]${SOURCE ? `, source imposée : ${LIEUX[SOURCE].nom}` : ""}. ${COEURS} cœur${COEURS > 1 ? "s" : ""}.`);
 const champA = await evoluer("equipe", "Phase 1, équipe seule (tactique Prudence)", false, 1);
 const champB = await evoluer("tactique", "Phase 2, équipe et tactique", true, 2);
 
@@ -225,7 +231,7 @@ const d0 = new Date();
 const jj = `${String(d0.getDate()).padStart(2, "0")}/${String(d0.getMonth() + 1).padStart(2, "0")}/${d0.getFullYear()}`;
 const signe = (x) => `${x >= 0 ? "+" : ""}${f1(x)}`;
 L.push(`# Évolution du Donjon infini, profil ${profil.nom}`, "");
-L.push(`${jj}. Vraies cartes de La Troupe (${CLES_ALLIES.length} alliés, ${CLES_LIEUX.length} lieux), toutes au niveau ${profil.niveau}, rangs ${profil.rangs}, lignes étoilées : ${profil.etoiles.length ? profil.etoiles.join(", ") : "aucune"}. ${P} individus, ${G} générations par phase, ${N} descentes par individu et par génération ; objectif « ${A.objectif} ».`);
+L.push(`${jj}. Vraies cartes de La Troupe (${CLES_ALLIES.length} alliés, ${CLES_LIEUX.length} lieux), toutes au niveau ${profil.niveau}, rangs ${profil.rangs}, lignes étoilées : ${profil.etoiles.length ? profil.etoiles.join(", ") : "aucune"}${SOURCE ? ` ; source imposée : ${nomSource(SOURCE)}` : ""}. ${P} individus, ${G} générations par phase, ${N} descentes par individu et par génération ; objectif « ${A.objectif} ».`);
 L.push(`${totalDescentes.toLocaleString("fr-FR")} descentes en ${duree(Date.now() - t0)} sur ${COEURS} cœur${COEURS > 1 ? "s" : ""}. Score : gardiens battus avant la chute.`, "");
 L.push(`## La confrontation`, "", `Sur ${NF.toLocaleString("fr-FR")} donjons qu'aucune phase n'a vus. Gardiens en moyenne ± IC 95 % ; entre parenthèses, 9 descentes sur 10 sous ce nombre.`, "");
 L.push(`| Équipe | ${TACTIQUES.map(([n]) => n).join(" | ")} |`, `|---|${TACTIQUES.map(() => "---:").join("|")}|`);
