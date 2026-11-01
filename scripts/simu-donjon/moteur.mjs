@@ -90,34 +90,95 @@ function ficheDe(profil, choix = {}) {
 }
 
 /**
+ * Les choix forcés (`cfg.regles`), pour mesurer ce que vaut une décision en
+ * la prenant toujours, ou jamais, toutes choses égales par ailleurs :
+ *
+ * - `rencontres.<id>` (mirko, coffre, autel, blesse, source, echo) : le
+ *   premier choix (acheter, ouvrir, offrir son sang, emmener, boire, suivre)
+ *   « oui », « non », `{ jusqua: n }` (oui jusqu'à l'étage n), `{ des: n }`
+ *   (oui à partir de l'étage n) ou `{ max: n }` (oui les n premières fois) ;
+ * - `chemin` : « hasard », ou un genre de salle à prendre dès qu'il s'offre
+ *   (« elite », « repos », « evenement », « tresor », « combat »), ou
+ *   « sansElite » (éviter les élites tant qu'on peut) ;
+ * - `sansReliques` : aucune relique dans le donjon, ni pour l'équipe ni pour
+ *   les adversaires qui en gardent ;
+ * - `reliqueDepart` : la clé d'un artéfact que l'équipe porte dès l'entrée.
+ *
+ * Ce qui n'est pas forcé suit la tactique (`cfg.tactique`) ou, à défaut,
+ * les règles du pilote automatique.
+ */
+const POOLS_SANS_RELIQUES = { ...POOLS, artefacts: [] };
+export const ARTEFACTS = Object.fromEntries(POOLS.artefacts.map((a) => [cleCarte(a), a]));
+function regleRencontre(regle, etage, prises) {
+  if (regle == null) return null;
+  if (regle === "oui" || regle === "non") return regle === "oui";
+  if (regle.jusqua != null) return etage <= regle.jusqua;
+  if (regle.des != null) return etage >= regle.des;
+  if (regle.max != null) return prises < regle.max;
+  return null;
+}
+function salleForcee(regle, partie, ouverts, defaut) {
+  if (!regle || ouverts.length === 1) return defaut();
+  if (regle === "hasard") return null;
+  const genre = (o) => partie.plan.noeuds[o].genre;
+  if (regle === "sansElite") {
+    const sures = ouverts.filter((o) => genre(o) !== "elite");
+    const d = defaut();
+    return sures.includes(d) || !sures.length ? d : sures[0];
+  }
+  return ouverts.find((o) => genre(o) === regle) ?? defaut();
+}
+
+/**
  * Une descente au donjon infini, jusqu'à la chute. `graine` fixe tout le
  * hasard : deux équipes jouées sur la même graine voient la même suite de
  * tirages tant que leurs choix ne la font pas diverger (nombres aléatoires
  * communs : les écarts entre équipes en sont plus nets).
+ *
+ * Avec `opts.journal`, la descente rend aussi ce qui s'y est passé : reliques
+ * ramassées, autels, recrue, pièges subis, salles traversées, et où l'équipe
+ * est tombée.
  */
 export function descente(graine, cfg, profil, opts = {}) {
   const r = R.tirage(graine * 7919 + 17);
   const eq = equipeDe(cfg, profil);
   const T = cfg.tactique || null;
+  const RG = cfg.regles || {};
+  const pools = RG.sansReliques ? POOLS_SANS_RELIQUES : POOLS;
   const niveaux = Object.fromEntries(eq.map((c) => [cleCarte(c), profil.niveau]));
   const fiches = Object.fromEntries(eq.map((c, i) => [cleCarte(c), ficheDe(profil, cfg.fiches?.[i])]));
   const lieu = cfg.source ? LIEUX[cfg.source] : null;
   const partie = R.creerPartie({ equipe: eq, source: lieu ? { c: lieu, niveau: profil.niveauSource, etoile: profil.etoileSource } : null,
-    graine: graine * 104729, jour: "2026-10-31", pools: POOLS, niveaux, fiches, mode: "infini", gainMode: 1, xpMode: DONJON.modes.infini.xp });
-  let fin = "defaite";
+    graine: graine * 104729, jour: "2026-10-31", pools, niveaux, fiches, mode: "infini", gainMode: 1, xpMode: DONJON.modes.infini.xp });
+  if (RG.reliqueDepart && ARTEFACTS[RG.reliqueDepart]) R.prendreRelique(partie, ARTEFACTS[RG.reliqueDepart]);
+  const j = { salles: {}, rencontres: {}, pris: {}, pieges: { coffre: 0, echo: 0 }, recrue: 0, chute: null };
+  let fin = "defaite", genre = null;
   boucle: for (let pas = 0; pas < 50000; pas++) {
     const o = R.ouverts(partie.plan);
-    const n = R.entrer(partie, T ? salleTactique(T, partie, o) : o[Math.floor(r() * o.length)]);
-    if (n.genre === "tresor") R.tresor(partie, r, POOLS.artefacts);
-    if (n.genre === "repos") R.repos(partie);
-    if (n.genre === "evenement") {
+    const parDefaut = () => (T ? salleTactique(T, partie, o) : o[Math.floor(r() * o.length)]);
+    const forcee = salleForcee(RG.chemin, partie, o, parDefaut);
+    const n = R.entrer(partie, forcee ?? o[Math.floor(r() * o.length)]);
+    genre = n.genre;
+    j.salles[genre] = (j.salles[genre] || 0) + 1;
+    if (genre === "tresor") R.tresor(partie, r, pools.artefacts);
+    if (genre === "repos") R.repos(partie);
+    if (genre === "evenement") {
       const ev = R.RENCONTRES[Math.floor(r() * R.RENCONTRES.length)];
-      const choix = ev.choix(partie, { r, pools: POOLS });
-      (T ? rencontreTactique(T, ev, choix, partie) : choisirRencontre(opts.rencontres || "malin", ev, choix, partie)).f();
+      const choix = ev.choix(partie, { r, pools });
+      j.rencontres[ev.id] = (j.rencontres[ev.id] || 0) + 1;
+      const force = regleRencontre(RG.rencontres?.[ev.id], partie.etage, j.pris[ev.id] || 0);
+      let c = force == null ? (T ? rencontreTactique(T, ev, choix, partie) : choisirRencontre(opts.rencontres || "malin", ev, choix, partie)) : choix[force ? 0 : 1];
+      if (!c || c.ok === false) c = choix.find((x) => x.ok !== false);
+      if (c === choix[0]) j.pris[ev.id] = (j.pris[ev.id] || 0) + 1;
+      const recrues = partie.equipe.filter((u) => u.recrue).length;
+      const texte = c.f();
+      if (ev.id === "coffre" && /aiguille/i.test(texte)) j.pieges.coffre++;
+      if (ev.id === "echo" && /piège/i.test(texte)) j.pieges.echo++;
+      j.recrue += partie.equipe.filter((u) => u.recrue).length - recrues;
       if (!R.vivants(partie.equipe).length) break;
     }
-    if (n.genre === "combat" || n.genre === "elite" || n.genre === "boss") {
-      const C = R.demarrerCombat(partie, n.genre, r, POOLS);
+    if (genre === "combat" || genre === "elite" || genre === "boss") {
+      const C = R.demarrerCombat(partie, genre, r, pools);
       let f = null;
       for (let t = 0; t < 1500 && !f; t++) {
         const u = R.prochain(partie, C);
@@ -127,12 +188,19 @@ export function descente(graine, cfg, profil, opts = {}) {
         f = R.issue(partie, C);
       }
       if (f !== "victoire") { fin = f ? "defaite" : "blocage"; break boucle; }
-      R.victoire(partie, C, r, POOLS.artefacts);
-      if (n.genre === "boss") R.descendre(partie, POOLS);
+      R.victoire(partie, C, r, pools.artefacts);
+      if (genre === "boss") R.descendre(partie, pools);
     }
   }
   const butin = R.rapporte(partie, "defaite");
-  return { gardiens: partie.stats.gardiens, butin, po: poDuButin(butin, "infini") - DONJON.modes.infini.entree, blocage: fin === "blocage" };
+  const d = { gardiens: partie.stats.gardiens, butin, po: poDuButin(butin, "infini") - DONJON.modes.infini.entree, blocage: fin === "blocage" };
+  if (opts.journal) {
+    j.chute = { genre, etage: partie.etage };
+    j.reliques = partie.reliques.map((a) => cleCarte(a));
+    j.autels = partie.benediction;
+    d.journal = j;
+  }
+  return d;
 }
 
 /**

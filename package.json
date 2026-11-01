@@ -17,6 +17,7 @@
     "apercu": "npm run verifier && npx firebase-tools hosting:channel:deploy recette --only site --expires 7d",
     "simu:donjon": "node scripts/simu-donjon/simu-donjon.mjs",
     "evolution:donjon": "node scripts/simu-donjon/evolution.mjs",
+    "choix:donjon": "node scripts/simu-donjon/choix-donjon.mjs",
     "roster": "node scripts/xlsx-to-json.mjs",
     "portraits": "node scripts/portraits.mjs",
     "portraits:publier": "node scripts/portraits.mjs && npx firebase-tools deploy --only hosting:portraits"

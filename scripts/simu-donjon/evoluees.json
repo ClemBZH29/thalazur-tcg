@@ -1,0 +1,236 @@
+{
+ "_aide": "Équipes championnes et tactiques évoluées, extraites des évolutions du 01/11/2026 (npm run evolution:donjon, profil moyen). Servent de point de départ à scripts/simu-donjon/choix-donjon.mjs. Une tactique est un génome dans l ordre de GENES (tactique.mjs) : changer GENES rend ces tactiques caduques.",
+ "genes": [
+  "c.pvFrac",
+  "c.pv",
+  "c.atq",
+  "c.menace",
+  "c.boss",
+  "c.elite",
+  "c.achevable",
+  "c.marque",
+  "c.soigneur",
+  "c.mage",
+  "c.saigne",
+  "t.soin",
+  "t.souffle",
+  "t.ravit",
+  "t.provoc",
+  "t.soutien",
+  "t.zone",
+  "t.frappe",
+  "s.combat",
+  "s.combat.blesse",
+  "s.elite",
+  "s.elite.blesse",
+  "s.tresor",
+  "s.tresor.blesse",
+  "s.evenement",
+  "s.evenement.blesse",
+  "s.repos",
+  "s.repos.blesse",
+  "r.mirko.sante",
+  "r.mirko.etage",
+  "r.mirko",
+  "r.coffre.sante",
+  "r.coffre.etage",
+  "r.coffre",
+  "r.autel.sante",
+  "r.autel.etage",
+  "r.autel",
+  "r.blesse.sante",
+  "r.blesse.etage",
+  "r.blesse",
+  "r.source.sante",
+  "r.source.etage",
+  "r.source",
+  "r.echo.sante",
+  "r.echo.etage",
+  "r.echo"
+ ],
+ "tactiques": {
+  "dispater": {
+   "origine": "evolution --longue, phase 2 (Palais de Dispater)",
+   "genome": [
+    -0.5757,
+    -1,
+    -0.4908,
+    0.8748,
+    0.0661,
+    -0.3728,
+    -0.5633,
+    0.2852,
+    0.3021,
+    -0.0977,
+    -0.0119,
+    0.5561,
+    0.6415,
+    0.4861,
+    0.6715,
+    0.1037,
+    0.4672,
+    0.0016,
+    -0.3081,
+    -1,
+    -1,
+    -0.8139,
+    -0.8958,
+    0.244,
+    1,
+    -0.8451,
+    -0.9622,
+    -1,
+    -0.0809,
+    0.6634,
+    0.1743,
+    1,
+    -0.591,
+    -1,
+    0.7122,
+    1,
+    -0.4059,
+    -0.4439,
+    0.1821,
+    0.915,
+    0.9828,
+    -0.3068,
+    -0.9103,
+    1,
+    -0.9914,
+    -0.3346
+   ]
+  },
+  "pantheon": {
+   "origine": "evolution --source pantheonique, phase 2",
+   "genome": [
+    -0.4044,
+    -0.6741,
+    0.1106,
+    1,
+    -0.3551,
+    -0.1349,
+    0.2549,
+    0.7324,
+    -0.5352,
+    0.3433,
+    0.7865,
+    0.8228,
+    0.7939,
+    0.15,
+    0.8985,
+    0,
+    0.6219,
+    1,
+    0.0523,
+    -0.2138,
+    -1,
+    -1,
+    0.3,
+    0.0002,
+    1,
+    -0.071,
+    -0.0803,
+    1,
+    -0.7493,
+    0.0156,
+    0.9895,
+    0.6813,
+    -1,
+    -1,
+    0.7726,
+    0.4966,
+    0.1985,
+    0.9652,
+    -1,
+    1,
+    -0.112,
+    0.5855,
+    0.1242,
+    0.8707,
+    -0.8689,
+    0.2982
+   ]
+  }
+ },
+ "equipes": {
+  "dispater": {
+   "cartes": [
+    "troupe-valeran:214-mordus-premier-inquisiteur",
+    "troupe-valeran:205-alexander-varadis",
+    "troupe-valeran:219-hida",
+    "troupe-valeran:215-titivilus"
+   ],
+   "source": "troupe-valeran:213-palais-de-dispater",
+   "fiches": {
+    "troupe-valeran:214-mordus-premier-inquisiteur": {
+     "tech": "tempete",
+     "geste": "double"
+    },
+    "troupe-valeran:205-alexander-varadis": {
+     "tech": "tempete",
+     "geste": "double"
+    },
+    "troupe-valeran:219-hida": {
+     "geste": "double",
+     "tech": "tempete"
+    },
+    "troupe-valeran:215-titivilus": {
+     "tech": "tempete"
+    }
+   }
+  },
+  "pantheon1": {
+   "cartes": [
+    "troupe-valeran:217-sauriv-le-crepuscule-de-l-est",
+    "troupe-valeran:216-sventar-l-aube-de-l-ouest",
+    "troupe-valeran:219-hida",
+    "troupe-valeran:207-dame-estale"
+   ],
+   "source": "troupe-valeran:212-temple-pantheonique",
+   "fiches": {
+    "troupe-valeran:217-sauriv-le-crepuscule-de-l-est": {
+     "tech": "tempete",
+     "geste": "secours"
+    },
+    "troupe-valeran:216-sventar-l-aube-de-l-ouest": {
+     "tech": "tempete",
+     "geste": "secours"
+    },
+    "troupe-valeran:219-hida": {
+     "tech": "tempete",
+     "geste": "estoc"
+    },
+    "troupe-valeran:207-dame-estale": {
+     "geste": "secours",
+     "tech": "ravit"
+    }
+   }
+  },
+  "pantheon2": {
+   "cartes": [
+    "troupe-valeran:219-hida",
+    "troupe-valeran:209-sethi",
+    "troupe-valeran:193-ondrei",
+    "troupe-valeran:216-sventar-l-aube-de-l-ouest"
+   ],
+   "source": "troupe-valeran:212-temple-pantheonique",
+   "fiches": {
+    "troupe-valeran:219-hida": {
+     "tech": "tempete",
+     "geste": "attaque"
+    },
+    "troupe-valeran:209-sethi": {
+     "geste": "secours"
+    },
+    "troupe-valeran:193-ondrei": {
+     "geste": "double",
+     "tech": "vague"
+    },
+    "troupe-valeran:216-sventar-l-aube-de-l-ouest": {
+     "tech": "tempete",
+     "geste": "secours"
+    }
+   }
+  }
+ }
+}

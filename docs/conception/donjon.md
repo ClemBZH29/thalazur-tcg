@@ -775,6 +775,27 @@ jeu se mesure en apparié, sur les mêmes donjons. Un état est sauvé à chaque
 génération (`--reprendre`) : une longue évolution (`--longue`) peut
 s'interrompre.
 
+### Les choix d'une descente (01/11/2026)
+
+`npm run choix:donjon` (scripts/simu-donjon/choix-donjon.mjs) mesure ce que
+vaut chaque décision prise **pendant** une descente infinie, en visant un
+étage (`--cible`, 25 par défaut). Il part de bonnes équipes, celles des
+évolutions, enregistrées avec leurs tactiques dans
+`scripts/simu-donjon/evoluees.json`, et de deux variantes : sans Tempête, et
+l'équipe naïve.
+
+Chaque choix est forcé seul, toujours ou jamais (autel, coffre, écho,
+colporteur, voyageur blessé, source, chemin, reliques), le reste suivant la
+tactique de l'équipe, et rejoué sur les **mêmes donjons** que la base :
+l'écart descente par descente est l'effet propre du choix, en gardiens et en
+chances d'atteindre la cible. Chaque relique est mesurée en la donnant dès
+l'entrée. Les meilleurs choix de chaque famille sont ensuite combinés et
+rejoués. Le journal des descentes de base dit enfin où et contre quoi les
+équipes tombent, et ce que portent celles qui atteignent la cible.
+
+`evoluees.json` dépend de l'ordre des gènes (`GENES`, tactique.mjs) : le
+script refuse de tourner s'ils ont changé.
+
 ## Sauvegarde
 
 `etat.donjon = { jour, tentatives, imposition, recordInfini, partie, dernier, convalescence }`
