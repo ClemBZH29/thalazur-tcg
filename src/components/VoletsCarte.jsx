@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useJeu } from "../jeu/Jeu.jsx";
 import { ENTRAINEMENT, RELIQUAIRE } from "../config/reliquaire.js";
 import { avancement, doublonsPourNiveau, NIVEAU_MAX, niveauDe, PALIER_IRISEE, xpDe } from "../donjon/experience.js";
@@ -21,6 +21,12 @@ export default function VoletsCarte({ c }) {
   const { etat, entrainerCarte, dissoudreCarte, reliquaireOuvert } = useJeu();
   const [confirme, setConfirme] = useState(null);
   const [annonce, setAnnonce] = useState("");
+  // Garde-fou : un geste qui a ouvert la carte ne doit jamais finir sur un
+  // bouton des volets (dissoudre et entraîner consomment des doublons). Les
+  // clics des 400 premières millisecondes sont ignorés.
+  const ouverture = useRef(Infinity);
+  useEffect(() => { ouverture.current = performance.now(); }, []);
+  const tropTot = () => performance.now() - ouverture.current < 400;
   if (!eligible(c)) return null;
 
   const k = etat.collections?.[c.ext]?.[c.id]?.normale || 0;
@@ -35,16 +41,18 @@ export default function VoletsCarte({ c }) {
   const irise = etat.xp?.[`${c.ext}:${c.id}`]?.irisee ? null : PALIER_IRISEE[c.tier];
 
   const entrainer = (n) => {
+    if (tropTot()) return;
     const r = entrainerCarte(c.ext, c, n);
     const l = r?.bilan?.[0];
     if (!l) return;
     let txt = `Niveau ${l.avant} → ${l.apres}.`;
-    if (l.irisee) txt += " La carte gagne sa version irisée.";
-    if (l.po) txt += ` ${l.po} PO pour le palier d'irisation.`;
-    if (l.sachet) txt += " Un sachet offert.";
+    if (l.irisee) txt += " La carte gagne sa version rainbow.";
+    if (l.po) txt += ` ${l.po} PO pour le palier rainbow.`;
+    if (l.sachet) txt += " Un booster offert.";
     setAnnonce(txt);
   };
   const dissoudre = (n) => {
+    if (tropTot()) return;
     const cle = `d${n}`;
     if (c.tier === "legendaire" && confirme !== cle) { setConfirme(cle); return; }
     setConfirme(null);
@@ -62,7 +70,7 @@ export default function VoletsCarte({ c }) {
         </p>
         <p className="muted">
           {auMax ? "Niveau maximal atteint."
-            : `+${gain} points par doublon. Le niveau sert au Donjon et aux Expéditions${irise ? ` ; au niveau ${irise}, la carte s'irise` : ""}.`}
+            : `+${gain} points par doublon. Le niveau sert au Donjon et aux Expéditions${irise ? ` ; au niveau ${irise}, la carte gagne sa version rainbow` : ""}.`}
         </p>
         {!auMax && (
           <div className="volet-actions">

@@ -27,6 +27,8 @@ export default function Carte({
   const boite = useRef(null);
   const inclin = useRef(null);
   const geste = useRef(null);
+  /** Le dernier relâchement était un glissement : le clic qui le suit ne compte pas. */
+  const glisse = useRef(false);
   const [parti, setParti] = useState(null);
 
   const poser = (rx, ry, mx, my) => {
@@ -96,9 +98,13 @@ export default function Carte({
     if (e.pointerType !== "mouse") poser(0, 0, 50, 50);
     if (!g) return;
     const dx = e.clientX - g.x0;
+    glisse.current = g.ampli >= 9;
     if (g.ampli < 9) {
+      // Le toucher simple s'ouvre au clic (`toucher`), pas ici : au doigt, le
+      // navigateur envoie encore un clic après le relâchement, et ce clic
+      // tombait sur ce que la loupe venait d'ouvrir sous le doigt (« Dissoudre »
+      // des volets) : des doublons dissous sur un simple toucher (1.1.0).
       decaler(0, true);
-      if (onToucher) onToucher();
       return;
     }
     if (!onBalayage || !retourne) return decaler(0, true);
@@ -111,6 +117,12 @@ export default function Carte({
     } else {
       decaler(0, true);
     }
+  };
+
+  /** Le clic qui suit un toucher simple ouvre la carte ; celui d'un glissement, non. */
+  const toucher = () => {
+    if (glisse.current) { glisse.current = false; return; }
+    onToucher?.();
   };
 
   const cls = taille === "plein" ? "cb-plein" : taille === "zoom" ? "cb-zoom" : "cb-petit";
@@ -134,6 +146,7 @@ export default function Carte({
             }
           : undefined
       }
+      onClick={actionnable ? toucher : undefined}
       onPointerMove={bouge}
       onPointerDown={debut}
       onPointerUp={fin}
