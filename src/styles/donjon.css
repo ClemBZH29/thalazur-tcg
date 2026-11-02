@@ -669,8 +669,14 @@
 
 /* Une rencontre tenue par quelqu'un (Mirko, 1.1.0) : son portrait à la place
    du lieu, et les reliques qu'il rachète en cartes, le prix dessous. */
-.dj-scene-portrait img { display: block; width: 100%; height: auto; border-radius: 12px;
-  background: radial-gradient(circle at 50% 40%, rgba(232, 168, 64, .14), transparent 70%); }
+/* Le portrait dans un cadre, comme un panneau : il ne flotte pas dans le vide. */
+.dj-scene-portrait { padding: 8px; border: 1px solid var(--edge); border-radius: 14px;
+  background: linear-gradient(180deg, var(--panel2), var(--panel));
+  box-shadow: inset 0 0 0 1px rgba(232, 168, 64, .14), 0 10px 28px rgba(0, 0, 0, .45); }
+.dj-scene-portrait img { display: block; width: 100%; height: auto; border-radius: 9px;
+  background: radial-gradient(circle at 50% 40%, rgba(232, 168, 64, .16), transparent 72%); }
+.dj-scene-vignette.dj-scene-portrait { padding: 4px; border-radius: 10px; }
+.dj-scene-vignette.dj-scene-portrait img { border-radius: 7px; }
 .dj-offres { display: flex; flex-wrap: wrap; gap: 14px; margin: 14px 0 4px; }
 .dj-offre { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 160px; text-align: center; }
 .dj-offre .dj-carte { width: 120px; }
