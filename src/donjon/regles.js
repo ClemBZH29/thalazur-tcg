@@ -587,8 +587,8 @@ const blesser = (u, d) => { u.pv = Math.max(0, u.pv - d); if (u.pv === 0) u.ko =
 
 /**
  * Ce que Mirko paie une relique, en multiple de ce qu'elle rapporte vendue
- * « mains pleines » (`PRIX_RELIQUE`). Le joueur échange de la force contre de
- * l'or : le prix doit valoir la peine de s'affaiblir pour la suite.
+ * « mains pleines » (`PRIX_RELIQUE`). L'affaire sert à faire de la place sous
+ * RELIQUES_MAX, pas à s'enrichir : le prix reste modeste (02/11/2026).
  */
 export const RACHAT_MIRKO = 2;
 export const prixRachat = (p, a) => montantGain(p, (PRIX_RELIQUE[a.tier] || 6) * RACHAT_MIRKO * echelle(p));

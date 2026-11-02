@@ -144,7 +144,10 @@ autres, soit une rencontre sur vingt environ), seulement si l'équipe porte
 une relique. Mirko en désigne deux au plus et paie
 `RACHAT_MIRKO` = 2 fois ce qu'elle rapporterait vendue mains pleines. La
 relique part avec ses bonus (`retirerRelique`, l'inverse de
-`prendreRelique`) : le joueur échange de la force contre de l'or.
+`prendreRelique`) : le but n'est pas l'or mais **la place**. Huit reliques
+au plus, et au-delà une relique trouvée part au sac : se délester d'une petite
+relique, c'est garder une place pour une meilleure (décision de Clément,
+02/11/2026). Le prix reste donc modeste, surtout à l'infini.
 
 À l'écran, le portrait de Mirko remplace la carte du lieu (champ `portrait`
 de la rencontre, aussi pour les onguents). Les reliques qu'il propose de
