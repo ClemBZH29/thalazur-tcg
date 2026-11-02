@@ -135,7 +135,13 @@ Ajouter le dossier suffit.
 | Les règles Firestore | À la main, voir ci-dessous |
 
 **Aperçu.** Réunir les branches sur `recette`, avoir un `.env.local` rempli
-**sans** `VITE_FIREBASE_MEASUREMENT_ID`, puis `npm run apercu`. La première
+**sans** `VITE_FIREBASE_MEASUREMENT_ID`, puis `npm run apercu`. L'aperçu se
+construit en mode `apercu` (1.1.0) : toute nouvelle partie y reçoit toutes les
+cartes des extensions ouvertes (ni full art ni PJ, trois exemplaires chacune)
+et 10 000 vestiges, pour que les testeurs testent vraiment
+(`src/config/apercu.js`). Le compte y est coupé : le site est entièrement
+local et le classement vide, pour qu'une partie dotée ne rejoigne jamais un
+vrai compte. La première
 fois, ajouter l'adresse de l'aperçu dans Firebase → Authentication →
 Domaines autorisés. L'aperçu parle à la **même base** que la production : une
 branche qui monte `SCHEMA` ne s'y teste pas sans précaution.
