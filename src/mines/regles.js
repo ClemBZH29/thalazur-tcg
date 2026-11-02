@@ -476,6 +476,37 @@ export const PO_COMMANDES_JOUR = COMMANDES.reduce((t, c) => t + c.po * (c.id ===
    la cadence plafonnée y met 68 min) ; une rafale de quinze passe. */
 export const FRAPPES_MAX = 10;
 export const FRAPPES_RAFALE = 15;
+/**
+ * Le contrôle des autoclickers (1.1.0). Le seau de frappes empêche de frapper
+ * plus de FRAPPES_MAX fois par seconde, mais un autoclicker y joue à plein
+ * régime, jour et nuit, et gagne alors autant que le meilleur joueur. Décision
+ * de Clément : tenir la cadence maximale **dix secondes d'affilée** (chacune
+ * des dix dernières secondes compte la cadence maximale de frappes tentées,
+ * refusées par le seau comprises), et Tafix ferme la mine vingt-quatre heures.
+ * Un joueur rapide frappe par rafales et respire : il ne tient pas dix frappes
+ * à chaque seconde pendant dix secondes.
+ */
+// `parSeconde` à une frappe près : découpée en secondes, une cadence de
+// exactement dix par seconde laisse tomber neuf frappes dans certaines tranches.
+export const AUTOCLIC = { secondes: 10, parSeconde: FRAPPES_MAX - 1, blocage: 24 * 3600000 };
+
+/**
+ * `frappes` : les instants (ms, croissants) des frappes tentées récentes.
+ * Vrai si chacune des `AUTOCLIC.secondes` dernières secondes en compte au
+ * moins `AUTOCLIC.parSeconde`.
+ */
+export function cadenceSoutenue(frappes, maintenant) {
+  const { secondes, parSeconde } = AUTOCLIC;
+  if (frappes.length < secondes * parSeconde) return false;
+  const tranches = new Array(secondes).fill(0);
+  for (let i = frappes.length - 1; i >= 0; i--) {
+    const k = Math.floor((maintenant - frappes[i]) / 1000);
+    if (k >= secondes) break;
+    if (k >= 0) tranches[k]++;
+  }
+  return tranches.every((n) => n >= parSeconde);
+}
+
 /** Une horloge en arrière de plus d'un jour est fausse : on la croit. Moins,
     on attend qu'elle rattrape l'instant déjà joué. */
 export const HORLOGE_TOLERANCE = 24 * 3600000;

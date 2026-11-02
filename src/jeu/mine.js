@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 import { crediterGain } from "../lib/economie.js";
-import { PO_COMMANDES_JOUR, REGLES_VERSION, jourLocal } from "../mines/regles.js";
+import { AUTOCLIC, PO_COMMANDES_JOUR, REGLES_VERSION, jourLocal } from "../mines/regles.js";
 
 /**
  * Une commande livrée, versée à l'état du jeu. Pure, pour les tests.
@@ -45,6 +45,24 @@ export function crediterSolde(e, po) {
     mine: { ...(e.mine || {}), regles: REGLES_VERSION, solde },
   };
 }
+
+/**
+ * Tafix ferme la mine (contrôle des autoclickers, voir `AUTOCLIC`). La date
+ * de réouverture vit dans la marque des Mines, dans l'état du jeu, et suit
+ * donc le compte d'un appareil à l'autre ; un second signalement ne
+ * prolonge pas une fermeture en cours.
+ */
+export function bloquerMine(e, maintenant = Date.now()) {
+  const marque = e.mine || {};
+  if ((marque.blocage?.jusqua || 0) > maintenant) return e;
+  return { ...e, mine: { ...marque, blocage: { le: maintenant, jusqua: maintenant + AUTOCLIC.blocage } } };
+}
+
+/** La fin de la fermeture en cours, ou null. */
+export const finBlocage = (e, maintenant = Date.now()) => {
+  const j = e.mine?.blocage?.jusqua || 0;
+  return j > maintenant ? j : null;
+};
 
 /**
  * Ce que l'application sait des Mines de Kazim : les commandes livrées, le
@@ -103,5 +121,10 @@ export function useMine(etat, setEtat) {
     });
   }, [setEtat]);
 
-  return { crediterCommande, crediterRemise, remisePayee, majTafix, versionMine, rechargerMine };
+  const signalerAutoclic = useCallback(() => setEtat((e) => bloquerMine(e)), [setEtat]);
+  /* L'heure de fin de la dernière fermeture, passée ou non : la mine qui
+     rouvre ne rejoue pas, en absence, le temps où elle était fermée. */
+  const repriseMine = etat.mine?.blocage?.jusqua || 0;
+
+  return { crediterCommande, crediterRemise, remisePayee, majTafix, versionMine, rechargerMine, signalerAutoclic, repriseMine };
 }

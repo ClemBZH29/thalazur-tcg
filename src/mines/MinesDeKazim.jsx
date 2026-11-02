@@ -36,7 +36,7 @@ import {
 import {
   FILONS_PAR_STRATE, PIOCHES, equipA, degatsClic, critChance, critMult,
   multCompagnon, dpsUn, dps, partRiche, mEclats, talentMax, talentEffectif, record,
-  eclatsDuRecord, FRAPPES_MAX, FRAPPES_RAFALE, HORLOGE_TOLERANCE, CACHE_MAX,
+  eclatsDuRecord, cadenceSoutenue, FRAPPES_MAX, FRAPPES_RAFALE, HORLOGE_TOLERANCE, CACHE_MAX,
   teinteFortune, xpRequis, brisesIci, eclatsDispo, ECLAT_BONUS, coutUn,
   coutN, nbAbordable, genererEclats, strate,
   naitreFilon, infliger, simulerAbsence, rendementAbsence, absenceMax,
@@ -91,9 +91,11 @@ function sobreParDefaut() {
 
 function MinesDeKazim({
   onCommande, onRemise, remisePayee = false, tafix = TAFIX_VIDE, onTafix,
-  storage, spritesBase, godPioche = false,
+  storage, spritesBase, godPioche = false, onAutoclic = null, reprise = 0,
 }) {
   const S = useRef(etatNeuf());
+  // Lue une fois, à la relecture de la sauvegarde (voir plus bas).
+  const repriseRef = useRef(reprise);
   const [, forcer] = useReducer((n) => n + 1, 0);
 
   const [onglet, setOnglet] = useState("compagnons");
@@ -317,10 +319,20 @@ function MinesDeKazim({
   /* Le seau de frappes : FRAPPES_RAFALE jetons, rendus à FRAPPES_MAX par
      seconde. Une frappe sans jeton ne fait rien — ni dégâts, ni effet. */
   const seau = useRef({ jetons: FRAPPES_RAFALE, t: 0 });
+  /* Les frappes tentées des dernières secondes, refusées comprises, pour le
+     contrôle des autoclickers (`cadenceSoutenue`). Signalé une fois. */
+  const tentees = useRef([]);
+  const signale = useRef(false);
   const frapper = useCallback((ev) => {
     if (compteurs.current.chute) return;
     const sq = seau.current;
     const maintenant = performance.now();
+    if (onAutoclic && !signale.current) {
+      const l = tentees.current;
+      l.push(maintenant);
+      if (l.length > 400) l.splice(0, l.length - 400);
+      if (cadenceSoutenue(l, maintenant)) { signale.current = true; onAutoclic(); return; }
+    }
     sq.jetons = Math.min(FRAPPES_RAFALE, sq.jetons + ((maintenant - sq.t) * FRAPPES_MAX) / 1000);
     sq.t = maintenant;
     if (sq.jetons < 1) return;
@@ -347,7 +359,7 @@ function MinesDeKazim({
       minuteurs.current.hit = setTimeout(() => el.classList.remove("kz-hit"), 100);
     }
     forcer();
-  }, [appliquerDegats, point, swing, bulle, onde, particules, rejouer, godPioche]);
+  }, [appliquerDegats, point, swing, bulle, onde, particules, rejouer, godPioche, onAutoclic]);
 
   /* ---------- boucle ---------- */
 
@@ -481,7 +493,9 @@ function MinesDeKazim({
         const avant = d.dernierTick;
         S.current = d;
         const t = Date.now();
-        const absence = Math.max(0, t - (typeof avant === "number" ? avant : t));
+        // Une fermeture de Tafix ne se rejoue pas en absence : on compte
+        // depuis sa fin (`reprise`), pas depuis la dernière sauvegarde.
+        const absence = Math.max(0, t - Math.max(typeof avant === "number" ? avant : t, repriseRef.current || 0));
         // Sauvegarde datée d'un futur proche (horloge reculée) : on garde
         // l'instant déjà joué, voir `tick`.
         S.current.dernierTick = typeof avant === "number" && avant > t && avant - t <= HORLOGE_TOLERANCE ? avant : t;
