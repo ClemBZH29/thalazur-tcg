@@ -230,17 +230,14 @@ export default function Bibliotheque({
     ["rainbow", "Rainbow", stats.rainbow],
   ];
   /** Par rôle : alliés obtenus et alliés du set. Les rôles absents du set se taisent. */
-  const parRole = useMemo(() => {
-    const m = {};
-    for (const c of cartes) {
-      const r = roles[c.id];
-      if (!r) continue;
-      m[r] = m[r] || { total: 0, obtenues: 0 };
-      m[r].total++;
-      if ((collection[c.id]?.normale || 0) > 0) m[r].obtenues++;
-    }
-    return m;
-  }, [cartes, roles, collection]);
+  const parRole = {};
+  for (const c of cartes) {
+    const r = roles[c.id];
+    if (!r) continue;
+    parRole[r] = parRole[r] || { total: 0, obtenues: 0 };
+    parRole[r].total++;
+    if (acquise(c)) parRole[r].obtenues++;
+  }
   const rolesPresents = Object.keys(ROLES).filter((r) => parRole[r]);
 
   const nFiltres = (etatCarte !== VUE_DEFAUT ? 1 : 0) + (filtre !== "toutes" ? 1 : 0) + (roleActif !== "tous" ? 1 : 0);
