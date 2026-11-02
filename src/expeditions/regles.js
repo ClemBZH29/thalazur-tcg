@@ -145,6 +145,17 @@ export const rentrees = (etat, maintenant = Date.now()) =>
   etatExpeditions(etat).routes.filter((r) => r.fin <= maintenant);
 
 /**
+ * Une route ne s'accueille que sur une partie dont les missions sont au jour
+ * du moment. À la première visite du jour, l'accueil passait avant le tirage
+ * des missions (l'effet de la fenêtre de retour court avant celui des
+ * missions) : l'expédition rentrée dans la nuit entrait dans le point de
+ * départ de « Accueillir une expédition », qui restait à 0 alors que le
+ * joueur venait d'en accueillir une (correctif 1.1.0). Même chose juste après
+ * minuit, page ouverte. Le jour se compte comme celui des missions (heure locale).
+ */
+export const accueilPermis = (etat, maintenant = Date.now()) => etat.missions?.jour === jourDe(maintenant);
+
+/**
  * Crédite une route rentrée. `index` : clé → carte. Rend le nouvel état et le
  * bilan de la fenêtre de retour. Une route inconnue (déjà créditée ailleurs)
  * laisse l'état tel quel et rend un bilan nul.

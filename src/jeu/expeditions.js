@@ -50,6 +50,9 @@ export function useExpeditions(etat, setEtat, pret = true) {
     // Pas avant d'avoir lu le compte : la route a pu être créditée ailleurs.
     if (!pret) return [];
     const t = Date.now();
+    // Pas avant le tirage des missions du jour : l'accueil doit compter pour
+    // la mission « Accueillir une expédition » (voir `accueilPermis`).
+    if (!X.accueilPermis(etat, t)) return [];
     const dues = X.rentrees(etat, t);
     if (!dues.length) return [];
     let e = etat;
