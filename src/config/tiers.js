@@ -108,8 +108,7 @@ export const ECONOMIE = {
  */
 
 /**
- * Le Donjon, vues de l'application. Le module annonce le butin rapporté du
- * donjon, la conversion se fait ici.
+ * Le Donjon, vu de l'application.
  *
  * Deux modes (`modes`) :
  *
@@ -120,19 +119,31 @@ export const ECONOMIE = {
  *   ×2,5 au lieu de ×2 ;
  * - **le donjon infini** (06/10/2026) : 100 PO l'entrée, ni fuite ni
  *   remontée, l'équipe va jusqu'à la chute et rapporte tout le sac, sans
- *   plafond. Le sac croît plus vite que l'étage : il est converti en PO par
- *   une courbe concave (`conversion`), qui laisse le débutant à peu près
- *   rentrer dans ses frais et paie une équipe forte trois à quatre fois
- *   plus. La chute immobilise l'équipe un jour : c'est elle qui borne le
+ *   plafond. La chute immobilise l'équipe un jour : c'est elle qui borne le
  *   nombre de descentes.
+ *
+ * **Une seule unité, la PO (1.1.0).** Le sac comptait des pièces, converties
+ * à la fin : linéairement au donjon du jour, par une courbe concave à
+ * l'infini (1,1 × sac^0,7). Le joueur voyait des « +N PO » qui étaient des
+ * pièces, et leur somme ne tombait pas sur le total versé. Désormais chaque
+ * gain est compté en PO au moment où il tombe (`taux`, PO par pièce de
+ * barème), et le sac est ce que l'on touchera. À l'infini, le frein est mis à
+ * la source : les gains d'un étage suivent la racine de l'étage (`racine`) au
+ * lieu de l'étage, le total d'une descente croît comme étage^1,5, à peu près
+ * comme le faisait la courbe (étage^1,4). `taux` est calé pour que chaque
+ * profil retombe sur ce que la courbe lui versait (docs/conception/donjon.md).
  *
  * Mesures : `node scripts/audit-donjon.mjs` et docs/conception/donjon.md.
  */
 export const DONJON = {
-  multiplicateur: 0.6,   // PO créditées par pièce de butin rapportée (donjon du jour)
   modes: {
-    jour: { tentatives: 1, gain: 2.5, xp: 1 },
-    infini: { tentatives: Infinity, gain: 1, xp: 0.5, entree: 100, conversion: { coef: 1.1, expo: 0.7 } },
+    jour: { tentatives: 1, gain: 2.5, xp: 1, taux: 0.6 },
+    infini: {
+      tentatives: Infinity, gain: 1, xp: 0.5, entree: 100, taux: 0.24, racine: true,
+      // Les descentes commencées avant la 1.1.0 (sac en pièces) finissent sur
+      // l'ancienne courbe : voir `poDuSac`.
+      conversion: { coef: 1.1, expo: 0.7 },
+    },
   },
   // Les débuts adoucis : adversaires affaiblis et butin réduit, qui remontent
   // en ligne droite jusqu'au jeu normal à la `jusqua`-ième descente jouée.
@@ -142,9 +153,14 @@ export const DONJON = {
   apprentissage: { jusqua: 5, difficulte: 0.75, gain: 0.4 },
 };
 
-/** Les PO que vaut un sac rapporté du Donjon, selon le mode. */
-export function poDuButin(butin, mode = "jour") {
-  if (butin <= 0) return 0;
+/**
+ * Les PO d'un sac. `partie.taux` dit que le sac est déjà en PO (descente
+ * commencée en 1.1.0 ou après) ; sans lui, c'est un sac de pièces d'avant,
+ * converti comme il l'aurait été.
+ */
+export function poDuSac(sac, { mode = "jour", taux } = {}) {
+  if (!(sac > 0)) return 0;
+  if (taux != null) return Math.round(sac);
   const k = DONJON.modes[mode]?.conversion;
-  return Math.round(k ? k.coef * Math.pow(butin, k.expo) : butin * DONJON.multiplicateur);
+  return Math.round(k ? k.coef * Math.pow(sac, k.expo) : sac * DONJON.modes.jour.taux);
 }

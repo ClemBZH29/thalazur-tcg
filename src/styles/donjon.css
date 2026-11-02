@@ -21,6 +21,15 @@
    doit donc avoir une largeur explicite, que lui donne sa rangée. */
 .dj-carte { width: 100%; }
 .dj-face { position: relative; width: 100%; aspect-ratio: 2 / 3; }
+/* La rainbow au Donjon (1.1.0). Ailleurs, l'irisation suit le pointeur ; ici
+   la carte ne bascule pas : le dégradé dérive seul, lentement, pour que la
+   version rainbow se lise aussi sur une vignette immobile. */
+.dj-face .rainbow .iris { opacity: .4; animation: dj-iris-derive 9s ease-in-out infinite alternate; }
+@keyframes dj-iris-derive {
+  from { background-position: 0% 10%, 0% 30%; }
+  to { background-position: 190% 150%, -130% 80%; }
+}
+[data-mouvement="reduit"] .dj-face .rainbow .iris { animation: none; }
 .dj-sur { position: absolute; left: 8.2%; top: 8.66%; width: 83.69%; height: 60.09%; z-index: 7; pointer-events: none; }
 .dj-badges { position: absolute; left: 4%; top: 3%; display: flex; flex-direction: column; gap: 1.6cqw; }
 .dj-badges b, .dj-statuts i { font-size: max(9px, 6.6cqw); font-weight: 700; font-style: normal; line-height: 1.3;

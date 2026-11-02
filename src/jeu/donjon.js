@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { DONJON, poDuButin } from "../config/tiers.js";
+import { DONJON, poDuSac } from "../config/tiers.js";
 import { crediterGain, debiterLibre } from "../lib/economie.js";
 import { crediterXP, niveauDe } from "../donjon/experience.js";
 import { descentesJouees } from "../lib/compteurs.js";
@@ -64,7 +64,7 @@ export function terminer(e0, { butin, resume, repos = [], gains = [] }) {
   if (!enCours(e0, resume.id) || !aJour(e0, resume.pas)) return e0;
   const { id: _id, pas: _pas, ...res } = resume;
   const infini = res.mode === "infini";
-  const po = poDuButin(butin, res.mode || "jour");
+  const po = poDuSac(butin, { mode: res.mode || "jour", taux: res.taux });
   const { etat: e, po: bonus } = crediterXP(e0, gains);
   const d = e.donjon || { jour: aujourdhui(), tentatives: 0 };
   const stats = { ...(e.stats || {}) };
@@ -141,7 +141,7 @@ export function useDonjon(etat, setEtat, test) {
     // Le bilan d'expérience se lit sur l'état du moment ; le setter le refait
     // sur l'état le plus frais, qui est le même au clic près.
     if (!enCours(etat, resume.id) || !aJour(etat, resume.pas)) return { po: 0, bilan: [], poXP: 0, refusee: true };
-    const po = poDuButin(butin, resume.mode || "jour");
+    const po = poDuSac(butin, { mode: resume.mode || "jour", taux: resume.taux });
     const { bilan, po: poXP } = crediterXP(etat, gains);
     setEtat((e0) => terminer(e0, { butin, resume, repos, gains }));
     return { po, bilan, poXP };

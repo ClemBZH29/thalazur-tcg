@@ -19,7 +19,7 @@ import {
 } from "../src/donjon/regles.js";
 import { PALIER_IRISEE, xpPourNiveau } from "../src/donjon/experience.js";
 import { sourceDe } from "../src/donjon/pouvoirs.js";
-import { DONJON, ECONOMIE, poDuButin } from "../src/config/tiers.js";
+import { DONJON, ECONOMIE, poDuSac } from "../src/config/tiers.js";
 
 const BLOCAGES = [];
 const N = Number(process.argv[2]) || 2000;
@@ -119,7 +119,8 @@ function descente(graine, { equipe, strategie = "concentrer", politique = () => 
 
 function mesurer(cas) {
   const res = Array.from({ length: N }, (_, i) => descente(i + 1, cas));
-  const po = res.map((x) => x.butin * DONJON.multiplicateur);
+  // Le sac est en PO depuis la 1.1.0 (le taux du mode est déjà compté).
+  const po = res.map((x) => poDuSac(x.butin, x.partie));
   const complet = res.filter((x) => x.iss === "sortie" && x.partie.stats.gardiens >= ETAGES).length / N;
   const defaite = res.filter((x) => x.iss === "defaite");
   const etages = [1, 2, 3].map((e) => defaite.filter((x) => x.partie.etage === e).length / N);
@@ -232,7 +233,7 @@ let inf = [];
 for (const [nom, cas] of Object.entries(PROFILS)) {
   const res = Array.from({ length: N }, (_, i) => descente(i + 1, { ...cas, mode: "infini" }));
   if (!inf.length) inf = res;
-  const g = res.map((x) => x.partie.stats.gardiens), po = res.map((x) => poDuButin(x.butin, "infini"));
+  const g = res.map((x) => x.partie.stats.gardiens), po = res.map((x) => poDuSac(x.butin, x.partie));
   console.log(`| ${nom} | ${quant(g, 0.5)} · ${quant(g, 0.9)} | ${f1(moy(res.map((x) => x.butin)))} | ${f1(moy(po))} · ${quant(po, 0.5)} | ${f1(moy(po) - MI.entree)} | ${f1(moy(res.map((x) => moy(x.xp.map((y) => y.xp)) || 0)))} |`);
 }
 
@@ -256,7 +257,7 @@ for (const [taille, niv] of [[18, 1], [45, 25]]) {
 const MJ = DONJON.modes.jour;
 const poJourMode = m0.po * MJ.gain * MJ.tentatives;
 // Trois descentes infinies d'un débutant, entrée déduite.
-const poInf = 3 * (moy(inf.map((x) => poDuButin(x.butin, "infini"))) - MI.entree);
+const poInf = 3 * (moy(inf.map((x) => poDuSac(x.butin, x.partie))) - MI.entree);
 console.log("\n## Économie\n");
 console.log(`| Grandeur | Valeur |\n|---|---:|`);
 console.log(`| PO de base par descente (moyenne, sans le multiplicateur du mode) | ${f1(m0.po)} |`);

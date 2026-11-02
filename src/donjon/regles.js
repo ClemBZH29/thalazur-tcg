@@ -13,6 +13,7 @@
  * la tentative du jour. Le combat, lui, n'est pas sauvé en cours de route :
  * rechargé au milieu, il reprend à son premier tour, équipe comprise.
  */
+import { DONJON } from "../config/tiers.js";
 import { construirePool, deduireGrades } from "../lib/roster.js";
 import { bonusNiveau } from "./experience.js";
 import { cumuler, effetsArtefact, effetsSource } from "./pouvoirs.js";
@@ -382,11 +383,29 @@ function equiper(partie, u) {
 export const atqDe = (partie, u) =>
   u.atq + (u.camp === "a" ? bonusEquipe(partie).atq + (modsEquipe(partie).atq || 0) : 0) + (u.galva > 0 ? u.galvaVal || 3 : 0) + (u.vengeance || 0);
 const multButin = (partie) => (1 + 0.1 * partie.equipe.filter((u) => u.role === "debrouillard").length) * (partie.gain ?? 1) * (1 + (modsEquipe(partie).butin || 0));
+/**
+ * L'étage tel que le butin le voit. Au donjon infini, depuis la 1.1.0, sa
+ * racine : le frein qu'appliquait la conversion finale est mis à la source
+ * (voir `DONJON`, src/config/tiers.js). Une descente d'avant (sans `taux`)
+ * garde l'étage jusqu'au bout.
+ */
+export const echelle = (partie) =>
+  (partie.taux != null && DONJON.modes[partie.mode]?.racine ? Math.sqrt(partie.etage) : partie.etage);
+
+/**
+ * Ajoute un gain au sac et rend ce qui y entre, en PO : c'est ce nombre que
+ * les textes annoncent (« +N PO »), et la somme des annonces fait le sac.
+ * `po` est un montant de barème, multiplié par `taux` (PO par pièce de
+ * barème, selon le mode) ; une descente d'avant la 1.1.0 compte en pièces.
+ */
 export function gagner(partie, po) {
-  const n = Math.round(po * multButin(partie));
+  const n = Math.round(po * multButin(partie) * (partie.taux ?? 1));
   partie.sac += n;
   return n;
 }
+
+/** Le prix des onguents de Mirko, en PO du sac. */
+export const prixOnguents = (p) => Math.round(6 * echelle(p) * (p.taux ?? 1));
 
 /* ── La carte d'un étage ─────────────────────────────────────────────── */
 
@@ -454,6 +473,8 @@ export function creerPartie({ equipe, artefact = null, source = null, graine, jo
   // l'expérience (`DONJON.modes`, src/config/tiers.js).
   const partie = { jour, graine, mode, uid: 1, etage: 1, sac: 0, benediction: 0, reliques: [], perdus: [], xpPerdus: {},
     difficulte: apprenti?.difficulte ?? 1, gain: (apprenti?.gain ?? 1) * gainMode, xpMode, combat: null, rencontre: null,
+    // Le sac est en PO (1.1.0) : `taux` PO par pièce de barème, selon le mode.
+    taux: DONJON.modes[mode]?.taux ?? DONJON.modes.jour.taux,
     artefact: artefact ? legere(artefact) : null, equipe: [], ecran: "carte", noeud: null,
     // La source de pouvoir : un lieu, ses effets figés pour la descente (niveau et étoile du départ).
     source: source?.c ? { c: legere(source.c), niveau: source.niveau || 1, etoile: !!source.etoile,
@@ -489,7 +510,7 @@ export function descendre(partie, pools) {
 export const tirerRelique = (r, artefacts) =>
   artefacts.length ? legere(parmiPalier(r, artefacts, tirer(r, { commun: 45, peucommun: 33, rare: 17, legendaire: 5 }))) : null;
 /**
- * Huit reliques au plus. Au-delà, elles partent au sac, en pièces : sans
+ * Huit reliques au plus. Au-delà, elles partent au sac, vendues : sans
  * limite, le donjon infini en empilait des centaines, leurs PV et leur ATQ
  * dépassaient la montée des adversaires, et une descente ne finissait plus.
  */
@@ -500,7 +521,7 @@ const PRIX_RELIQUE = { commun: 6, peucommun: 9, rare: 14, legendaire: 22 };
 export function prendreRelique(partie, a) {
   if (!a) return null;
   if (partie.reliques.length >= RELIQUES_MAX) {
-    return { ...a, vendue: gagner(partie, (PRIX_RELIQUE[a.tier] || 6) * partie.etage) };
+    return { ...a, vendue: gagner(partie, (PRIX_RELIQUE[a.tier] || 6) * echelle(partie)) };
   }
   // L'INI ajoutée est l'écart des pouvoirs de l'équipe avant et après : entre
   // reliques, seule la plus forte compte, sous le plafond (meilleursEffets).
@@ -516,7 +537,7 @@ export function trouverRelique(partie, r, artefacts) {
   return prendreRelique(partie, tirerRelique(r, artefacts));
 }
 export function tresor(partie, r, artefacts) {
-  const po = gagner(partie, entre(r, 5, 8) * partie.etage);
+  const po = gagner(partie, entre(r, 5, 8) * echelle(partie));
   const relique = r() < 0.35 + (modsEquipe(partie).fortune || 0) ? trouverRelique(partie, r, artefacts) : null;
   return { titre: "Un trésor", texte: "Sous les pierres, une bourse oubliée.", po, relique };
 }
@@ -553,8 +574,8 @@ export const RENCONTRES = [
   { id: "mirko", titre: "Un colporteur égaré",
     texte: (lieu) => `Mirko, sa clochette et son ballot, s'est perdu dans ${lieu}. Il a des onguents, pour qui paie.`,
     choix: (p) => [
-      { lib: `Acheter des onguents (${6 * p.etage} PO du sac)`, ok: p.sac >= 6 * p.etage, f: () => {
-        p.sac -= 6 * p.etage;
+      { lib: `Acheter des onguents (${prixOnguents(p)} PO du sac)`, ok: p.sac >= prixOnguents(p), f: () => {
+        p.sac -= prixOnguents(p);
         for (const u of vivants(p.equipe)) u.pv = Math.min(u.pvMax, u.pv + Math.ceil(u.pvMax * 0.6));
         return "Les onguents sentent la menthe et le goudron. L'équipe reprend des forces."; } },
       { lib: "Lui souhaiter bonne route", f: () => "Il vous salue d'un coup de clochette et disparaît dans la brume." }] },
@@ -562,7 +583,7 @@ export const RENCONTRES = [
     texte: (lieu) => `Au fond de ${lieu}, un coffre couvert de mousse. La serrure a l'air neuve.`,
     choix: (p, { r }) => [
       { lib: "L'ouvrir", f: () => {
-        if (r() < 0.65) return `Il est plein. +${gagner(p, entre(r, 6, 9) * p.etage)} PO.`;
+        if (r() < 0.65) return `Il est plein. +${gagner(p, entre(r, 6, 9) * echelle(p))} PO.`;
         const d = 3 * p.etage;
         for (const u of vivants(p.equipe)) blesser(u, d);
         return `Une aiguille empoisonnée ! Chaque compagnon perd ${d} PV.`; } },
@@ -586,13 +607,13 @@ export const RENCONTRES = [
         { lib: p.equipe.length < 5 ? `L'emmener (${recrue.nom} rejoint l'équipe)` : "L'équipe est au complet", ok: p.equipe.length < 5, f: () => {
           const u = allie(p, recrue); u.recrue = true; equiper(p, u); u.pv = Math.ceil(u.pvMax * 0.5); p.equipe.push(u);
           return `${recrue.nom} vous suit, clopin-clopant, et se battra à vos côtés.`; } },
-        { lib: "Lui laisser des vivres", f: () => `Il vous remercie et vous glisse quelques pièces. +${gagner(p, 2 * p.etage)} PO.` }];
+        { lib: "Lui laisser des vivres", f: () => `Il vous remercie et vous glisse quelques pièces. +${gagner(p, 2 * echelle(p))} PO.` }];
     } },
   { id: "source", titre: "Une source claire",
     texte: (lieu) => `Au milieu de ${lieu}, une eau qui ne connaît pas la brume.`,
     choix: (p) => [
       { lib: "Boire", f: () => { for (const u of vivants(p.equipe)) u.pv = Math.min(u.pvMax, u.pv + Math.ceil(u.pvMax * 0.25)); return "L'eau est glacée. L'équipe se sent mieux."; } },
-      { lib: "Fouiller le bassin", f: () => `Au fond, des pièces jetées par d'autres. +${gagner(p, 3 * p.etage)} PO.` }] },
+      { lib: "Fouiller le bassin", f: () => `Au fond, des pièces jetées par d'autres. +${gagner(p, 3 * echelle(p))} PO.` }] },
   { id: "echo", titre: "Un écho dans la brume",
     texte: () => "Une voix répète vos pas, un temps trop tard. Elle vient d'un passage étroit.",
     choix: (p, { r, pools }) => [
@@ -894,7 +915,7 @@ export function resoudre(partie, C, u, geste, cible, r) {
     if (geste === "ripostee") { u.riposte = etoile ? 1.5 : 1; effets.push({ uid: u.uid, txt: "Garde haute", cls: "info" }); }
     if (geste === "secours") { const b = plusBlesse(); if (b) { const g = soigner(b, Math.ceil(atqDe(partie, u) * (etoile ? 0.5 : 1 / 3))); if (g) note += `, ${nom(b)} +${g}`; } }
     if (geste === "drain" && total) { const g = soigner(u, total / 2); if (g) note += `, +${g} PV`; }
-    if (geste === "coupbas" && u.camp === "a") { const po = gagner(partie, entre(r, 1, 3) * partie.etage * (etoile ? 2 : 1)); effets.push({ uid: u.uid, txt: `+${po} PO`, cls: "info" }); note += `, +${po} PO`; }
+    if (geste === "coupbas" && u.camp === "a") { const po = gagner(partie, entre(r, 1, 3) * echelle(partie) * (etoile ? 2 : 1)); effets.push({ uid: u.uid, txt: `+${po} PO`, cls: "info" }); note += `, +${po} PO`; }
   } else if (geste === "soin") {
     const s = soigner(cible, (atqDe(partie, u) + 2) * p);
     note = `${nom(u)} soigne ${nom(cible)} : +${s}`;
@@ -1028,7 +1049,7 @@ export function choixAuto(partie, C, u, strategie) {
 }
 
 export function victoire(partie, C, r, _artefacts) {
-  const base = C.ennemis.reduce((s, m) => s + (m.boss ? 12 : m.elite ? 4 : 1.5) * partie.etage + entre(r, 0, 2), 0);
+  const base = C.ennemis.reduce((s, m) => s + (m.boss ? 12 : m.elite ? 4 : 1.5) * echelle(partie) + entre(r, 0, 2), 0);
   const po = gagner(partie, Math.round(C.genre === "elite" ? base * 1.5 : base));
   partie.stats.ennemis += C.ennemis.length;
   if (C.genre === "boss") partie.stats.gardiens++;
@@ -1082,7 +1103,7 @@ export function fuir(partie) {
     partie.xpPerdus = { ...(partie.xpPerdus || {}), [`${reste.c.ext}:${reste.c.id}`]: reste.xp || 0 };
   }
   partie.stats.fuites = (partie.stats.fuites || 0) + 1;
-  return { titre: "Repli", texte: `Vous battez en retraite. ${perte} pièce${perte > 1 ? "s" : ""} glisse${perte > 1 ? "nt" : ""} du sac dans la débandade, chacun y laisse des plumes, et ${reste.c.nom} reste derrière pour couvrir les autres${reste.recrue ? "." : " : retour au camp demain."}` };
+  return { titre: "Repli", texte: `Vous battez en retraite. ${perte} PO glisse${perte > 1 ? "nt" : ""} du sac dans la débandade, chacun y laisse des plumes, et ${reste.c.nom} reste derrière pour couvrir les autres${reste.recrue ? "." : " : retour au camp demain."}` };
 }
 
 /**

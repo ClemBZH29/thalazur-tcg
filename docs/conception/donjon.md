@@ -318,6 +318,16 @@ Le niveau se lit sous chaque vignette de la préparation, avec une fine barre
 vers le niveau suivant ; le bilan de fin de descente détaille les points
 gagnés, les niveaux franchis et les récompenses.
 
+**La rainbow se voit au Donjon** (1.1.0). Les vignettes du Donjon montraient
+toujours la version normale. Une carte dont le joueur possède la rainbow
+s'affiche désormais dans cette version (`CarteDJ`, prop `rainbow`) : à la
+préparation, dans la barre d'équipe, en combat et au bilan, où une carte
+irisée par l'expérience prend aussitôt sa nouvelle robe. Jamais pour un
+adversaire, même tiré d'une carte possédée. La vignette ne bascule pas sous le
+pointeur : l'irisation y dérive seule, lentement (`dj-iris-derive`,
+donjon.css), et s'arrête en mouvement réduit. Les textes du Donjon disent
+« rainbow » et « booster », plus « irisée » ni « sachet ».
+
 ## Les animations (01/10/2026)
 
 Chaque compétence a son animation, et chaque version étoilée une surcouche
@@ -639,27 +649,61 @@ joue encore : une unité sans geste ni technique reprend ceux de son rôle.
 
 ## L'économie
 
-Le module rapporte des **pièces de butin** ; `src/jeu/donjon.js` les convertit
-à la frontière, comme pour les Mines (`DONJON` dans `src/config/tiers.js`) :
+Depuis la 1.1.0 (02/11/2026), le module compte **en PO** : chaque gain est
+converti au moment où il tombe, et le sac est ce que l'on touchera
+(`DONJON` et `poDuSac` dans `src/config/tiers.js`, `gagner` et `echelle`
+dans `src/donjon/regles.js`) :
 
 | Levier | Valeur |
 |---|---:|
-| PO par pièce de butin | 0,6 |
-| Donjon du jour | 1 descente par jour, composition imposée, butin ×2,5 |
-| Donjon infini | 100 PO l'entrée, jusqu'à la chute, PO = 1,1 × sac^0,7, expérience ×0,5 |
+| Donjon du jour | 1 descente par jour, composition imposée, butin ×2,5, 0,6 PO par pièce de barème, gains × étage |
+| Donjon infini | 100 PO l'entrée, jusqu'à la chute, 0,24 PO par pièce de barème, gains × √étage, expérience ×0,5 |
 
-**Le donjon infini depuis le 06/10/2026.** Le sac croît bien plus vite que
-l'étage (un gardien de plus double presque ce qu'on remonte) : converti au
-taux fixe sans plafond, une équipe forte aurait rapporté plus de 1 000 PO par
-descente. La conversion est donc concave (`poDuButin`, `src/config/tiers.js`).
-Mesure du 06/10/2026, 300 descentes par profil :
+**Pourquoi une seule unité.** Jusqu'à la 1.1.0, le sac comptait des pièces,
+converties à la fin : 0,6 PO par pièce au donjon du jour, 1,1 × sac^0,7 à
+l'infini. L'écran annonçait « +N PO » pour des pièces (coup bas, coffre,
+vivres, bassin), la relique vendue en « pièces », les onguents en « PO du
+sac » qui étaient des pièces : la somme des annonces ne tombait pas sur le
+total versé (+40 % au donjon du jour ; à l'infini, en profondeur, un
+« +30 PO » valait 3 PO). Une conversion cachée se lisait en plus comme une
+pénalité de la profondeur, alors que le total croissait avec elle.
 
-| Profil | Gardiens, médiane | PO moyennes | Net après l'entrée |
-|---|---:|---:|---:|
-| Débutant (18 cartes, niv. 1) | 2 | 82 | −18 |
-| Moyen (45 cartes, niv. 25) | 3 | 127 | +27 |
-| Avancé (45 cartes, niv. 60) | 5 | 164 | +64 |
-| Fort (4 légendaires niv. 100, source légendaire étoilée) | 9 | 371 | +271 |
+**Le frein, à la source.** Le butin d'un combat est proportionnel à l'étage,
+et le sac croît donc comme le carré de l'étage ; la courbe en puissance 0,7
+corrigeait après coup. À l'infini, les gains d'un étage suivent désormais
+`√étage` : le total d'une descente croît comme étage^1,5 (la courbe donnait
+étage^1,4). Le taux de 0,24 est calé pour que le débutant retrouve ce que la
+courbe lui versait ; la profondeur paie un peu mieux qu'avant.
+
+Mesure du 02/11/2026 (`node scripts/audit-donjon.mjs 400`), avant et après :
+
+| Profil | Gardiens, médiane | PO moyennes, avant | PO moyennes, 1.1.0 | Net après l'entrée, 1.1.0 |
+|---|---:|---:|---:|---:|
+| Débutant (18 cartes, niv. 1) | 2 | 81 | 79 | −21 |
+| Moyen (45 cartes, niv. 25) | 3 | 127 | 129 | +29 |
+| Avancé (45 cartes, niv. 60) | 5 | 163 | 170 | +70 |
+| Fort (4 légendaires niv. 100, source légendaire étoilée) | 9 | 365 | 408 | +308 |
+
+Par gardiens vaincus, tous profils mêlés (1 200 descentes, au taux 0,23
+d'un premier essai ; à 0,24, ajouter 4 %) :
+
+| Gardiens | PO avant | PO 1.1.0 (0,23) |
+|---|---:|---:|
+| 0 à 1 | 26 | 20 |
+| 2 à 4 | 70 | 62 |
+| 5 à 9 | 227 | 231 |
+| 10 à 14 | 468 | 517 |
+| 15 et plus | 717 | 806 |
+
+Le donjon du jour ne bouge pas (même barème, 0,6 PO par pièce comptée au fil
+de l'eau ; les écarts mesurés sont des arrondis). L'entrée, l'absence de
+retour et l'expérience ×0,5 de l'infini sont inchangées : d'autres pistes
+(ticket quotidien, paliers de profondeur, mise tous les cinq étages) ont été
+écartées pour cette version.
+
+**Les descentes en cours au passage à la 1.1.0** n'ont pas de `taux` : leur
+sac reste en pièces, à l'échelle de l'étage, et se convertit à la fin par
+l'ancienne courbe (`poDuSac`). Rien à migrer dans la sauvegarde.
 
 Le débutant joue à perte en moyenne : l'infini est un défi, le donjon du
 jour reste son revenu. L'apprentissage y adoucit les adversaires mais ne
@@ -704,7 +748,8 @@ jour où un troisième module arrive, l'enveloppe commune des modules devra
 (`tentatives` : descentes du donjon du jour ; `imposition` : rôles et lieu
 imposés du jour ; `poInfini`, le plafond de l'infini, n'est plus lu depuis le
 06/10/2026 ; la partie porte son `mode`, une partie d'avant les
-modes est un donjon du jour). La partie est un objet
+modes est un donjon du jour, et son `taux` depuis la 1.1.0 : sans lui, le sac
+est en pièces). La partie est un objet
 simple, sauvé à chaque changement d'écran : un onglet fermé ne coûte pas la
 tentative. Entre deux appareils, `donjon` est une valeur : celle de l'appareil
 qui l'a changée l'emporte.
