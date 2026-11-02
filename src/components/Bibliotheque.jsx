@@ -6,6 +6,7 @@ import { BOOSTERS, BOOSTER_PAR_ID } from "../extensions/index.js";
 import { nomComplet } from "../config/speciales.js";
 import { niveauDe, xpDe } from "../donjon/experience.js";
 import { etoilee, ficheDe } from "../donjon/fiches.js";
+import { HOSTILES, ROLES, roleCarte } from "../donjon/regles.js";
 import { Etoile } from "./VoletCombat.jsx";
 
 /** Une case manquante : le dos, grisé, sans interaction ni nom. */
@@ -54,6 +55,15 @@ const numero = (c) => {
   return -1;
 };
 
+/**
+ * Le rôle que la carte tiendrait au Donjon, ou null : seuls les alliés (PNJ
+ * qui ne sont ni du bestiaire ni de la pègre) entrent dans une équipe. Même
+ * règle que `cartesDonjon` et `roleCarte` : un rôle imposé à la main dans
+ * roles-cartes.json se voit aussi ici.
+ */
+const roleAuDonjon = (c, ext) =>
+  (c.type === "pnj" && !HOSTILES.has(c.rep1) ? roleCarte({ ...c, ext }) : null);
+
 const pli = (t) => String(t || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
 /**
@@ -87,6 +97,8 @@ export default function Bibliotheque({
   /** L'onglet PJ est local : il ne change pas l'extension courante de l'app. */
   const [ongletPJ, setOngletPJ] = useState(false);
   const [filtre, setFiltre] = useState("toutes");
+  // Le rôle au Donjon, pour composer une équipe depuis la collection (1.1.0).
+  const [role, setRole] = useState("tous");
   // On vient surtout voir ce qu'on possède : la vue s'ouvre sur les cartes
   // obtenues, la grille complète est à un bouton.
   const [etatCarte, setEtatCarte] = useState(VUE_DEFAUT);
@@ -176,10 +188,19 @@ export default function Bibliotheque({
     return liste;
   }), [cartes, collection]);
 
+  /** Le rôle de chaque carte du set ; les PJ n'en ont pas (ils ne descendent pas). */
+  const roles = useMemo(() => {
+    const m = {};
+    if (!ongletPJ) for (const c of cartes) m[c.id] = roleAuDonjon(c, boosterId);
+    return m;
+  }, [cartes, boosterId, ongletPJ]);
+  const roleActif = ongletPJ ? "tous" : role;
+
   const q = pli(recherche).trim();
   const visibles = useMemo(() => {
     const garde = ({ c, version, n }) => {
       if (filtre !== "toutes" && c.tier !== filtre) return false;
+      if (roleActif !== "tous" && roles[c.id] !== roleActif) return false;
       if (etatCarte === "obtenues" && n === 0) return false;
       if (etatCarte === "rainbow" && version !== "rainbow") return false;
       if (etatCarte === "doubles" && n < 2) return false;
@@ -195,7 +216,7 @@ export default function Bibliotheque({
         x.c.nom.localeCompare(y.c.nom, "fr") ||
         (x.version === "rainbow" ? 1 : 0) - (y.version === "rainbow" ? 1 : 0)
     );
-  }, [cases, filtre, etatCarte, q, collection]);
+  }, [cases, filtre, roleActif, roles, etatCarte, q, collection]);
 
   const paliersPresents = TIERS.filter((t) => stats.paliers[t.id]?.total > 0);
   const part = (n, t) => (t ? Math.round((100 * n) / t) : 0);
@@ -208,8 +229,22 @@ export default function Bibliotheque({
     ["doubles", "En double", nDoubles],
     ["rainbow", "Rainbow", stats.rainbow],
   ];
-  const nFiltres = (etatCarte !== VUE_DEFAUT ? 1 : 0) + (filtre !== "toutes" ? 1 : 0);
-  const reinitialiser = () => { setFiltre("toutes"); setEtatCarte(VUE_DEFAUT); };
+  /** Par rôle : alliés obtenus et alliés du set. Les rôles absents du set se taisent. */
+  const parRole = useMemo(() => {
+    const m = {};
+    for (const c of cartes) {
+      const r = roles[c.id];
+      if (!r) continue;
+      m[r] = m[r] || { total: 0, obtenues: 0 };
+      m[r].total++;
+      if ((collection[c.id]?.normale || 0) > 0) m[r].obtenues++;
+    }
+    return m;
+  }, [cartes, roles, collection]);
+  const rolesPresents = Object.keys(ROLES).filter((r) => parRole[r]);
+
+  const nFiltres = (etatCarte !== VUE_DEFAUT ? 1 : 0) + (filtre !== "toutes" ? 1 : 0) + (roleActif !== "tous" ? 1 : 0);
+  const reinitialiser = () => { setFiltre("toutes"); setRole("tous"); setEtatCarte(VUE_DEFAUT); };
 
   /* Les deux groupes de filtres sont rendus deux fois : en ligne sur grand
      écran, dans la feuille au téléphone. Un seul des deux est affiché à la
@@ -242,6 +277,25 @@ export default function Bibliotheque({
           onClick={() => setFiltre(t.id)}
         >
           {t.nom} <b>{stats.paliers[t.id].obtenues}/{stats.paliers[t.id].total}</b>
+        </button>
+      ))}
+    </div>
+  );
+  const filtresRole = rolesPresents.length < 2 ? null : (
+    <div className="filtres filtres-roles" role="group" aria-label="Filtre de rôle au Donjon">
+      <button className={roleActif === "tous" ? "on" : ""} aria-pressed={roleActif === "tous"}
+        onClick={() => setRole("tous")}>
+        Tous rôles
+      </button>
+      {rolesPresents.map((r) => (
+        <button
+          key={r}
+          className={roleActif === r ? "on" : ""}
+          aria-pressed={roleActif === r}
+          onClick={() => setRole(r)}
+          title={ROLES[r].passif ? `${ROLES[r].nom} : ${ROLES[r].passif}` : ROLES[r].nom}
+        >
+          {ROLES[r].nom} <b>{parRole[r].obtenues}/{parRole[r].total}</b>
         </button>
       ))}
     </div>
@@ -362,6 +416,7 @@ export default function Bibliotheque({
           {champRecherche}
         </div>
         {filtresRarete}
+        {filtresRole}
       </div>
 
       {/* Au téléphone, les deux rangs de filtres occupaient tout le premier
@@ -413,6 +468,8 @@ export default function Bibliotheque({
           {filtresEtat}
           {filtresRarete && <h3 className="feuille-sous">Rareté</h3>}
           {filtresRarete}
+          {filtresRole && <h3 className="feuille-sous">Rôle au Donjon</h3>}
+          {filtresRole}
           <button type="button" className="btn feuille-voir" onClick={() => setFeuilleOuverte(false)}>
             Voir {visibles.length} case{visibles.length > 1 ? "s" : ""}
           </button>
@@ -482,7 +539,7 @@ export default function Bibliotheque({
           </p>
           {stats.obtenues === 0
             ? <button className="btn" onClick={onOuvrir}>Ouvrir un booster</button>
-            : <button className="btn quiet" onClick={() => { setFiltre("toutes"); setEtatCarte("tout"); setRecherche(""); }}>
+            : <button className="btn quiet" onClick={() => { setFiltre("toutes"); setRole("tous"); setEtatCarte("tout"); setRecherche(""); }}>
                 Tout afficher
               </button>}
         </div>
