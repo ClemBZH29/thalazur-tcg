@@ -106,6 +106,55 @@ repos avant le gardien. On voit le genre et le lieu de chaque salle, jamais
 ce qu'elle cache. Tirée d'une graine faite de la date : deux joueurs ont le
 même étage, et peuvent en parler.
 
+### Les rencontres et les trésors, revus (1.1.0, 02/11/2026)
+
+**Le coffre piégé quitte les rencontres « ? ».** Le coffre moussu (65 % de
+PO, 35 % d'aiguille empoisonnée à 3 PV par étage pour chacun) était un
+piège sans lecture : les simulations du 01/11 concluaient « ne jamais
+l'ouvrir », et le pilote de l'audit, qui l'ouvrait toujours, y perdait des
+équipes en profondeur. Le risque des coffres passe dans les salles au trésor,
+où il se combat au lieu de se subir.
+
+**Les mimiques.** Une salle au trésor sur quatre (`MIMIQUE.chance`) est une
+mimique : un combat contre un seul adversaire, hors collection, en trois
+tailles dont le poids suit l'étage (`poidsMimiques`) :
+
+| Mimique | Stats d'un adversaire | INI | Butin (× échelle) | Relique | XP par étage |
+|---|---|---:|---:|---:|---:|
+| Petite | peu commun ×2 | 7 | 12 | 20 % | 2 |
+| Vorace | rare ×2,4 | 8 | 20 | 55 % | 3 |
+| Ancienne | légendaire ×2,8 | 8 | 32 | toujours | 5 |
+
+Un trésor vaut 5 à 8 × échelle : la petite rend environ deux trésors, l'ancienne
+cinq et une relique. La relique se porte comme celle d'une élite : la mimique
+s'en sert tant qu'elle est debout. Au donjon du jour, on peut la fuir comme un
+combat ordinaire.
+
+Les mimiques sont des **cartes hors collection** : palier d'affichage `hors`
+(`HORS_COLLECTION`, src/config/tiers.js), cadre gris, aucune encoche, absent
+de `TIERS` donc de la bibliothèque, des boosters et du Comptoir. Leurs
+illustrations sont livrées avec le site, dans `public/donjon/mimiques/`
+(`mimique-petite.webp`, `mimique-vorace.webp`, `mimique-ancienne.webp`,
+720 × 1080) ; sans image, la carte montre son monogramme. Prompts Sora :
+`docs/conception/prompts-mimiques.json` (styles Pâte à modeler, Digital,
+Clair-obscur, cadrage du bestiaire).
+
+**Mirko rachète une relique.** Rencontre rare (`poids` 0,25 contre 1 aux
+autres, soit une rencontre sur vingt environ), seulement si l'équipe porte
+une relique. Mirko en désigne deux au plus et paie
+`RACHAT_MIRKO` = 2 fois ce qu'elle rapporterait vendue mains pleines. La
+relique part avec ses bonus (`retirerRelique`, l'inverse de
+`prendreRelique`) : le joueur échange de la force contre de l'or.
+
+Les rencontres se tirent désormais au poids (`tirerRencontre`). Une descente
+sauvée sur l'ancien coffre au passage de la version revient sur la carte.
+
+Mesure (audit, 400 descentes, premier choix toujours pris) : le donjon du jour
+passe de 236 à 242 PO ; à l'infini, débutant 79 → 101 PO, moyen 129 → 137,
+avancé 170 → 203, fort 408 → 512, surtout parce que le pilote de l'audit
+ouvrait toujours le coffre piégé. Un joueur qui l'évitait déjà gagne moins que
+ces écarts. Les mimiques font 4 % des défaites.
+
 ### Le combat
 
 - **Initiative** : chaque unité a la sienne (rôle + palier). La frise du haut

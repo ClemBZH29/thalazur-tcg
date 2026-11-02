@@ -6,7 +6,7 @@ import { DONJON, TIER_INFO, poDuSac } from "../config/tiers.js";
 import { resoudreImage } from "../lib/images.js";
 import {
   BONUS_ARTEFACT, bonusEquipe, GENRES, MODES, etagesDe, graineInfinie, RANGS, RENCONTRES, ROLES, STRATEGIES, TRAITS,
-  atqDe, cartesDonjon, choixAuto, choixIA, creerPartie, demarrerCombat, descendre, entrer, fuir,
+  atqDe, cartesDonjon, choixAuto, choixIA, creerPartie, demarrerCombat, descendre, entrer, fuir, mimiqueSurgit, tirerRencontre,
   gestes, graineDuJour, issue, ouverts, parUid, prochain, rapporte, repos, resoudre,
   tresor, victoire, vivants, allie, compositionDuJour, ciblesPossibles, convalescences, fiche, peutFuir, gainsXP,
   apprentissage, descentesJouees, brume, tirage, BRUME_TOUR, COMPETENCES, techDe, unites, roleCarte, RELIQUES_MAX,
@@ -109,7 +109,7 @@ function CarteDJ({ c, u = null, partie = null, rainbow = false, cfgImage, fichie
   return (
     <div className={`dj-carte cardbox${u?.etoiles ? " star" : ""}${u?.etoiles && Object.keys(u.etoiles).length === 4 ? " star-pleine" : ""}`}>
       {u?.camp === "a" && u.etoiles && <EtoilesCarte n={Object.keys(u.etoiles).length} petit />}
-      <div className="dj-face"><FaceCarte c={rainbow ? { ...c, rainbow: true } : c} cfgImage={cfg} fichiers={fichiers} vignette /></div>
+      <div className="dj-face"><FaceCarte c={rainbow ? { ...c, rainbow: true } : c.image ? { ...c, urlLigne: `${import.meta.env.BASE_URL}${c.image}` } : c} cfgImage={cfg} fichiers={fichiers} vignette /></div>
       {u && (
         <span className="dj-etats" aria-hidden="true">
           <i className="e-saigne"><b /><b /><b /></i><i className="e-marque" /><i className="e-piege" /><i className="e-voile" />
@@ -533,6 +533,11 @@ export default function Donjon({ jeu }) {
     Son.jouer("donjon.carte.reveler");
     // Pas d'écran sans décision : un trésor sans relique et un repos se
     // lisent en bandeau sur la carte ; une relique gagnée a son écran.
+    // Une salle au trésor sur quatre : le coffre a des dents (1.1.0).
+    if (n.genre === "tresor" && mimiqueSurgit(p, r)) {
+      Son.jouer("donjon.carte.combat");
+      return lancerCombat("mimique");
+    }
     if (n.genre === "tresor" || n.genre === "repos") {
       const R = n.genre === "tresor" ? tresor(p, r, POOLS.artefacts) : repos(p);
       if (n.genre === "repos") Son.jouer("donjon.rencontre.repos");
@@ -543,7 +548,7 @@ export default function Donjon({ jeu }) {
       }
       setResultat(R);
     } else {
-      p.rencontre = { id: RENCONTRES[Math.floor(r() * RENCONTRES.length)].id, graine: nouvelleGraine() };
+      p.rencontre = { id: tirerRencontre(p, r).id, graine: nouvelleGraine() };
       setRencontre(monterRencontre(p));
       // Autel et voyageur blessé ont leur son ; les autres rencontres, le parchemin.
       Son.jouer({ autel: "donjon.rencontre.autel", blesse: "donjon.rencontre.recrue" }[p.rencontre.id] || "donjon.rencontre.autre");
@@ -574,7 +579,8 @@ export default function Donjon({ jeu }) {
     setJournal([
       ...CC.ouverture.map((o) => o.note).reverse(),
       ...(CC.relique ? [`Ils portent ${CC.relique.nom} : battez-les pour la prendre.`] : []),
-      reprise ? "Le combat reprend à son premier tour." : p.combat.genre === "boss" ? "Le gardien de l'étage se dresse." : `${CC.ennemis.length} adversaires.`,
+      reprise ? "Le combat reprend à son premier tour." : p.combat.genre === "boss" ? "Le gardien de l'étage se dresse."
+        : p.combat.genre === "mimique" ? `Le coffre ouvre un œil : ${CC.ennemis[0].c.nom} !` : `${CC.ennemis.length} adversaires.`,
     ]);
     setGeste(null); setOccupe(true);
     setEcran("combat");
@@ -1619,6 +1625,7 @@ function Lexique({ focus, onFermer }) {
         <dl>
           {Object.entries(TRAITS).map(([id, T]) => entree(id, T.nom, `${T.aide}.`, id === "rapide" ? "Les Animaux." : id === "fourbe" ? "Les Criminels." : "Les Créatures."))}
           {entree("elite", "Élite", "Un adversaire renforcé, au milieu des salles d'élite. Butin plus gros, relique probable.")}
+          {entree("mimique", "Mimique", "Une salle au trésor sur quatre : le coffre se dresse et se bat, seul. Petite, vorace ou ancienne, plus grosse en profondeur. Vaincue, elle rend un gros butin, et souvent une relique qu'elle retourne contre vous tant qu'elle tient debout. Hors collection : on ne l'obtient jamais.")}
           {entree("gardien", "Gardien", "Au bout de chaque étage. Balaie toute l'équipe tous les trois tours. On ne le fuit pas.")}
         </dl>
         <h3>États</h3>

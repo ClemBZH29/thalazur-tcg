@@ -14,8 +14,8 @@
 import { readFileSync } from "node:fs";
 import extension from "../src/extensions/troupe-valeran/extension.js";
 import {
-  ETAGES, RENCONTRES, etagesDe, ROLES, COMPETENCES, cartesDonjon, choixAuto, choixIA, convalescences, creerPartie, demarrerCombat,
-  apprentissage, compositionDuJour, descendre, entrer, gainsXP, issue, ouverts, prochain, rapporte, repos, resoudre, roleCarte, tirage, tresor, victoire,
+  ETAGES, etagesDe, ROLES, COMPETENCES, cartesDonjon, choixAuto, choixIA, convalescences, creerPartie, demarrerCombat,
+  apprentissage, compositionDuJour, descendre, entrer, gainsXP, issue, mimiqueSurgit, ouverts, prochain, rapporte, repos, resoudre, roleCarte, tirage, tirerRencontre, tresor, victoire,
 } from "../src/donjon/regles.js";
 import { PALIER_IRISEE, xpPourNiveau } from "../src/donjon/experience.js";
 import { sourceDe } from "../src/donjon/pouvoirs.js";
@@ -82,16 +82,18 @@ function descente(graine, { equipe, strategie = "concentrer", politique = () => 
   for (let pas = 0; pas < 3000; pas++) {
     const o = ouverts(partie.plan);
     const n = entrer(partie, o[Math.floor(r() * o.length)]);
-    trace.salles[n.genre] = (trace.salles[n.genre] || 0) + 1;
-    if (n.genre === "tresor") tresor(partie, r, POOLS.artefacts);
+    // Un trésor sur quatre est une mimique (1.1.0) : elle se joue comme un combat.
+    const genre = n.genre === "tresor" && mimiqueSurgit(partie, r) ? "mimique" : n.genre;
+    trace.salles[genre] = (trace.salles[genre] || 0) + 1;
+    if (genre === "tresor") tresor(partie, r, POOLS.artefacts);
     if (n.genre === "repos") repos(partie);
     if (n.genre === "evenement") {
-      const ch = RENCONTRES[Math.floor(r() * RENCONTRES.length)].choix(partie, { r, pools: POOLS });
+      const ch = tirerRencontre(partie, r).choix(partie, { r, pools: POOLS });
       ch.find((c) => c.ok !== false).f();
       if (!partie.equipe.some((u) => !u.ko)) return fin("defaite");
     }
-    if (["combat", "elite", "boss"].includes(n.genre)) {
-      const C = demarrerCombat(partie, n.genre, r, POOLS);
+    if (["combat", "elite", "boss", "mimique"].includes(genre)) {
+      const C = demarrerCombat(partie, genre, r, POOLS);
       let f = null, t = 0;
       for (; t < 600 && !f; t++) {
         const u = prochain(partie, C);
@@ -100,11 +102,11 @@ function descente(graine, { equipe, strategie = "concentrer", politique = () => 
         resoudre(partie, C, u, geste, cible, r);
         f = issue(partie, C);
       }
-      trace.tours.push({ genre: n.genre, round: C.round, actions: t });
-      if (f === "defaite") { trace.combatsPerdusGenre = n.genre; return fin("defaite"); }
+      trace.tours.push({ genre, round: C.round, actions: t });
+      if (f === "defaite") { trace.combatsPerdusGenre = genre; return fin("defaite"); }
       if (!f) { // combat sans issue : on le compte, et on garde de quoi comprendre
         const q = (u) => `${u.camp}:${u.role}:${u.pv}/${u.pvMax}:atq${u.atq}${u.ko ? ":ko" : ""}`;
-        BLOCAGES.push({ genre: n.genre, etage: partie.etage, equipe: partie.equipe.map(q), ennemis: C.ennemis.map(q) });
+        BLOCAGES.push({ genre, etage: partie.etage, equipe: partie.equipe.map(q), ennemis: C.ennemis.map(q) });
         return fin("blocage");
       }
       victoire(partie, C, r, POOLS.artefacts);

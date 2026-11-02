@@ -23,7 +23,14 @@ export const TIER_ORDER = TIERS.map((t) => t.id);
 
 /** Les paliers issus du roster, par opposition aux cartes hors roster. */
 export const TIERS_ROSTER = TIERS.filter((t) => !t.pleine);
-export const TIER_INFO = Object.fromEntries(TIERS.map((t) => [t.id, t]));
+/**
+ * Les cartes **hors collection** (1.1.0) : des adversaires que le Donjon
+ * fabrique, les mimiques, et qu'on n'obtient jamais. Cadre gris, aucune
+ * encoche. Le palier n'est pas dans `TIERS` : ni la bibliothèque, ni les
+ * boosters, ni le Comptoir ne le voient ; seul l'affichage d'une carte le lit.
+ */
+export const HORS_COLLECTION = { id: "hors", nom: "Hors collection", encoches: 0, lueur: "#8d959c", teinte: "#8d959c", teinteA: 0.8 };
+export const TIER_INFO = { ...Object.fromEntries(TIERS.map((t) => [t.id, t])), hors: HORS_COLLECTION };
 
 /**
  * Structure d'emplacements. Chaque position a sa propre table : c'est ce qui

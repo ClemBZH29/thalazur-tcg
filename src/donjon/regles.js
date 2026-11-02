@@ -398,8 +398,9 @@ export const echelle = (partie) =>
  * `po` est un montant de barème, multiplié par `taux` (PO par pièce de
  * barème, selon le mode) ; une descente d'avant la 1.1.0 compte en pièces.
  */
+export const montantGain = (partie, po) => Math.round(po * multButin(partie) * (partie.taux ?? 1));
 export function gagner(partie, po) {
-  const n = Math.round(po * multButin(partie) * (partie.taux ?? 1));
+  const n = montantGain(partie, po);
   partie.sac += n;
   return n;
 }
@@ -536,6 +537,25 @@ export function prendreRelique(partie, a) {
 export function trouverRelique(partie, r, artefacts) {
   return prendreRelique(partie, tirerRelique(r, artefacts));
 }
+/**
+ * L'équipe se défait d'une relique : l'inverse exact de `prendreRelique`.
+ * Ses PV quittent chacun (sans faire tomber personne), l'INI est recalculée
+ * sur les reliques qui restent ; l'ATQ suit d'elle-même (`bonusEquipe`).
+ */
+export function retirerRelique(partie, a) {
+  const i = partie.reliques.indexOf(a);
+  if (i < 0) return false;
+  const iniAvant = modsEquipe(partie).ini || 0;
+  partie.reliques.splice(i, 1);
+  const b = BONUS_ARTEFACT[a.tier] || BONUS_ARTEFACT.commun;
+  const ini = (modsEquipe(partie).ini || 0) - iniAvant;
+  for (const u of partie.equipe) {
+    u.pvMax = Math.max(1, u.pvMax - b.pv);
+    if (!u.ko) u.pv = Math.max(1, Math.min(u.pvMax, u.pv - b.pv));
+    u.ini += ini;
+  }
+  return true;
+}
 export function tresor(partie, r, artefacts) {
   const po = gagner(partie, entre(r, 5, 8) * echelle(partie));
   const relique = r() < 0.35 + (modsEquipe(partie).fortune || 0) ? trouverRelique(partie, r, artefacts) : null;
@@ -566,9 +586,22 @@ export function repos(partie) {
 const blesser = (u, d) => { u.pv = Math.max(0, u.pv - d); if (u.pv === 0) u.ko = true; };
 
 /**
- * Chaque rencontre propose deux choix. `choix(partie, ctx)` rend leur
+ * Ce que Mirko paie une relique, en multiple de ce qu'elle rapporte vendue
+ * « mains pleines » (`PRIX_RELIQUE`). Le joueur échange de la force contre de
+ * l'or : le prix doit valoir la peine de s'affaiblir pour la suite.
+ */
+export const RACHAT_MIRKO = 2;
+export const prixRachat = (p, a) => montantGain(p, (PRIX_RELIQUE[a.tier] || 6) * RACHAT_MIRKO * echelle(p));
+
+/**
+ * Chaque rencontre propose deux choix ou plus. `choix(partie, ctx)` rend leur
  * libellé, leur disponibilité et leur effet ; l'effet rend le texte du
  * dénouement. `ctx` porte le tirage et les cartes.
+ *
+ * `poids` (1 par défaut) règle la fréquence, `dispo(partie)` écarte une
+ * rencontre sans objet (voir `tirerRencontre`). Le coffre moussu, et son
+ * aiguille empoisonnée, a quitté les rencontres le 02/11/2026 (1.1.0) : le
+ * piège des coffres est désormais la mimique des salles au trésor.
  */
 export const RENCONTRES = [
   { id: "mirko", titre: "Un colporteur égaré",
@@ -579,15 +612,6 @@ export const RENCONTRES = [
         for (const u of vivants(p.equipe)) u.pv = Math.min(u.pvMax, u.pv + Math.ceil(u.pvMax * 0.6));
         return "Les onguents sentent la menthe et le goudron. L'équipe reprend des forces."; } },
       { lib: "Lui souhaiter bonne route", f: () => "Il vous salue d'un coup de clochette et disparaît dans la brume." }] },
-  { id: "coffre", titre: "Un coffre moussu",
-    texte: (lieu) => `Au fond de ${lieu}, un coffre couvert de mousse. La serrure a l'air neuve.`,
-    choix: (p, { r }) => [
-      { lib: "L'ouvrir", f: () => {
-        if (r() < 0.65) return `Il est plein. +${gagner(p, entre(r, 6, 9) * echelle(p))} PO.`;
-        const d = 3 * p.etage;
-        for (const u of vivants(p.equipe)) blesser(u, d);
-        return `Une aiguille empoisonnée ! Chaque compagnon perd ${d} PV.`; } },
-      { lib: "Passer son chemin", f: () => "Mieux vaut ne pas tenter le sort." }] },
   { id: "autel", titre: "Un autel dans la brume",
     texte: () => "Une pierre levée, tiède sous la main. Elle réclame du sang et promet de la force.",
     choix: (p) => [
@@ -622,11 +646,80 @@ export const RENCONTRES = [
         const u = choisir(r, vivants(p.equipe)); blesser(u, 4 * p.etage);
         return `C'était un piège. ${u.c.nom} perd ${4 * p.etage} PV.`; } },
       { lib: "Boucher ses oreilles", f: () => "La voix se tait quand vous passez." }] },
+  // Rare (1.1.0) : Mirko, qui « fait circuler ce qui dort », rachète une
+  // relique. Il en désigne deux au plus parmi celles de l'équipe.
+  { id: "mirko-reliques", titre: "Mirko fait affaire", poids: 0.25, dispo: (p) => p.reliques.length > 0,
+    texte: (lieu) => `Mirko a posé son ballot au milieu de ${lieu}. « Aujourd'hui je ne vends rien, j'achète. Une de vos reliques dort : laissez-la-moi circuler. »`,
+    choix: (p, { r }) => {
+      const offres = [...p.reliques].map((a) => [a, r()]).sort((x, y) => x[1] - y[1]).slice(0, 2).map(([a]) => a);
+      return [
+        ...offres.map((a) => ({ lib: `Lui céder ${a.nom} (+${prixRachat(p, a)} PO)`, f: () => {
+          const po = prixRachat(p, a);
+          if (!retirerRelique(p, a)) return "Mirko hausse les épaules : l'affaire ne se fait pas.";
+          p.sac += po;
+          return `Mirko soupèse ${a.nom}, sourit et la glisse dans son ballot. +${po} PO.`; } })),
+        { lib: "Garder vos reliques", f: () => "« Une autre fois. » Sa clochette s'éloigne dans la brume." }];
+    } },
 ];
+
+/** La rencontre d'une salle « ? » : au poids de chacune, parmi celles qui ont un objet. */
+export function tirerRencontre(partie, r) {
+  const l = RENCONTRES.filter((e) => !e.dispo || e.dispo(partie));
+  let x = r() * l.reduce((s, e) => s + (e.poids ?? 1), 0);
+  for (const e of l) { x -= e.poids ?? 1; if (x < 0) return e; }
+  return l[l.length - 1];
+}
+
+/* ── Les mimiques (1.1.0) ─────────────────────────────────────────────── */
+
+/**
+ * Une salle au trésor sur quatre est une mimique : le coffre se dresse et
+ * se bat. Trois tailles, plus grosses à mesure qu'on descend. Ce sont des
+ * cartes de combat seulement, **hors collection** : on ne les obtient
+ * jamais, d'où leur cadre gris (palier d'affichage `hors`,
+ * src/config/tiers.js). Leurs illustrations sont livrées avec le site
+ * (public/donjon/mimiques/, prompts dans docs/conception/donjon.md).
+ *
+ * Seule, une mimique a la force d'un petit groupe : `palier` et `mult` règlent
+ * ses PV et son ATQ comme ceux d'un adversaire de ce palier (`monstre`), et
+ * elle frappe tôt (`ini`). Vaincue, elle rend ce qu'elle a avalé : `butin`
+ * (à l'échelle de l'étage, un trésor en vaut 5 à 8), une relique avec la
+ * chance `relique`, qu'elle retourne contre l'équipe tant qu'elle est debout,
+ * et `xp` par étage à chacun.
+ */
+const carteMimique = (id, nom, citation) => ({
+  id: `mimique-${id}`, nom, type: "pnj", tier: "hors", rep1: "Créature", race: "Mimique", rep3: "Brume",
+  citation, image: `donjon/mimiques/mimique-${id}.webp`, mimique: id,
+});
+export const MIMIQUES = {
+  petite: { carte: carteMimique("petite", "Petite mimique", "Elle a gardé la bourse. Et le doigt qui la cherchait."),
+    palier: "peucommun", mult: 2, ini: 6, butin: 12, xp: 2, relique: 0.2 },
+  vorace: { carte: carteMimique("vorace", "Mimique vorace", "Le couvercle ne se referme jamais tout à fait."),
+    palier: "rare", mult: 2.4, ini: 6, butin: 20, xp: 3, relique: 0.55 },
+  ancienne: { carte: carteMimique("ancienne", "Mimique ancienne", "Plus vieille que le donjon. Elle a vu passer tous les voleurs."),
+    palier: "legendaire", mult: 2.8, ini: 5, butin: 32, xp: 5, relique: 1 },
+};
+export const MIMIQUE = { chance: 0.25 };
+
+/** Le coffre d'une salle au trésor est-il une mimique ? */
+export const mimiqueSurgit = (partie, r) => r() < MIMIQUE.chance;
+
+/** La taille de la mimique : les grandes deviennent courantes en profondeur. */
+export const poidsMimiques = (etage) => ({
+  petite: Math.max(5, 60 - 12 * etage), vorace: 30 + 4 * etage, ancienne: Math.max(0, 6 * etage - 2),
+});
+
+function mimique(partie, r) {
+  const k = tirer(r, poidsMimiques(partie.etage));
+  const d = MIMIQUES[k];
+  const u = monstre(partie, { ...d.carte, tier: d.palier }, partie.etage, d.mult);
+  return Object.assign(u, { c: { ...d.carte }, ini: d.ini + (INI_PALIER[d.palier] || 0), mimique: k });
+}
 
 /* ── Combat ──────────────────────────────────────────────────────────── */
 
 function composer(partie, genre, r, pools) {
+  if (genre === "mimique") return [mimique(partie, r)];
   const e = partie.etage;
   const poids = { commun: 72 - e * 13, peucommun: 24 + e * 7, rare: 4 + e * 6 };
   // Deux adversaires sur cinq sont des PNJ rivaux, jamais un compagnon de l'équipe.
@@ -655,7 +748,9 @@ export function demarrerCombat(partie, genre, r, pools) {
   for (const u of partie.equipe) Object.assign(u, { cd: 0 }, ETATS);
   partie.stats.combats++;
   const ennemis = composer(partie, genre, r, pools);
-  const chance = genre === "boss" ? 1 : genre === "elite" ? 0.55 + (modsEquipe(partie).fortune || 0) : 0;
+  const fortune = modsEquipe(partie).fortune || 0;
+  const chance = genre === "boss" ? 1 : genre === "elite" ? 0.55 + fortune
+    : genre === "mimique" ? MIMIQUES[ennemis[0].mimique].relique + fortune : 0;
   const relique = chance && r() < chance ? tirerRelique(r, pools.artefacts || []) : null;
   const C = { genre, ennemis, relique, round: 0, ordre: [], idx: -1, actif: null, compteBoss: 0, fini: null, notes: [], ouverture: [], marquePose: {} };
   if (relique) {
@@ -1049,14 +1144,14 @@ export function choixAuto(partie, C, u, strategie) {
 }
 
 export function victoire(partie, C, r, _artefacts) {
-  const base = C.ennemis.reduce((s, m) => s + (m.boss ? 12 : m.elite ? 4 : 1.5) * echelle(partie) + entre(r, 0, 2), 0);
+  const base = C.ennemis.reduce((s, m) => s + (m.mimique ? MIMIQUES[m.mimique].butin : m.boss ? 12 : m.elite ? 4 : 1.5) * echelle(partie) + entre(r, 0, 2), 0);
   const po = gagner(partie, Math.round(C.genre === "elite" ? base * 1.5 : base));
   partie.stats.ennemis += C.ennemis.length;
   if (C.genre === "boss") partie.stats.gardiens++;
   // Expérience : un point par adversaire et par étage, trois pour une élite,
   // cinq par étage pour le gardien. Toute l'équipe la reçoit, tombés compris :
   // ils étaient de l'expédition.
-  const xp = C.ennemis.reduce((s, m) => s + (m.boss ? 5 : m.elite ? 3 : 1) * partie.etage, 0);
+  const xp = C.ennemis.reduce((s, m) => s + (m.mimique ? MIMIQUES[m.mimique].xp : m.boss ? 5 : m.elite ? 3 : 1) * partie.etage, 0);
   for (const u of partie.equipe) { Object.assign(u, { cd: 0 }, ETATS); u.xp = (u.xp || 0) + xp; }
   // La relique que gardaient les adversaires change de camp.
   const relique = prendreRelique(partie, C.relique || null);
@@ -1074,7 +1169,9 @@ export function victoire(partie, C, r, _artefacts) {
   }
   return C.genre === "boss"
     ? { titre: `Étage ${partie.etage} nettoyé`, texte: "Le gardien tombe. Plus bas, la brume est plus épaisse — et les bourses plus lourdes.", po, relique, pouvoirs }
-    : { titre: "Victoire", texte: `${C.ennemis.length} adversaires à terre.`, po, relique, pouvoirs };
+    : C.genre === "mimique"
+      ? { titre: "Le coffre est à vous", texte: `${C.ennemis[0].c.nom} ne bougera plus. Son ventre était plein.`, po, relique, pouvoirs }
+      : { titre: "Victoire", texte: `${C.ennemis.length} adversaires à terre.`, po, relique, pouvoirs };
 }
 /** On ne fuit ni un gardien, ni seul, ni au donjon infini : là, on tient jusqu'au bout. */
 export const peutFuir = (partie, C) => partie.mode !== "infini" && C.genre !== "boss" && vivants(partie.equipe).length >= 2;
