@@ -146,6 +146,12 @@ une relique. Mirko en désigne deux au plus et paie
 relique part avec ses bonus (`retirerRelique`, l'inverse de
 `prendreRelique`) : le joueur échange de la force contre de l'or.
 
+À l'écran, le portrait de Mirko remplace la carte du lieu (champ `portrait`
+de la rencontre, aussi pour les onguents). Les reliques qu'il propose de
+racheter s'affichent en cartes, avec ce que l'équipe perd et le prix ; dessous,
+les autres reliques de l'équipe, en petites cartes, à la place des PV, qui
+n'ont rien à voir avec l'affaire.
+
 Les rencontres se tirent désormais au poids (`tirerRencontre`). Une descente
 sauvée sur l'ancien coffre au passage de la version revient sur la carte.
 

@@ -39,6 +39,10 @@ describe("les rencontres « ? »", () => {
     const i = choix.findIndex((c) => c.lib.includes(a.nom));
     const prix = prixRachat(p, a);
     expect(choix[i].lib).toContain(`+${prix} PO`);
+    // L'écran montre la relique en carte, son prix dessous.
+    expect(choix[i].carte).toBe(a);
+    expect(choix[i].prix).toBe(prix);
+    expect(mirko.portrait).toMatch(/mirko\.webp$/);
     const sac = p.sac;
     choix[i].f();
     expect(p.reliques).not.toContain(a);

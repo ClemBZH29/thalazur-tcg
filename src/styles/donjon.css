@@ -666,3 +666,17 @@
 .dj-portrait-l.repos, .dj-portrait-l.repos .icone { color: var(--ember); }
 .dj-portrait-l.gain { color: var(--m-rainbow); font-weight: 600; }
 @media (max-width: 560px) { .dj-chiffres-fin { grid-template-columns: repeat(2, minmax(0, 1fr)); } .dj-portraits { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; } }
+
+/* Une rencontre tenue par quelqu'un (Mirko, 1.1.0) : son portrait à la place
+   du lieu, et les reliques qu'il rachète en cartes, le prix dessous. */
+.dj-scene-portrait img { display: block; width: 100%; height: auto; border-radius: 12px;
+  background: radial-gradient(circle at 50% 40%, rgba(232, 168, 64, .14), transparent 70%); }
+.dj-offres { display: flex; flex-wrap: wrap; gap: 14px; margin: 14px 0 4px; }
+.dj-offre { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 160px; text-align: center; }
+.dj-offre .dj-carte { width: 120px; }
+.dj-offre .btn { width: 100%; margin-top: auto; padding-inline: 8px; white-space: nowrap; }
+.dj-gardees { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--edge); }
+.dj-gardees h3 { font-size: 13px; font-family: var(--font-ui); font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--ink4); margin-bottom: 10px; }
+.dj-gardees-cartes { display: flex; flex-wrap: wrap; gap: 10px; }
+.dj-gardee { width: 72px; }
+@media (max-width: 560px) { .dj-offre { width: calc(50% - 7px); } .dj-offre .dj-carte { width: 100px; } }

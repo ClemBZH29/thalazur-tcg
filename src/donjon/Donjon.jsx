@@ -1498,21 +1498,61 @@ export default function Donjon({ jeu }) {
   const vignette = lieu && <div className="dj-scene-vignette" aria-hidden="true"><CarteDJ c={lieu} cfgImage={cfgImage} fichiers={fichiers} /></div>;
 
   if (ecran === "rencontre" && rencontre) {
+    // Quelqu'un tient la rencontre (Mirko) : son portrait prend la place du lieu.
+    const portrait = rencontre.e.portrait && `${import.meta.env.BASE_URL}${rencontre.e.portrait}`;
+    // Les choix qui portent une carte (une relique à céder) se montrent en cartes.
+    const offres = rencontre.choix.map((c, i) => ({ ...c, i })).filter((c) => c.carte);
+    const autres = rencontre.choix.map((c, i) => ({ ...c, i })).filter((c) => !c.carte);
     return (
       <div className="dj">
         {entete}
         <div className="dj-scene">
-          {lieu && <div className="dj-scene-carte"><CarteDJ c={lieu} cfgImage={cfgImage} fichiers={fichiers} /></div>}
+          {portrait
+            ? <div className="dj-scene-carte dj-scene-portrait"><img src={portrait} alt="" draggable="false" /></div>
+            : lieu && <div className="dj-scene-carte"><CarteDJ c={lieu} cfgImage={cfgImage} fichiers={fichiers} /></div>}
           <section className="panneau dj-panneau">
-            {vignette}
+            {portrait
+              ? <div className="dj-scene-vignette dj-scene-portrait" aria-hidden="true"><img src={portrait} alt="" draggable="false" /></div>
+              : vignette}
             <h2>{rencontre.e.titre}</h2>
             <p>{rencontre.texte}</p>
+            {offres.length > 0 && (
+              <div className="dj-offres">
+                {offres.map((c) => (
+                  <div key={c.i} className="dj-offre">
+                    <CarteDJ c={c.carte} cfgImage={cfgImage} fichiers={fichiers} />
+                    <span className="muted petit">Vous perdez {bonusTexte(c.carte.tier)}</span>
+                    <button type="button" className="btn" disabled={c.ok === false} onClick={() => choisirRencontre(c.i)}>
+                      Céder · +{c.prix} PO
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
             <div className="actions gauche dj-actions-bas">
-              {rencontre.choix.map((c, i) => (
-                <button key={i} type="button" className={`btn${i ? " quiet" : ""}`} disabled={c.ok === false} onClick={() => choisirRencontre(i)}>{c.lib}</button>
+              {autres.map((c, k) => (
+                <button key={c.i} type="button" className={`btn${k || offres.length ? " quiet" : ""}`} disabled={c.ok === false} onClick={() => choisirRencontre(c.i)}>{c.lib}</button>
               ))}
             </div>
-            <MiniEquipe partie={partie} />
+            {/* Une affaire de reliques : on montre celles qu'on garde, pas les PV. */}
+            {offres.length > 0 ? (() => {
+              const proposees = new Set(offres.map((c) => c.carte));
+              const gardees = partie.reliques.filter((a) => !proposees.has(a));
+              return (
+                <div className="dj-gardees">
+                  <h3>{gardees.length ? "Vos autres reliques" : "Aucune autre relique"}</h3>
+                  {gardees.length > 0 && (
+                    <div className="dj-gardees-cartes">
+                      {gardees.map((a, k) => (
+                        <div key={k} className="dj-gardee" title={`${a.nom} : ${bonusTexte(a.tier)}`}>
+                          <CarteDJ c={a} cfgImage={cfgImage} fichiers={fichiers} />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })() : <MiniEquipe partie={partie} />}
           </section>
         </div>
       </div>

@@ -594,6 +594,9 @@ export const RACHAT_MIRKO = 2;
 export const prixRachat = (p, a) => montantGain(p, (PRIX_RELIQUE[a.tier] || 6) * RACHAT_MIRKO * echelle(p));
 
 /**
+ * `portrait` : l'image (sous public/) qui remplace la carte du lieu à l'écran
+ * de la rencontre, quand quelqu'un l'occupe (Mirko, 1.1.0).
+ *
  * Chaque rencontre propose deux choix ou plus. `choix(partie, ctx)` rend leur
  * libellé, leur disponibilité et leur effet ; l'effet rend le texte du
  * dénouement. `ctx` porte le tirage et les cartes.
@@ -604,7 +607,7 @@ export const prixRachat = (p, a) => montantGain(p, (PRIX_RELIQUE[a.tier] || 6) *
  * piège des coffres est désormais la mimique des salles au trésor.
  */
 export const RENCONTRES = [
-  { id: "mirko", titre: "Un colporteur égaré",
+  { id: "mirko", titre: "Un colporteur égaré", portrait: "comptoir/mirko.webp",
     texte: (lieu) => `Mirko, sa clochette et son ballot, s'est perdu dans ${lieu}. Il a des onguents, pour qui paie.`,
     choix: (p) => [
       { lib: `Acheter des onguents (${prixOnguents(p)} PO du sac)`, ok: p.sac >= prixOnguents(p), f: () => {
@@ -648,12 +651,13 @@ export const RENCONTRES = [
       { lib: "Boucher ses oreilles", f: () => "La voix se tait quand vous passez." }] },
   // Rare (1.1.0) : Mirko, qui « fait circuler ce qui dort », rachète une
   // relique. Il en désigne deux au plus parmi celles de l'équipe.
-  { id: "mirko-reliques", titre: "Mirko fait affaire", poids: 0.25, dispo: (p) => p.reliques.length > 0,
+  { id: "mirko-reliques", titre: "Mirko fait affaire", portrait: "comptoir/mirko.webp", poids: 0.25, dispo: (p) => p.reliques.length > 0,
     texte: (lieu) => `Mirko a posé son ballot au milieu de ${lieu}. « Aujourd'hui je ne vends rien, j'achète. Une de vos reliques dort : laissez-la-moi circuler. »`,
     choix: (p, { r }) => {
       const offres = [...p.reliques].map((a) => [a, r()]).sort((x, y) => x[1] - y[1]).slice(0, 2).map(([a]) => a);
       return [
-        ...offres.map((a) => ({ lib: `Lui céder ${a.nom} (+${prixRachat(p, a)} PO)`, f: () => {
+        // `carte` et `prix` : l'écran montre la relique en carte, son prix dessous.
+        ...offres.map((a) => ({ lib: `Lui céder ${a.nom} (+${prixRachat(p, a)} PO)`, carte: a, prix: prixRachat(p, a), f: () => {
           const po = prixRachat(p, a);
           if (!retirerRelique(p, a)) return "Mirko hausse les épaules : l'affaire ne se fait pas.";
           p.sac += po;
