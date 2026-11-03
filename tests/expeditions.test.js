@@ -8,6 +8,7 @@ import * as R from "../src/reliquaire/regles.js";
 import { fusionner3, fusionnerReliquaire } from "../src/lib/nuage/fusion.js";
 import { etatVide } from "../src/lib/storage.js";
 import { mesuresGlobales } from "../src/succes/regles.js";
+import { evaluerMissions, mesuresMissions, mettreAJour } from "../src/missions/regles.js";
 
 const H = 3600e3;
 const T0 = new Date(2026, 8, 28, 9, 0).getTime();
@@ -66,6 +67,22 @@ describe("expéditions", () => {
     expect(e.xp["x:l1"].xp).toBe(bilan.xpLieu);
     // Rejouer le même crédit ne paie pas deux fois.
     expect(X.crediterRoute(e, 1, INDEX, T0 + 12 * H).bilan).toBeNull();
+  });
+
+  test("une route rentrée dans la nuit compte pour la mission du lendemain", () => {
+    // Partie la veille au soir, rentrée à 7 h : le joueur ouvre le site à 9 h.
+    const soir = new Date(2026, 8, 27, 19, 0).getTime();
+    const veille = { ...etatVide(), missions: { jour: X.jourDe(soir), semaine: "2026-S39", quotidiennes: [], hebdo: null } };
+    const { etat } = X.partir(veille, { lieu, cartes: equipe, heures: 12, maintenant: soir });
+    // Les missions sont encore celles de la veille : pas d'accueil.
+    expect(X.accueilPermis(etat, T0)).toBe(false);
+    // Le tirage du jour passe d'abord ; une mission d'expédition y est confiée.
+    const ctx = { lieux: 1, pnj: 6, surplus: 0, dissolubles: 0, nouvellesParBooster: 0, descentes: 0, reliquaire: false };
+    let e = mettreAJour(etat, { mesures: mesuresMissions(etat), ctx, maintenant: new Date(T0) });
+    e = { ...e, missions: { ...e.missions, quotidiennes: [{ type: "expeditions", n: 1, po: 30, depart: mesuresMissions(e).expeditions, reclamee: false }] } };
+    expect(X.accueilPermis(e, T0)).toBe(true);
+    const apres = X.crediterRoute(e, 1, INDEX, T0).etat;
+    expect(evaluerMissions(apres, mesuresMissions(apres)).quotidiennes[0].atteinte).toBe(true);
   });
 
   test("le plafond d'or du jour vaut pour toutes les expéditions", () => {

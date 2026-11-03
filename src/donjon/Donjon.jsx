@@ -2,11 +2,11 @@ import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "r
 import FaceCarte from "../components/FaceCarte.jsx";
 import Icone from "../components/Icone.jsx";
 import { BOOSTERS } from "../extensions/index.js";
-import { DONJON, TIER_INFO, poDuButin } from "../config/tiers.js";
+import { DONJON, TIER_INFO, poDuSac } from "../config/tiers.js";
 import { resoudreImage } from "../lib/images.js";
 import {
   BONUS_ARTEFACT, bonusEquipe, GENRES, MODES, etagesDe, graineInfinie, RANGS, RENCONTRES, ROLES, STRATEGIES, TRAITS,
-  atqDe, cartesDonjon, choixAuto, choixIA, creerPartie, demarrerCombat, descendre, entrer, fuir,
+  atqDe, cartesDonjon, choixAuto, choixIA, creerPartie, demarrerCombat, descendre, entrer, fuir, mimiqueSurgit, tirerRencontre,
   gestes, graineDuJour, issue, ouverts, parUid, prochain, rapporte, repos, resoudre,
   tresor, victoire, vivants, allie, compositionDuJour, ciblesPossibles, convalescences, fiche, peutFuir, gainsXP,
   apprentissage, descentesJouees, brume, tirage, BRUME_TOUR, COMPETENCES, techDe, unites, roleCarte, RELIQUES_MAX,
@@ -43,9 +43,12 @@ const ICONE_GENRE = { combat: "combat", elite: "elite", tresor: "tresor", evenem
 const ORDRE_PALIERS = ["legendaire", "rare", "peucommun", "commun"];
 const aujourdhui = () => new Date().toLocaleDateString("sv");
 const dateFr = (j) => j.split("-").reverse().join("/");
-const pieces = (n) => `${n} pièce${n > 1 ? "s" : ""}`;
-/** Ce que vaut en PO un gain de `n` pièces, sac déjà compté (la conversion de l'infini est concave). */
-const poGagne = (p, n) => poDuButin(p.sac, p.mode) - poDuButin(Math.max(0, p.sac - (n || 0)), p.mode);
+/**
+ * Ce que vaut en PO un gain de `n` entré au sac, sac déjà compté. Depuis la
+ * 1.1.0 le sac est en PO et c'est `n` lui-même ; une descente commencée avant
+ * compte encore en pièces, converties par l'ancienne courbe.
+ */
+const poGagne = (p, n) => poDuSac(p.sac, p) - poDuSac(Math.max(0, p.sac - (n || 0)), p);
 const initiales = (n) => String(n).split(/[\s,'’-]+/).filter(Boolean).slice(0, 2).map((m) => m[0].toUpperCase()).join("");
 const nouvelleGraine = () => Math.floor(Math.random() * 4294967296) >>> 0;
 const pourcent = (x) => `${Math.round(x * 100)} %`;
@@ -83,7 +86,13 @@ function useDoigt() {
 
 /* ── Une carte, au cadre du site, avec ce que le combat y ajoute ─────── */
 
-function CarteDJ({ c, u = null, partie = null, cfgImage, fichiers }) {
+/**
+ * `rainbow` : la carte est au joueur et il en possède la rainbow. Le Donjon
+ * l'affiche alors dans cette version, comme la bibliothèque (1.1.0) : une
+ * carte irisée par l'expérience gagnée ici doit s'y voir. Jamais pour un
+ * adversaire, même tiré d'une carte que le joueur possède.
+ */
+function CarteDJ({ c, u = null, partie = null, rainbow = false, cfgImage, fichiers }) {
   const cfg = useMemo(() => ({ ...cfgImage, extension: c.ext }), [cfgImage, c.ext]);
   const pct = u ? Math.max(0, (u.pv / u.pvMax) * 100) : 0;
   const statuts = [];
@@ -100,7 +109,7 @@ function CarteDJ({ c, u = null, partie = null, cfgImage, fichiers }) {
   return (
     <div className={`dj-carte cardbox${u?.etoiles ? " star" : ""}${u?.etoiles && Object.keys(u.etoiles).length === 4 ? " star-pleine" : ""}`}>
       {u?.camp === "a" && u.etoiles && <EtoilesCarte n={Object.keys(u.etoiles).length} petit />}
-      <div className="dj-face"><FaceCarte c={c} cfgImage={cfg} fichiers={fichiers} vignette /></div>
+      <div className="dj-face"><FaceCarte c={rainbow ? { ...c, rainbow: true } : c.image ? { ...c, urlLigne: `${import.meta.env.BASE_URL}${c.image}` } : c} cfgImage={cfg} fichiers={fichiers} vignette /></div>
       {u && (
         <span className="dj-etats" aria-hidden="true">
           <i className="e-saigne"><b /><b /><b /></i><i className="e-marque" /><i className="e-piege" /><i className="e-voile" />
@@ -214,6 +223,48 @@ function BoutonRemonter({ po, onRemonter, className = "btn quiet" }) {
   );
 }
 
+/**
+ * Le choix de la sortie d'étage, revu en 1.1.0 : des joueurs remontaient en
+ * voulant descendre, et l'inverse. Les deux boutons étaient côte à côte, de
+ * même taille, et seule leur teinte les distinguait. Ce sont désormais deux
+ * grandes tuiles qui ne se ressemblent pas : descendre en bleu froid, flèche
+ * vers le bas ; remonter en or, flèche vers le haut, ce que l'on garde écrit
+ * dessous. Remonter clôt la descente, sans retour : un premier toucher arme
+ * le bouton, un second confirme (comme sur la carte). Au dernier étage, seule
+ * reste la remontée, sans confirmation.
+ */
+function ChoixSortie({ po, infini, dernier, etageSuivant, onDescendre, onRemonter }) {
+  const [arme, setArme] = useState(false);
+  useEffect(() => {
+    if (!arme) return undefined;
+    const id = setTimeout(() => setArme(false), 4000);
+    return () => clearTimeout(id);
+  }, [arme]);
+  const remonter = () => {
+    if (dernier || arme) return onRemonter();
+    Son.jouer("donjon.carte.confirmer");
+    setArme(true);
+  };
+  return (
+    <div className="dj-sortie-choix">
+      {!dernier && (
+        <button type="button" className="dj-sortie-btn bas" onClick={onDescendre}>
+          <span className="dj-sortie-fleche" aria-hidden="true">↓</span>
+          <b>Descendre à l&apos;étage {etageSuivant}</b>
+          <small>{infini ? "Plus dur, plus riche · sans retour" : "Plus dur, plus riche · une chute ne rend qu'un quart du sac"}</small>
+        </button>
+      )}
+      {!infini && (
+        <button type="button" className={`dj-sortie-btn haut${arme ? " arme" : ""}`} onClick={remonter}>
+          <span className="dj-sortie-fleche" aria-hidden="true">↑</span>
+          <b>{arme ? "Confirmer : remonter" : "Remonter"}</b>
+          <small>{arme ? `La descente s'arrête ici, avec ${po} PO` : `Garder les ${po} PO du sac`}</small>
+        </button>
+      )}
+    </div>
+  );
+}
+
 /** Les états d'une unité, en classes pour leurs calques (donjon-animations.css). */
 const etatsDe = (u) => [
   u.saigne > 0 && "etat-saigne", u.marque > 0 && "etat-marque", u.etourdi > 0 && "etat-piege", u.voile && "etat-voile",
@@ -297,7 +348,7 @@ function ReliqueTrouvee({ a, partie, cfgImage, fichiers }) {
         <b className="dj-trouvaille-nom">{a.nom}</b>
         <span className="muted petit">{TIER_INFO[a.tier]?.nom}</span>
         {a.vendue ? (
-          <span className="dj-trouvaille-effet" title={`Les mains sont pleines (${RELIQUES_MAX} reliques) : elle part au sac.`}>Mains pleines · vendue +{a.vendue} pièces</span>
+          <span className="dj-trouvaille-effet" title={`Les mains sont pleines (${RELIQUES_MAX} reliques) : elle part au sac.`}>Mains pleines · vendue +{partie?.taux != null ? `${a.vendue} PO` : `${a.vendue} pièces`}</span>
         ) : (
           <>
             <span className="dj-trouvaille-effet">{bonusTexte(a.tier).replace(" à l'équipe", "")}</span>
@@ -361,6 +412,8 @@ export default function Donjon({ jeu }) {
   const { etat, cfgImage, fichiers, mouvementReduit, donjon, tentativesRestantes, illimite,
     entreeInfini, peutPayerInfini, imposition, fixerImposition, recordInfini, commencerDonjon, sauverPartie, terminerDonjon,
     convalescence, niveauCarte, enExpedition } = jeu;
+  /** La rainbow de cette carte est-elle dans la collection ? */
+  const enRainbow = (c) => (etat.collections?.[c?.ext]?.[c?.id]?.rainbow || 0) > 0;
 
   const partieRef = useRef(donjon.partie ? structuredClone(donjon.partie) : null);
   const combatRef = useRef(null);
@@ -522,6 +575,11 @@ export default function Donjon({ jeu }) {
     Son.jouer("donjon.carte.reveler");
     // Pas d'écran sans décision : un trésor sans relique et un repos se
     // lisent en bandeau sur la carte ; une relique gagnée a son écran.
+    // Une salle au trésor sur quatre : le coffre a des dents (1.1.0).
+    if (n.genre === "tresor" && mimiqueSurgit(p, r)) {
+      Son.jouer("donjon.carte.combat");
+      return lancerCombat("mimique");
+    }
     if (n.genre === "tresor" || n.genre === "repos") {
       const R = n.genre === "tresor" ? tresor(p, r, POOLS.artefacts) : repos(p);
       if (n.genre === "repos") Son.jouer("donjon.rencontre.repos");
@@ -532,7 +590,7 @@ export default function Donjon({ jeu }) {
       }
       setResultat(R);
     } else {
-      p.rencontre = { id: RENCONTRES[Math.floor(r() * RENCONTRES.length)].id, graine: nouvelleGraine() };
+      p.rencontre = { id: tirerRencontre(p, r).id, graine: nouvelleGraine() };
       setRencontre(monterRencontre(p));
       // Autel et voyageur blessé ont leur son ; les autres rencontres, le parchemin.
       Son.jouer({ autel: "donjon.rencontre.autel", blesse: "donjon.rencontre.recrue" }[p.rencontre.id] || "donjon.rencontre.autre");
@@ -563,7 +621,8 @@ export default function Donjon({ jeu }) {
     setJournal([
       ...CC.ouverture.map((o) => o.note).reverse(),
       ...(CC.relique ? [`Ils portent ${CC.relique.nom} : battez-les pour la prendre.`] : []),
-      reprise ? "Le combat reprend à son premier tour." : p.combat.genre === "boss" ? "Le gardien de l'étage se dresse." : `${CC.ennemis.length} adversaires.`,
+      reprise ? "Le combat reprend à son premier tour." : p.combat.genre === "boss" ? "Le gardien de l'étage se dresse."
+        : p.combat.genre === "mimique" ? `Le coffre ouvre un œil : ${CC.ennemis[0].c.nom} !` : `${CC.ennemis.length} adversaires.`,
     ]);
     setGeste(null); setOccupe(true);
     setEcran("combat");
@@ -611,11 +670,11 @@ export default function Donjon({ jeu }) {
     const repos = convalescences(p, iss);
     const infini = p.mode === "infini";
     const record = infini && p.stats.gardiens > recordInfini;
-    const { po, bilan, refusee } = terminerDonjon(butin, { issue: iss, etage: p.etage, gardiens: p.stats.gardiens, complete, mode: p.mode || "jour", id: idPartie(p), pas: p.pas || 0 }, repos, gainsXP(p, iss));
+    const { po, bilan, refusee } = terminerDonjon(butin, { issue: iss, etage: p.etage, gardiens: p.stats.gardiens, complete, mode: p.mode || "jour", taux: p.taux, id: idPartie(p), pas: p.pas || 0 }, repos, gainsXP(p, iss));
     // Close ou remplacée ailleurs entre-temps : rien n'est payé, pas de bilan.
     if (refusee) return fermerDescente();
     const noms = new Map([...p.equipe.map((u) => u.c), ...p.perdus].map((c) => [`${c.ext}:${c.id}`, c.nom]));
-    setFin({ issue: iss, butin, perdu: p.sac - butin, po, stats: { ...p.stats }, etage: p.etage, debout: vivants(p.equipe).length,
+    setFin({ issue: iss, butin, perdu: poDuSac(p.sac, p) - poDuSac(butin, p), po, stats: { ...p.stats }, etage: p.etage, debout: vivants(p.equipe).length,
       mode: p.mode || "jour", record,
       total: p.equipe.length, reliques: p.reliques.map((a) => a.nom), repos: repos.map((x) => ({ nom: noms.get(x.cle), cle: x.cle, jours: x.jours })), xp: bilan,
       tombes: p.equipe.filter((u) => u.ko).map((u) => `${u.c.ext}:${u.c.id}`) });
@@ -1019,7 +1078,7 @@ export default function Donjon({ jeu }) {
       <span className="pastille" title={partie.mode === "infini" ? "Donjon infini" : "Donjon du jour"}><Icone nom="etage" taille={13} /> {partie.mode === "infini"
         ? <><b>{partie.etage}</b> · ∞</>
         : <><b>{partie.etage}</b> / {etagesDe(partie)}</>}</span>
-      <span className="pastille or" title={`${pieces(partie.sac)} au sac`}><Icone nom="butin" taille={13} /> <b>{poDuButin(partie.sac, partie.mode)} PO</b></span>
+      <span className="pastille or" title="Le sac : les PO que la descente rapporte"><Icone nom="butin" taille={13} /> <b>{poDuSac(partie.sac, partie)} PO</b></span>
       {partie.source && (
         <span className={`pastille dj-source-pastille${partie.source.etoile ? " star" : ""}`} title={`${partie.source.c.nom}, niv. ${partie.source.niveau} · ${texteEffets(partie.source.effets)}`}>
           <Icone nom="source" taille={13} />{partie.source.etoile && <Etoile taille={11} />} {sourceDe(partie.source.c).nom}
@@ -1144,11 +1203,11 @@ export default function Donjon({ jeu }) {
                           {nEt > 0 && <EtoilesCarte n={nEt} />}
                           {partie ? <span className="dj-repos">En expédition</span>
                             : repos && <span className="dj-repos"><Icone nom="repos" taille={12} /> {dateFr(repos).slice(0, 5)}</span>}
-                          <CarteDJ c={c} cfgImage={cfgImage} fichiers={fichiers} />
+                          <CarteDJ c={c} rainbow={enRainbow(c)} cfgImage={cfgImage} fichiers={fichiers} />
                         </button>
                         <div className="dj-choix-pied">
                           <span className="dj-ligne1">
-                            <span className="dj-niv" title={niv < palier ? `Irisée au niveau ${palier}` : niv < NIVEAU_MAX ? `Sachet offert au niveau ${NIVEAU_MAX}` : "Niveau maximal"}>Niv. {niv}</span>
+                            <span className="dj-niv" title={niv < palier ? `Rainbow au niveau ${palier}` : niv < NIVEAU_MAX ? `Booster offert au niveau ${NIVEAU_MAX}` : "Niveau maximal"}>Niv. {niv}</span>
                             {ecarts.length > 0 && <span className="dj-ecarts">{ecarts.map(([k, v]) => <Stat key={k} icone={k}>{v}</Stat>)}</span>}
                           </span>
                           <span className="dj-xp" aria-hidden="true"><span style={{ width: `${Math.round(avancement(xpDe(etat, c)) * 100)}%` }} /></span>
@@ -1179,7 +1238,7 @@ export default function Donjon({ jeu }) {
                           {pris && <span className="dj-coche" aria-hidden="true">✓</span>}
                           {et && <EtoilesCarte n={4} />}
                           {route && <span className="dj-repos">En expédition</span>}
-                          <CarteDJ c={l} cfgImage={cfgImage} fichiers={fichiers} />
+                          <CarteDJ c={l} rainbow={enRainbow(l)} cfgImage={cfgImage} fichiers={fichiers} />
                         </button>
                         <div className="dj-source-pied">
                           <span className="dj-ligne1"><b className="dj-source-nom">{S.nom}</b><span className="dj-niv">Niv. {niv}</span></span>
@@ -1198,7 +1257,7 @@ export default function Donjon({ jeu }) {
                 {emplacements.map(({ role, c }, i) => (c ? (
                   <button key={c.id} type="button" className="dj-emp plein" title={`Retirer ${c.nom}`} aria-label={`Retirer ${c.nom}`}
                     onClick={() => setChoix((l) => l.filter((x) => x !== c.id))}>
-                    <CarteDJ c={c} cfgImage={cfgImage} fichiers={fichiers} />
+                    <CarteDJ c={c} rainbow={enRainbow(c)} cfgImage={cfgImage} fichiers={fichiers} />
                   </button>
                 ) : (
                   <span key={`v${i}`} className="dj-emp" title={role ? `${ROLES[role].nom} à choisir` : "Compagnon à choisir"}>
@@ -1236,7 +1295,7 @@ export default function Donjon({ jeu }) {
             : echec ? "Ramenés au camp par des mains inconnues."
             : "La brume se referme derrière vous."}</p>
           <p className="dj-fin-gain"><span className="dj-butin">+{fin.po} PO</span>
-            {fin.perdu > 0 && <span className="dj-puce" title={`${fin.butin} pièces rapportées`}>{fin.perdu} pièces perdues en bas</span>}
+            {fin.perdu > 0 && <span className="dj-puce" title={`${fin.po} PO rapportées`}>{fin.perdu} PO perdues en bas</span>}
             {fin.mode === "infini" && <span className="dj-puce">entrée {DONJON.modes.infini.entree} PO</span>}
             {fin.record && <span className="dj-puce or"><Icone nom="gardien" taille={13} /> record : {fin.stats.gardiens}</span>}
           </p>
@@ -1252,12 +1311,12 @@ export default function Donjon({ jeu }) {
                 return (
                   <li key={cle} className={`${tombe ? "tombe" : ""}${l.c.type === "lieu" ? " lieu" : ""}`}
                     title={`${l.c.nom} · +${l.gain} XP · niveau ${l.apres}${j ? ` · au repos ${j} jour${j > 1 ? "s" : ""}` : ""}`}>
-                    <CarteDJ c={l.c} cfgImage={cfgImage} fichiers={fichiers} />
+                    <CarteDJ c={l.c} rainbow={enRainbow(l.c)} cfgImage={cfgImage} fichiers={fichiers} />
                     <span className="dj-xp" aria-hidden="true"><span style={{ width: `${Math.round(avancement(l.xp || 0) * 100)}%` }} /></span>
                     <span className="dj-portrait-l"><Icone nom="xp" taille={11} />+{l.gain}{monte && <b> niv. {l.apres}</b>}</span>
                     {j ? <span className="dj-portrait-l repos"><Icone nom="repos" taille={11} />{j} j</span>
                       : l.c.type === "lieu" ? <span className="dj-portrait-l muted"><Icone nom="source" taille={11} />source</span> : null}
-                    {(l.irisee || l.po > 0 || l.sachet) && <span className="dj-portrait-l gain">{l.irisee ? "irisée !" : l.po > 0 ? `+${l.po} PO` : "sachet !"}</span>}
+                    {(l.irisee || l.po > 0 || l.sachet) && <span className="dj-portrait-l gain">{l.irisee ? "rainbow !" : l.po > 0 ? `+${l.po} PO` : "booster !"}</span>}
                   </li>
                 );
               })}
@@ -1307,7 +1366,7 @@ export default function Donjon({ jeu }) {
                 )}
                 {/* On peut toujours sortir : même revenu d'un rechargement, même chez un
                     gardien. Sauf au donjon infini : on y descend jusqu'à la chute. */}
-                {partie.plan.pos && partie.mode !== "infini" && <BoutonRemonter po={poDuButin(partie.sac, partie.mode)} onRemonter={() => terminer("sortie")} className="btn quiet sm" />}
+                {partie.plan.pos && partie.mode !== "infini" && <BoutonRemonter po={poDuSac(partie.sac, partie)} onRemonter={() => terminer("sortie")} className="btn quiet sm" />}
               </div>
             )}
             <div className="dj-plan-zone" onClick={() => setBulle(null)}>
@@ -1381,7 +1440,7 @@ export default function Donjon({ jeu }) {
             onClick: () => cibler(u), onKeyDown: (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); cibler(u); } } }
             : { tabIndex: 0, "aria-label": `${u.nomAffiche || u.c.nom} — voir la fiche`, onClick: () => setInspecte((x) => (doigt && x === u.uid ? null : u.uid)),
               ...(doigt ? {} : { onFocus: () => setInspecte(u.uid), onBlur: () => setInspecte((x) => (x === u.uid ? null : x)) }) })}>
-          <CarteDJ c={u.c} u={u} partie={partie} cfgImage={cfgImage} fichiers={fichiers} />
+          <CarteDJ c={u.c} u={u} partie={partie} rainbow={u.camp === "a" && enRainbow(u.c)} cfgImage={cfgImage} fichiers={fichiers} />
           <span className="dj-etiquette">{etiquette}</span>
           {f && (
             <div className={`dj-fiche ${u.camp === "e" ? "bas" : "haut"}`} role="tooltip">
@@ -1481,21 +1540,71 @@ export default function Donjon({ jeu }) {
   const vignette = lieu && <div className="dj-scene-vignette" aria-hidden="true"><CarteDJ c={lieu} cfgImage={cfgImage} fichiers={fichiers} /></div>;
 
   if (ecran === "rencontre" && rencontre) {
+    // Quelqu'un tient la rencontre (Mirko) : son portrait prend la place du lieu.
+    const portrait = rencontre.e.portrait && `${import.meta.env.BASE_URL}${rencontre.e.portrait}`;
+    // Les choix qui portent une carte (une relique à céder) se montrent en cartes.
+    const offres = rencontre.choix.map((c, i) => ({ ...c, i })).filter((c) => c.carte);
+    const autres = rencontre.choix.map((c, i) => ({ ...c, i })).filter((c) => !c.carte);
     return (
       <div className="dj">
         {entete}
         <div className="dj-scene">
-          {lieu && <div className="dj-scene-carte"><CarteDJ c={lieu} cfgImage={cfgImage} fichiers={fichiers} /></div>}
+          {portrait
+            ? <div className="dj-scene-carte dj-scene-portrait"><img src={portrait} alt="" draggable="false" /></div>
+            : lieu && <div className="dj-scene-carte"><CarteDJ c={lieu} cfgImage={cfgImage} fichiers={fichiers} /></div>}
           <section className="panneau dj-panneau">
-            {vignette}
+            {portrait
+              ? <div className="dj-scene-vignette dj-scene-portrait" aria-hidden="true"><img src={portrait} alt="" draggable="false" /></div>
+              : vignette}
             <h2>{rencontre.e.titre}</h2>
             <p>{rencontre.texte}</p>
+            {offres.length > 0 && (
+              <div className="dj-offres">
+                {offres.map((c) => (
+                  <div key={c.i} className="dj-offre">
+                    <CarteDJ c={c.carte} cfgImage={cfgImage} fichiers={fichiers} />
+                    <span className="muted petit">Vous perdez {bonusTexte(c.carte.tier)}</span>
+                    <button type="button" className="btn" disabled={c.ok === false} onClick={() => choisirRencontre(c.i)}>
+                      Céder · +{c.prix} PO
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {/* Ce qu'une rencontre promet (l'écho) : la relique en carte, avant le pari. */}
+            {(() => {
+              const a = rencontre.choix.find((c) => c.promet)?.promet;
+              return a && (
+                <div className="dj-promesse">
+                  <div className="dj-promesse-carte"><CarteDJ c={a} cfgImage={cfgImage} fichiers={fichiers} /></div>
+                  <p>La voix vous promet <b>{a.nom}</b> : {bonusTexte(a.tier)}.<span className="muted"> Elle ment parfois.</span></p>
+                </div>
+              );
+            })()}
             <div className="actions gauche dj-actions-bas">
-              {rencontre.choix.map((c, i) => (
-                <button key={i} type="button" className={`btn${i ? " quiet" : ""}`} disabled={c.ok === false} onClick={() => choisirRencontre(i)}>{c.lib}</button>
+              {autres.map((c, k) => (
+                <button key={c.i} type="button" className={`btn${k || offres.length ? " quiet" : ""}`} disabled={c.ok === false} onClick={() => choisirRencontre(c.i)}>{c.lib}</button>
               ))}
             </div>
-            <MiniEquipe partie={partie} />
+            {/* Une affaire de reliques : on montre celles qu'on garde, pas les PV. */}
+            {offres.length > 0 ? (() => {
+              const proposees = new Set(offres.map((c) => c.carte));
+              const gardees = partie.reliques.filter((a) => !proposees.has(a));
+              return (
+                <div className="dj-gardees">
+                  <h3>{gardees.length ? "Vos autres reliques" : "Aucune autre relique"}</h3>
+                  {gardees.length > 0 && (
+                    <div className="dj-gardees-cartes">
+                      {gardees.map((a, k) => (
+                        <div key={k} className="dj-gardee" title={`${a.nom} : ${bonusTexte(a.tier)}`}>
+                          <CarteDJ c={a} cfgImage={cfgImage} fichiers={fichiers} />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })() : <MiniEquipe partie={partie} />}
           </section>
         </div>
       </div>
@@ -1517,22 +1626,17 @@ export default function Donjon({ jeu }) {
             <p>{R.texte}</p>
             {R.po > 0 && <p><span className="dj-butin">+{poGagne(partie, R.po)} PO</span></p>}
             {R.relique && <ReliqueTrouvee a={R.relique} partie={partie} cfgImage={cfgImage} fichiers={fichiers} />}
-            {ecran === "sortie" && (
-              <p>{dernier ? "C'était le dernier étage. Il ne reste qu'à remonter."
-                : infini ? <span className="dj-puces"><Puce icone="etage">plus dur, plus riche</Puce><Puce icone="tombe">sans retour</Puce></span>
-                : <span className="dj-puces"><Puce icone="butin" or>remonter : tout garder</Puce><Puce icone="etage">descendre : plus dur, plus riche</Puce><Puce icone="tombe">chute : ¼ du sac</Puce></span>}</p>
-            )}
+            {ecran === "sortie" && dernier && <p>C&apos;était le dernier étage. Il ne reste qu&apos;à remonter.</p>}
             <MiniEquipe partie={partie} />
             <div className="actions gauche dj-actions-bas">
               {ecran === "sortie" ? (
-                <>
-                  {!infini && <button className="btn" type="button" onClick={() => terminer("sortie")}>Remonter · {poDuButin(partie.sac, partie.mode)} PO</button>}
-                  {!dernier && <button className={infini ? "btn" : "btn quiet"} type="button" onClick={() => { descendre(partie, POOLS); sonEtage(partie.etage); setSurvol(null); setResultat(null); aller("carte"); }}>Descendre à l'étage {partie.etage + 1}</button>}
-                </>
+                <ChoixSortie po={poDuSac(partie.sac, partie)} infini={infini} dernier={dernier} etageSuivant={partie.etage + 1}
+                  onRemonter={() => terminer("sortie")}
+                  onDescendre={() => { descendre(partie, POOLS); sonEtage(partie.etage); setSurvol(null); setResultat(null); aller("carte"); }} />
               ) : (
                 <>
                   <button className="btn" type="button" onClick={() => aller("carte")}>Retour à la carte</button>
-                  {!infini && <BoutonRemonter po={poDuButin(partie.sac, partie.mode)} onRemonter={() => terminer("sortie")} />}
+                  {!infini && <BoutonRemonter po={poDuSac(partie.sac, partie)} onRemonter={() => terminer("sortie")} />}
                 </>
               )}
             </div>
@@ -1588,7 +1692,7 @@ function Lexique({ focus, onFermer }) {
           {entree("pv", "PV", "Points de vie. À zéro, la carte est à terre pour le reste du combat ; un repos la relève.")}
           {entree("atq", "ATQ", "Dégâts d'une attaque, à peu près : chaque coup varie de 15 % autour.")}
           {entree("ini", "INI", "Initiative : l'ordre de passage dans le tour. À égalité, l'équipe passe devant.")}
-          {entree("niveau", "Niveau", `Chaque combat remporté donne de l'expérience à toute l'équipe (la moitié seulement si elle tombe). Un niveau ajoute un peu de solidité : +1 PV tous les 10 niveaux, +1 ATQ tous les 25. Au niveau ${PALIER_IRISEE.commun} pour une commune, ${PALIER_IRISEE.peucommun} une peu commune, ${PALIER_IRISEE.rare} une rare et ${PALIER_IRISEE.legendaire} une légendaire, la carte gagne sa version irisée — ou des PO si vous l'avez déjà. Au niveau ${NIVEAU_MAX}, un sachet offert de son extension.`)}
+          {entree("niveau", "Niveau", `Chaque combat remporté donne de l'expérience à toute l'équipe (la moitié seulement si elle tombe). Un niveau ajoute un peu de solidité : +1 PV tous les 10 niveaux, +1 ATQ tous les 25. Au niveau ${PALIER_IRISEE.commun} pour une commune, ${PALIER_IRISEE.peucommun} une peu commune, ${PALIER_IRISEE.rare} une rare et ${PALIER_IRISEE.legendaire} une légendaire, la carte gagne sa version rainbow, ou des PO si vous l'avez déjà. Au niveau ${NIVEAU_MAX}, un booster offert de son extension.`)}
         </dl>
         <h3>Rôles et capacités</h3>
         <p className="muted petit">Le rôle d'un PNJ vient de son archétype. Les PNJ rivaux ont les mêmes, et s'en servent contre vous.</p>
@@ -1608,6 +1712,7 @@ function Lexique({ focus, onFermer }) {
         <dl>
           {Object.entries(TRAITS).map(([id, T]) => entree(id, T.nom, `${T.aide}.`, id === "rapide" ? "Les Animaux." : id === "fourbe" ? "Les Criminels." : "Les Créatures."))}
           {entree("elite", "Élite", "Un adversaire renforcé, au milieu des salles d'élite. Butin plus gros, relique probable.")}
+          {entree("mimique", "Mimique", "Une salle au trésor sur quatre : le coffre se dresse et se bat, seul. Petite, vorace ou ancienne, plus grosse en profondeur. Vaincue, elle rend un gros butin, et souvent une relique qu'elle retourne contre vous tant qu'elle tient debout. Hors collection : on ne l'obtient jamais.")}
           {entree("gardien", "Gardien", "Au bout de chaque étage. Balaie toute l'équipe tous les trois tours. On ne le fuit pas.")}
         </dl>
         <h3>États</h3>

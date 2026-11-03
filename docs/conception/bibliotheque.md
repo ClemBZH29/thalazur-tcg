@@ -69,7 +69,14 @@ bibliothèque, la loupe porte deux volets à droite de la carte, hors du flux
   N'apparaît qu'une fois le Reliquaire ouvert (une extension à 60 %).
 
 Le dernier exemplaire n'est jamais proposé ; une légendaire se dissout avec
-confirmation. Pas de volets de doublons sur une version irisée ni sur l'onglet PJ.
+confirmation.
+
+**Le toucher qui ouvre la carte s'arrête là** (1.1.0). La carte s'ouvrait au
+relâchement du doigt ; le navigateur envoie ensuite un clic au même endroit,
+qui tombait sur ce que la loupe venait d'ouvrir sous le doigt : « Dissoudre 1 »
+ou « Tous », d'où des doublons dissous sur un simple toucher, au téléphone.
+La carte s'ouvre désormais au clic lui-même (`Carte.jsx`), et les volets
+ignorent tout clic dans les 400 premières millisecondes, par précaution. Pas de volets de doublons sur une version irisée ni sur l'onglet PJ.
 
 **À gauche, la fiche de combat** (volet « Combat », 01/10/2026) : PV, ATQ,
 INI et les deux compétences de la carte, avec ce qu'on peut y changer contre
@@ -116,6 +123,14 @@ par nom complète l'ensemble, insensible aux accents et à la casse ; il ne serv
 à rien sur quarante-huit cartes, il est indispensable sur trois cent quatorze. La rangée des raretés et les barres se taisent quand il n'y a
 qu'un palier à montrer, c'est-à-dire sur l'onglet des PJ. Le filtre « manquantes » a été retiré : la grille montre
 déjà les dos gris, et isoler deux cents dos identiques n'apprenait rien.
+
+**Le rôle au Donjon** (1.1.0, 02/11/2026) fait un troisième rang, sous la
+rareté : Garde, Frappeur, Tireur… avec, pour chaque rôle, les alliés obtenus
+sur ceux du set. Il sert à composer une équipe depuis la collection. Seuls les
+PNJ alliés ont un rôle (ni bestiaire ni pègre, ni lieux ni artéfacts : la même
+règle que `cartesDonjon`), et le rôle est celui de `roleCarte`, qui suit les
+rôles imposés à la main. Le rang se tait sur l'onglet des PJ, qui ne
+descendent pas ; au téléphone, il a sa rubrique dans la feuille des filtres.
 
 Un badge **New** apparaît à la révélation quand la carte remplit une case vide,
 en pastille ambre pour une case normale et en dégradé arc-en-ciel pour une case

@@ -106,6 +106,76 @@ repos avant le gardien. On voit le genre et le lieu de chaque salle, jamais
 ce qu'elle cache. Tirée d'une graine faite de la date : deux joueurs ont le
 même étage, et peuvent en parler.
 
+### Les rencontres et les trésors, revus (1.1.0, 02/11/2026)
+
+**Le coffre piégé quitte les rencontres « ? ».** Le coffre moussu (65 % de
+PO, 35 % d'aiguille empoisonnée à 3 PV par étage pour chacun) était un
+piège sans lecture : les simulations du 01/11 concluaient « ne jamais
+l'ouvrir », et le pilote de l'audit, qui l'ouvrait toujours, y perdait des
+équipes en profondeur. Le risque des coffres passe dans les salles au trésor,
+où il se combat au lieu de se subir.
+
+**Les mimiques.** Une salle au trésor sur quatre (`MIMIQUE.chance`) est une
+mimique : un combat contre un seul adversaire, hors collection, en trois
+tailles dont le poids suit l'étage (`poidsMimiques`) :
+
+| Mimique | Stats d'un adversaire | INI | Butin (× échelle) | Relique | XP par étage |
+|---|---|---:|---:|---:|---:|
+| Petite | peu commun ×2 | 7 | 12 | 20 % | 2 |
+| Vorace | rare ×2,4 | 8 | 20 | 55 % | 3 |
+| Ancienne | légendaire ×2,8 | 8 | 32 | toujours | 5 |
+
+Un trésor vaut 5 à 8 × échelle : la petite rend environ deux trésors, l'ancienne
+cinq et une relique. La relique se porte comme celle d'une élite : la mimique
+s'en sert tant qu'elle est debout. Au donjon du jour, on peut la fuir comme un
+combat ordinaire.
+
+Les mimiques sont des **cartes hors collection** : palier d'affichage `hors`
+(`HORS_COLLECTION`, src/config/tiers.js), cadre gris, aucune encoche, absent
+de `TIERS` donc de la bibliothèque, des boosters et du Comptoir. Leurs
+illustrations sont livrées avec le site, dans `public/donjon/mimiques/`
+(`mimique-petite.webp`, `mimique-vorace.webp`, `mimique-ancienne.webp`,
+720 × 1080) ; sans image, la carte montre son monogramme. Prompts Sora :
+`docs/conception/prompts-mimiques.json` (styles Pâte à modeler, Digital,
+Clair-obscur, cadrage du bestiaire).
+
+**Mirko rachète une relique.** Rencontre rare (`poids` 0,25 contre 1 aux
+autres, soit une rencontre sur vingt environ), seulement si l'équipe porte
+une relique. Mirko en désigne deux au plus et paie
+`RACHAT_MIRKO` = 2 fois ce qu'elle rapporterait vendue mains pleines. La
+relique part avec ses bonus (`retirerRelique`, l'inverse de
+`prendreRelique`) : le but n'est pas l'or mais **la place**. Huit reliques
+au plus, et au-delà une relique trouvée part au sac : se délester d'une petite
+relique, c'est garder une place pour une meilleure (décision de Clément,
+02/11/2026). Le prix reste donc modeste, surtout à l'infini.
+
+À l'écran, le portrait de Mirko remplace la carte du lieu (champ `portrait`
+de la rencontre, aussi pour les onguents). Les reliques qu'il propose de
+racheter s'affichent en cartes, avec ce que l'équipe perd et le prix ; dessous,
+les autres reliques de l'équipe, en petites cartes, à la place des PV, qui
+n'ont rien à voir avec l'affaire.
+
+**L'écho montre ce qu'il promet** (03/11/2026). On l'ignorait toujours, faute
+de savoir ce qu'il y avait à gagner. La relique est désormais tirée avant le
+choix et montrée en carte (« La voix vous promet… Elle ment parfois. ») ; la
+voix tient parole une fois sur deux, sinon le piège reste (4 PV par étage à un
+compagnon).
+
+**Fréquences** (mesure du 03/11/2026, chemin au hasard, 20 000 étages) : un
+peu moins d'une salle sur cinq est une « ? », un chemin en croise 1,3 à 1,4,
+au moins une dans 80 % des étages. L'autel est une « ? » sur cinq (19 % quand
+Mirko peut racheter) : au moins un autel dans environ un étage sur quatre, et
+dans à peu près 58 % des descentes du jour (trois étages).
+
+Les rencontres se tirent désormais au poids (`tirerRencontre`). Une descente
+sauvée sur l'ancien coffre au passage de la version revient sur la carte.
+
+Mesure (audit, 400 descentes, premier choix toujours pris) : le donjon du jour
+passe de 236 à 242 PO ; à l'infini, débutant 79 → 101 PO, moyen 129 → 137,
+avancé 170 → 203, fort 408 → 512, surtout parce que le pilote de l'audit
+ouvrait toujours le coffre piégé. Un joueur qui l'évitait déjà gagne moins que
+ces écarts. Les mimiques font 4 % des défaites.
+
 ### Le combat
 
 - **Initiative** : chaque unité a la sienne (rôle + palier). La frise du haut
@@ -317,6 +387,16 @@ gagne de l'expérience et monte de niveau (`src/donjon/experience.js`,
 Le niveau se lit sous chaque vignette de la préparation, avec une fine barre
 vers le niveau suivant ; le bilan de fin de descente détaille les points
 gagnés, les niveaux franchis et les récompenses.
+
+**La rainbow se voit au Donjon** (1.1.0). Les vignettes du Donjon montraient
+toujours la version normale. Une carte dont le joueur possède la rainbow
+s'affiche désormais dans cette version (`CarteDJ`, prop `rainbow`) : à la
+préparation, dans la barre d'équipe, en combat et au bilan, où une carte
+irisée par l'expérience prend aussitôt sa nouvelle robe. Jamais pour un
+adversaire, même tiré d'une carte possédée. La vignette ne bascule pas sous le
+pointeur : l'irisation y dérive seule, lentement (`dj-iris-derive`,
+donjon.css), et s'arrête en mouvement réduit. Les textes du Donjon disent
+« rainbow » et « booster », plus « irisée » ni « sachet ».
 
 ## Les animations (01/10/2026)
 
@@ -639,27 +719,61 @@ joue encore : une unité sans geste ni technique reprend ceux de son rôle.
 
 ## L'économie
 
-Le module rapporte des **pièces de butin** ; `src/jeu/donjon.js` les convertit
-à la frontière, comme pour les Mines (`DONJON` dans `src/config/tiers.js`) :
+Depuis la 1.1.0 (02/11/2026), le module compte **en PO** : chaque gain est
+converti au moment où il tombe, et le sac est ce que l'on touchera
+(`DONJON` et `poDuSac` dans `src/config/tiers.js`, `gagner` et `echelle`
+dans `src/donjon/regles.js`) :
 
 | Levier | Valeur |
 |---|---:|
-| PO par pièce de butin | 0,6 |
-| Donjon du jour | 1 descente par jour, composition imposée, butin ×2,5 |
-| Donjon infini | 100 PO l'entrée, jusqu'à la chute, PO = 1,1 × sac^0,7, expérience ×0,5 |
+| Donjon du jour | 1 descente par jour, composition imposée, butin ×2,5, 0,6 PO par pièce de barème, gains × étage |
+| Donjon infini | 100 PO l'entrée, jusqu'à la chute, 0,24 PO par pièce de barème, gains × √étage, expérience ×0,5 |
 
-**Le donjon infini depuis le 06/10/2026.** Le sac croît bien plus vite que
-l'étage (un gardien de plus double presque ce qu'on remonte) : converti au
-taux fixe sans plafond, une équipe forte aurait rapporté plus de 1 000 PO par
-descente. La conversion est donc concave (`poDuButin`, `src/config/tiers.js`).
-Mesure du 06/10/2026, 300 descentes par profil :
+**Pourquoi une seule unité.** Jusqu'à la 1.1.0, le sac comptait des pièces,
+converties à la fin : 0,6 PO par pièce au donjon du jour, 1,1 × sac^0,7 à
+l'infini. L'écran annonçait « +N PO » pour des pièces (coup bas, coffre,
+vivres, bassin), la relique vendue en « pièces », les onguents en « PO du
+sac » qui étaient des pièces : la somme des annonces ne tombait pas sur le
+total versé (+40 % au donjon du jour ; à l'infini, en profondeur, un
+« +30 PO » valait 3 PO). Une conversion cachée se lisait en plus comme une
+pénalité de la profondeur, alors que le total croissait avec elle.
 
-| Profil | Gardiens, médiane | PO moyennes | Net après l'entrée |
-|---|---:|---:|---:|
-| Débutant (18 cartes, niv. 1) | 2 | 82 | −18 |
-| Moyen (45 cartes, niv. 25) | 3 | 127 | +27 |
-| Avancé (45 cartes, niv. 60) | 5 | 164 | +64 |
-| Fort (4 légendaires niv. 100, source légendaire étoilée) | 9 | 371 | +271 |
+**Le frein, à la source.** Le butin d'un combat est proportionnel à l'étage,
+et le sac croît donc comme le carré de l'étage ; la courbe en puissance 0,7
+corrigeait après coup. À l'infini, les gains d'un étage suivent désormais
+`√étage` : le total d'une descente croît comme étage^1,5 (la courbe donnait
+étage^1,4). Le taux de 0,24 est calé pour que le débutant retrouve ce que la
+courbe lui versait ; la profondeur paie un peu mieux qu'avant.
+
+Mesure du 02/11/2026 (`node scripts/audit-donjon.mjs 400`), avant et après :
+
+| Profil | Gardiens, médiane | PO moyennes, avant | PO moyennes, 1.1.0 | Net après l'entrée, 1.1.0 |
+|---|---:|---:|---:|---:|
+| Débutant (18 cartes, niv. 1) | 2 | 81 | 79 | −21 |
+| Moyen (45 cartes, niv. 25) | 3 | 127 | 129 | +29 |
+| Avancé (45 cartes, niv. 60) | 5 | 163 | 170 | +70 |
+| Fort (4 légendaires niv. 100, source légendaire étoilée) | 9 | 365 | 408 | +308 |
+
+Par gardiens vaincus, tous profils mêlés (1 200 descentes, au taux 0,23
+d'un premier essai ; à 0,24, ajouter 4 %) :
+
+| Gardiens | PO avant | PO 1.1.0 (0,23) |
+|---|---:|---:|
+| 0 à 1 | 26 | 20 |
+| 2 à 4 | 70 | 62 |
+| 5 à 9 | 227 | 231 |
+| 10 à 14 | 468 | 517 |
+| 15 et plus | 717 | 806 |
+
+Le donjon du jour ne bouge pas (même barème, 0,6 PO par pièce comptée au fil
+de l'eau ; les écarts mesurés sont des arrondis). L'entrée, l'absence de
+retour et l'expérience ×0,5 de l'infini sont inchangées : d'autres pistes
+(ticket quotidien, paliers de profondeur, mise tous les cinq étages) ont été
+écartées pour cette version.
+
+**Les descentes en cours au passage à la 1.1.0** n'ont pas de `taux` : leur
+sac reste en pièces, à l'échelle de l'étage, et se convertit à la fin par
+l'ancienne courbe (`poDuSac`). Rien à migrer dans la sauvegarde.
 
 Le débutant joue à perte en moyenne : l'infini est un défi, le donjon du
 jour reste son revenu. L'apprentissage y adoucit les adversaires mais ne
@@ -704,7 +818,8 @@ jour où un troisième module arrive, l'enveloppe commune des modules devra
 (`tentatives` : descentes du donjon du jour ; `imposition` : rôles et lieu
 imposés du jour ; `poInfini`, le plafond de l'infini, n'est plus lu depuis le
 06/10/2026 ; la partie porte son `mode`, une partie d'avant les
-modes est un donjon du jour). La partie est un objet
+modes est un donjon du jour, et son `taux` depuis la 1.1.0 : sans lui, le sac
+est en pièces). La partie est un objet
 simple, sauvé à chaque changement d'écran : un onglet fermé ne coûte pas la
 tentative. Entre deux appareils, `donjon` est une valeur : celle de l'appareil
 qui l'a changée l'emporte.

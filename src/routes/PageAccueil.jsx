@@ -2,6 +2,7 @@ import { ECONOMIE } from "../config/tiers.js";
 import { attenteAvantAchat, formatDuree } from "../lib/economie.js";
 import { useJeu } from "../jeu/Jeu.jsx";
 import { Lien } from "../lib/routeur.jsx";
+import Vitrine from "../components/Vitrine.jsx";
 
 /**
  * L'accueil est un écran de présentation, et rien d'autre.
@@ -11,14 +12,18 @@ import { Lien } from "../lib/routeur.jsx";
  * haut de chaque page, et l'avancement est le sujet de la bibliothèque. Un
  * écran d'accueil qui répète le menu ne dit rien de plus, il dit moins fort.
  * Il reste donc le titre, la promesse, et par où entrer.
+ *
+ * Depuis la 1.1.0, une vitrine à côté (dessous au téléphone) : des affiches
+ * vers les modules et la note de version (src/components/Vitrine.jsx).
  */
 export default function PageAccueil() {
-  const { bourse, gratuit } = useJeu();
+  const { bourse, gratuit, mouvementReduit } = useJeu();
   const attente = attenteAvantAchat(bourse);
   const achetable = gratuit || bourse.po >= ECONOMIE.prix;
 
   return (
     <main className="view accueil" id="contenu">
+      <div className="accueil-grille">
       <section className="hero">
         <div className="horizon" />
         <h1>La Brume de Thalazur</h1>
@@ -44,6 +49,8 @@ export default function PageAccueil() {
           </p>
         )}
       </section>
+      <Vitrine mouvementReduit={mouvementReduit} />
+      </div>
     </main>
   );
 }

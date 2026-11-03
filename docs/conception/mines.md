@@ -652,6 +652,35 @@ heure par jour, la strate 15 tombe vers j14 et la 16 vers j60. Il était voulu
 (« 16 à deux mois », pente du 07/10/2026) ; avec les éclats sur le record, le
 joueur y progresse par sa mine, plus par ses effondrements.
 
+## Le contrôle des autoclickers (1.1.0, 02/11/2026)
+
+Le seau de frappes (`FRAPPES_MAX`, 10 par seconde) borne ce qu'un autoclicker
+gagne, mais il y joue à plein régime, sans fatigue, des heures durant : le
+meilleur rendement possible, pour qui ne joue pas. Décision de Clément :
+**tenir la cadence maximale dix secondes d'affilée** ferme la mine pendant
+vingt-quatre heures.
+
+- **La mesure** (`cadenceSoutenue`, `AUTOCLIC` dans src/mines/regles.js) :
+  chacune des dix dernières secondes compte au moins neuf frappes tentées,
+  celles que le seau refuse comprises. Neuf et non dix : découpée en secondes,
+  une cadence d'exactement dix par seconde laisse tomber neuf frappes dans
+  certaines tranches. Un joueur rapide frappe par rafales et respire ; une
+  rafale de 50 frappes/s pendant trois secondes, ou huit par seconde pendant
+  trente secondes, ne déclenche rien (tests/autoclic.test.js).
+- **La fermeture** (`bloquerMine`, src/jeu/mine.js) vit dans la marque des
+  Mines de l'état du jeu (`etat.mine.blocage = { le, jusqua }`) et suit donc
+  le compte ; à la fusion entre appareils, la plus tardive l'emporte. Un second
+  signalement ne la prolonge pas.
+- **Pendant la fermeture**, la page ne porte plus le module : Tafix
+  (`tafix-panique`) explique et donne l'heure de réouverture, que la page
+  guette pour rouvrir d'elle-même. Rien ne tourne ni ne s'accumule.
+- **À la réouverture**, l'absence se compte depuis la fin de la fermeture
+  (`reprise`), pas depuis la dernière sauvegarde : les vingt-quatre heures
+  ne se rejouent pas au rendement d'absence.
+- Le mode test des outils MJ n'est pas contrôlé.
+
+Limite : sans compte, vider les données du site efface la fermeture.
+
 ## Outils MJ
 
 En développement (`npm run dev`), **Réglages MJ → Mode test → Mines de Kazim**

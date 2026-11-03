@@ -14,6 +14,8 @@
  * sont les règles Firestore (`firestore.rules`).
  */
 
+import { APERCU } from "../../config/apercu.js";
+
 const env = import.meta.env;
 
 export const CONFIG = {
@@ -24,8 +26,12 @@ export const CONFIG = {
   measurementId: env.VITE_FIREBASE_MEASUREMENT_ID,
 };
 
-/** Sans configuration, le site reste entièrement local et le bouton se tait. */
-export const nuageConfigure = Boolean(CONFIG.apiKey && CONFIG.projectId && CONFIG.appId);
+/**
+ * Sans configuration, le site reste entièrement local et le bouton se tait.
+ * L'aperçu des testeurs aussi : ses parties sont dotées d'office et ne doivent
+ * pas rejoindre un vrai compte (src/config/apercu.js).
+ */
+export const nuageConfigure = !APERCU && Boolean(CONFIG.apiKey && CONFIG.projectId && CONFIG.appId);
 
 /** La mesure d'audience demande en plus l'identifiant Google Analytics. */
 export const mesureConfiguree = nuageConfigure && Boolean(CONFIG.measurementId);

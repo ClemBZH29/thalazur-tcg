@@ -78,6 +78,16 @@ l'a changée l'emporte. Une mission réclamée sur les deux appareils avant la
 synchronisation serait payée deux fois ; on l'accepte, l'écart est de
 quelques dizaines de PO.
 
+**L'accueil d'une expédition attend le tirage du jour** (1.1.0). À la
+première visite du jour, la fenêtre de retour des Expéditions créditait la
+route rentrée dans la nuit avant que les missions du jour ne soient tirées :
+l'effet de la fenêtre, plus bas dans l'arbre, court avant celui des missions.
+Le compteur avait déjà bougé quand « Accueillir une expédition » prenait son
+point de départ, et la mission restait à 0 alors que le joueur venait d'en
+accueillir une. L'accueil n'a donc lieu que sur une partie dont les missions
+sont au jour du moment (`accueilPermis`, `src/expeditions/regles.js`) ; même
+chose juste après minuit, page ouverte.
+
 ## Le barème
 
 | Mission du jour | Cible | Récompense | Possible si |

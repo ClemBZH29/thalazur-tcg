@@ -857,3 +857,10 @@
 .kz-remise-solde b { display: block; font-size: 24px; line-height: 1.1; color: var(--lamp, #e8a33d); }
 .kz-remise-solde small { font-size: 12.5px; color: var(--ink3, #8c989a); }
 .kz button.kz-rouvrir { width: 100%; margin-top: 16px; padding: 11px; font-size: 15px; }
+
+/* La mine fermée par Tafix (contrôle des autoclickers, 1.1.0). */
+.kz-fermee { display: grid; grid-template-columns: 140px minmax(0, 1fr); gap: 20px; align-items: center; max-width: 720px; margin: 24px auto; }
+.kz-fermee-tafix { width: 100%; height: auto; }
+.kz-fermee h2 { margin-bottom: 8px; }
+.kz-fermee p + p { margin-top: 8px; }
+@media (max-width: 560px) { .kz-fermee { grid-template-columns: 1fr; justify-items: center; text-align: center; } .kz-fermee-tafix { width: 120px; } }

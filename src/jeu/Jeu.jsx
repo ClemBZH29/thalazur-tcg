@@ -21,6 +21,8 @@ import { useDonjon } from "./donjon.js";
 import { useExpeditions } from "./expeditions.js";
 import { useMissions } from "./missions.js";
 import { compteSuivi } from "../lib/nuage/firebase.js";
+import { APERCU } from "../config/apercu.js";
+import { doterApercu } from "../lib/sauvegarde/apercu.js";
 import { dosChoisi } from "../config/dos.js";
 import { poserDos } from "./dos.js";
 const DEFAUT = BOOSTER_DEFAUT;
@@ -45,7 +47,8 @@ export const CASE = { normale: "normale", rainbow: "rainbow" };
 export { TEST_DEFAUT } from "./reglages.js";
 
 export function Jeu({ children }) {
-  const [etat, setEtat] = useState(charger);
+  // L'aperçu des testeurs dote toute nouvelle partie (src/config/apercu.js).
+  const [etat, setEtat] = useState(() => (APERCU ? doterApercu(charger()) : charger()));
   const [boosterId, setBoosterId] = useState(DEFAUT);
   const [loupe, setLoupe] = useState(null);
   const [avis, setAvis] = useState(null);
@@ -105,7 +108,7 @@ export function Jeu({ children }) {
   // Les portraits se rangent par extension : la carte a besoin de savoir où
   // chercher, et si l'image existe (inventaire publié avec les portraits).
   const cfgImage = { ...cfgImageBase, extension: boosterId, inventaire };
-  const { crediterCommande, crediterRemise, remisePayee, majTafix, versionMine, rechargerMine } = useMine(etat, setEtat);
+  const { crediterCommande, crediterRemise, remisePayee, majTafix, versionMine, rechargerMine, signalerAutoclic, repriseMine } = useMine(etat, setEtat);
 
   /**
    * Adopte la partie écrite par un autre onglet. Fonctionnel : si une action
@@ -371,7 +374,7 @@ export function Jeu({ children }) {
     bourse: etat.bourse, achetable, prixBooster: ECONOMIE.prix,
     recolter, majProgres, finirOuverture,
     vendreExemplaires, acheterExemplaire, appliquerMarche, compter,
-    crediterCommande, crediterRemise, remisePayee, majTafix, tafix: etat.tafix,
+    crediterCommande, crediterRemise, remisePayee, majTafix, tafix: etat.tafix, signalerAutoclic, repriseMine,
     succes, missions, sachetOffert, ...donjon, ...expeditions,
     tirerVisiteColporteur,
     comptoirSauve: (etat.comptoir || {})[boosterId] || null, majComptoir,

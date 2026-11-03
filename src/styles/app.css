@@ -464,6 +464,9 @@
 .filtres .f-legendaire.on { color: #e0a4b4; }
 .filtres .f-fullart.on { color: #e08496; }
 .filtres .f-pj.on { color: #e3ecf4; }
+/* Les rôles du Donjon suivent les raretés : un seul filet, sous le dernier rang. */
+.filtres:has(+ .filtres) { padding-bottom: 0; border-bottom: 0; }
+.filtres + .filtres { margin-top: 8px; }
 .resume-filtre { margin: 16px 0 0; }
 
 /* --- Cases manquantes : de dos et grisées --- */

@@ -3,9 +3,9 @@ import { describe, expect, test } from "vitest";
 import { readFileSync } from "node:fs";
 import extension from "../src/extensions/troupe-valeran/extension.js";
 import {
-  IMPOSES, ROLES, allie, cartesDonjon, modsEquipe, prendreRelique, compositionDuJour, convalescences, fuir, creerPartie, demarrerCombat, gainsXP, impositionTenable, manqueSource, peutFuir, rapporte, roleCarte, tirage,
+  IMPOSES, ROLES, allie, echelle, gagner, prixOnguents, tresor, cartesDonjon, modsEquipe, prendreRelique, compositionDuJour, convalescences, fuir, creerPartie, demarrerCombat, gainsXP, impositionTenable, manqueSource, peutFuir, rapporte, roleCarte, tirage,
 } from "../src/donjon/regles.js";
-import { DONJON, poDuButin } from "../src/config/tiers.js";
+import { DONJON, poDuSac } from "../src/config/tiers.js";
 
 const roster = JSON.parse(readFileSync(new URL("../src/extensions/troupe-valeran/roster.json", import.meta.url), "utf8"));
 const POOLS = cartesDonjon([{ ...extension, roster }]);
@@ -54,13 +54,29 @@ describe("le donjon infini", () => {
     for (const u of p.equipe) u.xp = 20;
     expect(gainsXP(p, "defaite")[0].xp).toBe(20);
   });
-  test("le sac se convertit en PO par une courbe concave, sans plafond", () => {
-    expect(poDuButin(0, "infini")).toBe(0);
-    const a = poDuButin(500, "infini"), b = poDuButin(5000, "infini");
+  test("le sac est en PO : ce que la descente annonce est ce qu'elle verse (1.1.0)", () => {
+    const p = partie("infini");
+    expect(p.taux).toBe(DONJON.modes.infini.taux);
+    let annonce = 0;
+    for (let i = 0; i < 20; i++) { p.etage = 1 + i; annonce += tresor(p, tirage(i), []).po + gagner(p, 7); }
+    expect(poDuSac(p.sac, p)).toBe(annonce);
+    expect(DONJON.modes.infini.entree).toBe(100);
+  });
+  test("à l'infini, les gains suivent la racine de l'étage ; au donjon du jour, l'étage", () => {
+    const p = partie("infini"); p.etage = 16;
+    expect(echelle(p)).toBe(4);
+    const q = partie("jour"); q.etage = 3;
+    expect(echelle(q)).toBe(3);
+    expect(prixOnguents(q)).toBe(Math.round(6 * 3 * DONJON.modes.jour.taux));
+  });
+  test("une descente commencée avant la 1.1.0 finit sur l'ancienne conversion", () => {
+    const ancienne = { ...partie("infini"), taux: undefined, etage: 9 };
+    expect(echelle(ancienne)).toBe(9);
+    expect(poDuSac(0, ancienne)).toBe(0);
+    const a = poDuSac(500, ancienne), b = poDuSac(5000, ancienne);
     expect(b).toBeGreaterThan(a);
     expect(b / a).toBeLessThan(10);
-    expect(poDuButin(100, "jour")).toBe(Math.round(100 * DONJON.multiplicateur));
-    expect(DONJON.modes.infini.entree).toBe(100);
+    expect(poDuSac(100, { mode: "jour" })).toBe(Math.round(100 * DONJON.modes.jour.taux));
   });
 });
 

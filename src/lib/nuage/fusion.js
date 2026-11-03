@@ -148,6 +148,9 @@ function fusionnerMarqueMine(ici, la) {
     const solde = ri >= rl ? ici?.solde : la?.solde;
     if (Number.isFinite(solde)) sortie.solde = solde;
   }
+  // Une fermeture de Tafix (autoclicker) : la plus tardive l'emporte.
+  const bi = ici?.blocage, bl = la?.blocage;
+  if (bi || bl) sortie.blocage = !bl || (bi && (bi.jusqua || 0) >= (bl.jusqua || 0)) ? bi : bl;
   const li = ici?.livre, ll = la?.livre;
   if (li || ll) {
     sortie.livre = !ll || (li && li.jour > ll.jour) ? li

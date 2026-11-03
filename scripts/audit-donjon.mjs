@@ -14,12 +14,12 @@
 import { readFileSync } from "node:fs";
 import extension from "../src/extensions/troupe-valeran/extension.js";
 import {
-  ETAGES, RENCONTRES, etagesDe, ROLES, COMPETENCES, cartesDonjon, choixAuto, choixIA, convalescences, creerPartie, demarrerCombat,
-  apprentissage, compositionDuJour, descendre, entrer, gainsXP, issue, ouverts, prochain, rapporte, repos, resoudre, roleCarte, tirage, tresor, victoire,
+  ETAGES, etagesDe, ROLES, COMPETENCES, cartesDonjon, choixAuto, choixIA, convalescences, creerPartie, demarrerCombat,
+  apprentissage, compositionDuJour, descendre, entrer, gainsXP, issue, mimiqueSurgit, ouverts, prochain, rapporte, repos, resoudre, roleCarte, tirage, tirerRencontre, tresor, victoire,
 } from "../src/donjon/regles.js";
 import { PALIER_IRISEE, xpPourNiveau } from "../src/donjon/experience.js";
 import { sourceDe } from "../src/donjon/pouvoirs.js";
-import { DONJON, ECONOMIE, poDuButin } from "../src/config/tiers.js";
+import { DONJON, ECONOMIE, poDuSac } from "../src/config/tiers.js";
 
 const BLOCAGES = [];
 const N = Number(process.argv[2]) || 2000;
@@ -82,16 +82,18 @@ function descente(graine, { equipe, strategie = "concentrer", politique = () => 
   for (let pas = 0; pas < 3000; pas++) {
     const o = ouverts(partie.plan);
     const n = entrer(partie, o[Math.floor(r() * o.length)]);
-    trace.salles[n.genre] = (trace.salles[n.genre] || 0) + 1;
-    if (n.genre === "tresor") tresor(partie, r, POOLS.artefacts);
+    // Un trésor sur quatre est une mimique (1.1.0) : elle se joue comme un combat.
+    const genre = n.genre === "tresor" && mimiqueSurgit(partie, r) ? "mimique" : n.genre;
+    trace.salles[genre] = (trace.salles[genre] || 0) + 1;
+    if (genre === "tresor") tresor(partie, r, POOLS.artefacts);
     if (n.genre === "repos") repos(partie);
     if (n.genre === "evenement") {
-      const ch = RENCONTRES[Math.floor(r() * RENCONTRES.length)].choix(partie, { r, pools: POOLS });
+      const ch = tirerRencontre(partie, r).choix(partie, { r, pools: POOLS });
       ch.find((c) => c.ok !== false).f();
       if (!partie.equipe.some((u) => !u.ko)) return fin("defaite");
     }
-    if (["combat", "elite", "boss"].includes(n.genre)) {
-      const C = demarrerCombat(partie, n.genre, r, POOLS);
+    if (["combat", "elite", "boss", "mimique"].includes(genre)) {
+      const C = demarrerCombat(partie, genre, r, POOLS);
       let f = null, t = 0;
       for (; t < 600 && !f; t++) {
         const u = prochain(partie, C);
@@ -100,11 +102,11 @@ function descente(graine, { equipe, strategie = "concentrer", politique = () => 
         resoudre(partie, C, u, geste, cible, r);
         f = issue(partie, C);
       }
-      trace.tours.push({ genre: n.genre, round: C.round, actions: t });
-      if (f === "defaite") { trace.combatsPerdusGenre = n.genre; return fin("defaite"); }
+      trace.tours.push({ genre, round: C.round, actions: t });
+      if (f === "defaite") { trace.combatsPerdusGenre = genre; return fin("defaite"); }
       if (!f) { // combat sans issue : on le compte, et on garde de quoi comprendre
         const q = (u) => `${u.camp}:${u.role}:${u.pv}/${u.pvMax}:atq${u.atq}${u.ko ? ":ko" : ""}`;
-        BLOCAGES.push({ genre: n.genre, etage: partie.etage, equipe: partie.equipe.map(q), ennemis: C.ennemis.map(q) });
+        BLOCAGES.push({ genre, etage: partie.etage, equipe: partie.equipe.map(q), ennemis: C.ennemis.map(q) });
         return fin("blocage");
       }
       victoire(partie, C, r, POOLS.artefacts);
@@ -119,7 +121,8 @@ function descente(graine, { equipe, strategie = "concentrer", politique = () => 
 
 function mesurer(cas) {
   const res = Array.from({ length: N }, (_, i) => descente(i + 1, cas));
-  const po = res.map((x) => x.butin * DONJON.multiplicateur);
+  // Le sac est en PO depuis la 1.1.0 (le taux du mode est déjà compté).
+  const po = res.map((x) => poDuSac(x.butin, x.partie));
   const complet = res.filter((x) => x.iss === "sortie" && x.partie.stats.gardiens >= ETAGES).length / N;
   const defaite = res.filter((x) => x.iss === "defaite");
   const etages = [1, 2, 3].map((e) => defaite.filter((x) => x.partie.etage === e).length / N);
@@ -232,7 +235,7 @@ let inf = [];
 for (const [nom, cas] of Object.entries(PROFILS)) {
   const res = Array.from({ length: N }, (_, i) => descente(i + 1, { ...cas, mode: "infini" }));
   if (!inf.length) inf = res;
-  const g = res.map((x) => x.partie.stats.gardiens), po = res.map((x) => poDuButin(x.butin, "infini"));
+  const g = res.map((x) => x.partie.stats.gardiens), po = res.map((x) => poDuSac(x.butin, x.partie));
   console.log(`| ${nom} | ${quant(g, 0.5)} · ${quant(g, 0.9)} | ${f1(moy(res.map((x) => x.butin)))} | ${f1(moy(po))} · ${quant(po, 0.5)} | ${f1(moy(po) - MI.entree)} | ${f1(moy(res.map((x) => moy(x.xp.map((y) => y.xp)) || 0)))} |`);
 }
 
@@ -256,7 +259,7 @@ for (const [taille, niv] of [[18, 1], [45, 25]]) {
 const MJ = DONJON.modes.jour;
 const poJourMode = m0.po * MJ.gain * MJ.tentatives;
 // Trois descentes infinies d'un débutant, entrée déduite.
-const poInf = 3 * (moy(inf.map((x) => poDuButin(x.butin, "infini"))) - MI.entree);
+const poInf = 3 * (moy(inf.map((x) => poDuSac(x.butin, x.partie))) - MI.entree);
 console.log("\n## Économie\n");
 console.log(`| Grandeur | Valeur |\n|---|---:|`);
 console.log(`| PO de base par descente (moyenne, sans le multiplicateur du mode) | ${f1(m0.po)} |`);

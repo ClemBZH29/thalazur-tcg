@@ -1,0 +1,47 @@
+/* ── La vitrine de l'accueil (1.1.0) ─────────────────────────────────────
+   Un carrousel d'affiches 16:9, le texte posé sur un dégradé en bas à
+   gauche : les affiches sont livrées sans texte. */
+.vitrine { width: 100%; max-width: 620px; }
+.vt-piste { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none;
+  border-radius: var(--r-lg); border: 1px solid var(--edge); box-shadow: 0 18px 50px rgba(0, 0, 0, .5); }
+.vt-piste::-webkit-scrollbar { display: none; }
+.vt-case { flex: 0 0 100%; scroll-snap-align: start; }
+.vt-lien { display: block; width: 100%; padding: 0; border: 0; background: none; color: inherit;
+  text-align: left; text-decoration: none; cursor: pointer; font: inherit; }
+.vt-affiche { position: relative; display: block; aspect-ratio: 16 / 9; overflow: hidden;
+  background: radial-gradient(120% 120% at 80% 30%, color-mix(in srgb, var(--vt-teinte) 85%, white 6%), var(--ground) 75%); }
+.vt-image { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transition: transform .6s ease; }
+.vt-lien:hover .vt-image, .vt-lien:focus-visible .vt-image { transform: scale(1.03); }
+.vt-repli { position: absolute; right: 2%; bottom: 0; height: 96%; width: auto; max-width: 55%; object-fit: contain; object-position: bottom; }
+.vt-texte { position: absolute; inset: auto 0 0 0; display: grid; gap: 4px; padding: 48px 20px 18px;
+  background: linear-gradient(180deg, transparent, rgba(8, 13, 15, .78) 45%, rgba(8, 13, 15, .92)); }
+.vt-etiquette { font: 600 11.5px var(--font-ui); letter-spacing: .1em; text-transform: uppercase; color: var(--lamp); }
+.vt-titre { font-family: var(--font-display, inherit); font-size: clamp(20px, 2.6vw, 28px); line-height: 1.15; color: var(--ink); }
+.vt-ligne { font-size: 14px; line-height: 1.5; color: var(--ink2); max-width: 46ch; }
+.vt-lien:focus-visible { outline: 2px solid var(--lamp); outline-offset: -2px; }
+.vt-commandes { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 12px; }
+.vt-points { display: flex; gap: 8px; }
+.vt-point { width: 9px; height: 9px; padding: 0; border-radius: 50%; border: 1px solid var(--edge-ui); background: transparent; cursor: pointer; }
+.vt-point.on { background: var(--lamp); border-color: var(--lamp); }
+.vt-fleche { width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--edge); background: var(--panel);
+  color: var(--ink2); font-size: 20px; line-height: 1; cursor: pointer; }
+.vt-fleche:hover { color: var(--ink); border-color: var(--edge-hi); }
+@media (max-width: 560px) {
+  .vt-texte { padding: 36px 14px 12px; }
+  .vt-ligne { display: none; }
+  .vt-point { width: 11px; height: 11px; }
+}
+
+/* La note de version */
+.vt-note { border: 1px solid var(--edge-hi); border-radius: 14px; padding: 0;
+  width: min(640px, calc(100% - 32px)); max-height: calc(100% - 48px);
+  background: var(--ground2); color: var(--ink2); box-shadow: 0 18px 50px rgba(0, 0, 0, .6); }
+.vt-note::backdrop { background: rgba(6, 11, 13, .6); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); }
+.vt-note-corps { padding: 24px 26px 20px; outline: none; }
+.vt-note h2 { font-size: 28px; margin: 4px 0 10px; }
+.vt-note h3 { font-size: 17px; margin: 20px 0 8px; color: var(--ink); }
+.vt-note ul { margin: 0; padding-left: 18px; display: grid; gap: 8px; }
+.vt-note li { line-height: 1.55; }
+.vt-note li b { color: var(--ink); }
+.vt-note-pied { display: flex; justify-content: flex-end; margin-top: 22px; }
+@media (max-width: 560px) { .vt-note-corps { padding: 20px 18px 16px; } .vt-note h2 { font-size: 24px; } }

@@ -21,6 +21,15 @@
    doit donc avoir une largeur explicite, que lui donne sa rangée. */
 .dj-carte { width: 100%; }
 .dj-face { position: relative; width: 100%; aspect-ratio: 2 / 3; }
+/* La rainbow au Donjon (1.1.0). Ailleurs, l'irisation suit le pointeur ; ici
+   la carte ne bascule pas : le dégradé dérive seul, lentement, pour que la
+   version rainbow se lise aussi sur une vignette immobile. */
+.dj-face .rainbow .iris { opacity: .4; animation: dj-iris-derive 9s ease-in-out infinite alternate; }
+@keyframes dj-iris-derive {
+  from { background-position: 0% 10%, 0% 30%; }
+  to { background-position: 190% 150%, -130% 80%; }
+}
+[data-mouvement="reduit"] .dj-face .rainbow .iris { animation: none; }
 .dj-sur { position: absolute; left: 8.2%; top: 8.66%; width: 83.69%; height: 60.09%; z-index: 7; pointer-events: none; }
 .dj-badges { position: absolute; left: 4%; top: 3%; display: flex; flex-direction: column; gap: 1.6cqw; }
 .dj-badges b, .dj-statuts i { font-size: max(9px, 6.6cqw); font-weight: 700; font-style: normal; line-height: 1.3;
@@ -185,15 +194,19 @@
               radial-gradient(ellipse at 50% 100%, rgba(232,163,61,.07), transparent 55%), #0f181b; }
 .dj-frise { display: flex; align-items: center; gap: 6px; overflow-x: auto; padding: 4px 2px 10px; scrollbar-width: thin; min-height: 58px; }
 .dj-frise .tour { font-size: 11px; color: var(--ink3); text-transform: uppercase; letter-spacing: .07em; margin-right: 4px; white-space: nowrap; }
-.dj-jeton { position: relative; flex: 0 0 auto; width: 34px; height: 34px; border-radius: 50%; overflow: hidden;
+.dj-jeton { position: relative; flex: 0 0 auto; width: 34px; height: 34px; border-radius: 50%;
   display: grid; place-items: center; background: #14304c; border: 2px solid var(--m-chene);
   font-family: var(--font-display); font-weight: 800; font-size: 12px; color: #9dc2e0; transition: width .2s, height .2s; }
-.dj-jeton img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 30%; }
+.dj-jeton img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 30%; border-radius: 50%; }
 .dj-jeton.e { border-color: #8a3a2a; background: #2a1512; color: #e7a58e; }
 .dj-jeton.actif { width: 42px; height: 42px; border-color: var(--lamp); box-shadow: 0 0 0 3px rgba(232,163,61,.25); }
 .dj-jeton.passe { opacity: .35; }
-.dj-jeton .ini { position: absolute; right: -1px; bottom: -1px; font-family: var(--font-ui); font-size: 9px; font-weight: 700;
-  line-height: 14px; padding: 0 4px; border-radius: 100px; background: var(--ground); color: #9fd0ff; }
+/* Le chiffre d'initiative en pastille hors du rond (1.1.0) : posé dedans, il
+   couvrait le visage ou les initiales. */
+.dj-jeton .ini { position: absolute; right: -7px; bottom: -6px; z-index: 1; font-family: var(--font-ui); font-size: 9px; font-weight: 700;
+  line-height: 14px; min-width: 14px; text-align: center; padding: 0 3px; border-radius: 100px; background: var(--ground);
+  color: #9fd0ff; box-shadow: 0 0 0 1.5px var(--edge-hi); }
+.dj-frise { padding-right: 10px; }
 
 .dj-rang { position: relative; display: flex; justify-content: center; gap: 14px; }
 .dj-rang.ennemis { margin: 6px 0 2px; }
@@ -552,14 +565,23 @@
 .dj-rangee-aide { display: inline-flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .dj-stats-base { display: inline-flex; gap: 9px; color: var(--ink2); }
 .dj-prep .dj-rangee-piste { grid-auto-columns: 116px; gap: 10px; }
-@media (max-width: 720px) { .dj-prep .dj-rangee-piste { grid-auto-columns: 100px; gap: 8px; } }
+@media (max-width: 720px) {
+  .dj-prep .dj-rangee-piste { grid-auto-columns: 100px; gap: 8px; }
+  /* Niveau et stats ne tiennent pas sur 100 px (1.1.0) : ils débordaient sur
+     la carte voisine. Ils passent sur deux lignes. */
+  .dj-prep .dj-choix-pied { grid-template-rows: auto 3px; }
+  .dj-prep .dj-ligne1 { flex-wrap: wrap; row-gap: 1px; justify-content: flex-start; }
+  .dj-prep .dj-ecarts { gap: 5px; }
+}
 .dj-prep .dj-rangee.r-lieu .dj-rangee-piste { grid-auto-columns: 150px; }
 .dj-prep .dj-choix-pied { grid-template-rows: 18px 3px; }
 .dj-ecarts { display: inline-flex; gap: 7px; font-size: 11px; color: var(--ink); }
 .dj-repos .icone { vertical-align: -2px; }
 
 /* La barre d'équipe, collée en bas de l'écran */
-.dj-barre-equipe { position: sticky; bottom: 0; z-index: 30; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+/* z-index 25 : sous la tête du site (30), qui porte le menu du téléphone ;
+   à égalité, la barre, plus loin dans la page, passait devant le menu ouvert. */
+.dj-barre-equipe { position: sticky; bottom: 0; z-index: 25; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
   margin: 18px -12px 0; padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
   background: linear-gradient(to bottom, rgba(26, 39, 44, .92), var(--panel) 40%); border-top: 1px solid var(--edge-hi);
   border-radius: 12px 12px 0 0; box-shadow: 0 -10px 30px rgba(0, 0, 0, .45); backdrop-filter: blur(4px); }
@@ -657,3 +679,49 @@
 .dj-portrait-l.repos, .dj-portrait-l.repos .icone { color: var(--ember); }
 .dj-portrait-l.gain { color: var(--m-rainbow); font-weight: 600; }
 @media (max-width: 560px) { .dj-chiffres-fin { grid-template-columns: repeat(2, minmax(0, 1fr)); } .dj-portraits { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; } }
+
+/* Une rencontre tenue par quelqu'un (Mirko, 1.1.0) : son portrait à la place
+   du lieu, et les reliques qu'il rachète en cartes, le prix dessous. */
+/* Le portrait dans un cadre, comme un panneau : il ne flotte pas dans le vide. */
+.dj-scene-portrait { padding: 8px; border: 1px solid var(--edge); border-radius: 14px;
+  background: linear-gradient(180deg, var(--panel2), var(--panel));
+  box-shadow: inset 0 0 0 1px rgba(232, 168, 64, .14), 0 10px 28px rgba(0, 0, 0, .45); }
+.dj-scene-portrait img { display: block; width: 100%; height: auto; border-radius: 9px;
+  background: radial-gradient(circle at 50% 40%, rgba(232, 168, 64, .16), transparent 72%); }
+.dj-scene-vignette.dj-scene-portrait { padding: 4px; border-radius: 10px; }
+.dj-scene-vignette.dj-scene-portrait img { border-radius: 7px; }
+.dj-offres { display: flex; flex-wrap: wrap; gap: 14px; margin: 14px 0 4px; }
+.dj-offre { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 160px; text-align: center; }
+.dj-offre .dj-carte { width: 120px; }
+.dj-offre .btn { width: 100%; margin-top: auto; padding-inline: 8px; white-space: nowrap; }
+.dj-gardees { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--edge); }
+.dj-gardees h3 { font-size: 13px; font-family: var(--font-ui); font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--ink4); margin-bottom: 10px; }
+.dj-gardees-cartes { display: flex; flex-wrap: wrap; gap: 10px; }
+.dj-gardee { width: 72px; }
+@media (max-width: 560px) { .dj-offre { width: calc(50% - 7px); } .dj-offre .dj-carte { width: 100px; } }
+
+/* L'écho montre la relique qu'il promet (1.1.0). */
+.dj-promesse { display: flex; gap: 14px; align-items: center; margin: 14px 0 4px; clear: both; }
+.dj-promesse-carte { width: 96px; flex: none; }
+.dj-promesse p { margin: 0; }
+
+/* La sortie d'étage (1.1.0) : deux tuiles qu'on ne confond pas. Descendre en
+   bleu froid, remonter en or ; le bouton armé se remplit d'or. */
+.dj-actions-bas:has(.dj-sortie-choix) { display: block; }
+.dj-sortie-choix { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; width: 100%; }
+.dj-sortie-btn { display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; column-gap: 12px; row-gap: 2px;
+  align-items: center; text-align: left; padding: 14px 16px; border-radius: 12px; cursor: pointer; font: inherit;
+  border: 2px solid; transition: background .15s, border-color .15s, transform .1s; }
+.dj-sortie-btn:active { transform: translateY(1px); }
+.dj-sortie-fleche { grid-row: 1 / 3; font-size: 30px; line-height: 1; font-weight: 700; }
+.dj-sortie-btn b { font-size: 16px; }
+.dj-sortie-btn small { font-size: 12.5px; line-height: 1.35; opacity: .85; }
+.dj-sortie-btn.bas { border-color: #6fa6cc; background: rgba(111, 166, 204, .12); color: #d7e8f4; }
+.dj-sortie-btn.bas .dj-sortie-fleche { color: #8fc3e8; }
+.dj-sortie-btn.bas:hover { background: rgba(111, 166, 204, .22); }
+.dj-sortie-btn.haut { border-color: var(--lamp); background: rgba(232, 168, 64, .1); color: #f3e2bf; }
+.dj-sortie-btn.haut .dj-sortie-fleche { color: var(--lamp); }
+.dj-sortie-btn.haut:hover { background: rgba(232, 168, 64, .2); }
+.dj-sortie-btn.haut.arme { background: var(--lamp); color: #241704; }
+.dj-sortie-btn.haut.arme .dj-sortie-fleche { color: #241704; }
+.dj-sortie-btn:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }

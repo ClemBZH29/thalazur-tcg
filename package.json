@@ -1,7 +1,7 @@
 {
   "name": "brume-thalazur",
   "private": true,
-  "version": "0.3.0",
+  "version": "1.1.0",
   "type": "module",
   "description": "Ouverture de boosters de PNJ pour la campagne La Brume de Thalazur",
   "scripts": {
@@ -14,7 +14,7 @@
     "format": "prettier --write",
     "audit": "node scripts/audit-economie.mjs && node scripts/audit-eclats.mjs && node scripts/audit-strates.mjs && node scripts/audit-stress-mines.mjs && node scripts/audit-marche.mjs && node scripts/audit-colporteur.mjs && node scripts/audit-succes.mjs && node scripts/audit-missions.mjs && node scripts/audit-donjon.mjs 500 && node scripts/audit-reliquaire.mjs 40 && node scripts/audit-tirage.mjs 200",
     "verifier": "npm run lint && npm test && npm run build",
-    "apercu": "npm run verifier && npx firebase-tools hosting:channel:deploy recette --only site --expires 7d",
+    "apercu": "npm run lint && npm test && vite build --mode apercu && npx firebase-tools hosting:channel:deploy recette --only site --expires 7d",
     "roster": "node scripts/xlsx-to-json.mjs",
     "portraits": "node scripts/portraits.mjs",
     "portraits:publier": "node scripts/portraits.mjs && npx firebase-tools deploy --only hosting:portraits"
