@@ -1,0 +1,57 @@
+{
+  "projet": "La Brume de Thalazur",
+  "modules": [
+    "Accueil"
+  ],
+  "version": "2026-11-03",
+  "notes": "Les quatre affiches de la vitrine de l'accueil (1.1.0). Chaque prompt est complet : rien à recoller. Joindre l'image indiquée dans « reference » quand il y en a une, pour garder le personnage. Aucune écriture dans l'image : le titre et la ligne de texte sont posés par la page en bas à gauche, d'où une moitié gauche calme et sombre. Exporter en WebP opaque 1920 × 1080 (le site les affiche en 16:9, recadrées au centre au téléphone), dans public/accueil/ sous le nom indiqué dans « fichier ». Tant qu'une affiche manque, la page compose un repli avec le portrait du personnage.",
+  "assets": [
+    {
+      "id": "vt-affiche-notes",
+      "module": "Accueil",
+      "fichier": "public/accueil/affiche-notes.webp",
+      "usage": "Affiche de la note de version 1.1.0 (les mimiques) : ouvre la note.",
+      "type": "image",
+      "ratio": "16:9",
+      "taille": "1920x1080",
+      "prompt": "A dungeon treasure room at night: on the right, a large iron-bound wooden treasure chest has just revealed itself as a ravenous living creature, its lid thrown open like a huge jaw lined with jagged ivory teeth, a long purple-red tongue lashing out, a single slit-pupilled green eye glaring from a split in the lid, thick legs of twisted wood clawing at the flagstones, a few gold coins spilling from its mouth and catching the light. A guttering oil lantern on the floor in front of it is the main warm light source. Behind it, worn stone walls and a low vaulted ceiling fading into blue mist toward the left. Anime-influenced fantasy JRPG key art in the same style as the character portraits of the site: crisp clean linework with warm brown-toned outlines, soft cel shading over painted gradients with a light paper grain, rich but slightly muted colours. Wide 16:9 promotional banner composition: the subject and the light live in the right half of the image; the left 45 % of the image, and above all its lower-left quarter, stays calm, darker and simple (soft shadow, mist, plain wall) so a title and a line of light text can be laid over it. Medium-low overall brightness, soft contrast, deep blue night tones (#0d1417 to #223136) with warm oil-lamp light (#e8a33d) on the subject. No adventurers, no people, nothing else in the room.",
+      "negative": "readable text, letters, numbers, title, logo, watermark, signature, UI elements, buttons, banner frame, border, speech bubble, extra fingers, deformed hands, extra limbs, photorealism, 3d render, chibi, neon colours, oversaturated, harsh contrast, busy left side, bright left side, gore, several chests, people, adventurers, skeleton, cute, smiling cartoon face, several eyes"
+    },
+    {
+      "id": "vt-affiche-missions",
+      "module": "Accueil",
+      "fichier": "public/accueil/affiche-missions.webp",
+      "usage": "Affiche des missions de Bodégué : mène à /missions.",
+      "type": "image",
+      "ratio": "16:9",
+      "taille": "1920x1080",
+      "reference": "public/missions/bodegue-billet.webp",
+      "prompt": "Attach public/missions/bodegue-billet.webp as the character reference. Keep exactly the same character: Bodégué, a calm man in his early fifties: tanned weathered skin, fine smile lines, warm hazel-brown eyes, short tousled ash-blond hair streaked with grey, sticking up in soft spikes, a short trimmed grey-blond beard and moustache; a very wide, ample dusty-rose outer robe with long flowing sleeves and broad slate-teal lapels, over a pale sage-green wrap kimono crossed at the chest. On the right third of the image he stands behind a large dark wooden table in the cosy cluttered back room of his merchant's hut at night, from the head to the waist, with an encouraging warm smile, holding out a small folded blank cream parchment note toward the viewer; on the table in front of him, three more folded blank notes and a closed sealed letter with a plain dark red wax seal. Mismatched coloured glass lanterns (saffron, indigo, violet, amber) hang from the rafters behind him; the left side of the room fades into shadow and a misty night harbour seen through an open side. Anime-influenced fantasy JRPG key art in the same style as the character portraits of the site: crisp clean linework with warm brown-toned outlines, soft cel shading over painted gradients with a light paper grain, rich but slightly muted colours. Wide 16:9 promotional banner composition: the subject and the light live in the right half of the image; the left 45 % of the image, and above all its lower-left quarter, stays calm, darker and simple (soft shadow, mist, plain wall) so a title and a line of light text can be laid over it. Medium-low overall brightness, soft contrast, deep blue night tones (#0d1417 to #223136) with warm oil-lamp light (#e8a33d) on the subject. The notes and the letter are blank, with no writing and no emblem.",
+      "negative": "readable text, letters, numbers, title, logo, watermark, signature, UI elements, buttons, banner frame, border, speech bubble, extra fingers, deformed hands, extra limbs, photorealism, 3d render, chibi, neon colours, oversaturated, harsh contrast, busy left side, bright left side, gore, writing on paper, different character, different robe colours, younger face, several people"
+    },
+    {
+      "id": "vt-affiche-mines",
+      "module": "Accueil",
+      "fichier": "public/accueil/affiche-mines.webp",
+      "usage": "Affiche des Mines de Kazim et de Tafix : mène à /mines.",
+      "type": "image",
+      "ratio": "16:9",
+      "taille": "1920x1080",
+      "reference": "public/kazim/tafix-malicieux.webp",
+      "prompt": "Attach public/kazim/tafix-malicieux.webp as the character reference. Keep exactly the same character: Tafix, a small, wiry, cheeky reptilian creature about one metre tall, standing upright like a small lizard-man: a dog-like scaly head with a short blunt snout, a wide mouth with small pointed white teeth, two short curved ivory-beige horns swept back from the brow, a fringe of small spiky frills behind the jaw, large round amber-yellow eyes with vertical slit pupils, small bright brick-red scales, a thin red tail curling behind one hip; he wears a chainmail shirt far too big for him, hanging to his knees, its sleeves so long that his hands stay hidden inside them, belted with a frayed cord. On the right of the image, full figure, he stands on a pile of rubble in a mine gallery lit by an oil lantern hung on a wooden prop, with a sly knowing grin, proudly holding up with both sleeves a heavy pickaxe much too large for him, a wooden mine cart behind him half full of pale glowing star-shaped crystal ore. Timber props and rails lead off into darkness toward the left. Anime-influenced fantasy JRPG key art in the same style as the character portraits of the site: crisp clean linework with warm brown-toned outlines, soft cel shading over painted gradients with a light paper grain, rich but slightly muted colours. Wide 16:9 promotional banner composition: the subject and the light live in the right half of the image; the left 45 % of the image, and above all its lower-left quarter, stays calm, darker and simple (soft shadow, mist, plain wall) so a title and a line of light text can be laid over it. Medium-low overall brightness, soft contrast, deep blue night tones (#0d1417 to #223136) with warm oil-lamp light (#e8a33d) on the subject. ",
+      "negative": "readable text, letters, numbers, title, logo, watermark, signature, UI elements, buttons, banner frame, border, speech bubble, extra fingers, deformed hands, extra limbs, photorealism, 3d render, chibi, neon colours, oversaturated, harsh contrast, busy left side, bright left side, gore, human, hair, helmet, fitted armour, visible hands, green scales, blue scales, wings, dragon, different character, several creatures"
+    },
+    {
+      "id": "vt-affiche-comptoir",
+      "module": "Accueil",
+      "fichier": "public/accueil/affiche-comptoir.webp",
+      "usage": "Affiche du Comptoir : mène à /comptoir.",
+      "type": "image",
+      "ratio": "16:9",
+      "taille": "1920x1080",
+      "reference": "public/comptoir/lise.webp",
+      "prompt": "Attach public/comptoir/lise.webp as the character reference. Keep exactly the same character: Lise, a cheerful young woman card collector of about twenty: warm brown eyes, long wavy chestnut-brown hair gathered in a loose messy bun with strands falling around her face, small stud earrings; white blouse with a ruffled collar, teal hooded shoulder cape with brass clasps, brown leather satchel strap across the chest. On the right of the image, from the head to the waist, she leans over the counter of a cosy collectors' trading shop at night, delighted, fanning out a hand of five face-down trading cards with plain dark backs toward the viewer, her worn brown leather card album open on the counter beside a small balance scale and a few gold coins. Behind her, shelves of card albums, small wooden boxes and hanging oil lamps; the left side of the shop fades into warm shadow. Anime-influenced fantasy JRPG key art in the same style as the character portraits of the site: crisp clean linework with warm brown-toned outlines, soft cel shading over painted gradients with a light paper grain, rich but slightly muted colours. Wide 16:9 promotional banner composition: the subject and the light live in the right half of the image; the left 45 % of the image, and above all its lower-left quarter, stays calm, darker and simple (soft shadow, mist, plain wall) so a title and a line of light text can be laid over it. Medium-low overall brightness, soft contrast, deep blue night tones (#0d1417 to #223136) with warm oil-lamp light (#e8a33d) on the subject. The cards show only their plain backs, no faces, no symbols.",
+      "negative": "readable text, letters, numbers, title, logo, watermark, signature, UI elements, buttons, banner frame, border, speech bubble, extra fingers, deformed hands, extra limbs, photorealism, 3d render, chibi, neon colours, oversaturated, harsh contrast, busy left side, bright left side, gore, card faces, symbols on cards, writing on cards, different character, different outfit, several people, playing cards suits"
+    }
+  ]
+}
