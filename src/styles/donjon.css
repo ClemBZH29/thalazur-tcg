@@ -579,7 +579,9 @@
 .dj-repos .icone { vertical-align: -2px; }
 
 /* La barre d'équipe, collée en bas de l'écran */
-.dj-barre-equipe { position: sticky; bottom: 0; z-index: 30; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+/* z-index 25 : sous la tête du site (30), qui porte le menu du téléphone ;
+   à égalité, la barre, plus loin dans la page, passait devant le menu ouvert. */
+.dj-barre-equipe { position: sticky; bottom: 0; z-index: 25; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
   margin: 18px -12px 0; padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
   background: linear-gradient(to bottom, rgba(26, 39, 44, .92), var(--panel) 40%); border-top: 1px solid var(--edge-hi);
   border-radius: 12px 12px 0 0; box-shadow: 0 -10px 30px rgba(0, 0, 0, .45); backdrop-filter: blur(4px); }
