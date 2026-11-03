@@ -53,6 +53,23 @@ describe("les rencontres « ? »", () => {
   });
 });
 
+describe("l'écho", () => {
+  test("il montre la relique promise, et c'est bien elle qu'on reçoit s'il tient parole", () => {
+    const echo = RENCONTRES.find((e) => e.id === "echo");
+    let tenu = 0, menti = 0;
+    for (let g = 1; g < 200; g++) {
+      const p = partie();
+      const ch = echo.choix(p, { r: tirage(g), pools: POOLS });
+      const promise = ch[0].promet;
+      expect(promise).toBeTruthy();
+      ch[0].f();
+      if (p.reliques.length) { expect(p.reliques[0]).toBe(promise); tenu++; } else menti++;
+    }
+    expect(tenu).toBeGreaterThan(60);
+    expect(menti).toBeGreaterThan(60);
+  });
+});
+
 describe("les mimiques", () => {
   test("hors collection : un cadre à part, invisible des boosters et de la bibliothèque", () => {
     expect(TIER_INFO.hors).toBeTruthy();

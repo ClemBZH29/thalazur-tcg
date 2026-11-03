@@ -155,6 +155,18 @@ racheter s'affichent en cartes, avec ce que l'équipe perd et le prix ; dessous,
 les autres reliques de l'équipe, en petites cartes, à la place des PV, qui
 n'ont rien à voir avec l'affaire.
 
+**L'écho montre ce qu'il promet** (03/11/2026). On l'ignorait toujours, faute
+de savoir ce qu'il y avait à gagner. La relique est désormais tirée avant le
+choix et montrée en carte (« La voix vous promet… Elle ment parfois. ») ; la
+voix tient parole une fois sur deux, sinon le piège reste (4 PV par étage à un
+compagnon).
+
+**Fréquences** (mesure du 03/11/2026, chemin au hasard, 20 000 étages) : un
+peu moins d'une salle sur cinq est une « ? », un chemin en croise 1,3 à 1,4,
+au moins une dans 80 % des étages. L'autel est une « ? » sur cinq (19 % quand
+Mirko peut racheter) : au moins un autel dans environ un étage sur quatre, et
+dans à peu près 58 % des descentes du jour (trois étages).
+
 Les rencontres se tirent désormais au poids (`tirerRencontre`). Une descente
 sauvée sur l'ancien coffre au passage de la version revient sur la carte.
 

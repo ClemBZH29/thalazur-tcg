@@ -686,3 +686,8 @@
 .dj-gardees-cartes { display: flex; flex-wrap: wrap; gap: 10px; }
 .dj-gardee { width: 72px; }
 @media (max-width: 560px) { .dj-offre { width: calc(50% - 7px); } .dj-offre .dj-carte { width: 100px; } }
+
+/* L'écho montre la relique qu'il promet (1.1.0). */
+.dj-promesse { display: flex; gap: 14px; align-items: center; margin: 14px 0 4px; clear: both; }
+.dj-promesse-carte { width: 96px; flex: none; }
+.dj-promesse p { margin: 0; }

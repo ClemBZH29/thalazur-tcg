@@ -1529,6 +1529,16 @@ export default function Donjon({ jeu }) {
                 ))}
               </div>
             )}
+            {/* Ce qu'une rencontre promet (l'écho) : la relique en carte, avant le pari. */}
+            {(() => {
+              const a = rencontre.choix.find((c) => c.promet)?.promet;
+              return a && (
+                <div className="dj-promesse">
+                  <div className="dj-promesse-carte"><CarteDJ c={a} cfgImage={cfgImage} fichiers={fichiers} /></div>
+                  <p>La voix vous promet <b>{a.nom}</b> : {bonusTexte(a.tier)}.<span className="muted"> Elle ment parfois.</span></p>
+                </div>
+              );
+            })()}
             <div className="actions gauche dj-actions-bas">
               {autres.map((c, k) => (
                 <button key={c.i} type="button" className={`btn${k || offres.length ? " quiet" : ""}`} disabled={c.ok === false} onClick={() => choisirRencontre(c.i)}>{c.lib}</button>

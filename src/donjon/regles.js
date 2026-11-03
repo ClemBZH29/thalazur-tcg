@@ -643,12 +643,23 @@ export const RENCONTRES = [
       { lib: "Fouiller le bassin", f: () => `Au fond, des pièces jetées par d'autres. +${gagner(p, 3 * echelle(p))} PO.` }] },
   { id: "echo", titre: "Un écho dans la brume",
     texte: () => "Une voix répète vos pas, un temps trop tard. Elle vient d'un passage étroit.",
-    choix: (p, { r, pools }) => [
-      { lib: "Suivre la voix", f: () => {
-        if (r() < 0.5) { const a = trouverRelique(p, r, pools.artefacts); if (a) return `Au bout du passage, un objet posé là pour vous : ${a.nom}.`; }
-        const u = choisir(r, vivants(p.equipe)); blesser(u, 4 * p.etage);
-        return `C'était un piège. ${u.c.nom} perd ${4 * p.etage} PV.`; } },
-      { lib: "Boucher ses oreilles", f: () => "La voix se tait quand vous passez." }] },
+    // La voix annonce ce qu'elle promet (1.1.0) : la relique est tirée avant
+    // le choix et montrée (`promet`), pour que suivre la voix soit un pari
+    // qu'on peut peser. Elle tient parole une fois sur deux.
+    choix: (p, { r, pools }) => {
+      const promise = tirerRelique(r, pools.artefacts || []);
+      return [
+        { lib: "Suivre la voix", promet: promise, f: () => {
+          if (promise && r() < 0.5) {
+            const a = prendreRelique(p, promise);
+            return a?.vendue
+              ? `Au bout du passage, ${a.nom}, comme promis. Vos mains sont pleines : elle part au sac. +${a.vendue} PO.`
+              : `Au bout du passage, ${a.nom}, posée là pour vous. La voix a tenu parole.`;
+          }
+          const u = choisir(r, vivants(p.equipe)); blesser(u, 4 * p.etage);
+          return `La voix mentait. C'était un piège : ${u.c.nom} perd ${4 * p.etage} PV.`; } },
+        { lib: "Boucher ses oreilles", f: () => "La voix se tait quand vous passez." }];
+    } },
   // Rare (1.1.0) : Mirko, qui « fait circuler ce qui dort », rachète une
   // relique. Il en désigne deux au plus parmi celles de l'équipe.
   { id: "mirko-reliques", titre: "Mirko fait affaire", portrait: "comptoir/mirko.webp", poids: 0.25, dispo: (p) => p.reliques.length > 0,
