@@ -92,6 +92,10 @@ a { color: inherit; text-decoration: none; }
   .masthead { padding-top: calc(12px + env(safe-area-inset-top)); padding-bottom: 12px;
     border-bottom: 1px solid var(--edge); }
   .tete { z-index: 30; }
+  /* Menu ouvert (1.1.0) : la tête porte le menu et son voile ; à 30, la barre
+     d'équipe du Donjon (sticky, 30 aussi, plus loin dans la page) et les
+     bulles de Tafix passaient devant. Ouverte, elle monte au-dessus. */
+  .tete:has(.nav.ouverte) { z-index: 90; }
 
   .burger {
     display: grid; place-items: center; position: fixed; z-index: 45;
@@ -150,6 +154,21 @@ a { color: inherit; text-decoration: none; }
 
 @media (min-width: 721px) and (min-height: 501px), (min-width: 861px) {
   .nav .nav-ico, .nav .nav-court { display: none; }
+}
+/* Tablette (1.1.0) : les dix entrées ne tenaient pas sur une ligne entre 721
+   et 1 000 px, et les dernières (Missions, Succès) sortaient de l'écran sans
+   que rien ne dise qu'on pouvait faire défiler. Les noms courts, des marges
+   plus serrées, et un fondu au bord droit tant qu'il reste à voir. */
+@media (min-width: 721px) and (max-width: 1000px) and (min-height: 501px) {
+  .nav a { padding: 0 10px; font-size: 13.5px; }
+  .nav .nav-nom { display: none; }
+  .nav .nav-court { display: inline; }
+  .nav { -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent);
+    mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent); }
+}
+@media (min-width: 721px) and (max-width: 800px) and (min-height: 501px) {
+  .nav { padding-inline: 12px; }
+  .nav a { padding: 0 8px; font-size: 13px; }
 }
 
 /* ── Accueil ─────────────────────────────────────────────────────────────── */
@@ -342,6 +361,9 @@ a { color: inherit; text-decoration: none; }
 
 @media (max-width: 720px) {
   .caisse { grid-template-columns: 1fr 1fr; order: -1; margin: 0 0 18px; }
+  /* Une demi-largeur de téléphone ne tient pas « prochain dans 5 h 27 » d'un
+     bloc (1.1.0) : la valeur secondaire passe à la ligne. */
+  .caisse-valeur.petit { white-space: normal; font-size: 16px; line-height: 1.2; }
   .caisse-passif { grid-column: 1 / -1; border-left: 0 !important; border-top: 1px solid var(--edge); }
   .caisse-bloc { padding: 12px 16px; }
 }

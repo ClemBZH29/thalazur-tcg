@@ -37,6 +37,7 @@ export const NOTES = [
           ["Mobile :", "toucher une carte de la bibliothèque pour l'agrandir ne compte plus comme un second toucher qui dissolvait des doublons."],
           ["Missions :", "« Accueillir une expédition » se valide aussi quand l'expédition est rentrée pendant la nuit."],
           ["Sortie d'étage :", "descendre et remonter ne se confondent plus. Deux grands boutons bien distincts, et remonter demande une confirmation."],
+          ["Téléphone et tablette :", "le menu passe devant la barre d'équipe du Donjon, les stats des compagnons et le chiffre d'initiative ne se chevauchent plus, le compteur du prochain booster tient dans sa case."],
           ["Vocabulaire :", "le Donjon dit « rainbow » et « booster », comme le reste du site."],
         ],
       },
