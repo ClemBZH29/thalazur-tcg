@@ -36,6 +36,7 @@ export const NOTES = [
           ["Fini le coffre piégé", "des rencontres « ? » : le danger des coffres, ce sont maintenant les mimiques."],
           ["Mobile :", "toucher une carte de la bibliothèque pour l'agrandir ne compte plus comme un second toucher qui dissolvait des doublons."],
           ["Missions :", "« Accueillir une expédition » se valide aussi quand l'expédition est rentrée pendant la nuit."],
+          ["Sortie d'étage :", "descendre et remonter ne se confondent plus. Deux grands boutons bien distincts, et remonter demande une confirmation."],
           ["Vocabulaire :", "le Donjon dit « rainbow » et « booster », comme le reste du site."],
         ],
       },

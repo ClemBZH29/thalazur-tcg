@@ -223,6 +223,48 @@ function BoutonRemonter({ po, onRemonter, className = "btn quiet" }) {
   );
 }
 
+/**
+ * Le choix de la sortie d'étage, revu en 1.1.0 : des joueurs remontaient en
+ * voulant descendre, et l'inverse. Les deux boutons étaient côte à côte, de
+ * même taille, et seule leur teinte les distinguait. Ce sont désormais deux
+ * grandes tuiles qui ne se ressemblent pas : descendre en bleu froid, flèche
+ * vers le bas ; remonter en or, flèche vers le haut, ce que l'on garde écrit
+ * dessous. Remonter clôt la descente, sans retour : un premier toucher arme
+ * le bouton, un second confirme (comme sur la carte). Au dernier étage, seule
+ * reste la remontée, sans confirmation.
+ */
+function ChoixSortie({ po, infini, dernier, etageSuivant, onDescendre, onRemonter }) {
+  const [arme, setArme] = useState(false);
+  useEffect(() => {
+    if (!arme) return undefined;
+    const id = setTimeout(() => setArme(false), 4000);
+    return () => clearTimeout(id);
+  }, [arme]);
+  const remonter = () => {
+    if (dernier || arme) return onRemonter();
+    Son.jouer("donjon.carte.confirmer");
+    setArme(true);
+  };
+  return (
+    <div className="dj-sortie-choix">
+      {!dernier && (
+        <button type="button" className="dj-sortie-btn bas" onClick={onDescendre}>
+          <span className="dj-sortie-fleche" aria-hidden="true">↓</span>
+          <b>Descendre à l&apos;étage {etageSuivant}</b>
+          <small>{infini ? "Plus dur, plus riche · sans retour" : "Plus dur, plus riche · une chute ne rend qu'un quart du sac"}</small>
+        </button>
+      )}
+      {!infini && (
+        <button type="button" className={`dj-sortie-btn haut${arme ? " arme" : ""}`} onClick={remonter}>
+          <span className="dj-sortie-fleche" aria-hidden="true">↑</span>
+          <b>{arme ? "Confirmer : remonter" : "Remonter"}</b>
+          <small>{arme ? `La descente s'arrête ici, avec ${po} PO` : `Garder les ${po} PO du sac`}</small>
+        </button>
+      )}
+    </div>
+  );
+}
+
 /** Les états d'une unité, en classes pour leurs calques (donjon-animations.css). */
 const etatsDe = (u) => [
   u.saigne > 0 && "etat-saigne", u.marque > 0 && "etat-marque", u.etourdi > 0 && "etat-piege", u.voile && "etat-voile",
@@ -1584,18 +1626,13 @@ export default function Donjon({ jeu }) {
             <p>{R.texte}</p>
             {R.po > 0 && <p><span className="dj-butin">+{poGagne(partie, R.po)} PO</span></p>}
             {R.relique && <ReliqueTrouvee a={R.relique} partie={partie} cfgImage={cfgImage} fichiers={fichiers} />}
-            {ecran === "sortie" && (
-              <p>{dernier ? "C'était le dernier étage. Il ne reste qu'à remonter."
-                : infini ? <span className="dj-puces"><Puce icone="etage">plus dur, plus riche</Puce><Puce icone="tombe">sans retour</Puce></span>
-                : <span className="dj-puces"><Puce icone="butin" or>remonter : tout garder</Puce><Puce icone="etage">descendre : plus dur, plus riche</Puce><Puce icone="tombe">chute : ¼ du sac</Puce></span>}</p>
-            )}
+            {ecran === "sortie" && dernier && <p>C&apos;était le dernier étage. Il ne reste qu&apos;à remonter.</p>}
             <MiniEquipe partie={partie} />
             <div className="actions gauche dj-actions-bas">
               {ecran === "sortie" ? (
-                <>
-                  {!infini && <button className="btn" type="button" onClick={() => terminer("sortie")}>Remonter · {poDuSac(partie.sac, partie)} PO</button>}
-                  {!dernier && <button className={infini ? "btn" : "btn quiet"} type="button" onClick={() => { descendre(partie, POOLS); sonEtage(partie.etage); setSurvol(null); setResultat(null); aller("carte"); }}>Descendre à l'étage {partie.etage + 1}</button>}
-                </>
+                <ChoixSortie po={poDuSac(partie.sac, partie)} infini={infini} dernier={dernier} etageSuivant={partie.etage + 1}
+                  onRemonter={() => terminer("sortie")}
+                  onDescendre={() => { descendre(partie, POOLS); sonEtage(partie.etage); setSurvol(null); setResultat(null); aller("carte"); }} />
               ) : (
                 <>
                   <button className="btn" type="button" onClick={() => aller("carte")}>Retour à la carte</button>
