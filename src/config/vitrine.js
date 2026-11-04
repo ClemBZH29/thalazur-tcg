@@ -10,7 +10,7 @@
  * personnage du module (`repli`), déjà livré avec le site.
  */
 /** L'invitation au serveur Discord de la communauté. Vide : l'affiche se tait. */
-export const INVITATION_DISCORD = "https://discord.gg/z8DvK4kX8c";
+export const INVITATION_DISCORD = "https://discord.gg/KCMksXg2uB";
 
 const TOUTES = [
   {
