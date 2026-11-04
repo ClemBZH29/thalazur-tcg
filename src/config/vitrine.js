@@ -10,7 +10,7 @@
  * personnage du module (`repli`), déjà livré avec le site.
  */
 /** L'invitation au serveur Discord de la communauté. Vide : l'affiche se tait. */
-export const INVITATION_DISCORD = "";
+export const INVITATION_DISCORD = "https://discord.gg/z8DvK4kX8c";
 
 const TOUTES = [
   {
@@ -34,8 +34,8 @@ const TOUTES = [
     image: "accueil/affiche-comptoir.webp", repli: "comptoir/lise.webp", teinte: "#2a3b2a",
   },
   {
-    id: "discord", lien: INVITATION_DISCORD, etiquette: "La communauté", titre: "Bodégué vous attend sur Discord",
-    texte: "Annonces, entraide, échanges et signalements de bugs : rejoignez les autres joueurs.",
+    id: "discord", lien: INVITATION_DISCORD, etiquette: "Discord", titre: "Rejoignez la communauté sur Discord",
+    texte: "Annonces, entraide, échanges et signalements de bugs : retrouvez les autres joueurs.",
     image: "accueil/affiche-discord.webp", repli: "missions/bodegue-content.webp", teinte: "#3a2f5a",
   },
 ];
