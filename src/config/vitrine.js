@@ -35,7 +35,7 @@ const TOUTES = [
   },
   {
     id: "discord", lien: INVITATION_DISCORD, etiquette: "Discord", titre: "Rejoignez la communauté sur Discord",
-    texte: "Annonces, entraide, échanges et signalements de bugs : retrouvez les autres joueurs.",
+    texte: "Annonce, entraide et signalement de bugs",
     image: "accueil/affiche-discord.webp", repli: "missions/bodegue-content.webp", teinte: "#3a2f5a",
   },
 ];
