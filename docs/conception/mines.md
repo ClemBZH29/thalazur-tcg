@@ -681,6 +681,24 @@ vingt-quatre heures.
 
 Limite : sans compte, vider les données du site efface la fermeture.
 
+**Révision du 04/11/2026 (1.1.1).** Des joueurs ont été bannis en jouant à
+deux doigts au téléphone : deux pouces qui alternent tiennent sans effort la
+cadence maximale. La cadence seule ne suffit donc plus ; il faut aussi que les
+frappes soient celles d'une machine (`frappesMecaniques`) :
+
+- **au même point** : toutes dans un rayon de 4 px. C'est le critère décisif
+  au doigt : deux doigts, et même un seul doigt humain, dont le point de
+  contact varie, en sortent ; un autoclicker frappe toujours le même pixel ;
+- **à intervalles réguliers** : écart type sous 0,2 fois la moyenne. Dans un
+  navigateur, un autoclicker à 50 ms mesure environ 0,07 (la page ajoute son
+  bruit) ; le seuil large sert surtout au clavier, sans position.
+
+Essai dans un navigateur, 12,5 s : deux doigts à ~11 frappes/s, pas de
+fermeture ; un doigt à ~11 frappes/s, pas de fermeture ; une machine à 19
+frappes/s au même point, mine fermée. Les fermetures prononcées sous la
+première règle sont levées d'office : la fermeture porte désormais sa règle
+(`blocage.regle`), et `blocageValable` ignore celles qui n'en ont pas.
+
 ## Outils MJ
 
 En développement (`npm run dev`), **Réglages MJ → Mode test → Mines de Kazim**

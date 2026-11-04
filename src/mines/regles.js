@@ -483,29 +483,74 @@ export const FRAPPES_RAFALE = 15;
  * de Clément : tenir la cadence maximale **dix secondes d'affilée** (chacune
  * des dix dernières secondes compte la cadence maximale de frappes tentées,
  * refusées par le seau comprises), et Tafix ferme la mine vingt-quatre heures.
- * Un joueur rapide frappe par rafales et respire : il ne tient pas dix frappes
- * à chaque seconde pendant dix secondes.
+ *
+ * **Révisé le 04/11/2026 (1.1.1).** La cadence seule ne suffit pas : au
+ * téléphone, on frappe à deux doigts, et deux pouces qui alternent tiennent
+ * dix frappes par seconde sans effort. Des joueurs ont été bannis ainsi. Une
+ * machine, elle, frappe **au même point** et **à intervalles réguliers** ;
+ * une main humaine, même rapide, varie. Il faut désormais les trois :
+ *   - la cadence maximale tenue dix secondes (`cadenceSoutenue`) ;
+ *   - un seul point : toutes les frappes dans un rayon de `rayon` pixels.
+ *     C'est le critère décisif au doigt : deux doigts, et même un seul doigt
+ *     humain, dont le point de contact varie de frappe en frappe, en sortent ;
+ *     un autoclicker de téléphone frappe toujours le même pixel ;
+ *   - des intervalles réguliers : leur écart type sous `regularite` fois leur
+ *     moyenne. Mesuré dans un navigateur, un autoclicker à 50 ms tombe vers
+ *     0,09 (la page ajoute son propre bruit), d'où un seuil large, qui sert
+ *     surtout au clavier, où il n'y a pas de position.
+ * Les fermetures prononcées sous la première règle sont levées (`regle`,
+ * voir src/jeu/mine.js).
  */
 // `parSeconde` à une frappe près : découpée en secondes, une cadence de
 // exactement dix par seconde laisse tomber neuf frappes dans certaines tranches.
-export const AUTOCLIC = { secondes: 10, parSeconde: FRAPPES_MAX - 1, blocage: 24 * 3600000 };
+export const AUTOCLIC = {
+  secondes: 10, parSeconde: FRAPPES_MAX - 1, regularite: 0.2, rayon: 4,
+  blocage: 24 * 3600000, regle: 2,
+};
+
+const instant = (f) => (typeof f === "number" ? f : f.t);
+
+/** Les frappes des `AUTOCLIC.secondes` dernières secondes, dans l'ordre. */
+const recentes = (frappes, maintenant) => {
+  const l = [];
+  for (let i = frappes.length - 1; i >= 0; i--) {
+    const d = maintenant - instant(frappes[i]);
+    if (d >= AUTOCLIC.secondes * 1000) break;
+    if (d >= 0) l.push(frappes[i]);
+  }
+  return l.reverse();
+};
 
 /**
- * `frappes` : les instants (ms, croissants) des frappes tentées récentes.
- * Vrai si chacune des `AUTOCLIC.secondes` dernières secondes en compte au
- * moins `AUTOCLIC.parSeconde`.
+ * `frappes` : les frappes tentées récentes, instants (ms, croissants) ou
+ * objets `{ t, x, y }`. Vrai si chacune des `AUTOCLIC.secondes` dernières
+ * secondes en compte au moins `AUTOCLIC.parSeconde`.
  */
 export function cadenceSoutenue(frappes, maintenant) {
   const { secondes, parSeconde } = AUTOCLIC;
   if (frappes.length < secondes * parSeconde) return false;
   const tranches = new Array(secondes).fill(0);
-  for (let i = frappes.length - 1; i >= 0; i--) {
-    const k = Math.floor((maintenant - frappes[i]) / 1000);
-    if (k >= secondes) break;
-    if (k >= 0) tranches[k]++;
-  }
+  for (const f of recentes(frappes, maintenant)) tranches[Math.floor((maintenant - instant(f)) / 1000)]++;
   return tranches.every((n) => n >= parSeconde);
 }
+
+/** Des frappes de machine : intervalles réguliers, toutes au même point. */
+export function frappesMecaniques(frappes, maintenant) {
+  const l = recentes(frappes, maintenant);
+  if (l.length < 3) return false;
+  const ecarts = l.slice(1).map((f, i) => instant(f) - instant(l[i]));
+  const moy = ecarts.reduce((s, x) => s + x, 0) / ecarts.length;
+  const et = Math.sqrt(ecarts.reduce((s, x) => s + (x - moy) ** 2, 0) / ecarts.length);
+  if (!(moy > 0) || et / moy >= AUTOCLIC.regularite) return false;
+  const places = l.filter((f) => typeof f === "object" && Number.isFinite(f.x) && Number.isFinite(f.y));
+  if (!places.length) return true;
+  const [x0, y0] = [places[0].x, places[0].y];
+  return places.every((f) => Math.hypot(f.x - x0, f.y - y0) <= AUTOCLIC.rayon);
+}
+
+/** Ce qui ferme la mine : la cadence maximale, tenue, et frappée par une machine. */
+export const autoclicSuspect = (frappes, maintenant) =>
+  cadenceSoutenue(frappes, maintenant) && frappesMecaniques(frappes, maintenant);
 
 /** Une horloge en arrière de plus d'un jour est fausse : on la croit. Moins,
     on attend qu'elle rattrape l'instant déjà joué. */

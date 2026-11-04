@@ -54,15 +54,22 @@ export function crediterSolde(e, po) {
  */
 export function bloquerMine(e, maintenant = Date.now()) {
   const marque = e.mine || {};
-  if ((marque.blocage?.jusqua || 0) > maintenant) return e;
-  return { ...e, mine: { ...marque, blocage: { le: maintenant, jusqua: maintenant + AUTOCLIC.blocage } } };
+  if (blocageValable(e) && (marque.blocage.jusqua || 0) > maintenant) return e;
+  return { ...e, mine: { ...marque, blocage: { le: maintenant, jusqua: maintenant + AUTOCLIC.blocage, regle: AUTOCLIC.regle } } };
 }
 
 /** La fin de la fermeture en cours, ou null. */
 export const finBlocage = (e, maintenant = Date.now()) => {
-  const j = e.mine?.blocage?.jusqua || 0;
+  const j = blocageValable(e) ? e.mine.blocage.jusqua || 0 : 0;
   return j > maintenant ? j : null;
 };
+
+/**
+ * Une fermeture prononcée sous une règle d'avant (`regle` absent) ne compte
+ * pas : la première règle bannissait le jeu à deux doigts du téléphone
+ * (04/11/2026). Les joueurs touchés retrouvent leur mine tout de suite.
+ */
+export const blocageValable = (e) => (e.mine?.blocage?.regle || 0) >= AUTOCLIC.regle;
 
 /**
  * Ce que l'application sait des Mines de Kazim : les commandes livrées, le
@@ -124,7 +131,7 @@ export function useMine(etat, setEtat) {
   const signalerAutoclic = useCallback(() => setEtat((e) => bloquerMine(e)), [setEtat]);
   /* L'heure de fin de la dernière fermeture, passée ou non : la mine qui
      rouvre ne rejoue pas, en absence, le temps où elle était fermée. */
-  const repriseMine = etat.mine?.blocage?.jusqua || 0;
+  const repriseMine = blocageValable(etat) ? etat.mine.blocage.jusqua || 0 : 0;
 
   return { crediterCommande, crediterRemise, remisePayee, majTafix, versionMine, rechargerMine, signalerAutoclic, repriseMine };
 }
