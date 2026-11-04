@@ -36,7 +36,7 @@ import {
 import {
   FILONS_PAR_STRATE, PIOCHES, equipA, degatsClic, critChance, critMult,
   multCompagnon, dpsUn, dps, partRiche, mEclats, talentMax, talentEffectif, record,
-  eclatsDuRecord, cadenceSoutenue, FRAPPES_MAX, FRAPPES_RAFALE, HORLOGE_TOLERANCE, CACHE_MAX,
+  eclatsDuRecord, autoclicSuspect, FRAPPES_MAX, FRAPPES_RAFALE, HORLOGE_TOLERANCE, CACHE_MAX,
   teinteFortune, xpRequis, brisesIci, eclatsDispo, ECLAT_BONUS, coutUn,
   coutN, nbAbordable, genererEclats, strate,
   naitreFilon, infliger, simulerAbsence, rendementAbsence, absenceMax,
@@ -320,7 +320,8 @@ function MinesDeKazim({
      seconde. Une frappe sans jeton ne fait rien — ni dégâts, ni effet. */
   const seau = useRef({ jetons: FRAPPES_RAFALE, t: 0 });
   /* Les frappes tentées des dernières secondes, refusées comprises, pour le
-     contrôle des autoclickers (`cadenceSoutenue`). Signalé une fois. */
+     contrôle des autoclickers (`autoclicSuspect`) : l'instant et la position
+     du doigt ou du pointeur (rien au clavier). Signalé une fois. */
   const tentees = useRef([]);
   const signale = useRef(false);
   const frapper = useCallback((ev) => {
@@ -329,9 +330,10 @@ function MinesDeKazim({
     const maintenant = performance.now();
     if (onAutoclic && !signale.current) {
       const l = tentees.current;
-      l.push(maintenant);
+      const pos = ev && typeof ev.clientX === "number" ? { x: ev.clientX, y: ev.clientY } : {};
+      l.push({ t: maintenant, ...pos });
       if (l.length > 400) l.splice(0, l.length - 400);
-      if (cadenceSoutenue(l, maintenant)) { signale.current = true; onAutoclic(); return; }
+      if (autoclicSuspect(l, maintenant)) { signale.current = true; onAutoclic(); return; }
     }
     sq.jetons = Math.min(FRAPPES_RAFALE, sq.jetons + ((maintenant - sq.t) * FRAPPES_MAX) / 1000);
     sq.t = maintenant;
