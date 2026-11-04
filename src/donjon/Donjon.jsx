@@ -109,7 +109,7 @@ function CarteDJ({ c, u = null, partie = null, rainbow = false, cfgImage, fichie
   return (
     <div className={`dj-carte cardbox${u?.etoiles ? " star" : ""}${u?.etoiles && Object.keys(u.etoiles).length === 4 ? " star-pleine" : ""}`}>
       {u?.camp === "a" && u.etoiles && <EtoilesCarte n={Object.keys(u.etoiles).length} petit />}
-      <div className="dj-face"><FaceCarte c={rainbow ? { ...c, rainbow: true } : c.image ? { ...c, urlLigne: `${import.meta.env.BASE_URL}${c.image}` } : c} cfgImage={cfg} fichiers={fichiers} vignette /></div>
+      <div className="dj-face"><FaceCarte c={rainbow ? { ...c, rainbow: true } : avecImageLocale(c)} cfgImage={cfg} fichiers={fichiers} vignette /></div>
       {u && (
         <span className="dj-etats" aria-hidden="true">
           <i className="e-saigne"><b /><b /><b /></i><i className="e-marque" /><i className="e-piege" /><i className="e-voile" />
@@ -271,8 +271,11 @@ const etatsDe = (u) => [
   u.riposte > 0 && "etat-garde", u.parade > 0 && "etat-bouclier", u.provoque && "etat-provoque", u.galva > 0 && "etat-galva",
 ].filter(Boolean).map((x) => ` ${x}`).join("");
 
+/** Les cartes hors collection (mimiques) portent leur image dans le site : on la sert telle quelle. */
+const avecImageLocale = (c) => (c.image ? { ...c, urlLigne: `${import.meta.env.BASE_URL}${c.image}` } : c);
+
 function Jeton({ u, cls = "", cfgImage, fichiers }) {
-  const src = resoudreImage(u.c, { ...cfgImage, extension: u.c.ext }, fichiers, { vignette: true });
+  const src = resoudreImage(avecImageLocale(u.c), { ...cfgImage, extension: u.c.ext }, fichiers, { vignette: true });
   const [rate, setRate] = useState(false);
   return (
     <span className={`dj-jeton ${u.camp} ${cls}`} data-uid={u.uid} data-camp={u.camp} title={`${u.nomAffiche || u.c.nom} — initiative ${u.ini}`}>

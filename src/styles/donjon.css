@@ -197,7 +197,9 @@
 .dj-jeton { position: relative; flex: 0 0 auto; width: 34px; height: 34px; border-radius: 50%;
   display: grid; place-items: center; background: #14304c; border: 2px solid var(--m-chene);
   font-family: var(--font-display); font-weight: 800; font-size: 12px; color: #9dc2e0; transition: width .2s, height .2s; }
-.dj-jeton img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 30%; border-radius: 50%; }
+/* Posée hors de la grille : en flux, la hauteur à 100 % se résolvait sur la
+   taille naturelle de la vignette et le portrait débordait du rond. */
+.dj-jeton img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 30%; border-radius: 50%; }
 .dj-jeton.e { border-color: #8a3a2a; background: #2a1512; color: #e7a58e; }
 .dj-jeton.actif { width: 42px; height: 42px; border-color: var(--lamp); box-shadow: 0 0 0 3px rgba(232,163,61,.25); }
 .dj-jeton.passe { opacity: .35; }
