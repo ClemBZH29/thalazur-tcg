@@ -104,7 +104,9 @@ export default function Vitrine({ mouvementReduit = false }) {
             aria-label={`${i + 1} sur ${AFFICHES.length} : ${a.etiquette}`} aria-hidden={i !== actif || undefined}>
             {a.note
               ? <button type="button" className="vt-lien" tabIndex={i === actif ? 0 : -1} onClick={() => setNote(true)}><Affiche a={a} /></button>
-              : <Lien vers={a.vers} className="vt-lien" actif={false} tabIndex={i === actif ? 0 : -1}><Affiche a={a} /></Lien>}
+              : a.lien
+                ? <a href={a.lien} className="vt-lien" target="_blank" rel="noopener noreferrer" tabIndex={i === actif ? 0 : -1}><Affiche a={a} /></a>
+                : <Lien vers={a.vers} className="vt-lien" actif={false} tabIndex={i === actif ? 0 : -1}><Affiche a={a} /></Lien>}
           </div>
         ))}
       </div>

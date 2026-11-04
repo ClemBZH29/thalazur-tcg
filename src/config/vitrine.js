@@ -1,14 +1,18 @@
 /**
  * La vitrine de l'accueil (1.1.0) : un carrousel d'affiches, chacune vers
  * son module. L'affiche des notes de version ouvre la note au lieu de
- * changer de page (`note`).
+ * changer de page (`note`) ; celle du Discord ouvre l'invitation dans un
+ * nouvel onglet (`lien`). Une affiche à lien vide ne s'affiche pas.
  *
  * `image` : l'affiche, sous public/accueil/ (16:9, sans texte : le titre est
  * posé par la page, prompts dans docs/conception/prompts-vitrine.json).
  * Tant qu'elle manque, l'affiche se compose d'un fond teinté (`teinte`) et du
  * personnage du module (`repli`), déjà livré avec le site.
  */
-export const AFFICHES = [
+/** L'invitation au serveur Discord de la communauté. Vide : l'affiche se tait. */
+export const INVITATION_DISCORD = "";
+
+const TOUTES = [
   {
     id: "notes", note: true, etiquette: "Mise à jour 1.1.0", titre: "Les coffres ont des dents",
     texte: "Mimiques, Mirko qui rachète vos reliques, un Donjon tout en PO. Lire la note de version.",
@@ -29,4 +33,11 @@ export const AFFICHES = [
     texte: "Chaque jour, des acheteurs aux goûts différents : vendez vos doublons, achetez la carte qui manque.",
     image: "accueil/affiche-comptoir.webp", repli: "comptoir/lise.webp", teinte: "#2a3b2a",
   },
+  {
+    id: "discord", lien: INVITATION_DISCORD, etiquette: "La communauté", titre: "Bodégué vous attend sur Discord",
+    texte: "Annonces, entraide, échanges et signalements de bugs : rejoignez les autres joueurs.",
+    image: "accueil/affiche-discord.webp", repli: "missions/bodegue-content.webp", teinte: "#3a2f5a",
+  },
 ];
+
+export const AFFICHES = TOUTES.filter((a) => a.lien === undefined || a.lien);
